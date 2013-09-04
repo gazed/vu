@@ -1,4 +1,6 @@
 vu
 ==
 
-Virtual Universe 3D Engine
+Virtual Universe 3D Engine.
+
+Preparing for upload.
