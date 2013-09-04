@@ -1,0 +1,8 @@
+body { margin:20px; padding:0px; font-family: "Lucida Sans Unicode", "Lucida Grande", Sans-Serif; font-size: 12px; line-height: 1.6em; }
+h1 a, h2 a, h3 a { display: block; background-color:#2C5463; color:white; text-decoration: none; }
+#TOC { position:fixed; width:30%; background-color:#2C5463; }
+#TOC ul { padding:10px; }
+#TOC ul li { list-style:none; }
+#TOC a { display: block; text-decoration: none; background: #2C5463; color: #ffffff;  white-space: nowrap; text-align:left; padding:0; margin:0; height:20px; }
+#TOC a:hover { background: #617F8A; }
+section.level2 { position: relative; left: 35%; width: 60%; }

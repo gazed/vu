@@ -1,0 +1,95 @@
+/* Copyright (c) 2012-2013 All Rights Reserved, Galvanized Logic Inc. */
+
+body {
+	margin:50px;
+	padding:0px;
+	font-family: "Lucida Sans Unicode", "Lucida Grande", Sans-Serif;
+	font-size: 12px;
+	line-height: 1.6em;
+}
+
+h1 a, h2 a, h3 a {
+	color:black;
+	text-decoration: none;
+}
+
+/* Layout ========================================================================*/
+
+nav, #TOC {
+	position:fixed;
+	width:250px;
+	height:150px;
+	background-color:#2C5463;
+}
+#TOC { background-color:#2C5450; }
+#TOC {
+	top:150px;
+	height:100%;
+}
+
+nav a, #TOC a {
+	display: block;
+	text-decoration: none;
+	padding: 7px 15px 3px 15px;
+	background: #2C5463;
+	color: #ffffff;  
+	margin-left: 1px;
+	white-space: nowrap;
+	height:30px; 
+	text-align:left;
+}
+
+#TOC a {
+	padding:0;
+	margin:0;
+	height:20px;
+	background: #2C5450;
+}
+
+nav a:hover, #TOC a:hover { 
+	background: #617F8A; 
+}
+
+#TOC ul { padding:15px; }
+#TOC ul li { list-style:none; }
+
+section.level1 {
+	position: relative;
+	left: 270px;
+	width: 80%;
+}
+
+section.level2 {
+	position: relative;
+	width: 80%;
+}
+
+/* Tables ========================================================================*/
+
+table {
+	font-family: "Lucida Sans Unicode", "Lucida Grande", Sans-Serif;
+	font-size: 12px;
+	background: #fff;
+	margin: 45px;
+	width: 80%;
+	border-collapse: collapse;
+	text-align: left;
+}
+
+th {
+	font-size: 14px;
+	font-weight: normal;
+	color: #039;
+	padding: 10px 8px;
+	border-bottom: 2px solid #6678b1;
+}
+
+td {
+	color: #669;
+	padding: 9px 8px 0px 8px;
+	vertical-align: top;
+}
+
+tbody tr:hover td {
+	color: #009;
+}

@@ -1,0 +1,71 @@
+<!-- Copyright © 2013 Galvanized Logic Inc. -->
+<!-- Use is governed by a FreeBSD license found in the LICENSE file. -->
+
+Buildout
+========
+
+Buildout stages the amount of work necessary for a game engine from simple 
+beginings to a viable platform.  The stages are not definitive nor authoritative. 
+They are just reminders that there is always more to do.
+
+At this point in time the vu engine is at stage 1 which is really the minimum needed
+to get very simple 3D environments.  This is a mere skeleton of a full game engine. 
+
+Keep in mind that the more an engine does, the more it may restrict the types of 
+applications that can be created with it. There will likely need to be 
+different engines for:
+
+* MMO's.
+* First person shooters.
+* Top view strategy games.
+* Scientific modelling.
+
+Common advice for 3D engines is to decide the application you want first, then develop
+the engine that will support it. 
+
+Tech Buildout - Stage I
+-----------------------
+
+Enough to create a single 3D player game with randomly generated levels. 
+Think pac-man, tetris (arcade) level of complexity. 
+
+* Simple 3D model input and rendering.
+* Simple physics with collision detection for a few basic shapes. 
+* Keyboard/mouse controls limited to the most common keys. 
+* 2D Overlay (HUD) e.g. show health, level number, location of player and AI opponents. 
+* Limited data input formats.
+* Basic AI's.
+* Random level generation (no set levels with detailed modeling and lighting).
+
+Tech Buildout - Stage II
+------------------------
+
+Multiplayer 3D game with interior or exterior set levels and full 
+player models with skeletons. Stage II corresponds with most production or 
+commercial 3D engines.
+
+* Multiplayer networking.  Note the additional problems when adding networked play:
+
+    * choice of client/server or peer-2-peer multicast.
+    * lag, including players with slower connections.
+    * cheating.
+    * scoring, including the need for ranking servers.
+    * friends lists.
+    * available games lists.
+
+* Full Physics. A complete and easy to use physics engine implementation. This includes 
+  the use of GPGPU physics if supported by the graphics card. 
+* Model, skeleton and animation system.
+* Game Editor. Any real engine provides an associated game editor.
+* Particle System with pre-canned particle effects.
+* Multiple data input formats.
+* Lighting and shadow support.
+
+Tech Buildout - Stage III
+-------------------------
+
+This considers the top end future of 3D platforms.
+
+* Multiplayer adaptive is the ability to scale to a large (ideally unlimited number of players).
+* Peer to peer real time model, terrain, and texture sharing.
+* Raytracing as on optional rendering layer instead of OpenGL or DirectX.
