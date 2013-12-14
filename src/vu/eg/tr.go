@@ -11,38 +11,40 @@ import (
 	"vu/data"
 	"vu/device"
 	"vu/math/lin"
+	"vu/render"
 	"vu/render/gl"
 )
 
-// tr demonstrates basic OpenGL by drawing a triangle.  If anything this example
+// tr demonstrates basic OpenGL by drawing a triangle. If anything this example
 // shows that basic OpenGL is not all that basic. Check out the following methods:
-//     - initData() creates a triangle mesh that includes vertex points, faces, and colours.
-//     - initScene() makes the data available to the graphics card.
+//     - initData()   creates a triangle mesh that includes vertex points, faces, and colours.
+//     - initScene()  makes the data available to the graphics card.
 //     - initShader() uses render.BindProgram to load and prepare the shader programs.
-//     - drawScene() is called to render and spin the triangle.
+//     - drawScene()  is called to render and spin the triangle.
 func tr() {
-	tag := new(trtag)
+	tag := &trtag{}
 	dev := device.New("Triangle", 400, 100, 600, 600)
 	tag.initScene()
 	dev.Open()
-	tag.Resize(600, 600)
+	tag.resize(600, 600)
 	for dev.IsAlive() {
-		dev.ReadAndDispatch()
+		dev.Update()
 		tag.drawScene()
 		dev.SwapBuffers()
 	}
 	dev.Dispose()
 }
 
-// Globally unique "tag" for this example.
-// Also hides any variables shared between methods in this example.
+// Globally unique "tag" that encapsulates example specific data.
 type trtag struct {
 	shaders     uint32
 	vao         uint32
-	rotateAngle float32
+	rotateAngle float64
 	mvpRef      int32
-	mvp         *lin.M4
-	lastTime    time.Time
+	persp       *lin.M4    // Perspective matrix.
+	mvp64       *lin.M4    // Scratch for transform calculations.
+	mvp32       *render.M4 // Passed to graphics layer.
+	lastTime    time.Time  // Controls triangle rotation speed.
 
 	// mesh information
 	points []float32
@@ -76,17 +78,17 @@ func (tag *trtag) initData() {
 	}
 }
 
-func (tag *trtag) Resize(width int, height int) {
+// resize sets the view port size.  User resizes are ignored.
+func (tag *trtag) resize(width int, height int) {
 	gl.Viewport(0, 0, int32(width), int32(height))
-	tag.mvp = lin.M4Perspective(60, float32(width)/float32(height), 0.1, 50)
+	tag.persp = lin.NewPersp(60, float64(width)/float64(height), 0.1, 50)
 }
 
-////////////////////////////////////////////////////
-// the rest is OpenGL initialization and drawing.
-////////////////////////////////////////////////////
-
-// Create a single VAO
+// initScene is one time initialization that creates a single VAO
 func (tag *trtag) initScene() {
+	tag.mvp64 = lin.NewM4()
+	tag.mvp32 = &render.M4{}
+	tag.persp = lin.NewPersp(60, float64(600)/float64(600), 0.1, 50)
 	tag.initData()
 
 	// Bind the OpenGL calls and dump some version info.
@@ -126,15 +128,6 @@ func (tag *trtag) initScene() {
 	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, ebuff)
 	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, int64(len(tag.faces)), gl.Pointer(&(tag.faces[0])), gl.STATIC_DRAW)
 
-	tag.mvp = lin.M4Perspective(60, float32(600)/float32(600), 0.1, 50)
-	rot := lin.QAxisAngle(&lin.V3{0, 1, 0}, tag.rotateAngle).M4()
-	modelView := rot.Mult(lin.M4Translater(0, 0, -4))
-	modelViewProj := modelView.Mult(tag.mvp)
-	gl.UniformMatrix4fv(tag.mvpRef, 1, false, modelViewProj.Pointer())
-	if err := gl.GetError(); err != 0 {
-		fmt.Printf("gl.UniformMatrix error %d\n", err)
-	}
-
 	// set some state that doesn't need to change during drawing.
 	gl.ClearColor(0.0, 0.0, 0.0, 1.0)
 	gl.Enable(gl.DEPTH_TEST)
@@ -142,7 +135,7 @@ func (tag *trtag) initScene() {
 	gl.CullFace(gl.BACK)
 }
 
-// Compile shaders and link to a program.
+// initShader compiles shaders and links them into a shader program.
 func (tag *trtag) initShader() {
 	shader := &data.Shader{}
 	loader := data.NewLoader()
@@ -157,7 +150,7 @@ func (tag *trtag) initShader() {
 	}
 }
 
-// Draw the scene consisting of one VAO
+// drawScene renders the 3D models consisting of one VAO
 func (tag *trtag) drawScene() {
 	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 	tag.checkError("gl.Clear")
@@ -167,10 +160,11 @@ func (tag *trtag) drawScene() {
 	tag.checkError("gl.BindVertexArray")
 
 	// Use a modelview matrix and quaternion to rotate the 3D object.
-	rot := lin.QAxisAngle(&lin.V3{0, 1, 0}, tag.rotateAngle).M4()
-	modelView := rot.Mult(lin.M4Translater(0, 0, -4))
-	modelViewProj := modelView.Mult(tag.mvp)
-	gl.UniformMatrix4fv(tag.mvpRef, 1, false, modelViewProj.Pointer())
+	tag.mvp64.SetQ(lin.NewQ().SetAa(0, 1, 0, lin.Rad(-tag.rotateAngle)))
+	tag.mvp64.TranslateMT(0, 0, -4)
+	tag.mvp64.Mult(tag.mvp64, tag.persp)
+	tag.mvp32 = renderMatrix(tag.mvp64, tag.mvp32)
+	gl.UniformMatrix4fv(tag.mvpRef, 1, false, tag.mvp32.Pointer())
 	if err := gl.GetError(); err != 0 {
 		fmt.Printf("gl.UniformMatrix error %d\n", err)
 	}
@@ -192,6 +186,7 @@ func (tag *trtag) drawScene() {
 	}
 }
 
+// checkError helps to debug OpenGL errors by printing out when the occur.
 func (tag *trtag) checkError(txt string) {
 	cnt := 0
 	err := gl.GetError()

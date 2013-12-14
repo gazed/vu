@@ -1,19 +1,18 @@
 // Copyright © 2013 Galvanized Logic Inc.
 // Use is governed by a FreeBSD license found in the LICENSE file.
 
-// Package al provides the golang bindings for the OpenAL audio library. OpenAL
-// is available for, or already on, most operating systems.  The official OpenAL
-// documentation can be found online by prepending "AL_" to the function or constants
-// found in this package.
+// Package al provides a golang audio library based on OpenAL. Official OpenAL
+// documentation can be found online. Just prepend "AL_" to the function
+// or constants found in this package.
 //
-// These bindings were created based on the OpenAL header files found at:
+// These bindings were based on the OpenAL header files found at:
 //   http://repo.or.cz/w/openal-soft.git/blob/6dab9d54d1719105e0183f941a2b3dd36e9ba902:/include/AL/al.h
 //   http://repo.or.cz/w/openal-soft.git/blob/6dab9d54d1719105e0183f941a2b3dd36e9ba902:/include/AL/alc.h
 // Refer to the orginal header files and official OpenAL documentation for more information.
 package al
 
 // #cgo darwin  LDFLAGS: -framework OpenAL
-// #cgo linux   LDFLAGS: -lAL
+// #cgo linux   LDFLAGS: -lopenal -ldl
 // #cgo windows LDFLAGS: -lOpenAL32
 //
 // #include <stdlib.h>
@@ -23,12 +22,13 @@ package al
 // #define WIN32_LEAN_AND_MEAN 1
 // #include <windows.h>
 // #else
-// #include <X11/Xlib.h>
-// #include <GL/glx.h>
+// #include <dlfcn.h>
 // #endif
 //
 // #ifdef _WIN32
 // static HMODULE hmod = NULL;
+// #elif !defined __APPLE__
+// static void* plib = NULL;
 // #endif
 //
 // // Helps bind function pointers to c functions.
@@ -40,6 +40,11 @@ package al
 // 		hmod = LoadLibraryA("OpenAL32.dll");
 // 	}
 // 	return GetProcAddress(hmod, (LPCSTR)name);
+// #else
+// 	if(plib == NULL) {
+// 		plib = dlopen("libopenal.so", RTLD_LAZY);
+// 	}
+// 	return dlsym(plib, name);
 // #endif
 // }
 //
@@ -827,7 +832,7 @@ func BindingReport() (report []string) {
 // isBound returns a string that indicates if the given function
 // pointer is bound.
 func isBound(pfn unsafe.Pointer, fn string) string {
-	inc := "-"
+	inc := " "
 	if pfn != nil {
 		inc = "+"
 	}

@@ -6,45 +6,47 @@ package render
 // shaders provides ready made shaders. These can be overridden with shader
 // files from disk.
 //
-// TODO figure out how to incorporate some (all?) of the blend algorithms from
-//      http://devmaster.net/posts/3040/shader-effects-blend-modes
-//      How do other engines handle/blend multiple textures?
+// FUTURE: figure out how to incorporate some (all?) of the blend algorithms
+//         from http://devmaster.net/posts/3040/shader-effects-blend-modes
+//         How do other engines handle/blend multiple textures?
 
 import (
 	"vu/data"
 )
 
-// CreateShader creates one of the known shaders.  This is expected to be used by
+// CreateShader creates one of the known shaders. This is expected to be used by
 // eng.LoadShader when a shader is not already in the cache. Nil is returned for
-// unrecognized shaders.  This function contains the list of official shader names.
-func CreateShader(shaderName string) *data.Shader {
+// unrecognized shaders. This function contains the list of official shader names.
+func CreateShader(shaderName string, sh *data.Shader) {
+	sh.Name = shaderName
 	switch shaderName {
 	case "flat":
-		return flatShader(shaderName)
+		flatShader(sh)
 	case "flata":
-		return flataShader(shaderName)
+		flataShader(sh)
 	case "gouraud":
-		return gouraudShader(shaderName)
+		gouraudShader(sh)
 	case "phong":
-		return phongShader(shaderName)
+		phongShader(sh)
 	case "uv":
-		return uvShader(shaderName)
+		uvShader(sh)
 	case "uva":
-		return uvaShader(shaderName)
+		uvaShader(sh)
 	case "uvra":
-		return uvraShader(shaderName)
+		uvraShader(sh)
 	case "uvm":
-		return uvmShader(shaderName)
+		uvmShader(sh)
 	case "wave":
-		return waveShader(shaderName)
+		waveShader(sh)
 	case "bb":
-		return bbShader(shaderName)
+		bbShader(sh)
 	case "bba":
-		return bbaShader(shaderName)
+		bbaShader(sh)
 	case "bbra":
-		return bbraShader(shaderName)
+		bbraShader(sh)
+	default:
+		sh.Name = "" // couldn't find the shader.
 	}
-	return nil
 }
 
 // ===========================================================================
@@ -55,8 +57,7 @@ func CreateShader(shaderName string) *data.Shader {
 //                   The polygon has only one normal and the only part of the above
 //                   algorithm used is:
 //                            diffuse*(normal . light-direction)
-func flatShader(name string) *data.Shader {
-	sh := &data.Shader{Name: name}
+func flatShader(sh *data.Shader) {
 	sh.Vsh = []string{
 		"#version 150",
 		"in      vec4  in_v;",  // vertex coordinates
@@ -82,15 +83,14 @@ func flatShader(name string) *data.Shader {
 		"kd":    -1,
 		"alpha": -1,
 	}
-	return sh
 }
 
 // ===========================================================================
 
 // flataShader is a flat shader that fades an object out based on
 // distance from the viewer.
-func flataShader(name string) *data.Shader {
-	sh := flatShader(name)
+func flataShader(sh *data.Shader) {
+	flatShader(sh)
 	sh.Fsh = []string{
 		"#version 150",
 		"in      vec4  v_c;", // color from vertex shader
@@ -108,7 +108,6 @@ func flataShader(name string) *data.Shader {
 		"}",
 	}
 	sh.Uniforms["fd"] = -1
-	return sh
 }
 
 // ===========================================================================
@@ -119,8 +118,7 @@ func flataShader(name string) *data.Shader {
 //
 // Gouraud Shading : The algorithm is used to calculate a colour at each vertex.
 //                   The colours are then interpolated across the polygon.
-func gouraudShader(name string) *data.Shader {
-	sh := &data.Shader{Name: name}
+func gouraudShader(sh *data.Shader) {
 	sh.Vsh = []string{
 		"#version 150",
 		"in      vec4  in_v;",  // vertex coordinates
@@ -160,7 +158,6 @@ func gouraudShader(name string) *data.Shader {
 		"kd":    -1,
 		"alpha": -1,
 	}
-	return sh
 }
 
 // ===========================================================================
@@ -171,8 +168,7 @@ func gouraudShader(name string) *data.Shader {
 // Phong Shading   : The full algorithm is calculated at each point.  This is done
 //                   by having a normal at each vertex and interpolating the normals
 //                   across the polygon.
-func phongShader(name string) *data.Shader {
-	sh := &data.Shader{Name: name}
+func phongShader(sh *data.Shader) {
 	sh.Vsh = []string{
 		"#version 150",
 		"in      vec4  in_v;",  // vertex coordinates
@@ -194,13 +190,13 @@ func phongShader(name string) *data.Shader {
 		"   vec3 v = normalize(-eyeCoords.xyz);",
 		"   vec3 r = reflect( -s, norm );",
 		"   ",
-		"   vec3 la = vec3(1.0);", // TODO make la a uniform.
+		"   vec3 la = vec3(1.0);", // FUTURE make la a uniform.
 		"   vec3 ambient = la * ka;",
 		"   float sDotN = max( dot(s,norm), 0.0 );",
 		"   vec3 diffuse = ld * kd * sDotN;",
 		"   vec3 spec = vec3(0.0);",
-		"   float shininess = 3.0;", // TODO make shininess a uniform.",
-		"   vec3 ls = vec3(1.0);",   // TODO make ls a uniform.",
+		"   float shininess = 3.0;", // FUTURE make shininess a uniform.",
+		"   vec3 ls = vec3(1.0);",   // FUTURE make ls a uniform.",
 		"   if( sDotN > 0.0 )",
 		"      spec = ls * ks * pow( max( dot(r,v), 0.0 ), shininess );",
 		"   ",
@@ -228,14 +224,12 @@ func phongShader(name string) *data.Shader {
 		"ks":    -1,
 		"alpha": -1,
 	}
-	return sh
 }
 
 // ===========================================================================
 
 // uvShader handles a single texture.
-func uvShader(name string) *data.Shader {
-	sh := &data.Shader{Name: name}
+func uvShader(sh *data.Shader) {
 	sh.Vsh = []string{
 		"#version 150",
 		"in      vec4  in_v;", // vertex coordinates
@@ -262,15 +256,14 @@ func uvShader(name string) *data.Shader {
 		"alpha": -1,
 		"uv":    -1,
 	}
-	return sh
 }
 
 // ===========================================================================
 
 // uvaShader is a uvshader that fades an object out based on distance
 // from the viewer.
-func uvaShader(name string) *data.Shader {
-	sh := uvShader(name)
+func uvaShader(sh *data.Shader) {
+	uvShader(sh)
 	sh.Fsh = []string{
 		"#version 150",
 		"in      vec2      t_uv;",
@@ -290,15 +283,14 @@ func uvaShader(name string) *data.Shader {
 		"}",
 	}
 	sh.Uniforms["fd"] = -1
-	return sh
 }
 
 // ===========================================================================
 
-// uvraShader is a uvshader that rotates the texuture over time.  It also
+// uvraShader is a uvshader that rotates the texuture over time. It also
 // fades an object out based on distance from the viewer.
-func uvraShader(name string) *data.Shader {
-	sh := uvShader(name)
+func uvraShader(sh *data.Shader) {
+	uvShader(sh)
 	sh.Fsh = []string{
 		"#version 150",
 		"in      vec2      t_uv;",
@@ -325,14 +317,13 @@ func uvraShader(name string) *data.Shader {
 	sh.Uniforms["fd"] = -1
 	sh.Uniforms["time"] = -1
 	sh.Uniforms["rs"] = -1
-	return sh
 }
 
 // ===========================================================================
 
-// uvmShader is a white mask uvshader.  This is used to get a white + alpha.
-func uvmShader(name string) *data.Shader {
-	sh := uvShader(name)
+// uvmShader is a white mask uvshader. This is used to get a white + alpha.
+func uvmShader(sh *data.Shader) {
+	uvShader(sh)
 	sh.Fsh = []string{
 		"#version 150",
 		"in      vec2      t_uv;",
@@ -350,22 +341,20 @@ func uvmShader(name string) *data.Shader {
 		"mvpm": -1,
 		"uv":   -1,
 	}
-	return sh
 }
 
 // ===========================================================================
 
 // bbShader is a billboard shader. Like a uv shader it renders a single texture
-// but forces the textured object to always face the camera.  See
+// but forces the textured object to always face the camera. See
 //     http://www.lighthouse3d.com/opengl/billboarding/billboardingtut.pdf
-func bbShader(name string) *data.Shader {
-	sh := &data.Shader{Name: name}
+func bbShader(sh *data.Shader) {
 	sh.Vsh = []string{
 		"#version 150",
 		"in      vec4  in_v;",  // vertex coordinates
 		"in      vec2  in_t;",  // texture coordinates
 		"uniform mat4  mvpm;",  // projection * model_view
-		"uniform float scale;", // scale
+		"uniform vec3  scale;", // scale
 		"out     vec2  t_uv;",  // pass uv coordinates through
 		"void main() {",
 		"   mat4 bb = mvpm;",
@@ -400,15 +389,14 @@ func bbShader(name string) *data.Shader {
 		"scale": -1,
 		"uv":    -1,
 	}
-	return sh
 }
 
 // ===========================================================================
 
 // bbaShader is a billboard shader that fades an object out based on distance
 // from the viewer.
-func bbaShader(name string) *data.Shader {
-	sh := bbShader(name)
+func bbaShader(sh *data.Shader) {
+	bbShader(sh)
 	sh.Fsh = []string{
 		"#version 150",
 		"in      vec2      t_uv;",
@@ -428,15 +416,14 @@ func bbaShader(name string) *data.Shader {
 		"}",
 	}
 	sh.Uniforms["fd"] = -1
-	return sh
 }
 
 // ===========================================================================
 
-// bbraShader is a billboard shader that rotates the texture over time.  It also
+// bbraShader is a billboard shader that rotates the texture over time. It also
 // fades an object out based on distance from the viewer.
-func bbraShader(name string) *data.Shader {
-	sh := bbShader(name)
+func bbraShader(sh *data.Shader) {
+	bbShader(sh)
 	sh.Fsh = []string{
 		"#version 150",
 		"in      vec2      t_uv;",  // texture coordinates from vertex shader
@@ -463,15 +450,13 @@ func bbraShader(name string) *data.Shader {
 	sh.Uniforms["fd"] = -1
 	sh.Uniforms["time"] = -1
 	sh.Uniforms["rs"] = -1
-	return sh
 }
 
 // ===========================================================================
 
 // waveShader is a fragment only effect shader.
 // This is a modified version of http://glsl.heroku.com/e#8397.0
-func waveShader(name string) *data.Shader {
-	sh := &data.Shader{Name: name}
+func waveShader(sh *data.Shader) {
 	sh.Vsh = []string{
 		"#version 150",
 		"in      vec4  in_v;", // vertex coordinates
@@ -513,5 +498,4 @@ func waveShader(name string) *data.Shader {
 		"time":       -1,
 		"resolution": -1,
 	}
-	return sh
 }

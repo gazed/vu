@@ -8,46 +8,60 @@ import (
 	"vu/data"
 	"vu/device"
 	"vu/math/lin"
+	"vu/render"
 	"vu/render/gl"
 )
 
-// ld tests and demonstrates loading a mesh model that has been exported from
-// another tool - a .obj file from Blender in this case. Its really testing the
+// ld loads a mesh model that has been exported from another tool -
+// a .obj file from Blender in this case. It is really testing the
 // "data" package with the key line being:
 //        loader.Load("monkey", &mesh)
 //
-// This example relies on the basic OpenGL calls from package "vu/render/gl" to render
-// the imported mesh.
+// This also demonstrates basic rendering by using OpenGL calls from
+// package "vu/render/gl" to render the imported mesh.
 func ld() {
 	ld := &ldtag{}
-	dev := device.New("Monkey", 400, 100, 800, 600)
-	dev.SetResizer(ld)
+	dev := device.New("Load Model", 400, 100, 800, 600)
 	ld.initScene()
 	dev.Open()
 	for dev.IsAlive() {
-		dev.ReadAndDispatch()
+		ld.update(dev)
 		ld.render()
 		dev.SwapBuffers()
 	}
 	dev.Dispose()
 }
 
-// Globally unique "tag" for this example.
-// Also hides any variables shared between methods in this example.
+// Globally unique "tag" that encapsulates example specific data.
 type ldtag struct {
 	shaders   uint32
 	vao       uint32
 	mvpref    int32
-	mvp       *lin.M4
+	persp     *lin.M4    // perspective matrix.
+	mvp64     *lin.M4    // scratch for transform calculations.
+	mvp32     *render.M4 // passed to graphics layer.
 	faceCount int32
 }
 
-func (ld *ldtag) Resize(w, y, width, height int) {
-	gl.Viewport(0, 0, int32(width), int32(height))
-	ld.mvp = lin.M4Perspective(60, float32(width)/float32(height), 0.1, 50)
+// update handles user input
+func (ld *ldtag) update(dev device.Device) {
+	pressed := dev.Update()
+	if pressed.Resized {
+		ld.resize(dev.Size())
+	}
 }
 
+// resize handles user screen/window changes.
+func (ld *ldtag) resize(x, y, width, height int) {
+	gl.Viewport(0, 0, int32(width), int32(height))
+	ld.persp = lin.NewPersp(60, float64(width)/float64(height), 0.1, 50)
+}
+
+// initScene is called once on startup to load the 3D data.
 func (ld *ldtag) initScene() {
+	ld.persp = lin.NewM4()
+	ld.mvp64 = lin.NewM4()
+	ld.mvp32 = &render.M4{}
 	gl.Init()
 	mesh := &data.Mesh{}
 	loader := data.NewLoader()
@@ -88,10 +102,10 @@ func (ld *ldtag) initScene() {
 	gl.Enable(gl.CULL_FACE)
 
 	// set the initial perspetive matrix.
-	ld.Resize(0, 0, 800, 600)
+	ld.resize(0, 0, 800, 600)
 }
 
-// Compile shaders and link to a program.
+// initShader compiles shaders and links them into a shader program.
 func (ld *ldtag) initShader() {
 	shader := &data.Shader{}
 	loader := data.NewLoader()
@@ -108,16 +122,17 @@ func (ld *ldtag) initShader() {
 	}
 }
 
-// Draw the scene consisting of one VAO
+// render draws the scene consisting of one VAO
 func (ld *ldtag) render() {
 	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 	gl.UseProgram(ld.shaders)
 	gl.BindVertexArray(ld.vao)
 
-	// Use a modelview and projection matrix
-	modelView := lin.M4Scaler(0.5, 0.5, 0.5).Mult(lin.M4Translater(0, 0, -2))
-	modelViewProj := modelView.Mult(ld.mvp)
-	gl.UniformMatrix4fv(ld.mvpref, 1, false, modelViewProj.Pointer())
+	// use a model-view-projection matrix
+	ld.mvp64.Set(lin.M4I).ScaleSM(0.5, 0.5, 0.5).TranslateMT(0, 0, -2)
+	ld.mvp64.Mult(ld.mvp64, ld.persp)
+	v3 := renderMatrix(ld.mvp64, ld.mvp32)
+	gl.UniformMatrix4fv(ld.mvpref, 1, false, v3.Pointer())
 	gl.CullFace(gl.BACK)
 	gl.DrawElements(gl.TRIANGLES, ld.faceCount, gl.UNSIGNED_SHORT, gl.Pointer(nil))
 

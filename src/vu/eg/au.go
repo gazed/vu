@@ -4,6 +4,7 @@
 package main
 
 import (
+	"log"
 	"time"
 	"vu/audio/al"
 	"vu/data"
@@ -35,7 +36,7 @@ func au() {
 			loader := data.NewLoader()
 			loader.Load("bloop", &sound)
 			if sound == nil {
-				println("au: error loading audio file", "bloop")
+				log.Printf("au: error loading audio file", "bloop")
 				return
 			}
 
@@ -43,7 +44,7 @@ func au() {
 			tag := &autag{}
 			format := tag.audioFormat(sound)
 			if format < 0 {
-				println("au: error recognizing audio format")
+				log.Printf("au: error recognizing audio format")
 				return
 			}
 			al.BufferData(buffer, int32(format), al.Pointer(&(sound.AudioData[0])), int32(sound.DataSize), int32(sound.Frequency))
@@ -53,7 +54,7 @@ func au() {
 
 			// check for any audio library errors that have happened up to this point.
 			if err := al.GetError(); err != 0 {
-				println("au: OpenAL error ", err)
+				log.Printf("au: OpenAL error ", err)
 				return
 			}
 
@@ -62,9 +63,9 @@ func au() {
 			time.Sleep(500 * time.Millisecond)
 			return
 		}
-		println("au: error, failed to get a context")
+		log.Printf("au: error, failed to get a context")
 	}
-	println("au: error, failed to get a device")
+	log.Printf("au: error, failed to get a device")
 }
 
 // Globally unique "tag" for this example.

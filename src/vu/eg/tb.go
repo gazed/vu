@@ -10,33 +10,36 @@ import (
 	"vu/data"
 	"vu/device"
 	"vu/math/lin"
+	"vu/render"
 	"vu/render/gl"
 )
 
 // tb shows how a basic texture is used in OpenGL.  One texture is loaded and
 // rendered on a single mesh. This example is useful in understanding texture
 // basics.
+//
+// This also demonstrates basic rendering by using OpenGL calls from
+// package "vu/render/gl" for rendering.
 func tb() {
 	tb := new(tbtag)
 	dev := device.New("Texture:Basic", 400, 100, 500, 500)
-	dev.SetResizer(tb)
 	tb.initScene()
 	dev.Open()
 	for dev.IsAlive() {
-		dev.ReadAndDispatch()
+		tb.update(dev)
 		tb.drawScene()
 		dev.SwapBuffers()
 	}
 	dev.Dispose()
 }
 
-// Globally unique "tag" for this example.
-// Also hides any variables shared between methods in this example.
+// Globally unique "tag" that encapsulates example specific data.
 type tbtag struct {
 	shaders uint32
 	vao     uint32
-	mvpref  int32 // mvp uniform id
-	mvp     *lin.M4
+	mvpref  int32         // mvp uniform id
+	ortho   *lin.M4       // perspective matrix.
+	mvp32   *render.M4    // passed to graphics layer.
 	sampler int32         // sampler uniform id
 	texture *data.Texture // the picture to show.
 
@@ -46,15 +49,22 @@ type tbtag struct {
 	tcoords []float32
 }
 
-func (tb *tbtag) Resize(x, y, width, height int) {
+// update handles user input.
+func (tb *tbtag) update(dev device.Device) {
+	pressed := dev.Update()
+	if pressed.Resized {
+		tb.resize(dev.Size())
+	}
+}
+
+// resize handles user screen/window changes.
+func (tb *tbtag) resize(x, y, width, height int) {
 	gl.Viewport(0, 0, int32(width), int32(height))
 }
 
-//=============================================================================
-// the rest is OpenGL initialization and drawing.
-
-// Create a single VAO
+// initScene is one time initialization that creates a single VAO
 func (tb *tbtag) initScene() {
+	tb.mvp32 = &render.M4{}
 	tb.initData()
 
 	// Bind the OpenGL calls and dump some version info.
@@ -93,7 +103,7 @@ func (tb *tbtag) initScene() {
 	// create texture and shaders after all the data has been set up.
 	tb.initTexture()
 	tb.initShader()
-	tb.mvp = lin.M4Orthographic(0, 4, 0, 4, 0, 10)
+	tb.ortho = lin.NewOrtho(0, 4, 0, 4, 0, 10)
 
 	// set some state that doesn't need to change during drawing.
 	gl.ClearColor(0.0, 0.0, 0.0, 1.0)
@@ -101,7 +111,7 @@ func (tb *tbtag) initScene() {
 	gl.Enable(gl.TEXTURE_2D)
 }
 
-// initData creates a flat mesh to that the texture is drawn onto.
+// initData creates a flat mesh that the texture is drawn onto.
 func (tb *tbtag) initData() {
 	tb.points = []float32{
 		1, 1, 0, 1,
@@ -147,7 +157,7 @@ func (tb *tbtag) initTexture() {
 
 }
 
-// Compile shaders and link to a program.
+// initShader compiles shaders and links them into a shader program.
 func (tb *tbtag) initShader() {
 	shader := &data.Shader{}
 	loader := data.NewLoader()
@@ -165,7 +175,7 @@ func (tb *tbtag) initShader() {
 	}
 }
 
-// Draw the scene consisting of one VAO
+// drawScene renders the scene consisting of one VAO.
 func (tb *tbtag) drawScene() {
 	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 	gl.UseProgram(tb.shaders)
@@ -173,7 +183,8 @@ func (tb *tbtag) drawScene() {
 	gl.ActiveTexture(gl.TEXTURE0 + 0)
 	gl.BindTexture(gl.TEXTURE_2D, tb.texture.Tid)
 	gl.BindVertexArray(tb.vao)
-	gl.UniformMatrix4fv(tb.mvpref, 1, false, tb.mvp.Pointer())
+	tb.mvp32 = renderMatrix(tb.ortho, tb.mvp32)
+	gl.UniformMatrix4fv(tb.mvpref, 1, false, tb.mvp32.Pointer())
 	gl.DrawElements(gl.TRIANGLES, int32(len(tb.faces)), gl.UNSIGNED_BYTE, gl.Pointer(nil))
 
 	// cleanup

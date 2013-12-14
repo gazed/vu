@@ -9,11 +9,11 @@ package device
 
 // // The following block is C code and cgo directvies.
 //
-// #cgo darwin CFLAGS: -I.
-// #cgo darwin LDFLAGS: -L. -lvudev.1 -framework Cocoa -framework IOKit
+// #cgo darwin CFLAGS: -x objective-c -fno-common
+// #cgo darwin LDFLAGS: -framework Cocoa -framework OpenGL -framework IOKit
 //
 // #include <stdlib.h>
-// #include "os_darwin.h"
+// #include "os_darwin.m"
 import "C" // must be located here.
 
 import (
@@ -22,30 +22,35 @@ import (
 )
 
 // OS specific structure to differentiate it from the other native layers.
-type osx struct{}
+// Two input structures are continually reused each time rather than allocating
+// a osx input structure on each readAndDispatch.
+type osx struct {
+	in  *userInput // Reusable input event buffer.
+	in1 *userInput // Alternate reusable input event buffer.
+}
 
-// OSX specific.  Otherwise the shell will freeze within seconds of creation.
+// OSX specific. Otherwise the shell will freeze within seconds of creation.
 func init() { runtime.LockOSThread() }
 
-// nativeLayer gets a reference to the native operating system.  Each native
-// layer implements this factory method.  Compiling will leave only the one that
+// nativeLayer gets a reference to the native operating system. Each native
+// layer implements this factory method. Compiling will leave only the one that
 // matches the current platform.
-func nativeLayer() native { return &osx{} }
+func nativeLayer() native { return &osx{&userInput{}, &userInput{}} }
 
 // Implements native interface.
-func (o osx) context(r *nrefs) int64      { return int64(C.gs_context(C.long(r.shell))) }
-func (o osx) display() int64              { return int64(C.gs_display_init()) }
-func (o osx) displayDispose(r *nrefs)     { C.gs_display_dispose(C.long(r.display)) }
-func (o osx) shell(r *nrefs) int64        { return int64(C.gs_shell(C.long(r.display))) }
-func (o osx) shellOpen(r *nrefs)          { C.gs_shell_open(C.long(r.display)) }
-func (o osx) shellAlive(r *nrefs) bool    { return uint(C.gs_shell_alive(C.long(r.shell))) == 1 }
-func (o osx) swapBuffers(r *nrefs)        { C.gs_swap_buffers(C.long(r.context)) }
-func (o osx) setAlphaBufferSize(size int) { C.gs_set_attr_l(C.GS_AlphaSize, C.long(size)) }
-func (o osx) setDepthBufferSize(size int) { C.gs_set_attr_l(C.GS_DepthSize, C.long(size)) }
-func (o osx) setCursorAt(r *nrefs, x, y int) {
+func (o *osx) context(r *nrefs) int64      { return int64(C.gs_context(C.long(r.shell))) }
+func (o *osx) display() int64              { return int64(C.gs_display_init()) }
+func (o *osx) displayDispose(r *nrefs)     { C.gs_display_dispose(C.long(r.display)) }
+func (o *osx) shell(r *nrefs) int64        { return int64(C.gs_shell(C.long(r.display))) }
+func (o *osx) shellOpen(r *nrefs)          { C.gs_shell_open(C.long(r.display)) }
+func (o *osx) shellAlive(r *nrefs) bool    { return uint(C.gs_shell_alive(C.long(r.shell))) == 1 }
+func (o *osx) swapBuffers(r *nrefs)        { C.gs_swap_buffers(C.long(r.context)) }
+func (o *osx) setAlphaBufferSize(size int) { C.gs_set_attr_l(C.GS_AlphaSize, C.long(size)) }
+func (o *osx) setDepthBufferSize(size int) { C.gs_set_attr_l(C.GS_DepthSize, C.long(size)) }
+func (o *osx) setCursorAt(r *nrefs, x, y int) {
 	C.gs_set_cursor_location(C.long(r.display), C.long(x), C.long(y))
 }
-func (o osx) showCursor(r *nrefs, show bool) {
+func (o *osx) showCursor(r *nrefs, show bool) {
 	tf1 := 0
 	if show {
 		tf1 = 1
@@ -54,31 +59,36 @@ func (o osx) showCursor(r *nrefs, show bool) {
 }
 
 // See native interface.
-func (o osx) readDispatch(r *nrefs) *userEvent {
+func (o *osx) readDispatch(r *nrefs) *userInput {
 	gsu := &C.GSEvent{0, -1, -1, 0, 0, 0}
 	C.gs_read_dispatch(C.long(r.display), gsu)
-	ue := &userEvent{}
-	ue.id = events[int(gsu.event)]
-	if ue.id != 0 {
-		ue.button = mouseButtons[int(gsu.event)]
-		ue.key = int(gsu.key)
-		ue.mods = int(gsu.mods) & (controlKeyMask | shiftKeyMask | functionKeyMask)
-		ue.scroll = int(gsu.scroll)
+	o.in, o.in1 = o.in1, o.in
+
+	// transfer/translate the native event into the input buffer.
+	in := o.in
+	in.id = events[int(gsu.event)]
+	if in.id != 0 {
+		in.button = mouseButtons[int(gsu.event)]
+		in.key = int(gsu.key)
+		in.scroll = int(gsu.scroll)
+	} else {
+		in.button, in.key, in.scroll = 0, 0, 0
 	}
-	ue.mouseX = int(gsu.mousex)
-	ue.mouseY = int(gsu.mousey)
-	return ue
+	in.mods = int(gsu.mods) & (controlKeyMask | shiftKeyMask | functionKeyMask)
+	in.mouseX = int(gsu.mousex)
+	in.mouseY = int(gsu.mousey)
+	return in
 }
 
 // See native interface.
-func (o osx) size(r *nrefs) (x, y, w, h int) {
+func (o *osx) size(r *nrefs) (x, y, w, h int) {
 	var winx, winy, width, height float32
 	C.gs_size(C.long(r.shell), (*C.float)(&winx), (*C.float)(&winy), (*C.float)(&width), (*C.float)(&height))
 	return int(winx), int(winy), int(width), int(height)
 }
 
 // See native interface.
-func (o osx) setSize(x, y, width, height int) {
+func (o *osx) setSize(x, y, width, height int) {
 	C.gs_set_attr_l(C.GS_ShellX, C.long(x))
 	C.gs_set_attr_l(C.GS_ShellY, C.long(y))
 	C.gs_set_attr_l(C.GS_ShellWidth, C.long(width))
@@ -86,7 +96,7 @@ func (o osx) setSize(x, y, width, height int) {
 }
 
 // See native interface.
-func (o osx) setTitle(title string) {
+func (o *osx) setTitle(title string) {
 	cstr := C.CString(title)
 	defer C.free(unsafe.Pointer(cstr))
 	C.gs_set_attr_s(C.GS_AppName, cstr)

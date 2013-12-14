@@ -4,216 +4,324 @@
 package lin
 
 import (
-	"fmt"
 	"testing"
 )
 
 // While the functions below are not complicated, they are foundational such that it is
 // better to test each one of them then have the bugs discovered later from other code.
+// Where applicable, check that the output vector can also be used as one or both
+// of the input vectors.
 
-func TestClone3v(t *testing.T) {
-	v := V3{1, 2, 3}
-	v2 := v.Clone()
-	got, want := v2.Dump(), "{1.0 2.0 3.0}"
-	if got != want {
-		t.Errorf(format, got, want)
+func TestSetV3(t *testing.T) {
+	v, a := &V3{}, &V3{1, 2, 3}
+	if !v.Set(a).Eq(a) {
+		t.Errorf("%s is not the same as %s", v.Dump(), a.Dump())
 	}
 }
-
-func TestClone4v(t *testing.T) {
-	v := V4{1, 2, 3, 4}
-	v2 := v.Clone()
-	got, want := v2.Dump(), "{1.0 2.0 3.0 4.0}"
-	if got != want {
-		t.Errorf(format, got, want)
+func TestSetV4(t *testing.T) {
+	v, a := &V4{}, &V4{1, 2, 3, 4}
+	if !v.Set(a).Eq(a) {
+		t.Errorf("%s is not the same as %s", v.Dump(), a.Dump())
 	}
 }
 
-func TestAdd3v(t *testing.T) {
-	v := V3{1, 2, 3}
-	v.Add(&V3{5, 6, 7})
-	got, want := v.Dump(), "{6.0 8.0 10.0}"
-	if got != want {
-		t.Errorf(format, got, want)
+func TestSwapV3(t *testing.T) {
+	v, a, vo, ao := &V3{}, &V3{1, 2, 3}, &V3{}, &V3{1, 2, 3}
+	v.Swap(a)
+	if !v.Eq(ao) || !a.Eq(vo) {
+		t.Errorf("%s did not swap with %s", v.Dump(), a.Dump())
 	}
 }
-func TestAdd4v(t *testing.T) {
-	v := V4{1, 2, 3, 4}
-	v.Add(&V4{5, 6, 7, 8})
-	got, want := v.Dump(), "{6.0 8.0 10.0 12.0}"
-	if got != want {
-		t.Errorf(format, got, want)
+func TestSwapV4(t *testing.T) {
+	v, a, vo, ao := &V4{}, &V4{1, 2, 3, 4}, &V4{}, &V4{1, 2, 3, 4}
+	v.Swap(a)
+	if !v.Eq(ao) || !a.Eq(vo) {
+		t.Errorf("%s did not swap with %s", v.Dump(), a.Dump())
 	}
 }
 
-func TestSubtract3v(t *testing.T) {
-	v := V3{1, 2, 3}
-	v.Sub(&V3{5, 6, 7})
-	got, want := v.Dump(), "{-4.0 -4.0 -4.0}"
-	if got != want {
-		t.Errorf(format, got, want)
+func TestMinimumV3(t *testing.T) {
+	v, a, want := &V3{1, -2, 3}, &V3{-1, 2, -3}, &V3{-1, -2, -3}
+	if !v.Min(v, a).Eq(want) {
+		t.Errorf(format, v.Dump(), want.Dump())
 	}
 }
-func TestSubtract4v(t *testing.T) {
-	v := V4{1, 2, 3, 4}
-	v.Sub(&V4{5, 6, 7, 8})
-	got, want := v.Dump(), "{-4.0 -4.0 -4.0 -4.0}"
-	if got != want {
-		t.Errorf(format, got, want)
+func TestMinimumV4(t *testing.T) {
+	v, a, want := &V4{1, -2, 3, -4}, &V4{-1, 2, -3, 4}, &V4{-1, -2, -3, -4}
+	if !v.Min(v, a).Eq(want) {
+		t.Errorf(format, v.Dump(), want.Dump())
 	}
 }
 
-func TestMultiply3v(t *testing.T) {
-	v := V3{1, 2, 3}
-	v.Mult(&V3{5, 6, 7})
-	got, want := v.Dump(), "{5.0 12.0 21.0}"
-	if got != want {
-		t.Errorf(format, got, want)
+func TestMaxiumumV3(t *testing.T) {
+	v, a, want := &V3{1, -2, 3}, &V3{-1, 2, -3}, &V3{1, 2, 3}
+	if !v.Max(v, a).Eq(want) {
+		t.Errorf(format, v.Dump(), want.Dump())
 	}
 }
-func TestMultiply4v(t *testing.T) {
-	v := V4{1, 2, 3, 4}
-	v.Mult(&V4{5, 6, 7, 8})
-	got, want := v.Dump(), "{5.0 12.0 21.0 32.0}"
-	if got != want {
-		t.Errorf(format, got, want)
+func TestMaxiumumV4(t *testing.T) {
+	v, a, want := &V4{1, -2, 3, -4}, &V4{-1, 2, -3, 4}, &V4{1, 2, 3, 4}
+	if !v.Max(v, a).Eq(want) {
+		t.Errorf(format, v.Dump(), want.Dump())
 	}
 }
 
-func TestDot3v(t *testing.T) {
-	lhs := V3{2, 4, 8}
-	dot := lhs.Dot(&V3{1, 2, 4})
-	got, want := fmt.Sprintf("%2.1f", dot), "42.0"
-	if got != want {
-		t.Errorf(format, got, want)
+func TestAddV3(t *testing.T) {
+	v, want := &V3{1, 2, 3}, &V3{2, 4, 6}
+	if !v.Add(v, v).Eq(want) {
+		t.Errorf(format, v.Dump(), want.Dump())
 	}
 }
-func TestDot4v(t *testing.T) {
-	lhs := V4{2, 4, 8, 9}
-	dot := lhs.Dot(&V4{1, 2, 4, 3})
-	got, want := fmt.Sprintf("%2.1f", dot), "69.0"
-	if got != want {
-		t.Errorf(format, got, want)
+func TestAddV4(t *testing.T) {
+	v, want := &V4{1, 2, 3, 4}, &V4{2, 4, 6, 8}
+	if !v.Add(v, v).Eq(want) {
+		t.Errorf(format, v.Dump(), want.Dump())
 	}
 }
 
-func TestLength3v(t *testing.T) {
-	v := V3{2, 4, 8}
-	length := v.Len()
-	got, want := fmt.Sprintf("%2.1f", length), "9.2"
-	if got != want {
-		t.Errorf(format, got, want)
+func TestSubtractV3(t *testing.T) {
+	v, want := &V3{1, 2, 3}, &V3{0, 0, 0}
+	if !v.Sub(v, v).Eq(want) {
+		t.Errorf(format, v.Dump(), want.Dump())
 	}
 }
-func TestLength4v(t *testing.T) {
-	v := V4{2, 4, 8, 9}
-	length := v.Len()
-	got, want := fmt.Sprintf("%2.1f", length), "12.8"
-	if got != want {
-		t.Errorf(format, got, want)
+func TestSubtractV4(t *testing.T) {
+	v, want := &V4{1, 2, 3, 4}, &V4{0, 0, 0, 0}
+	if !v.Sub(v, v).Eq(want) {
+		t.Errorf(format, v.Dump(), want.Dump())
 	}
 }
 
-func TestDistance3v(t *testing.T) {
-	lhs := V3{1, 1, 1}
-	dist := lhs.Dist(&V3{-1, -1, -1})
-	got, want := fmt.Sprintf("%2.1f", dist), "3.5"
-	if got != want {
-		t.Errorf(format, got, want)
+func TestMultiplyV3(t *testing.T) {
+	v, want := &V3{1, 2, 3}, &V3{1, 4, 9}
+	if !v.Mult(v, v).Eq(want) {
+		t.Errorf(format, v.Dump(), want.Dump())
 	}
 }
-func TestDistance4v(t *testing.T) {
-	lhs := V4{2, 4, 8, 9}
-	dist := lhs.Dist(&V4{1, 2, 4, 3})
-	got, want := fmt.Sprintf("%2.1f", dist), "7.5"
-	if got != want {
-		t.Errorf(format, got, want)
+func TestMultiplyV4(t *testing.T) {
+	v, want := &V4{1, 2, 3, 4}, &V4{1, 4, 9, 16}
+	if !v.Mult(v, v).Eq(want) {
+		t.Errorf(format, v.Dump(), want.Dump())
 	}
 }
 
-func TestNormalize3v(t *testing.T) {
-	v := V3{5, 6, 7}
-	v.Unit()
-	got, want := v.Dump(), "{0.5 0.6 0.7}"
-	if got != want {
-		t.Errorf(format, got, want)
-	}
-	v = V3{0, 0, 0}
-	v.Unit()
-	got, want = v.Dump(), "{0.0 0.0 0.0}"
-	if got != want {
-		t.Errorf(format, got, want)
-	}
-	v = V3{0, 0, 0.2}
-	shouldBeOne := v.Unit().Len()
-	if !IsOne(shouldBeOne) {
-		t.Errorf(format, got, want)
+func TestScaleV3(t *testing.T) {
+	v, want := &V3{1, 2, 3}, &V3{2, 4, 6}
+	if !v.Scale(v, 2).Eq(want) {
+		t.Errorf(format, v.Dump(), want.Dump())
 	}
 }
-func TestNormalize4v(t *testing.T) {
-	v := V4{5, 6, 7, 8}
-	v.Unit()
-	got, want := v.Dump(), "{0.4 0.5 0.5 0.6}"
-	if got != want {
-		t.Errorf(format, got, want)
-	}
-	v = V4{0, 0, 0, 0}
-	v.Unit()
-	got, want = v.Dump(), "{0.0 0.0 0.0 0.0}"
-	if got != want {
-		t.Errorf(format, got, want)
+func TestScaleV4(t *testing.T) {
+	v, want := &V4{1, 2, 3, 4}, &V4{2, 4, 6, 8}
+	if !v.Scale(v, 2).Eq(want) {
+		t.Errorf(format, v.Dump(), want.Dump())
 	}
 }
 
-func TestCross3v(t *testing.T) {
-	v1 := &V3{3, -3, 1}
-	crossProduct := v1.Cross(&V3{4, 9, 2})
-	got, want := crossProduct.Dump(), "{-15.0 -2.0 39.0}"
-	if got != want {
-		t.Errorf(format, got, want)
+func TestInverseScaleV3(t *testing.T) {
+	v, want := &V3{1, 2, 3}, &V3{2, 4, 6}
+	if !v.Div(0.5).Eq(want) {
+		t.Errorf(format, v.Dump(), want.Dump())
+	}
+}
+func TestInverseScaleV4(t *testing.T) {
+	v, want := &V4{1, 2, 3, 4}, &V4{2, 4, 6, 8}
+	if !v.Div(0.5).Eq(want) {
+		t.Errorf(format, v.Dump(), want.Dump())
 	}
 }
 
-func TestMultLM3(t *testing.T) {
-	v := &V3{1, 2, 3}
-	m := &M3{
-		1, 2, 3,
-		1, 2, 3,
-		1, 2, 3}
-	v.MultL(m)
-	got, want := v.Dump(), "{6.0 12.0 18.0}"
-	if got != want {
-		t.Errorf(format, got, want)
+func TestDotV3(t *testing.T) {
+	v, a := &V3{1, 2, 3}, &V3{2, 4, 8}
+	if v.Dot(a) != 34 || v.Dot(v) != 14 {
+		t.Error("Invalid dot product")
+	}
+}
+func TestDotV4(t *testing.T) {
+	v, a := &V4{1, 2, 4, 3}, &V4{2, 4, 8, 9}
+	if v.Dot(a) != 69 || v.Dot(v) != 30 {
+		t.Error("Invalid dot product")
 	}
 }
 
-func TestMultLM4(t *testing.T) {
-	v := &V4{1, 2, 3, 4}
-	m := &M4{
-		1, 2, 3, 4,
-		1, 2, 3, 4,
-		1, 2, 3, 4,
-		1, 2, 3, 4}
-	v.MultL(m)
-	got, want := v.Dump(), "{10.0 20.0 30.0 40.0}"
-	if got != want {
-		t.Errorf(format, got, want)
+func TestLengthV3(t *testing.T) {
+	v := &V3{9, 2, 6}
+	if v.Len() != 11 {
+		t.Error("Invalid length", v.Len())
+	}
+}
+func TestLengthV4(t *testing.T) {
+	v := &V4{6, 6, 6, 6}
+	if v.Len() != 12 {
+		t.Error("Invalid length", v.Len())
 	}
 }
 
-func TestMultiplyV3Q(t *testing.T) {
-	v := &V3{1, 2, 3}
-	v.MultQ(&Q{0.2, 0.4, 0.5, 0.7})
-	got, want := v.Dump(), "{1.3 1.8 2.4}"
-	if got != want {
-		t.Errorf(format, got, want)
+func TestDistanceV3(t *testing.T) {
+	v, a := &V3{9, 2, 6}, &V3{18, 4, 12}
+	if v.Dist(a) != 11 {
+		t.Errorf("Invalid distance %f", v.Dist(a))
 	}
-
-	// test a very small increment.
-	v = &V3{0, 0, 0.01}
-	v.MultQ(&Q{0.2, 0.4, 0.05, 0.7})
-	got, want = v.Dump(), "{0.0 -0.0 -0.0}"
-	if got != want {
-		t.Errorf(format, got, want)
+	if v.Dist(v) != 0 {
+		t.Error("Distance with self should be zero.")
 	}
 }
+
+func TestAngleV3(t *testing.T) {
+	v, a, ang := &V3{1, 0, 0}, &V3{0, 1, 0}, 90.0
+	if Deg(v.Ang(a)) != ang {
+		t.Errorf("Wanted angle %f got  %f", ang, Deg(v.Ang(a)))
+	}
+}
+
+func TestNormalizeV3(t *testing.T) {
+	v, want := &V3{0, 0, 0}, &V3{0, 0, 0}
+	if !v.Unit().Eq(want) {
+		t.Errorf(format, v.Dump(), want.Dump())
+	}
+	v = &V3{5, 6, 7}
+	if !Aeq(v.Unit().Len(), 1) {
+		t.Errorf("Normalized vectors should have length one")
+	}
+}
+func TestNormalizeV4(t *testing.T) {
+	v := &V4{5, 6, 7, 8}
+	if !Aeq(v.Unit().Len(), 1) {
+		t.Errorf("Normalized vectors should have length one")
+	}
+}
+
+func TestCrossV3(t *testing.T) {
+	v, b, want := &V3{3, -3, 1}, &V3{4, 9, 2}, &V3{-15, -2, 39}
+	if !v.Cross(v, b).Eq(want) {
+		t.Errorf(format, v.Dump(), want.Dump())
+	}
+}
+
+func TestLerpV3(t *testing.T) {
+	v, b, want := &V3{1, 2, 3}, &V3{5, 6, 7}, &V3{3, 4, 5}
+	if !v.Lerp(v, b, 0.5).Eq(want) {
+		t.Errorf(format, v.Dump(), want.Dump())
+	}
+}
+func TestLerpV4(t *testing.T) {
+	v, b, want := &V4{1, 2, 3, 4}, &V4{5, 6, 7, 8}, &V4{3, 4, 5, 6}
+	if !v.Lerp(v, b, 0.5).Eq(want) {
+		t.Errorf(format, v.Dump(), want.Dump())
+	}
+}
+
+func TestPlane(t *testing.T) {
+	v, p, q, wantp, wantq := &V3{1, 0, 0}, &V3{}, &V3{}, &V3{0, 1, 0}, &V3{0, 0, 1}
+	if v.Plane(p, q); !p.Eq(wantp) || !q.Eq(wantq) {
+		t.Errorf("Did not get expected plane vectors for %s", v.Dump())
+	}
+	v, wantp, wantq = &V3{0, 1, 0}, &V3{-1, 0, 0}, &V3{0, 0, 1}
+	if v.Plane(p, q); !p.Eq(wantp) || !q.Eq(wantq) {
+		t.Errorf("Did not get expected plane vectors for %s", v.Dump())
+	}
+	v, wantp, wantq = &V3{0, 0, 1}, &V3{0, -1, 0}, &V3{1, 0, 0}
+	if v.Plane(p, q); !p.Eq(wantp) || !q.Eq(wantq) {
+		t.Errorf("Did not get expected plane vectors for %s", v.Dump())
+	}
+}
+
+func TestMultVMV3(t *testing.T) {
+	v, m, want := &V3{1, 2, 3},
+		&M3{1, 2, 3,
+			1, 2, 3,
+			1, 2, 3}, &V3{6, 12, 18}
+	if !v.MultVM(v, m).Eq(want) {
+		t.Errorf(format, v.Dump(), want.Dump())
+	}
+}
+func TestMultVMV4(t *testing.T) {
+	v, m, want := &V4{1, 2, 3, 4},
+		&M4{1, 2, 3, 4,
+			1, 2, 3, 4,
+			1, 2, 3, 4,
+			1, 2, 3, 4}, &V4{10, 20, 30, 40}
+	if !v.MultVM(v, m).Eq(want) {
+		t.Errorf(format, v.Dump(), want.Dump())
+	}
+}
+
+func TestMultMVV3(t *testing.T) {
+	v, want, m := &V3{1, 2, 3}, &V3{14, 14, 14},
+		&M3{1, 2, 3,
+			1, 2, 3,
+			1, 2, 3}
+	if !v.MultMV(m, v).Eq(want) {
+		t.Errorf(format, v.Dump(), want.Dump())
+	}
+}
+func TestMultMVV4(t *testing.T) {
+	v, want, m := &V4{1, 2, 3, 4}, &V4{30, 30, 30, 30},
+		&M4{1, 2, 3, 4,
+			1, 2, 3, 4,
+			1, 2, 3, 4,
+			1, 2, 3, 4}
+	if !v.MultMV(m, v).Eq(want) {
+		t.Errorf(format, v.Dump(), want.Dump())
+	}
+}
+
+func TestCascade(t *testing.T) {
+	v, v1, want := &V3{1, 2, 3}, &V3{10, 20, 30}, &V3{-10, -40, -90}
+	v.Mult(v, v1).Neg(v)
+	if !v.Eq(want) {
+		t.Errorf(format, v.Dump(), want.Dump())
+	}
+}
+
+// unit tests
+// ============================================================================
+// benchmarking.
+
+// Check golang efficiency for different method signatures and heap/stack
+// memory allocation. Run go test -bench=".*Sub*" to get something like:
+//     BenchmarkV3Sub	    1000000000	    2.51 ns/op
+//     BenchmarkV3SubNew	  50000000	   68.1  ns/op
+//     BenchmarkV3SubScalar	 500000000	    3.58 ns/op
+//     BenchmarkV3SubNoCall	2000000000	    1.43 ns/op
+
+func BenchmarkV3Sub(b *testing.B) {
+	v, a, o := &V3{}, &V3{2, 2, 2}, &V3{1, 1, 1}
+	for cnt := 0; cnt < b.N; cnt++ {
+		v = v.Sub(a, o)
+	}
+}
+func BenchmarkV3SubNew(b *testing.B) {
+	var v *V3
+	a, o := &V3{2, 2, 2}, &V3{1, 1, 1}
+	for cnt := 0; cnt < b.N; cnt++ {
+		v = a.subNew(o)
+	}
+	v.X = 0 // Otherwise compiler complains about unused variables.
+}
+func BenchmarkV3SubScalar(b *testing.B) {
+	var x, y, z float64
+	for cnt := 0; cnt < b.N; cnt++ {
+		x, y, z = subScalars(2, 2, 2, 1, 1, 1)
+	}
+	if x == 1 && y == 1 && z == 1 {
+		// Otherwise compiler complains about unused variables.
+	}
+}
+func BenchmarkV3SubNoCall(b *testing.B) {
+	var x, y, z float64
+	for cnt := 0; cnt < b.N; cnt++ {
+		x, y, z = 2-1, 2-1, 2-1
+	}
+	if x == 1 && y == 1 && z == 1 {
+		// Otherwise compiler complains about unused variables.
+	}
+}
+
+// subNew creates a new V3 that contains the subtraction of vector b from a.
+// Used to benchmark how struct allocation affects execution time.
+func (a *V3) subNew(b *V3) *V3 { return &V3{a.X - b.X, a.Y - b.Y, a.Z - b.Z} }
+
+// subScalars just does the basic subtraction. Used to benchmark how passing
+// lots of float parameter affects execution time.
+func subScalars(ax, ay, az, bx, by, bz float64) (x, y, z float64) { return ax - bx, ay - by, az - bx }

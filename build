@@ -9,7 +9,7 @@ Note that build commands are specified in such a way that they can be easily
 copied and tested in a shell.
 
 This script is expected to be called by:
-   1) a continuous integration script from a dedicated build server,
+   1) a continuous integration script from a dedicated build server, or,
    2) a local developer testing the build.
 """
 
@@ -28,13 +28,6 @@ def clean():
             print '    ' + gdir
             shutil.rmtree(gdir)
 
-def buildDoc():
-    # Build the project documentation
-    cwd = os.getcwd()
-    os.chdir('doc')
-    subprocess.call('./publish', shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    os.chdir(cwd)
-
 def buildSrc():
     # Builds all packages.
     buildRender()
@@ -44,16 +37,17 @@ def buildSrc():
     buildGrid()
     buildData()
     buildPhysics()
-    buildVu()
+    buildRealm()
 
 def buildRender():
     # Build the (OpenGL) rendering component.
+    subprocess.call(shlex.split('go fmt vu/render/gl/gen'))
+    subprocess.call(shlex.split('go test vu/render/gl/gen'))
     subprocess.call(shlex.split('go install vu/render/gl/gen'))
-    subprocess.call(shlex.split('bin/gen src/vu/render/gl src/vu/render/gl/gen/glcorearb.h-v4.3'))
+    subprocess.call(shlex.split('bin/gen -p src/vu/render/gl -s src/vu/render/gl/gen/glcorearb.h-v4.3'))
     subprocess.call(shlex.split('go fmt vu/render/gl'))
     subprocess.call(shlex.split('go install vu/render/gl'))
     subprocess.call(shlex.split('go test vu/render/gl'))
-    subprocess.call(shlex.split('go test vu/render/gl/gen'))
     subprocess.call(shlex.split('go fmt vu/render'))
     subprocess.call(shlex.split('go install vu/render'))
 
@@ -67,32 +61,18 @@ def buildAudio():
     subprocess.call(shlex.split('go test vu/audio'))
 
 def buildDevice():
-    # Build the native application package.
-    # The osx dylib is only intended for local bundle consumption 
-    # not for installation in the standard lib directories. 
-    version = subprocess.check_output(shlex.split('git describe')).strip()
-    if sys.platform.startswith('darwin'):
-        subprocess.call(shlex.split('clang -dynamiclib \
-                                     -install_name "@executable_path/../Frameworks/libvudev.1.dylib" \
-                                     -current_version '+version[1:6]+' -compatibility_version 1.0 \
-                                     -fno-common -framework Cocoa \
-                                     -o libvudev.1.dylib os_darwin.m'), cwd=r'src/vu/device')
+	# Build the native application package.
     subprocess.call(shlex.split('go install vu/device'))
-
-    # The dynamic library needs to be found by go.  The above assumes that it is in
-    # the same directory as the executable or part of an OSX bundle. 
-    # However the go tests won't find the dylib unless the following is set:
-    #      export DYLD_LIBRARY_PATH=$HOME/code/vu/src/vu/device
-    # The may only be necessary until golang issue (1781) 4069 is fixed (possibly golang 1.2).
+    subprocess.call(shlex.split('go fmt vu/device'))
 
 def buildPhysics():
-    # Build the base model (vu/physics) package. 
-    subprocess.call(shlex.split('go fmt vu/physics'))
-    subprocess.call(shlex.split('go test vu/physics'))
-    subprocess.call(shlex.split('go install vu/physics'))
+    # Build the physics (vu/move) package. 
+    subprocess.call(shlex.split('go fmt vu/move'))
+    subprocess.call(shlex.split('go test vu/move'))
+    subprocess.call(shlex.split('go install vu/move'))
 
 def buildData():
-    # Build the base model (vu/data) package. 
+    # Build the data import (vu/data) package. 
     subprocess.call(shlex.split('go fmt vu/data'))
     subprocess.call(shlex.split('go test vu/data'))
     subprocess.call(shlex.split('go install vu/data'))
@@ -109,20 +89,18 @@ def buildMath():
     subprocess.call(shlex.split('go test vu/math/lin'))
     subprocess.call(shlex.split('go install vu/math/lin'))
 
-def buildVu():
+def buildRealm():
     # Build the 3D virtual universe engine package and examples.
     subprocess.call(shlex.split('go fmt vu'))
-    subprocess.call(shlex.split('go test vu'))
     subprocess.call(shlex.split('go install vu'))
     subprocess.call(shlex.split('go fmt vu/eg'))
     subprocess.call(shlex.split('go install vu/eg'))
 
 def usage():
-    print 'Usage: build [clean] [doc] [src]'
+    print 'Usage: build [clean] [src]'
 
 if __name__ == "__main__":
     options = {'clean' : clean, 
-               'doc'   : buildDoc,
                'src'   : buildSrc}
     somethingBuilt = False
     for arg in sys.argv:

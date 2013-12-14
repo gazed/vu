@@ -19,29 +19,34 @@ import (
 )
 
 // OS specific structure to differentiate it from the other native layers.
-type win struct{}
+// Two input structures are continually reused each time rather than allocating
+// a new input structure on each readAndDispatch.
+type win struct {
+	in  *userInput // Used for fetching user input.
+	in1 *userInput // Alternate user input structure.
+}
 
 // nativeLayer gets a reference to the native operating system.  Each native
 // layer implements this factory method.  Compiling will leave only the one that
 // matches the current platform.
-func nativeLayer() native { return &win{} }
+func nativeLayer() native { return &win{&userInput{}, &userInput{}} }
 
 // Implements native interface.
-func (w win) context(r *nrefs) int64 {
+func (w *win) context(r *nrefs) int64 {
 	return int64(C.gs_context((*C.longlong)(&(r.display)), (*C.longlong)(&(r.shell))))
 }
-func (w win) display() int64              { return int64(C.gs_display_init()) }
-func (w win) displayDispose(r *nrefs)     { C.gs_display_dispose(C.long(r.display)) }
-func (w win) shell(r *nrefs) int64        { return int64(C.gs_shell(C.long(r.display))) }
-func (w win) shellOpen(r *nrefs)          { C.gs_shell_open(C.long(r.display)) }
-func (w win) shellAlive(r *nrefs) bool    { return uint(C.gs_shell_alive(C.long(r.shell))) == 1 }
-func (w win) swapBuffers(r *nrefs)        { C.gs_swap_buffers(C.long(r.shell)) }
-func (w win) setAlphaBufferSize(size int) { C.gs_set_attr_l(C.GS_AlphaSize, C.long(size)) }
-func (w win) setDepthBufferSize(size int) { C.gs_set_attr_l(C.GS_DepthSize, C.long(size)) }
-func (w win) setCursorAt(r *nrefs, x, y int) {
+func (w *win) display() int64              { return int64(C.gs_display_init()) }
+func (w *win) displayDispose(r *nrefs)     { C.gs_display_dispose(C.long(r.display)) }
+func (w *win) shell(r *nrefs) int64        { return int64(C.gs_shell(C.long(r.display))) }
+func (w *win) shellOpen(r *nrefs)          { C.gs_shell_open(C.long(r.display)) }
+func (w *win) shellAlive(r *nrefs) bool    { return uint(C.gs_shell_alive(C.long(r.shell))) == 1 }
+func (w *win) swapBuffers(r *nrefs)        { C.gs_swap_buffers(C.long(r.shell)) }
+func (w *win) setAlphaBufferSize(size int) { C.gs_set_attr_l(C.GS_AlphaSize, C.long(size)) }
+func (w *win) setDepthBufferSize(size int) { C.gs_set_attr_l(C.GS_DepthSize, C.long(size)) }
+func (w *win) setCursorAt(r *nrefs, x, y int) {
 	C.gs_set_cursor_location(C.long(r.display), C.long(x), C.long(y))
 }
-func (w win) showCursor(r *nrefs, show bool) {
+func (w *win) showCursor(r *nrefs, show bool) {
 	tf1 := 0
 	if show {
 		tf1 = 1
@@ -50,31 +55,36 @@ func (w win) showCursor(r *nrefs, show bool) {
 }
 
 // See native interface.
-func (w win) readDispatch(r *nrefs) *userEvent {
+func (w *win) readDispatch(r *nrefs) *userInput {
 	gsu := &C.GSEvent{0, -1, -1, 0, 0, 0}
 	C.gs_read_dispatch(C.long(r.display), gsu)
-	ue := &userEvent{}
-	ue.id = events[int(gsu.event)]
-	if ue.id != 0 {
-		ue.button = mouseButtons[int(gsu.event)]
-		ue.key = int(gsu.key)
-		ue.mods = int(gsu.mods)
-		ue.scroll = int(gsu.scroll)
+	w.in, w.in1 = w.in1, w.in
+
+	// transfer/translate the native event into the input buffer.
+	in := w.in
+	in.id = events[int(gsu.event)]
+	if in.id != 0 {
+		in.button = mouseButtons[int(gsu.event)]
+		in.key = int(gsu.key)
+		in.scroll = int(gsu.scroll)
+	} else {
+		in.button, in.key, in.scroll = 0, 0, 0
 	}
-	ue.mouseX = int(gsu.mousex)
-	ue.mouseY = int(gsu.mousey)
-	return ue
+	in.mods = int(gsu.mods)
+	in.mouseX = int(gsu.mousex)
+	in.mouseY = int(gsu.mousey)
+	return in
 }
 
 // See native interface.
-func (w win) size(r *nrefs) (x int, y int, wx int, hy int) {
+func (w *win) size(r *nrefs) (x int, y int, wx int, hy int) {
 	var winx, winy, width, height int32
 	C.gs_size(C.long(r.display), (*C.long)(&winx), (*C.long)(&winy), (*C.long)(&width), (*C.long)(&height))
 	return int(winx), int(winy), int(width), int(height)
 }
 
 // See native interface.
-func (w win) setSize(x, y, width, height int) {
+func (w *win) setSize(x, y, width, height int) {
 	C.gs_set_attr_l(C.GS_ShellX, C.long(x))
 	C.gs_set_attr_l(C.GS_ShellY, C.long(y))
 	C.gs_set_attr_l(C.GS_ShellWidth, C.long(width))
@@ -82,7 +92,7 @@ func (w win) setSize(x, y, width, height int) {
 }
 
 // See native interface.
-func (w win) setTitle(title string) {
+func (w *win) setTitle(title string) {
 	cstr := C.CString(title)
 	defer C.free(unsafe.Pointer(cstr))
 	C.gs_set_attr_s(C.GS_AppName, cstr)

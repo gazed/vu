@@ -19,7 +19,7 @@ import (
 //    https://en.wikipedia.org/wiki/Wavefront_.obj_file#File_format
 //    http://www.martinreddy.net/gfx/3d/OBJ.spec
 //
-// Note that the .obj files refer to verticies and normals through a absolute
+// Note that the .obj files refer to vertices and normals through a absolute
 // count from the begining of the file. Both .obj and .mtl files can be
 // created from Blender.
 func (l loader) obj(directory, filename string) (meshes []*Mesh, err error) {
@@ -56,12 +56,12 @@ type objStrings struct {
 // Each .obj file keeps a global count of the data below.  This is referenced
 // from the face data.
 type objData struct {
-	v []dataPoint // verticies
+	v []dataPoint // vertices
 	n []dataPoint // normals
 	t []uvPoint   // texture coordinates
 }
 
-// dataPoint is an internal structure for passing verticies or normals.
+// dataPoint is an internal structure for passing vertices or normals.
 type dataPoint struct {
 	x, y, z float32
 }
@@ -186,10 +186,10 @@ func (l loader) obj2Mesh(name string, odata *objData, faces []face) (mesh *Mesh,
 				// update the normal at the vertex to be a combination of
 				// all the normals of each face that shares the vertex.
 				ni := vmap[vertexIndex] * 3
-				n1 := &lin.V3{mesh.N[ni], mesh.N[ni+1], mesh.N[ni+2]}
-				n2 := &lin.V3{odata.n[n].x, odata.n[n].y, odata.n[n].z}
-				n2.Add(n1).Unit()
-				mesh.N[ni], mesh.N[ni+1], mesh.N[ni+2] = n2.X, n2.Y, n2.Z
+				n1 := &lin.V3{float64(mesh.N[ni]), float64(mesh.N[ni+1]), float64(mesh.N[ni+2])}
+				n2 := &lin.V3{float64(odata.n[n].x), float64(odata.n[n].y), float64(odata.n[n].z)}
+				n2.Add(n2, n1).Unit()
+				mesh.N[ni], mesh.N[ni+1], mesh.N[ni+2] = float32(n2.X), float32(n2.Y), float32(n2.Z)
 			}
 			mesh.F = append(mesh.F, uint16(vmap[vertexIndex]))
 		}
@@ -197,8 +197,8 @@ func (l loader) obj2Mesh(name string, odata *objData, faces []face) (mesh *Mesh,
 	return mesh, err
 }
 
-// parseFace turns a face index point string (representing multiple indicies)
-// into 3 integer indicies. The texture index is optional and is returned with
+// parseFace turns a face index point string (representing multiple indices)
+// into 3 integer indices. The texture index is optional and is returned with
 // a -1 value if it is not there.
 func parseFaceIndex(findex string) (v, t, n int, err error) {
 	v, t, n = -1, -1, -1

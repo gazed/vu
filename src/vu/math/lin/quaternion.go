@@ -3,164 +3,274 @@
 
 package lin
 
-import "math"
+// Quaternion deals with quaternion math specifically for linear algebra rotations.
+// For a nice explanation of quaternions see http://3dgep.com/?p=1815
 
-// TODO check the math against http://www.cs.princeton.edu/~gewang/projects/darth/stuff/quat_faq.html
+import (
+	"log"
+	"math"
+)
 
-// Quaternions (of unit length) represent an angle of rotation and an
-// direction (orientation) and are used to track/manipulate 3D object rotations.
+// Unit length quaternions represent an angle of rotation and an
+// direction/orientation and are used to track/manipulate 3D object rotations.
 // Quaternions behave nicely for mathematical operations other than they are not
 // commutative.
 type Q struct {
-	X float32 // X component of direction vector
-	Y float32 // Y component of direction vector
-	Z float32 // Z component of direction vector
-	W float32 // angle of rotation
+	X float64 // X component of direction vector
+	Y float64 // Y component of direction vector
+	Z float64 // Z component of direction vector
+	W float64 // angle of rotation
 }
 
-// QIdentity creates a new quaternion that is the identity quaternion.
-func QIdentity() *Q { return &Q{W: 1} }
+// QI provides a reference identity matrix that can be used
+// in calculations. It should never be changed.
+var QI = &Q{0, 0, 0, 1}
 
-// Clone creates a copy of a quaternion.  This is needed if when performing
-// operations where the original quaternion values need to be preserved.
-func (q *Q) Clone() *Q { return &Q{q.X, q.Y, q.Z, q.W} }
-
-// Norm normalizes a quaternion works similar to a vector. This method will not
-// do anything if the quaternion is close enough to zero or unit-length.
-func (q *Q) Unit() *Q {
-	dot := q.X*q.X + q.Y*q.Y + q.Z*q.Z + q.W*q.W
-	if !IsZero(dot) && !IsOne(dot) {
-		length := float32(math.Sqrt(float64(dot)))
-		q.X /= length
-		q.Y /= length
-		q.Z /= length
-		q.W /= length
-	}
-	return q
+// Eq (==) returns true if each element in the quaternion q has the same value
+// as the corresponding element in quaterion r.
+func (q *Q) Eq(r *Q) bool {
+	return q.W == r.W && q.Z == r.Z && q.Y == r.Y && q.X == r.X
 }
 
-// Inverse inverts the calling quaternion.  The inverse of a quaternion is the
-// same as the conjugate, as long as the quaternion is unit-length. The calling
-// quaternion is returned so that it may be immediately used in another operation.
-// Note that the quaternion is normalized by this method before inverting.
-func (q *Q) Inverse() *Q {
-	q.Unit()
-	q.X = -q.X
-	q.Y = -q.Y
-	q.Z = -q.Z
-	return q
+// Aeq (~=) almost-equals returns true if all the elements in quaternion q have
+// essentially the same value as the corresponding elements in quaternion r.
+// Used where a direct comparison is unlikely to return true due to floats.
+func (q *Q) Aeq(r *Q) bool {
+	return Aeq(q.X, r.X) && Aeq(q.Y, r.Y) && Aeq(q.Z, r.Z) && Aeq(q.W, r.W)
 }
 
-// Add one quaternion to another.  The calling quaternion q is updated with
-// the addition of the input quaternion q2. The calling quaternion is
-// returned so that it may be immediately used in another operation.
-// The updated quaternion is not normalized.
-func (q *Q) Add(q2 *Q) *Q {
-	q.X += q2.X
-	q.Y += q2.Y
-	q.Z += q2.Z
-	q.W += q2.W
-	return q
-}
+// GetS returns the component parts of a quaternion.
+func (q *Q) GetS() (x, y, z, w float64) { return q.X, q.Y, q.Z, q.W }
 
-// Scale multplies the calling quaternion by a scaler value.
-// The calling quaternion is returned so that it may be immediately
-// used in another operation. The returned quaternion is not normalized.
-func (q *Q) Scale(scale float32) *Q {
-	q.X *= scale
-	q.Y *= scale
-	q.Z *= scale
-	q.W *= scale
-	return q
-}
-
-// Mult multiplies the calling quaternion q with the input quaternion q2.
-// This applies the rotation of q2 to q.
-func (q *Q) Mult(q2 *Q) *Q {
-	x := q.W*q2.X + q.X*q2.W + q.Y*q2.Z - q.Z*q2.Y
-	y := q.W*q2.Y + q.Y*q2.W + q.Z*q2.X - q.X*q2.Z
-	z := q.W*q2.Z + q.Z*q2.W + q.X*q2.Y - q.Y*q2.X
-	w := q.W*q2.W - q.X*q2.X - q.Y*q2.Y - q.Z*q2.Z
+// SetS (=) explicitly sets each of the quaternion values to the given values.
+// The updated quaternion q is returned.
+func (q *Q) SetS(x, y, z, w float64) *Q {
 	q.X, q.Y, q.Z, q.W = x, y, z, w
 	return q
 }
 
-// QAxisAngle creates a new quaternion that represents the given Axis/Angle.
-// The formula for this is:
-//
-//    qx = ax * sin(angle/2)
-//    qy = ay * sin(angle/2)
-//    qz = az * sin(angle/2)
-//    qw = cos(angle/2)
-//
-// where: the axis vector is normalised.
-// The calling quaternion is returned so that it may be immediately
-// used in another operation. The input axis is unchanged.
-func QAxisAngle(axis *V3, angleInDegrees float32) *Q {
-	angleInRadians := angleInDegrees * PI_OVER_180
-	vn := (&V3{axis.X, axis.Y, axis.Z}).Unit()
-	halfAngle := float64(angleInRadians * 0.5)
-	sinAngle := float32(math.Sin(halfAngle))
-	q := &Q{}
-	q.X = vn.X * sinAngle
-	q.Y = vn.Y * sinAngle
-	q.Z = vn.Z * sinAngle
-	q.W = float32(math.Cos(halfAngle))
+// Set (=) assigns all the elements values from quaternion r to the corresponding
+// element values in quaternion q. The updated quaternion q is returned.
+func (q *Q) Set(r *Q) *Q {
+	q.X, q.Y, q.Z, q.W = r.X, r.Y, r.Z, r.W
 	return q
 }
 
-// AxisAngle returns the axis and angle represented by the calling quaternion q.
-func (q *Q) AxisAngle() (axis V3, angleInDegrees float32) {
-	scale := float32(math.Sqrt(float64(q.X*q.X + q.Y*q.Y + q.Z*q.Z)))
-	if IsZero(scale) {
-		axis = V3{0, 0, -1}
-	} else {
-		axis = V3{q.X / scale, q.Y / scale, q.Z / scale}
-	}
-	angleInDegrees = float32(math.Acos(float64(q.W))*2) / PI_OVER_180
-	return
+// Inv updates q to be inverse of quaternion r. The updated q is returned.
+// The inverse of a quaternion is the same as the conjugate,
+// as long as the quaternion is unit-length.
+func (q *Q) Inv(r *Q) *Q {
+	q.X, q.Y, q.Z, q.W = -r.X, -r.Y, -r.Z, r.W
+	return q
 }
 
-// NLerp returns a new quaternion that is the normalized linear interpolation between
-// quaternions q and q2 where fraction is expected to be between 0 and 1.
-// The input quaternions q and q2 are not changed.
-//
-// See:
+// Add (+) quaternions r and s returning the result in quaternion q.
+func (q *Q) Add(r, s *Q) *Q {
+	q.X, q.Y, q.Z, q.W = r.X+s.X, r.Y+s.Y, r.Z+s.Z, r.W+s.W
+	return q
+}
+
+// Neg (-) returns the negative of quaternion q where each element is negated.
+// The updated q is returned.
+func (q *Q) Neg() *Q {
+	q.X, q.Y, q.Z, q.W = -q.X, -q.Y, -q.Z, -q.W
+	return q
+}
+
+// Sub (-) subtracts quaternion s from r returning the difference in quaternion q.
+func (q *Q) Sub(r, s *Q) *Q {
+	q.X, q.Y, q.Z, q.W = r.X-s.X, r.Y-s.Y, r.Z-s.Z, r.W-s.W
+	return q
+}
+
+// Scale (*=) quaternion q by s returning the result in quaternion q.
+func (q *Q) Scale(s float64) *Q {
+	q.X, q.Y, q.Z, q.W = q.X*s, q.Y*s, q.Z*s, q.W*s
+	return q
+}
+
+// Div (/= inverse-scale) divides each element in q by the given scalar value
+// The updated q is returned.
+// Scale values of zero are logged as an error and q is not scaled.
+func (q *Q) Div(s float64) *Q {
+	if s == 0 {
+		log.Printf("quaternion:q.Div: division by zero")
+	} else {
+		s := 1 / s
+		q.X, q.Y, q.Z, q.W = q.X*s, q.Y*s, q.Z*s, q.W*s
+	}
+	return q
+}
+
+// Mult (*) multiplies quaternions r and s returning the result in q.
+// This applies the rotation of s to r giving q, leaving r and s unchanged.
+// It is safe to use the calling quaternion q as one or both of the parameters.
+// For example (*=) is
+//     q.Mult(q, s)
+// The updated calling quaternion q is returned.
+func (q *Q) Mult(r, s *Q) *Q {
+	x := r.W*s.X + r.X*s.W - r.Y*s.Z + r.Z*s.Y
+	y := r.W*s.Y + r.X*s.Z + r.Y*s.W - r.Z*s.X
+	z := r.W*s.Z - r.X*s.Y + r.Y*s.X + r.Z*s.W
+	w := r.W*s.W - r.X*s.X - r.Y*s.Y - r.Z*s.Z
+	q.X, q.Y, q.Z, q.W = x, y, z, w
+	return q
+}
+
+// Unit normalizes quaternion q to have length 1.
+// The normalized (unit length) q is returned.  Quaternion q is not
+// updated if the length of quaternion q is zero.
+func (q *Q) Unit() *Q {
+	qlen := q.Len()
+	if qlen != 0 {
+		q.Scale(1 / qlen)
+	}
+	return q
+}
+
+// Dot returns the dot product of the quaternions q and r.
+// Quaternion q may be used as the input parameter.
+// For example (Dot=), the length squared, is
+//     q.Dot(q)
+// The updated calling quaternion q is returned.
+func (q *Q) Dot(r *Q) float64 { return q.X*r.X + q.Y*r.Y + q.Z*r.Z + q.W*r.W }
+
+// Len returns the length of the quaternion q.
+func (q *Q) Len() float64 { return math.Sqrt(q.Dot(q)) }
+
+// Ang returns the angle in radians between quaternions q and r. See
+//     http://math.stackexchange.com/questions/90081/quaternion-distance
+// for the formula to calculate angles between quaternions, i.e.:
+//    angle = Acos(2⟨q dot r⟩(q dot r)−1)
+func (q *Q) Ang(r *Q) float64 {
+	qdotr := q.Dot(r)
+	return math.Acos(2*(qdotr*qdotr) - 1)
+}
+
+// Nlerp updates q to be the normalized linear interpolation between
+// quaternions r and s where ratio is expected to be between 0 and 1.
+// The input quaternions r and s are not changed. See:
 //    http://keithmaggio.wordpress.com/2011/02/15/math-magician-lerp-slerp-and-nlerp/
 //    http://number-none.com/product/Understanding Slerp, Then Not Using It/
-func (q *Q) Nlerp(q2 *Q, fraction float32) *Q {
-	nq := &Q{
-		(q2.X-q.X)*fraction + q.X,
-		(q2.Y-q.Y)*fraction + q.Y,
-		(q2.Z-q.Z)*fraction + q.Z,
-		(q2.W-q.W)*fraction + q.W,
+// The updated calling quaternion q is returned.
+func (q *Q) Nlerp(r, s *Q, ratio float64) *Q {
+	q.X = (s.X-r.X)*ratio + r.X
+	q.Y = (s.Y-r.Y)*ratio + r.Y
+	q.Z = (s.Z-r.Z)*ratio + r.Z
+	q.W = (s.W-r.W)*ratio + r.W
+	return q.Unit()
+}
+
+// quaternion operations
+// ============================================================================
+// quaternion-vector operations
+
+// MultQV multiplies quaternion r and vector v and returns the result in
+// quaternion q. The upated quaternion q is returned.
+func (q *Q) MultQV(r *Q, v *V3) *Q {
+	x := +r.W*v.X + r.Y*v.Z - r.Z*v.Y
+	y := +r.W*v.Y + r.Z*v.X - r.X*v.Z
+	z := +r.W*v.Z + r.X*v.Y - r.Y*v.X
+	w := -r.X*v.X - r.Y*v.Y - r.Z*v.Z
+	q.X, q.Y, q.Z, q.W = x, y, z, w
+	return q
+}
+
+// Aa gets the rotation of quaternion q as an axis and angle.
+// The axis (x, y, z) and the angle in radians is returned.
+// The return elements will be zero if the length of the quaternion is 0.
+// See:
+//    http://web.archive.org/web/20041029003853/...
+//    ...http://www.j3d.org/matrix_faq/matrfaq_latest.html#Q57
+func (q *Q) Aa() (ax, ay, az, angle float64) {
+	sinSqr := 1 - q.W*q.W
+	if AeqZ(sinSqr) {
+		return 1, 0, 0, 2 * math.Acos(q.W)
 	}
-	return nq.Unit()
+	sin := 1 / math.Sqrt(sinSqr)
+	return q.X * sin, q.Y * sin, q.Z * sin, 2 * math.Acos(q.W)
 }
 
-// M4 converts a quaternion q to a new rotation matrix.  The quaternion q is
-// expected to be normalized before converting it to a matrix.
-// A newly allocated 4x4 rotation matrix is returned.
-func (q *Q) M4() *M4 {
-	x2 := q.X * q.X
-	y2 := q.Y * q.Y
-	z2 := q.Z * q.Z
-	xy := q.X * q.Y
-	xz := q.X * q.Z
-	yz := q.Y * q.Z
-	wx := q.W * q.X
-	wy := q.W * q.Y
-	wz := q.W * q.Z
-	m := &M4{
-		1 - 2*(y2+z2), 2 * (xy + wz), 2 * (xz - wy), 0,
-		2 * (xy - wz), 1 - 2*(x2+z2), 2 * (yz + wx), 0,
-		2 * (xz + wy), 2 * (yz - wx), 1 - 2*(x2+y2), 0,
-		0, 0, 0, 1}
-	return m
+// SetAa updates q to have the rotation of the given axis (ax, ay, az)
+// and angle (in radians). See:
+//    http://web.archive.org/web/20041029003853/...
+//    ...http://www.j3d.org/matrix_faq/matrfaq_latest.html#Q56
+// The updated quaternion q is returned.
+// The quaternion q is not updated if the axis length is 0.
+func (q *Q) SetAa(ax, ay, az, angle float64) *Q {
+	alenSqr := ax*ax + ay*ay + az*az
+	if alenSqr == 0 {
+		q.X, q.Y, q.Z, q.W = 0, 0, 0, 1
+		return q
+	}
+
+	// now set the rotation.
+	s := math.Sin(angle*0.5) / math.Sqrt(alenSqr)
+	q.X, q.Y, q.Z, q.W = ax*s, ay*s, az*s, math.Cos(angle*0.5)
+	return q
 }
 
-// TODO may need to know how to rotate from one vector to another.
-// http://stackoverflow.com/questions/1171849/finding-quaternion-representing-the-rotation-from-one-vector-to-another
-//     quaternion for double the required rotation to get from u to v is:
-//         q.w   == dot(u, v)
-//         q.xyz == cross(u, v)
+// quaternion-vector operations
+// ============================================================================
+// quaternion-matrix operations
+
+// SetM updates quaternion q to be the rotation of matrix m. See
+//     http://www.flipcode.com/documents/matrfaq.html#Q55
+//     http://www.euclideanspace.com/maths/geometry/rotations/conversions/matrixToQuaternion/
+// The updated q is returned.
+func (q *Q) SetM(m *M3) *Q {
+	trace := m.X0 + m.Y1 + m.Z2
+	switch {
+	case trace > 0:
+		s := math.Sqrt(trace+1) * 2 // s=4*qw
+		q.W = 0.25 * s
+		q.X = (m.Y2 - m.Z1) / s
+		q.Y = (m.Z0 - m.X2) / s
+		q.Z = (m.X1 - m.Y0) / s
+	case m.X0 > m.Y1 && m.X0 > m.Z2:
+		s := math.Sqrt(m.X0-m.Y1-m.Z2+1) * 2 // s=4*qx
+		q.W = (m.Y2 - m.Z1) / s
+		q.X = 0.25 * s
+		q.Y = (m.Y0 + m.X1) / s
+		q.Z = (m.Z0 + m.X2) / s
+	case m.Y1 > m.Z2:
+		s := math.Sqrt(m.Y1-m.X0-m.Z2+1) * 2 // s=4*qy
+		q.W = (m.Z0 - m.X2) / s
+		q.X = (m.Y0 + m.X1) / s
+		q.Y = 0.25 * s
+		q.Z = (m.Z1 + m.Y2) / s
+	default:
+		s := math.Sqrt(m.Z2-m.X0-m.Y1+1) * 2 // s=4*qz
+		q.W = (m.X1 - m.Y0) / s
+		q.X = (m.Z0 + m.X2) / s
+		q.Y = (m.Z1 + m.Y2) / s
+		q.Z = 0.25 * s
+	}
+	q.X, q.Y, q.Z, q.W = math.Abs(q.X), math.Abs(q.Y), math.Abs(q.Z), math.Abs(q.W)
+	return q
+}
+
+// quaternion-matrix operations
+// ============================================================================
+// quaternion-transform operations
+
+// MultT applies the rotation in transform t to the quaternion q.
+// The updated quaternion q is returned.
+func (q *Q) MultT(t *T) *Q { return q.Mult(q, t.Rot) }
+
+// SetT updates quaternion q to have the rotation in transform t.
+// The updated quaternion q is returned.
+func (q *Q) SetT(t *T) *Q {
+	q.Set(t.Rot)
+	return q
+}
+
+// methods above do not allocate memory.
+// ============================================================================
+// convenience functions for allocating quaternions. Nothing else should allocate.
+
+// NewQ creates a new, all zero, quaternion.
+func NewQ() *Q { return &Q{} }
+
+// NewQI creates a new identity quaternion.
+func NewQI() *Q { return &Q{W: 1} }

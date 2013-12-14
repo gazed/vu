@@ -11,7 +11,7 @@ import (
 )
 
 // sg tests the scene graph by building up a movable character that has multiple
-// layers of sub-parts.  The scene graph works when changing the top level location,
+// layers of sub-parts. The scene graph works when changing the top level location,
 // orientation, and scale also affects the subparts. Sg also tests adding and removing
 // parts from a scene graph. The main classes being tested are vu.Scene and vu.Part, eg:
 //	    scene.AddPart()
@@ -21,39 +21,41 @@ import (
 func sg() {
 	sg := &sgtag{}
 	var err error
-	if sg.eng, err = vu.New("Player character", 400, 100, 800, 600); err != nil {
+	if sg.eng, err = vu.New("Scene Graph", 400, 100, 800, 600); err != nil {
 		log.Printf("sg: error intitializing engine %s", err)
 		return
 	}
 	sg.run = 10            // move so many cubes worth in one second.
 	sg.spin = 270          // spin so many degrees in one second.
 	sg.eng.SetDirector(sg) // override user input handling.
-	sg.stagePlay()
 	defer sg.eng.Shutdown()
 	sg.eng.Action()
 }
 
-// Globally unique "tag" for this example.
+// Globally unique "tag" that encapsulates example specific data.
 type sgtag struct {
-	eng    *vu.Eng
+	eng    vu.Engine
 	scene  vu.Scene
 	tr     *trooper
 	reacts map[string]vu.Reaction
-	run    float32
-	spin   float32
+	run    float64
+	spin   float64
+	dt     float64
 }
 
-func (sg *sgtag) stagePlay() {
-	sg.scene = sg.eng.AddScene(vu.VP)
-	sg.scene.SetPerspective(60, float32(800)/float32(600), 0.1, 50)
+// Create is the engine intialization callback.
+func (sg *sgtag) Create(eng vu.Engine) {
+	sg.scene = eng.AddScene(vu.VP)
+	sg.scene.SetPerspective(60, float64(800)/float64(600), 0.1, 50)
 	sg.scene.SetLightLocation(0, 10, 0)
 	sg.scene.SetLightColour(0.4, 0.7, 0.9)
 	sg.scene.SetViewLocation(0, 0, 6)
+	sg.scene.Set2D()
 
 	// load the floor model.
 	floor := sg.scene.AddPart()
 	floor.SetLocation(0, 0, 0)
-	floor.SetFacade("floor", "gouraud", "floor")
+	floor.SetFacade("floor", "gouraud").SetMaterial("floor")
 
 	// load the trooper
 	sg.tr = newTrooper(sg.eng, sg.scene, 1)
@@ -78,44 +80,38 @@ func (sg *sgtag) stagePlay() {
 	// set some constant state.
 	sg.eng.Enable(vu.BLEND, true)
 	sg.eng.Enable(vu.CULL, true)
-	sg.eng.Enable(vu.DEPTH, true)
 	sg.eng.Color(0.1, 0.1, 0.1, 1.0)
-	return
 }
-
-// Handle engine callbacks.
-func (sg *sgtag) Focus(focus bool) {}
-func (sg *sgtag) Resize(x, y, width, height int) {
-	sg.eng.ResizeViewport(x, y, width, height)
-	ratio := float32(width) / float32(height)
-	sg.scene.SetPerspective(60, ratio, 0.1, 50)
-}
-func (sg *sgtag) Update(pressed []string, gt, dt float32) {
-	for _, p := range pressed {
-		if reaction, ok := sg.reacts[p]; ok {
+func (sg *sgtag) Update(input *vu.Input) {
+	sg.dt = input.Dt
+	if input.Resized {
+		sg.resize()
+	}
+	for press, _ := range input.Down {
+		if reaction, ok := sg.reacts[press]; ok {
 			reaction.Do()
 		}
 	}
 }
 
+// resize handles user screen/window changes.
+func (sg *sgtag) resize() {
+	x, y, width, height := sg.eng.Size()
+	sg.eng.Resize(x, y, width, height)
+	ratio := float64(width) / float64(height)
+	sg.scene.SetPerspective(60, ratio, 0.1, 50)
+}
+
 // User actions.
-func (sg *sgtag) stats() { log.Printf("Health %d", sg.tr.health()) }
+func (sg *sgtag) stats()   { log.Printf("Health %d", sg.tr.health()) }
+func (sg *sgtag) left()    { sg.tr.part.Spin(0, sg.dt*sg.spin, 0) }
+func (sg *sgtag) right()   { sg.tr.part.Spin(0, sg.dt*-sg.spin, 0) }
+func (sg *sgtag) back()    { sg.tr.part.Move(0, 0, sg.dt*sg.run) }
+func (sg *sgtag) forward() { sg.tr.part.Move(0, 0, sg.dt*-sg.run) }
 func (sg *sgtag) setTr(lvl int) {
 	sg.scene.RemPart(sg.tr.part)
 	sg.tr.trash()
 	sg.tr = newTrooper(sg.eng, sg.scene, lvl)
-}
-func (sg *sgtag) left() {
-	sg.tr.part.RotateY(sg.eng.Dt * sg.spin)
-}
-func (sg *sgtag) right() {
-	sg.tr.part.RotateY(sg.eng.Dt * -sg.spin)
-}
-func (sg *sgtag) back() {
-	sg.tr.part.Move(0, 0, sg.eng.Dt*sg.run)
-}
-func (sg *sgtag) forward() {
-	sg.tr.part.Move(0, 0, sg.eng.Dt*-sg.run)
 }
 
 // trooper is an attempt to keep polygon growth linear while the player
@@ -124,7 +120,7 @@ func (sg *sgtag) forward() {
 type trooper struct {
 	part   vu.Part
 	lvl    int
-	eng    *vu.Eng
+	eng    vu.Engine
 	neo    vu.Part // un-injured trooper
 	bits   []box   // injured troopers have panels and edge cubes.
 	center vu.Part // center always represented as one piece
@@ -137,7 +133,7 @@ type trooper struct {
 //    level 2: 3x3x3 : 20 edge cubes + 6 panels of 1x1 cubes + 1x1x1 center.
 //    level 3: 4x4x4 : 32 edge cubes + 6 panels of 2x2 cubes + 2x2x2 center.
 //    ...
-func newTrooper(eng *vu.Eng, scene vu.Scene, level int) *trooper {
+func newTrooper(eng vu.Engine, scene vu.Scene, level int) *trooper {
 	tr := &trooper{}
 	tr.lvl = level
 	tr.eng = eng
@@ -154,9 +150,9 @@ func newTrooper(eng *vu.Eng, scene vu.Scene, level int) *trooper {
 	}
 
 	// create the panels. These are used in each level but the first.
-	cubeSize := 1.0 / float32(tr.lvl+1)
+	cubeSize := 1.0 / float64(tr.lvl+1)
 	centerOffset := cubeSize * 0.5
-	panelCenter := float32(tr.lvl) * centerOffset
+	panelCenter := float64(tr.lvl) * centerOffset
 	tr.bits = append(tr.bits, newPanel(eng, tr.part, panelCenter, 0.0, 0.0, tr.lvl))
 	tr.bits = append(tr.bits, newPanel(eng, tr.part, -panelCenter, 0.0, 0.0, tr.lvl))
 	tr.bits = append(tr.bits, newPanel(eng, tr.part, 0.0, panelCenter, 0.0, tr.lvl))
@@ -165,11 +161,11 @@ func newTrooper(eng *vu.Eng, scene vu.Scene, level int) *trooper {
 	tr.bits = append(tr.bits, newPanel(eng, tr.part, 0.0, 0.0, -panelCenter, tr.lvl))
 
 	// troopers are made out of cubes and panels.
-	mx := float32(-tr.lvl)
+	mx := float64(-tr.lvl)
 	for cx := 0; cx <= tr.lvl; cx++ {
-		my := float32(-tr.lvl)
+		my := float64(-tr.lvl)
 		for cy := 0; cy <= tr.lvl; cy++ {
-			mz := float32(-tr.lvl)
+			mz := float64(-tr.lvl)
 			for cz := 0; cz <= tr.lvl; cz++ {
 
 				// create the outer edges.
@@ -189,22 +185,22 @@ func newTrooper(eng *vu.Eng, scene vu.Scene, level int) *trooper {
 					// side cubes are added to (controlled by) a panel.
 					x, y, z := mx*centerOffset, my*centerOffset, mz*centerOffset
 					if cx == tr.lvl && x > y && x > z {
-						tr.bits[0].(*panel).addCube(x, y, z, float32(cubeSize))
+						tr.bits[0].(*panel).addCube(x, y, z, float64(cubeSize))
 					} else if cx == 0 && x < y && x < z {
-						tr.bits[1].(*panel).addCube(x, y, z, float32(cubeSize))
+						tr.bits[1].(*panel).addCube(x, y, z, float64(cubeSize))
 					} else if cy == tr.lvl && y > x && y > z {
-						tr.bits[2].(*panel).addCube(x, y, z, float32(cubeSize))
+						tr.bits[2].(*panel).addCube(x, y, z, float64(cubeSize))
 					} else if cy == 0 && y < x && y < z {
-						tr.bits[3].(*panel).addCube(x, y, z, float32(cubeSize))
+						tr.bits[3].(*panel).addCube(x, y, z, float64(cubeSize))
 					} else if cz == tr.lvl && z > x && z > y {
-						tr.bits[4].(*panel).addCube(x, y, z, float32(cubeSize))
+						tr.bits[4].(*panel).addCube(x, y, z, float64(cubeSize))
 					} else if cz == 0 && z < x && z < y {
-						tr.bits[5].(*panel).addCube(x, y, z, float32(cubeSize))
+						tr.bits[5].(*panel).addCube(x, y, z, float64(cubeSize))
 					}
 				}
 				if newCells > 0 {
 					x, y, z := mx*centerOffset, my*centerOffset, mz*centerOffset
-					cube := newCube(eng, tr.part, x, y, z, float32(cubeSize))
+					cube := newCube(eng, tr.part, x, y, z, float64(cubeSize))
 					cube.edgeSort(newCells)
 					tr.bits = append(tr.bits, cube)
 				}
@@ -223,9 +219,9 @@ func newTrooper(eng *vu.Eng, scene vu.Scene, level int) *trooper {
 func (tr *trooper) addCenter() {
 	if tr.lvl > 0 {
 		tr.center = tr.part.AddPart()
-		tr.center.SetFacade("cube", "flat", "red")
-		cubeSize := 1.0 / float32(tr.lvl+1)
-		scale := float32(tr.lvl-1) * cubeSize * 0.9 // leave a gap.
+		tr.center.SetFacade("cube", "flat").SetMaterial("red")
+		cubeSize := 1.0 / float64(tr.lvl+1)
+		scale := float64(tr.lvl-1) * cubeSize * 0.9 // leave a gap.
 		tr.center.SetScale(scale, scale, scale)
 	}
 }
@@ -266,7 +262,7 @@ func (tr *trooper) detach() {
 func (tr *trooper) merge() {
 	tr.trash()
 	tr.neo = tr.part.AddPart()
-	tr.neo.SetFacade("cube", "flat", "blue")
+	tr.neo.SetFacade("cube", "flat").SetMaterial("blue")
 	tr.addCenter()
 }
 
@@ -317,8 +313,8 @@ type box interface {
 // into one spot to remove duplication.
 type cbox struct {
 	ccnt, cmax     int     // number of cells.
-	cx, cy, cz     float32 // center of the box.
-	csize          float32 // cell size where each side is the same dimension.
+	cx, cy, cz     float64 // center of the box.
+	csize          float64 // cell size where each side is the same dimension.
 	trashc, mergec func()  // set by super class.
 	addc, remc     func()  // set by super class.
 }
@@ -375,17 +371,17 @@ func (c *cbox) box() *cbox { return c }
 // panels group 0 or more cubes into the center of one of the troopers
 // six sides.
 type panel struct {
-	eng   *vu.Eng // needed to create new cells.
-	part  vu.Part // each panel is its own part.
-	lvl   int     // used to scale slab.
-	slab  vu.Part // un-injured panel is a single piece.
-	cubes []*cube // injured panels are made of cubes.
+	eng   vu.Engine // needed to create new cells.
+	part  vu.Part   // each panel is its own part.
+	lvl   int       // used to scale slab.
+	slab  vu.Part   // un-injured panel is a single piece.
+	cubes []*cube   // injured panels are made of cubes.
 	cbox
 }
 
 // newPanel creates a panel with no cubes.  The cubes are added later using
 // panel.addCube().
-func newPanel(eng *vu.Eng, part vu.Part, x, y, z float32, level int) *panel {
+func newPanel(eng vu.Engine, part vu.Part, x, y, z float64, level int) *panel {
 	p := &panel{}
 	p.eng = eng
 	p.part = part.AddPart()
@@ -402,7 +398,7 @@ func newPanel(eng *vu.Eng, part vu.Part, x, y, z float32, level int) *panel {
 
 // addCube is only used at the begining to add cubes that are owned by this
 // panel.
-func (p *panel) addCube(x, y, z, cubeSize float32) {
+func (p *panel) addCube(x, y, z, cubeSize float64) {
 	p.csize = cubeSize
 	c := newCube(p.eng, p.part, x, y, z, p.csize)
 	if (p.cx > p.cy && p.cx > p.cz) || (p.cx < p.cy && p.cx < p.cz) {
@@ -443,9 +439,9 @@ func (p *panel) removeCell() {
 func (p *panel) merge() {
 	p.trash()
 	p.slab = p.part.AddPart()
-	p.slab.SetFacade("cube", "flat", "blue")
+	p.slab.SetFacade("cube", "flat").SetMaterial("blue")
 	p.slab.SetLocation(p.cx, p.cy, p.cz)
-	scale := float32(p.lvl-1) * p.csize
+	scale := float64(p.lvl-1) * p.csize
 	if (p.cx > p.cy && p.cx > p.cz) || (p.cx < p.cy && p.cx < p.cz) {
 		p.slab.SetScale(p.csize, scale, scale)
 	} else if (p.cy > p.cx && p.cy > p.cz) || (p.cy < p.cx && p.cy < p.cz) {
@@ -474,7 +470,7 @@ func (p *panel) trash() {
 // as to their current number of cells which is between 0 (nothing visible),
 // 1-7 (partial) and 8 (merged).
 type cube struct {
-	eng     *vu.Eng   // needed to create new cells.
+	// eng     vu.Engine // needed to create new cells.
 	part    vu.Part   // each cube is its own set.
 	cells   []vu.Part // max 8 cells per cube.
 	centers csort     // precalculated center location of each cell.
@@ -482,9 +478,9 @@ type cube struct {
 }
 
 // newCube's are often started with 1 corner, 2 edges, or 4 bottom side pieces.
-func newCube(eng *vu.Eng, part vu.Part, x, y, z, cubeSize float32) *cube {
+func newCube(eng vu.Engine, part vu.Part, x, y, z, cubeSize float64) *cube {
 	c := &cube{}
-	c.eng = eng
+	// c.eng = eng
 	c.part = part.AddPart()
 	c.cells = []vu.Part{}
 	c.cx, c.cy, c.cz, c.csize = x, y, z, cubeSize
@@ -514,7 +510,7 @@ func (c *cube) edgeSort(startCount int) {
 	c.reset(startCount)
 }
 
-func (c *cube) panelSort(rx, ry, rz float32, startCount int) {
+func (c *cube) panelSort(rx, ry, rz float64, startCount int) {
 	sorter := &ssort{c.centers, rx, ry, rz}
 	sort.Sort(sorter)
 	c.reset(startCount)
@@ -523,7 +519,7 @@ func (c *cube) panelSort(rx, ry, rz float32, startCount int) {
 // addCell creates and adds a new cell to the cube.
 func (c *cube) addCell() {
 	cell := c.part.AddPart()
-	cell.SetFacade("cube", "flat", "green")
+	cell.SetFacade("cube", "flat").SetMaterial("green")
 	center := c.centers[c.ccnt-1]
 	cell.SetLocation(center.X, center.Y, center.Z)
 	scale := c.csize * 0.40 // leave a gap (0.5 for no gap).
@@ -544,12 +540,11 @@ func (c *cube) removeCell() {
 func (c *cube) merge() {
 	c.trash()
 	cell := c.part.AddPart()
-	cell.SetFacade("cube", "flat", "green")
+	cell.SetFacade("cube", "flat").SetMaterial("green")
 	cell.SetLocation(c.cx, c.cy, c.cz)
 	scale := c.csize - (c.csize * 0.15) // leave a gap (just c.csize for no gap)
 	cell.SetScale(scale, scale, scale)
 	c.cells = append(c.cells, cell)
-	// TODO show merge animation.
 }
 
 // removes all visible cube parts.
@@ -570,7 +565,7 @@ type csort []*lin.V3 // list of quadrant centers.
 func (c csort) Len() int               { return len(c) }
 func (c csort) Swap(i, j int)          { c[i], c[j] = c[j], c[i] }
 func (c csort) Less(i, j int) bool     { return c.Dtoc(c[i]) < c.Dtoc(c[j]) }
-func (c csort) Dtoc(v *lin.V3) float32 { return v.X*v.X + v.Y*v.Y + v.Z*v.Z }
+func (c csort) Dtoc(v *lin.V3) float64 { return v.X*v.X + v.Y*v.Y + v.Z*v.Z }
 
 // ssort is used to sort the panel cube quadrants so that the quadrants
 // to the inside origin plane are first in the list. A reference normal is
@@ -578,13 +573,13 @@ func (c csort) Dtoc(v *lin.V3) float32 { return v.X*v.X + v.Y*v.Y + v.Z*v.Z }
 // "outside" get picked up due to the angle.
 type ssort struct {
 	c       []*lin.V3 // list of quadrant centers.
-	x, y, z float32   // reference plane.
+	x, y, z float64   // reference plane.
 }
 
 func (s ssort) Len() int           { return len(s.c) }
 func (s ssort) Swap(i, j int)      { s.c[i], s.c[j] = s.c[j], s.c[i] }
 func (s ssort) Less(i, j int) bool { return s.Dtoc(s.c[i]) < s.Dtoc(s.c[j]) }
-func (s ssort) Dtoc(v *lin.V3) float32 {
+func (s ssort) Dtoc(v *lin.V3) float64 {
 	normal := &lin.V3{s.x, s.y, s.z}
 	dot := v.Dot(normal)
 	dx := normal.X * dot

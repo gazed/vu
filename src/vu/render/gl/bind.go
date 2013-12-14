@@ -6,6 +6,9 @@ package gl
 // The majority of the "bind" functionality interacts with "vu/data" objects
 // and is not suitable for this package.  However other utility methods may
 // be appropriate.
+//
+// BindProgram is a utility method and is here because it has no dependencies
+// on other packages.
 
 import (
 	"errors"
@@ -15,9 +18,6 @@ import (
 // BindProgram combines a vertex and fragment shader into a program.
 // The bulk of this method is error checking and returning error information
 // when there are compile or link problems.
-//
-// BindProgram is a utility method and is here because it has no dependencies
-// on other packages.
 func BindProgram(program uint32, vertexSource, fragmentSource []string) error {
 
 	// Compile and attach the vertex shader

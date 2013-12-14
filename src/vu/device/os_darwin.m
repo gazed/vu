@@ -44,7 +44,7 @@ void gs_mod(long display, long *key_mod) {
     *key_mod = (long) [NSEvent modifierFlags];
 }
 
-// Get the key code associated with the current event.  This will be 0 if the
+// Get the key code associated with the current event. This will be 0 if the
 // last event was not a key event.
 void gs_key(long display, long *key_code) {
     *key_code = 0;
@@ -55,7 +55,7 @@ void gs_key(long display, long *key_code) {
 	}
 }
 
-// Get the current scroll wheel value.  This will be 0 if the last event was
+// Get the current scroll wheel value. This will be 0 if the last event was
 // not a scroll event.
 void gs_scroll(long display, float *x_delta, float *y_delta) {
     *x_delta = 0;
@@ -67,7 +67,7 @@ void gs_scroll(long display, float *x_delta, float *y_delta) {
     }
 }
 
-// Show or hide cursor.  Note that the cursor is not locked with
+// Show or hide cursor. Note that the cursor is not locked with
 // CGAssociateMouseAndMouseCursorPosition(show) or the cursor position
 // would not change.
 void gs_show_cursor(unsigned char show) {
@@ -81,12 +81,12 @@ void gs_show_cursor(unsigned char show) {
 // Called before running the application to create a few menu items.
 //
 // This uses a hidden API (setAppleMenu) so that the application menu can
-// be set programatically.  This avoids the use of a NIB (binary file
+// be set programatically. This avoids the use of a NIB (binary file
 // created by Interface Builder). The benefits are not having to store
 // binary files in source control, and not forcing an opaque layer
 // on users and maintainers of this simple library.
 // All indications point to this hidden API staying around until it can
-// be replaced with a supported one.  There are some hints of Apple
+// be replaced with a supported one. There are some hints of Apple
 // eventually moving to NIB'less applications.
 static void createMenus(NSApplication *display)
 {
@@ -114,13 +114,13 @@ static void createMenus(NSApplication *display)
         setKeyEquivalentModifierMask:NSControlKeyMask | NSCommandKeyMask];
 }
 
-// State used to track window events.  Set when a window event occurs, it is
-// expected to be queried each time through the event loop (gs_read_dispatch)
+// Global state used to track window events. Set when a window event occurs, 
+// it is expected to be queried each time through the event loop (gs_read_dispatch)
 // and then reset back to zero.
 long wEvent = 0;
 
-// State used to track window closure. This is needed to avoid accessing the
-// external shell pointer after a window has closes.  There is no sure way to
+// Global state used to track window closure. This is needed to avoid accessing the
+// external shell pointer after a window has closes. There is no sure way to
 // check if an object pointer is valid once that object has been released.
 long gs_win_alive = -1;
 
@@ -189,7 +189,7 @@ long createShell(long display) {
     return (long) window;
 }
 
-// Create the window.  Note that the "run" loop is driven externally by calling
+// Create the window. Note that the "run" loop is driven externally by calling
 // (and it must be called) the "gs_read_dispatch" function.
 long gs_shell(long display) {
     NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
@@ -198,25 +198,52 @@ long gs_shell(long display) {
     return shell;
 }
 
-// Open the window.  Note that the "run" loop is driven externally by calling
+// Open the window. Note that the "run" loop is driven externally by calling
 // (and it must be called) the "gs_read_dispatch" function.
 void gs_shell_open(long display) {
     NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-    // bring the window to the front.
-    ProcessSerialNumber psn = { 0, kCurrentProcess };
-    TransformProcessType( &psn, kProcessTransformToForegroundApplication );
-    SetFrontProcess( &psn );
+
+	// In case we are unbundled, make us a proper UI application
+	// and become the active NSApp application
+	[(id) display setActivationPolicy:NSApplicationActivationPolicyRegular];
+	[(id) display activateIgnoringOtherApps:YES];
 
     // this is needed to finialize hooking in the menu bar.
     [(id) display finishLaunching];
     [pool drain];
 }
 
-// Called from gs_read_dispatch to fill out an event type to return.
-// Only return one event per call so choose a window event over a basic event
-// (if there's a choice).
-void gs_urge_info(long display, NSEvent *event, GSEvent *urge) {
-	if (nil != event) {
+// Process the next event. This replaces [NSApplication run] to allow external 
+// control over input events and to change OSX specific event processing into 
+// a device independent event stream.  
+//
+// The expectation is that gs_read_dispatch is called quickly and repeatedly 
+// (like a gaming control loop) as each call only processes a single event.
+//
+// MouseMoved events are ignored since the mouse position is returned each time.
+void gs_read_dispatch(long display, GSEvent *urge) {
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+
+	// Take the first event in the queue and send it off for processing by the
+	// view and window. This turns some mouse clicks and moves into more meaningfull
+	// events such as window focus or resize events. 
+	// 
+	// This assumes that the underlying event code is sequential and that the global
+	// scope wEvent variable is updated before sendEvent returns (this has proven to be
+	// the case to date).
+    NSEvent *event =
+        [(id)display
+        nextEventMatchingMask:NSAnyEventMask
+                    untilDate:nil
+                       inMode:NSDefaultRunLoopMode
+                      dequeue:YES];
+	if (nil != event && GS_MouseMoved != [event type]) {
+        [(id)display sendEvent:event];
+
+		// Keep the event that happened, replacing it with a more specific window event
+		// if necessary. The event is not lost in the replacement case: what happens is 
+		// the application gets a more meaningful event, for example "GS_WindowResized", 
+		// instead of a mouse click.
         urge->event = (long) [event type];
         if (wEvent != 0) {
             urge->event = wEvent;
@@ -224,15 +251,13 @@ void gs_urge_info(long display, NSEvent *event, GSEvent *urge) {
 
 			// update the opengl context each window resize and move.
 			if (urge->event == GS_WindowResized || urge->event == GS_WindowMoved) {
-    			NSOpenGLContext *context = [NSOpenGLContext currentContext];
-    			[(id)context update];
+				NSOpenGLContext *context = [NSOpenGLContext currentContext];
+				[(id)context update];
 			}
         }
 
-        // add event applicable information. 
+        // put key event information into the form expected by the application. 
         if (urge->event == GS_KeyDown || urge->event == GS_KeyUp) {
-            long mods, kcode;
-            gs_mod(display, &(urge->mods));
             gs_key(display, &(urge->key));
         } else if (urge->event == GS_ScrollWheel) {
             float dx, dy;
@@ -241,32 +266,15 @@ void gs_urge_info(long display, NSEvent *event, GSEvent *urge) {
 		} 
 	}
 
+	// always update the modifier keys
+    gs_mod(display, &(urge->mods));
+
 	// always update the mouse.
 	float mx, my;
 	gs_pos(display, &mx, &my);
 	urge->mousex = (long)mx;
 	urge->mousey = (long)my;
-}
-
-// Get the next event and return the type. This mimics [NSApplication run] and allows
-// external control over processing user events.  The expectation is that this is called
-// in a tight loop like a gaming control loop.
-void gs_read_dispatch(long display, GSEvent *gs_urge) {
-    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-    NSDate *date = [NSDate distantPast];
-    NSEvent *event =
-        [(id)display
-        nextEventMatchingMask:NSAnyEventMask
-                    untilDate:date
-                       inMode:NSDefaultRunLoopMode
-                      dequeue:YES];
-
-    // have the view and window process the basic events
-	if (nil != event) {
-        [(id)display sendEvent:event];
-	}
     [pool release];
-    gs_urge_info(display, event, gs_urge);
 }
 
 // The window is hidden in the windowWillClose event and the main loop is expected
@@ -281,7 +289,7 @@ unsigned char gs_shell_alive(long shell) {
 	return ((gs_win_alive == 1) && ([win isMiniaturized] == YES || [win isVisible] == YES));
 }
 
-// Create the OpenGL context.  This must be called after the shell has
+// Create the OpenGL context. This must be called after the shell has
 // been created.
 long gs_context(long shell) {
     NSOpenGLContext *context = [NSOpenGLContext currentContext];
@@ -320,7 +328,7 @@ void gs_size(long shell, float *x, float *y, float *w, float *h) {
     *h = content.size.height;
 }
 
-// Update startup numeric defaults. Minimal effort to ensure a good value.
+// Update startup numeric defaults. Minimal effort is made to ensure a valid value.
 void gs_set_attr_l(long attr, long value) {
     switch (attr) {
     case GS_ShellX:
@@ -344,7 +352,7 @@ void gs_set_attr_l(long attr, long value) {
     }
 }
 
-// Update startup string defaults. Minimal effort to ensure a good value.
+// Update startup string defaults. Minimal effort is made to ensure a valid value.
 void gs_set_attr_s(long attr, char * value) {
     switch (attr) {
     case GS_AppName:

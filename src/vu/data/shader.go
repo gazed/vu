@@ -18,8 +18,7 @@ type Shader struct {
 	Uniforms map[string]int32 // Uniform data is required.
 }
 
-// EnsureNewLines makes sure that shader program lines of code are properly terminated
-// for the shader compiler.
+// EnsureNewLines properly terminates shader program lines for the shader compiler.
 func (s *Shader) EnsureNewLines() {
 	for cnt, line := range s.Vsh {
 		s.Vsh[cnt] = strings.TrimSpace(line) + "\n"

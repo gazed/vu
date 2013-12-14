@@ -6,42 +6,45 @@
 // particular 3D capability and to act as high level test cases for the engine.
 // The examples are run using:
 //      eg [example name]
-// Invoking eg without parameters will list the examples that can be
-// run.  Please have a look at the example source code for more information.
+// Invoking eg without parameters will list the examples that can be run.
+// Please look at specific example source code for more information.
 //
-// Note that the subdirectories contain resource data for the examples.
+// The subdirectories contain resource data needed by the examples.
 package main
 
 import (
 	"fmt"
 	"os"
+	"vu"
+	"vu/math/lin"
+	"vu/render"
 )
 
 // example combines example code with descriptions.
 type example struct {
-	tag         string // identifier
-	description string // short description of the example
-	function    func() // function to run the example
+	tag         string // Example identifier.
+	description string // Short description of the example.
+	function    func() // Function to run the example.
 }
 
 // Launch the requested example or list available examples.
-// Examples are roughly ordered from simplist at the top of the list to
-// more complex/interesting at the bottom of the list.
+// Examples are roughly ordered from simple/basic at the top of the list
+// to more complex/interesting at the bottom of the list.
 func main() {
 	examples := []example{
 		example{"dg", "dg: Dump OpenGL Bindings", dg},
 		example{"da", "da: Dump OpenAL Bindings", da},
-		example{"sh", "sh: Simple Shell", sh},
 		example{"tr", "tr: Spinning Triangle", tr},
 		example{"ld", "ld: Load .obj model", ld},
-		example{"co", "co: Collision & Motion", co},
-		example{"mp", "mp: Mouse Picking", mp},
-		example{"rl", "rl: Random Levels ", rl},
 		example{"tb", "tb: Texture - Basic", tb},
-		example{"bb", "bb: Billborded Texture", bb},
-		example{"sg", "sg: Scene Graph", sg},
+		example{"sh", "sh: Simple Shell", sh},
 		example{"au", "au: Audio", au},
 		example{"sf", "sf: Shader Fire", sf},
+		example{"bb", "bb: Banner & Billborded Textures", bb},
+		example{"rl", "rl: Random Levels", rl},
+		example{"sg", "sg: Scene Graph", sg},
+		example{"cm", "cm: Collision Motion", cm},
+		example{"cr", "cr: Collision Resolution", cr},
 	}
 
 	// run the first matching example.
@@ -61,3 +64,7 @@ func main() {
 		fmt.Printf("   %s \n", example.description)
 	}
 }
+
+// This is needed by some of the examples that only use the engine subpackages
+// and not the engine itself.
+func renderMatrix(mm *lin.M4, rm *render.M4) *render.M4 { return vu.RenderMatrix(mm, rm) }

@@ -35,11 +35,11 @@ func newRoadie(ac audio.Audio, gc render.Renderer) *roadie {
 func (r *roadie) dispose() { r.ld.Dispose() }
 
 // useSound gets the named sound resource, lazy loading it if necessary.
-func (r *roadie) useSound(sound string) (s *data.Sound) {
-	if !r.ld.Cached(sound, s) {
-		r.loadSound(sound) // lazy load and bind.
+func (r *roadie) useSound(sound string, s **data.Sound) {
+	if !r.ld.Cached(sound, *s) {
+		r.loadSound(sound, *s) // lazy load and bind.
 	}
-	if r.ld.Fetch(sound, &s); s == nil {
+	if r.ld.Fetch(sound, s); *s == nil {
 		log.Printf("roadie.useSound: could not fetch %s\n", sound)
 	}
 	return
@@ -47,11 +47,11 @@ func (r *roadie) useSound(sound string) (s *data.Sound) {
 
 // useMesh lazy loads and bind if necessary, and from then on just fetches the
 // initialized resource from the cache.
-func (r *roadie) useMesh(mesh string) (m *data.Mesh) {
-	if !r.ld.Cached(mesh, m) {
-		r.loadMesh(mesh) // lazy load and bind.
+func (r *roadie) useMesh(mesh string, m **data.Mesh) {
+	if !r.ld.Cached(mesh, *m) {
+		r.loadMesh(mesh, *m) // lazy load and bind.
 	}
-	if r.ld.Fetch(mesh, &m); m == nil {
+	if r.ld.Fetch(mesh, m); *m == nil {
 		log.Printf("roadie.useMesh: could not fetch %s\n", mesh)
 	}
 	return
@@ -59,11 +59,11 @@ func (r *roadie) useMesh(mesh string) (m *data.Mesh) {
 
 // useShader lazy loads and bind if necessary, and from then on just fetches the
 // initialized resource from the cache.
-func (r *roadie) useShader(shader string) (s *data.Shader) {
-	if !r.ld.Cached(shader, s) {
-		r.loadShader(shader) // lazy load and bind.
+func (r *roadie) useShader(shader string, s **data.Shader) {
+	if !r.ld.Cached(shader, *s) {
+		r.loadShader(shader, *s) // lazy load and bind.
 	}
-	if r.ld.Fetch(shader, &s); s == nil {
+	if r.ld.Fetch(shader, s); *s == nil {
 		log.Printf("roadie.useShader: could not fetch %s\n", shader)
 	}
 	return
@@ -71,11 +71,11 @@ func (r *roadie) useShader(shader string) (s *data.Shader) {
 
 // useMaterial lazy loads and bind if necessary, and from then on just fetches the
 // initialized resource from the cache.
-func (r *roadie) useMaterial(material string) (m *data.Material) {
-	if !r.ld.Cached(material, m) {
-		r.loadMaterial(material) // lazy load and bind.
+func (r *roadie) useMaterial(material string, m **data.Material) {
+	if !r.ld.Cached(material, *m) {
+		r.loadMaterial(material, *m) // lazy load and bind.
 	}
-	if r.ld.Fetch(material, &m); m == nil {
+	if r.ld.Fetch(material, m); *m == nil {
 		log.Printf("roadie.useMaterial: could not fetch %s\n", material)
 	}
 	return
@@ -83,11 +83,11 @@ func (r *roadie) useMaterial(material string) (m *data.Material) {
 
 // useTexture lazy loads and bind if necessary, and from then on just fetches the
 // initialized resource from the cache.
-func (r *roadie) useTexture(texture string) (t *data.Texture) {
-	if !r.ld.Cached(texture, t) {
-		r.loadTexture(texture) // lazy load and bind.
+func (r *roadie) useTexture(texture string, t **data.Texture) {
+	if !r.ld.Cached(texture, *t) {
+		r.loadTexture(texture, *t) // lazy load and bind.
 	}
-	if r.ld.Fetch(texture, &t); t == nil {
+	if r.ld.Fetch(texture, t); *t == nil {
 		log.Printf("roadie.useTexture: could not fetch %s\n", texture)
 	}
 	return
@@ -95,11 +95,11 @@ func (r *roadie) useTexture(texture string) (t *data.Texture) {
 
 // useGlyphs lazy loads and bind if necessary, and from then on just fetches the
 // initialized resource from the cache.
-func (r *roadie) useGlyphs(glyphset string) (g *data.Glyphs) {
-	if !r.ld.Cached(glyphset, g) {
-		r.loadGlyphs(glyphset) // lazy load and bind.
+func (r *roadie) useGlyphs(glyphset string, g **data.Glyphs) {
+	if !r.ld.Cached(glyphset, *g) {
+		r.loadGlyphs(glyphset, *g) // lazy load and bind.
 	}
-	if r.ld.Fetch(glyphset, &g); g == nil {
+	if r.ld.Fetch(glyphset, g); *g == nil {
 		log.Printf("roadie.useGlyphs: could not fetch %s\n", glyphset)
 	}
 	return
@@ -115,36 +115,33 @@ func (r *roadie) load(data interface{}) { r.ld.Cache(data) }
 
 // loadTexture imports the named resource and makes it available in the
 // resource cache.
-func (r *roadie) loadTexture(name string) {
-	t := &data.Texture{}
+func (r *roadie) loadTexture(name string, t *data.Texture) {
 	if r.ld.Load(name, &t); t != nil {
 		if err := r.gc.BindTexture(t); err != nil {
-			log.Printf("stagehand.loadTexture: could not bind texture %s %s\n", t.Name, err)
+			log.Printf("roadie.loadTexture: could not bind texture %s %s\n", t.Name, err)
 			return
 		}
 		r.ld.Cache(t)
 	} else {
-		log.Printf("stagehand.loadTexture: could not load texture %s\n", name)
+		log.Printf("roadie.loadTexture: could not load texture %s\n", name)
 	}
 }
 
 // loadMesh imports the named resource and makes it available in the
 // resource cache.
-func (r *roadie) loadMesh(name string) {
-	m := &data.Mesh{}
+func (r *roadie) loadMesh(name string, m *data.Mesh) {
 	if r.ld.Load(name, &m); m != nil {
 		if err := r.gc.BindModel(m); err == nil {
 			r.ld.Cache(m)
 		} else {
-			log.Printf("stagehand.loadMesh: could not initialize mesh %s %s %s\n", name, m.Name, err)
+			log.Printf("roadie.loadMesh: could not initialize mesh %s %s %s\n", name, m.Name, err)
 		}
 	}
 }
 
 // loadMaterial imports the named resource and makes it available in the
 // resource cache.
-func (r *roadie) loadMaterial(name string) {
-	m := &data.Material{}
+func (r *roadie) loadMaterial(name string, m *data.Material) {
 	if r.ld.Load(name, &m); m != nil {
 		r.ld.Cache(m)
 	}
@@ -152,34 +149,31 @@ func (r *roadie) loadMaterial(name string) {
 
 // loadGlyphs imports the named resource and makes it available in the
 // resource cache.
-func (r *roadie) loadGlyphs(name string) {
-	glyphs := &data.Glyphs{}
-	if r.ld.Load(name, &glyphs); glyphs != nil {
-		r.ld.Cache(glyphs)
+func (r *roadie) loadGlyphs(name string, g *data.Glyphs) {
+	if r.ld.Load(name, &g); g != nil {
+		r.ld.Cache(g)
 	}
 }
 
 // loadSound imports the named resource and makes it available in the
 // resource cache.
-func (r *roadie) loadSound(name string) {
-	sound := &data.Sound{}
+func (r *roadie) loadSound(name string, sound *data.Sound) {
 	if r.ld.Load(name, &sound); sound != nil {
 		if err := r.ac.BindSound(sound); err != nil {
-			log.Printf("stagehand.loadSound: could not load sound %s %s %s\n", name, sound.Name, err)
+			log.Printf("roadie.loadSound: could not load sound %s %s %s\n", name, sound.Name, err)
 			return
 		}
 		r.ld.Cache(sound)
 	} else {
-		log.Printf("stagehand.loadSound: could not load sound %s %s\n", name, sound.Name)
+		log.Printf("roadie.loadSound: could not load sound %s %s\n", name, sound.Name)
 	}
 }
 
 // loadShader imports the named resource and makes it available in the
 // resource cache.
-func (r *roadie) loadShader(name string) {
-	var shader *data.Shader
+func (r *roadie) loadShader(name string, shader *data.Shader) {
 	var err error
-	if shader = render.CreateShader(name); shader != nil {
+	if render.CreateShader(name, shader); shader != nil && shader.Name != "" {
 
 		// override the default shader source with anything found on disk.
 		ds := &data.Shader{}
@@ -193,11 +187,11 @@ func (r *roadie) loadShader(name string) {
 		}
 		shader.EnsureNewLines()
 		if shader.Program, err = r.gc.BindShader(shader); err != nil {
-			log.Printf("stagehand.loadShader: could not bind %s\n%s", name, err)
+			log.Printf("roadie.loadShader: could not bind %s\n%s", name, err)
 			return
 		}
 		r.ld.Cache(shader)
 	} else {
-		log.Printf("stagehand.loadShader: unknown shader %s", name)
+		log.Printf("roadie.loadShader: unknown shader %s", name)
 	}
 }

@@ -3,8 +3,8 @@
 
 package data
 
-// Sound holds on to a shared audio resource.  The audio data still needs to
-// be bound to a sound card buffer.
+// Sound is a shared audio resource. Note that the audio data
+// has not yet been bound to a sound card.
 type Sound struct {
 	Name       string // Unique sound name.
 	AudioData  []byte // The raw audio data.

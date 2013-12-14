@@ -11,6 +11,9 @@ import (
 	"vu/data"
 )
 
+// OSX has OpenAL. To install 64-bit OpenAL on windows use:
+//    http://connect.creativelabs.com/openal/Downloads/oalinst.zip
+
 // openal provides sound support for the engine. It exposes the useful parts
 // of the underlying OpenAL audio library as well as providing some sound
 // utility methods.
@@ -134,10 +137,12 @@ func newSoundMaker(s *data.Sound) *soundMaker {
 	return &soundMaker{source: source}
 }
 
-func (sm *soundMaker) SetLocation(x, y, z float32) { al.Source3f(sm.source, al.POSITION, x, y, z) }
-func (sm *soundMaker) SetPitch(pitch float32)      { al.Sourcef(sm.source, al.PITCH, pitch) }
-func (sm *soundMaker) SetGain(gain float32)        { al.Sourcef(sm.source, al.GAIN, gain) }
-func (sm *soundMaker) Play()                       { al.SourcePlay(sm.source) }
+func (sm *soundMaker) SetLocation(x, y, z float64) {
+	al.Source3f(sm.source, al.POSITION, float32(x), float32(y), float32(z))
+}
+func (sm *soundMaker) SetPitch(pitch float64) { al.Sourcef(sm.source, al.PITCH, float32(pitch)) }
+func (sm *soundMaker) SetGain(gain float64)   { al.Sourcef(sm.source, al.GAIN, float32(gain)) }
+func (sm *soundMaker) Play()                  { al.SourcePlay(sm.source) }
 
 // soundMaker
 // ===========================================================================
@@ -146,6 +151,10 @@ func (sm *soundMaker) Play()                       { al.SourcePlay(sm.source) }
 // soundListener conforms to the the SoundListener interface.
 type soundListener struct{}
 
-func (l *soundListener) SetLocation(x, y, z float32) { al.Listener3f(al.POSITION, x, y, z) }
-func (l *soundListener) SetVelocity(x, y, z float32) { al.Listener3f(al.VELOCITY, x, y, z) }
-func (l *soundListener) SetGain(gain float32)        { al.Listenerf(al.GAIN, gain) }
+func (l *soundListener) SetLocation(x, y, z float64) {
+	al.Listener3f(al.POSITION, float32(x), float32(y), float32(z))
+}
+func (l *soundListener) SetVelocity(x, y, z float64) {
+	al.Listener3f(al.VELOCITY, float32(x), float32(y), float32(z))
+}
+func (l *soundListener) SetGain(gain float64) { al.Listenerf(al.GAIN, float32(gain)) }

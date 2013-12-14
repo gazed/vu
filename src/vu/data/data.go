@@ -3,12 +3,12 @@
 
 // Package data turns file resource data into data objects. Specifically
 // data needed by 3D applications. This package:
-//    * Defines a data type for each of the various data resources.
-//    * Provides caching and fetching of data resources.
-//    * Loads data directly from disk for a development build and loads data
-//      from a zip file attached to the binary for a production build.
-//    * Loads data such that is easily consumed by the rendering
-//      and audio components.
+//    • Defines a data type for each of the various data resources.
+//    • Provides caching and fetching of data resources.
+//    • Loads data directly from disk for development builds.
+//      Production builds load data from a zip file attached to the binary.
+//    • Loads data such that it is easily consumed by the rendering and
+//      audio components.
 //
 // The resource data that can be loaded from disk are the types exposed by
 // this package:
@@ -22,15 +22,14 @@
 //      audio                        : binfile.wav --> Sound
 //      images                       : binfile.png --> Texture
 //
-// Implementation Notes:
-//    * The intent is to eventually have more than one supported file type for
-//      a given resource.
-//    * Currently intended for smaller 3D applications where data is loaded
-//      from disk and kept in memory. There is nothing preventing a more
-//      industrial strength (database) back end.
+// Package data is currently intended for smaller 3D applications where data
+// is loaded directly from files to memory, i.e. no database involved.
 //
 // Package data is provided as part of the vu (virtual universe) 3D engine.
 package data
+
+// FUTURE: Have more than one supported file type for a given resource.
+// FUTURE: Industrial strength (database) back end.
 
 // Loader provides methods for loading, caching, and fetching data resources from disk.
 // The current resource data types are the types exposed by this  package:
@@ -64,8 +63,8 @@ type Loader interface {
 
 	// Fetch retrieves a previously cached resource using the given name.
 	// Fetch expects the resource data to be a pointer to one of the resource data types.
-	// If found the resource data is copied into the supplied data pointer,
-	// otherwise the supplied data pointer is set to nil
+	// If found the resource data is copied into the supplied data pointer.
+	// Otherwise the supplied data pointer is set to nil
 	Fetch(name string, data interface{})
 
 	// SetDir overrides the default directory location for the given data type.

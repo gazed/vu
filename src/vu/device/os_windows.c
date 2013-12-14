@@ -26,76 +26,19 @@ struct AppDefaults defaults = { 100, 100, 240, 280, 8, 24, TEXT("App") };
 // included in a golang build using the .syso file type.
 #define IDI_APPICON 101
 
-// State used to track window closure. This is needed to avoid accessing the
-// external shell pointer after a window has closed.  There is no sure way to
+// State used to track window closure. Needed to avoid accessing the
+// external shell pointer after a window has closed. There is no sure way to
 // check if an object pointer is valid once that object has been released.
 long gs_win_alive = -1;
 
-// Event (urge) buffer handling code. Keeps a small buffer since there may
-// be multiple events handled by the windows proc before there is a chance to
-// send them back up to the application. The idea is that there should not be
-// that many events being generated before they can be processed.
-// TODO replace buffer handling code... needs to be more deterministic.
-//
-// Keep a small buffer of urges. This is controlled by gs_write/read_urge.
-static const int gs_bs = 10;  // buffer size
-int gs_rp = 0;                // current urge read pointer.
-int gs_wp = 0;                // current urge write pointer.
-GSEvent gs_urges[10];         // buffer of urges.
-static const GSEvent gs_init = {0, -1, -1, 0, 0, 0}; 
+// User event (urge) structure used to pass back events of interest. 
+static GSEvent gs_eve = {-1, -1, -1, 0, 0, 0}; 
 
-// Initialize event memory.  Expected to be called once at startup (during
-// display init).
-void gs_init_urges() 
+void gs_write_urge(long eid, long key, long scroll) 
 {
-	int cnt;
-	for (cnt = 0; cnt < gs_bs; cnt++)
-	{
-		gs_urges[cnt] = gs_init;
-	}
-}
-
-// Remove a user event from the urge buffer. This is expected to be called from
-// read_dispatch to send buffered user events to the user. This will return a 
-// pointer to the empty GSEvent structure if there was nothing in the buffer.
-GSEvent gs_read_urge() 
-{
-    GSEvent gs_urge;
-    if (gs_urges[gs_rp].event != 0) 
-	{
-	    gs_urge = gs_urges[gs_rp];	
-		gs_urges[gs_rp] = gs_init; // remove from buffer
-	    gs_rp++;
-	    if (gs_rp >= gs_bs) 
-		{
-		    gs_rp = 0;
-		}
-	} 
-	else 
-	{
-	    gs_urge = gs_init;    	
-	}
-	return gs_urge;
-}
-
-// Capture a user event in the urge buffer. This keeps important events from
-// the windows callback proc around just long enough to be processed during the
-// wrap up read_dispatch.
-void gs_write_urge(long eid, long mx, long my, long key, long mods, long scroll) 
-{
-	int next = gs_wp + 1;
-	if (next >= gs_bs) 
-	{
-		next = 0;
-	}
-	if (gs_urges[next].event != 0) 
-	{
-	    printf("GS urge overflow. event %ld ignored.\n", eid);
-		return;
-	}
-    GSEvent urge = {eid, mx, my, key, mods, scroll};
-	gs_urges[gs_wp] = urge;
-	gs_wp = next;
+	gs_eve.event = eid;
+	gs_eve.key = key;
+	gs_eve.scroll = scroll;
 }
 
 // Windows callback procedure. Handle a few events often returning 0 to mark
@@ -109,14 +52,13 @@ LRESULT CALLBACK gs_wnd_proc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         {
             long isActive = LOWORD(wParam) != WA_INACTIVE ? 1 : 0;
 		    long event = msg + isActive; // GS_WindowActive or GS_WindowInactive           
-			gs_write_urge(event, 0, 0, 0, 0, 0);
+			gs_write_urge(event, 0, 0);
             return 0;
         }
         case WM_SYSCOMMAND:
         {
             if ( (wParam & 0xfff0)  == SC_KEYMENU )
             {
-			    // TODO add ALT key to mods. 
                 return 0;
             }
             break;
@@ -132,21 +74,12 @@ LRESULT CALLBACK gs_wnd_proc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         case WM_KEYUP:
         {
 		    long key = wParam;
-			long mods = 0;
 
 			// only care about modifiers with other keys.
 			if (key == VK_SHIFT || key == VK_CONTROL) {
 				return 0;
 			}
-			if ( GetKeyState(VK_SHIFT) & 0x8000 ) 
-			{
-                mods |= GS_ShiftKeyMask; 
-			}
-			if ( GetKeyState(VK_CONTROL) & 0x8000 ) 
-			{
-                mods |= GS_ControlKeyMask; 
-			}
-			gs_write_urge(msg, 0, 0, key, mods, 0);
+			gs_write_urge(msg, key, 0);
 			return 0;
         }
 
@@ -155,7 +88,7 @@ LRESULT CALLBACK gs_wnd_proc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         case WM_LBUTTONDOWN:
 		{
             SetCapture(hwnd);
-			gs_write_urge(msg, 0, 0, 0, 0, 0);
+			gs_write_urge(msg, 0, 0);
             return 0;
         }
 
@@ -164,14 +97,14 @@ LRESULT CALLBACK gs_wnd_proc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         case WM_MBUTTONUP:
 		{
             ReleaseCapture();
-			gs_write_urge(msg, 0, 0, 0, 0, 0);
+			gs_write_urge(msg, 0, 0);
             return 0;
         }
 		
         case WM_MOUSEWHEEL:
         {
             long scroll = (((int)wParam) >> 16) / WHEEL_DELTA;
-		    gs_write_urge(msg, 0, 0, 0, 0, scroll);  
+		    gs_write_urge(msg, 0, scroll);  
             return 0;
         }
 
@@ -180,13 +113,13 @@ LRESULT CALLBACK gs_wnd_proc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			// TODO detect when window is restored from maximized.
 			if (wParam == SIZE_MAXIMIZED) 
 			{
-		    	gs_write_urge(GS_WindowResized, 0, 0, 0, 0, 0);  
+		    	gs_write_urge(GS_WindowResized, 0, 0);  
 			}
 		    return 0; 
 		}
         case WM_EXITSIZEMOVE:
         {
-		    gs_write_urge(msg, 0, 0, 0, 0, 0);  
+		    gs_write_urge(msg, 0, 0);  
 		    return 0; 
         }
     }
@@ -214,7 +147,7 @@ long gs_create_window(HMODULE hInstance, LPSTR className)
     long wHeight = rect.bottom - rect.top + 1;
 	long topy = desktop.bottom - defaults.gs_ShellY - wHeight;
 
-	// Create the window
+	// create the window
 	HWND display = CreateWindowEx(
  		exStyle,      			// Optional styles
  		className,          	// Window class 
@@ -236,8 +169,6 @@ long gs_create_window(HMODULE hInstance, LPSTR className)
 // application window.
 long gs_display_init()
 {
-    gs_init_urges();	
-
 	// Get the application instance.
     HMODULE hInstance = GetModuleHandle(NULL);
 
@@ -262,7 +193,7 @@ long gs_display_init()
 	return gs_create_window(hInstance, gs_className);
 } 
 
-// Destroy the application window.  Attempt to remove the rendering context and
+// Destroy the application window. Attempt to remove the rendering context and
 // the device context as well.
 void gs_display_dispose(long display) 
 {
@@ -275,7 +206,7 @@ void gs_display_dispose(long display)
     DestroyWindow(hwnd); 
 }
 
-// Get the device context.  This must be called after creating the window and
+// Get the device context. This must be called after creating the window and
 // before creating the rendering context.
 long gs_shell(long display)
 {
@@ -288,7 +219,7 @@ long gs_shell(long display)
     return HandleToLong(shell);
 }
 
-// Show the application window to the user.  This is expected to be called after
+// Show the application window to the user. This is expected to be called after
 // the rendering context has been created.
 void gs_shell_open(long display)
 {
@@ -318,7 +249,7 @@ void gs_pos(long display, long *x, long *y)
  	*y = rect.bottom - point.y; 
 }
 
-// Position the cursor at the given window location.  The incoming coordinates
+// Position the cursor at the given window location. The incoming coordinates
 // are relative to the bottom left corner - switch that to be relative to the
 // top left corner.
 void gs_set_cursor_location(long display, long x, long y) 
@@ -338,11 +269,17 @@ void gs_set_cursor_location(long display, long x, long y)
 }
 
 // Process all queued up user events and send one of the processed events back
-// to the application.
+// to the application. Prefer PeekMessage (non-blocking) over GetMessage (blocking).
 void gs_read_dispatch(long display, GSEvent *gs_urge)
 {
     MSG msg;
-    while (PeekMessage( &msg, NULL, 0, 0, PM_REMOVE )) 
+	gs_eve.event = gs_urge->event;
+	gs_eve.mousex = gs_urge->mousex;
+	gs_eve.mousey = gs_urge->mousey;
+	gs_eve.key = gs_urge->key;
+	gs_eve.mods = gs_urge->mods;
+	gs_eve.scroll = gs_urge->scroll;
+    if ( PeekMessage( &msg, NULL, 0, 0, PM_REMOVE ) != 0 ) 
     {
 		// handle quit immediately
 	    if (msg.message == WM_QUIT) 
@@ -350,11 +287,28 @@ void gs_read_dispatch(long display, GSEvent *gs_urge)
 		    gs_win_alive = -2;
 		    return;
 	    }
-        DispatchMessage( &msg );
+        DispatchMessage( &msg ); // goes to wnd_proc
+
+	    // message queue has been processed, return interesting stuff.
+		if ( gs_eve.event >= 0 ) 
+		{
+            gs_urge->event = gs_eve.event; 
+	        gs_urge->key = gs_eve.key;
+	        gs_urge->scroll = gs_eve.scroll;
+		}
 	}
 
-	// message queue has been processed, return something to the user.
-    *gs_urge = gs_read_urge(); 
+	// always send back the modifier keys.
+	long mods = 0;
+	if ( GetKeyState(VK_SHIFT) & 0x8000 ) 
+	{
+        mods |= GS_ShiftKeyMask; 
+	}
+	if ( GetKeyState(VK_CONTROL) & 0x8000 ) 
+	{
+        mods |= GS_ControlKeyMask; 
+	}
+	gs_urge->mods = mods;
 
 	// update the mouse each time rather than dealing with mouse move events.
 	gs_pos(display, &(gs_urge->mousex), &(gs_urge->mousey)); 
@@ -375,7 +329,7 @@ void gs_size(long display, long *x, long *y, long *w, long *h)
     *y = desktop.bottom - rect.bottom;
 }
 
-// Show or hide cursor.  Lock it to the window if it is hidden.
+// Show or hide cursor. Lock it to the window if it is hidden.
 void gs_show_cursor(long display, unsigned char show) 
 {
 	if (show) 
@@ -459,7 +413,7 @@ int gs_get_pixelformat(long shell)
 	return 0;
 }
 
-// gs_context creates an opengl context.  Actually it creates two of them.
+// gs_context creates an opengl context. Actually it creates two of them.
 // The first context is used to find better functions to create the final
 // context.  Note that the pixel format is done only once for a window so
 // it must be correctly chosen.
@@ -574,7 +528,7 @@ void gs_set_attr_l(long attr, long value)
    }
 }
 
-// Set string attributes.  Attributes only take effect if they are set before 
+// Set string attributes. Attributes only take effect if they are set before 
 // they are used to create the window or rendering context. 
 void gs_set_attr_s(long attr, char * value)
 {

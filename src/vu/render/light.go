@@ -3,18 +3,17 @@
 
 package render
 
-// TODO finish (start?) lighting. There much more information to add.
-// For example:
+// FUTURE finish (start?) lighting. There much more information to add. For example:
 //     * more light attributes like the type of light.
 //     * handling many lights.
 //     * loading lights as data resources.
+// See: http://gamedev.tutsplus.com/articles/glossary/forward-rendering-vs-deferred-rendering/
 
 import (
 	"vu/data"
 )
 
-// Light has a postion and a colour (and eventually lots more once lighting
-// is properly designed and implemented).
+// Light has a position and a colour.
 type Light struct {
 	X, Y, Z float32  // Light position.
 	Ld      data.Rgb // Light colour.

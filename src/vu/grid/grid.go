@@ -4,17 +4,17 @@
 // Package grid is used to generate random maze or skirmish levels.
 // Maze levels have dead ends such that there is only one path to
 // get from one spot in the maze to another.  Skirmish levels have
-// no dead ends so as to ecourage lots of running space.
+// no dead ends in order to provide plenty of movement options.
 //
 // Expected usage:
-//       maze := grid.New(PRIM_MAZE)  // create a type of grid.
-//       maze.Generate(width, height) // generate the grid.
+//       maze := grid.New(PRIM_MAZE)  // Create a type of grid.
+//       maze.Generate(width, height) // Generate the grid.
 //       for x := 0; x < width; x++ {
 //          for y := 0; y < height; y++ {
 //             if maze.isWall(x, y) {
-//                 // do something with a wall.
+//                 // Do something with a wall.
 //             } else {
-//                 // do something with a passage.
+//                 // Do something with a passage.
 //             }
 //          }
 //       }
@@ -52,7 +52,7 @@ type Grid interface {
 
 	// Band returns the depth into the based on concentric squares. Numbering
 	// starts at 0 on the outside and increases towards the center.  Using band
-	// implies (makes more sense) that the grid width and height are the same.
+	// implies (makes more sense if) the grid width and height are the same.
 	Band(x, y int) int
 }
 

@@ -34,7 +34,7 @@ func newMaterial(name string, kd, ka, ks *Rgb, tr float32) *Material {
 // ===========================================================================
 // Rgb
 
-// Rgb holds colour information where each of the fields is expected to contain
+// Rgb holds colour information where each field is expected to contain
 // a value from 0.0 to 1.0. A value of 0 means none of that colour while a value
 // of 1.0 means as much as possible of that colour. For example:
 //     black := &Rgb{0, 0, 0}
@@ -42,7 +42,7 @@ func newMaterial(name string, kd, ka, ks *Rgb, tr float32) *Material {
 //     red := &Rgb{1, 0, 0}
 //     gray := &Rgb{0.5, 0.5, 0.5}
 type Rgb struct {
-	R float32 // red
-	G float32 // green
-	B float32 // blue
+	R float32 // Red.
+	G float32 // Green.
+	B float32 // Blue.
 }

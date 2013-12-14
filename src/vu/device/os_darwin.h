@@ -6,9 +6,8 @@
 // quit, show up in the dock, and participate in command-tab application switching.
 //
 // Maintenance Notes:
-// The design is to wrap cocoa functionality in C syntax method calls so a simple
-// binding layer can be created from the resulting dynamic library.
-// Design goals include:
+// The design is to wrap cocoa functionality in C syntax method so a simple
+// binding layer can be created. Design goals include:
 //    - minimize state, passing in needed information where possible.
 //    - keep in/out parameter types to the basic C types.
 //    - minimize the number of calls.
@@ -20,7 +19,7 @@ typedef struct {
 	long event;   // the user event. Zero if nothing is happening. 
 	long mousex;  // current mouse position is always filled in.
 	long mousey;  // current mouse position is always filled in.
-	long key;     // which key is currently pressed, if any.
+	long key;     // which key, or mouse button was affected, if any.
 	long mods;	  // which modifier keys are currently pressed, if any.
 	long scroll;  // the scroll amount if any. 
 } GSEvent;
@@ -32,11 +31,11 @@ long gs_display_init();
 // Cleans and releases all resources including the OpenGL context.
 void gs_display_dispose(long display);
 
-// Creates the window (shell) on the given display..
+// Creates the window (shell) on the given display.
 // Returns a reference to the shell. 
 long gs_shell(long display);
 
-// Creates the window (shell) on the given display..
+// Creates the window (shell) on the given display.
 // Returns a reference to a NSWindow instance.
 void gs_shell_open(long display);
 
@@ -44,15 +43,15 @@ void gs_shell_open(long display);
 // Return 1 as long as the user hasn't closed the window.
 unsigned char gs_shell_alive(long shell);
 
-// Process a user event.  This must be called inside an event loop in order
-// for the application to work.  The event is also processed to determine
+// Process a user event. This must be called inside an event loop in order
+// for the application to work. The event is also processed to determine
 // window events.
 void gs_read_dispatch(long display, GSEvent *gs_urge);
 
 // Get the current main window drawing area size. 
 void gs_size(long shell, float *x, float*y, float *w, float *h);
 
-// Show or hide cursor.  Lock it if it is hidden.
+// Show or hide cursor. Lock it if it is hidden.
 void gs_show_cursor(unsigned char show);
 
 // Set the cursor location to the given screen coordinates.
@@ -88,7 +87,8 @@ enum AppAttributes
 	GS_DepthSize    // 24
 };
 
-// Possible return values from gs_read_dispatch.
+// Possible return values from gs_read_dispatch. The NSEventType
+// values are defined in NSEvent.h
 enum {
     GS_LeftMouseDown         = 1,   // NSLeftMouseDown
     GS_LeftMouseUp           = 2,   // NSLeftMouseUp
@@ -99,6 +99,7 @@ enum {
     GS_MouseExited           = 9,   // NSMouseExited
     GS_KeyDown               = 10,  // NSKeyDown
     GS_KeyUp                 = 11,  // NSKeyUp
+    GS_ModKeysChanged        = 12,  // NSFlagsChanged
     GS_ScrollWheel           = 22,  // NSScrollWheel
     GS_OtherMouseDown        = 25,  // NSOtherMouseDown
     GS_OtherMouseUp          = 26,  // NSOtherMouseUp

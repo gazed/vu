@@ -16,7 +16,7 @@ import (
 )
 
 // opengl implements the Renderer interface wrapping all OpenGL calls.
-// See the Renderer interface for comments.  Also see the OpenGL documentation
+// See the Renderer interface for comments. Also see the OpenGL documentation
 // for the individual calls.
 type opengl struct{}
 
@@ -32,32 +32,19 @@ func (gc *opengl) Clear()                         { gl.Clear(gl.COLOR_BUFFER_BIT
 func (gc *opengl) Viewport(width int, height int) { gl.Viewport(0, 0, int32(width), int32(height)) }
 
 // Implements Renderer interface.
-func (gc *opengl) Enable(attribute int, enabled bool) {
-	switch attribute {
-	case BLEND:
-		if enabled {
+func (gc *opengl) Enable(attribute uint32, enabled bool) {
+	if enabled {
+		gl.Enable(attribute)
+		if attribute == gl.BLEND {
 			gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
-			gl.Enable(gl.BLEND)
-		} else {
-			gl.Disable(gl.BLEND)
 		}
-	case CULL:
-		if enabled {
-			gl.Enable(gl.CULL_FACE)
-		} else {
-			gl.Disable(gl.CULL_FACE)
-		}
-	case DEPTH:
-		if enabled {
-			gl.Enable(gl.DEPTH_TEST)
-		} else {
-			gl.Disable(gl.DEPTH_TEST)
-		}
+	} else {
+		gl.Disable(attribute)
 	}
 }
 
 // Implements Renderer interface.
-func (gc *opengl) Render(v *Visible) {
+func (gc *opengl) Render(v *Vis) {
 	if v.Mesh != nil && v.Shader != nil {
 		gl.BindVertexArray(v.Mesh.Vao)
 		gl.UseProgram(v.Shader.Program)
@@ -127,13 +114,13 @@ func (gc *opengl) BindGlyphs(mesh *data.Mesh) (err error) {
 		log.Printf("opengl:bindGlyphs need to find and fix prior error %X", glerr)
 	}
 
-	// Gather the one scene into this one vertex array object.
+	// Reuse existing vertex array object, otherwise create one.
 	if mesh.Vao == 0 {
 		gl.GenVertexArrays(1, &(mesh.Vao))
 	}
 	gl.BindVertexArray(mesh.Vao)
 
-	// vertex data.
+	// Reuse existing vertex buffer, otherwise create one.
 	if mesh.Vbuf == 0 {
 		gl.GenBuffers(1, &(mesh.Vbuf))
 	}
@@ -143,7 +130,7 @@ func (gc *opengl) BindGlyphs(mesh *data.Mesh) (err error) {
 	gl.VertexAttribPointer(vattr, 4, gl.FLOAT, false, 0, 0)
 	gl.EnableVertexAttribArray(vattr)
 
-	// texture coordatinate, 2 float32's
+	// Reuse existing texture buffer, otherwise create one.
 	if mesh.Tbuf == 0 {
 		gl.GenBuffers(1, &(mesh.Tbuf))
 	}
@@ -153,7 +140,7 @@ func (gc *opengl) BindGlyphs(mesh *data.Mesh) (err error) {
 	gl.VertexAttribPointer(tattr, 2, gl.FLOAT, false, 0, 0)
 	gl.EnableVertexAttribArray(tattr)
 
-	// faces data, uint16 in this case, so 2 bytes per element.
+	// Reuse existing faces buffer, otherwise create one.
 	if mesh.Fbuf == 0 {
 		gl.GenBuffers(1, &mesh.Fbuf)
 	}
@@ -215,9 +202,9 @@ func (gc *opengl) MapTexture(tid int, t *data.Texture) {
 func (gc *opengl) BindShader(sh *data.Shader) (pref uint32, err error) {
 	pref = gl.CreateProgram()
 
-	// TODO get rid of BindAttribLocation and use layout instead.
-	//      this needs GLSL 330 instead of 150
-	//      eg: layout(location=0) in vec4 in_position;
+	// FUTURE: get rid of BindAttribLocation and use layout instead.
+	//         this needs GLSL 330 instead of 150
+	//         eg: layout(location=0) in vec4 in_position;
 	gl.BindAttribLocation(pref, 0, "in_v") // matches vattr in bindModel
 	gl.BindAttribLocation(pref, 1, "in_n") // matches nattr in bindModel
 	gl.BindAttribLocation(pref, 2, "in_t") // matches tattr in bindModel
@@ -254,7 +241,7 @@ var sTime = time.Now()
 // bindShaderUniforms sets the uniforms in the shader to the necessary values.
 // This is done by an agreed uniform naming convention such that the uniforms
 // names used in the shader are unique and apply to a particular set of data.
-func (gc *opengl) bindShaderUniforms(v *Visible) {
+func (gc *opengl) bindShaderUniforms(v *Vis) {
 	for key, ref := range v.Shader.Uniforms {
 		switch key {
 		case "mvpm":
@@ -262,7 +249,8 @@ func (gc *opengl) bindShaderUniforms(v *Visible) {
 		case "mvm":
 			gc.bindUniforms(ref, m4, v.Mv.Pointer())
 		case "nm":
-			gc.bindUniforms(ref, m3, v.Mv.M3().Pointer())
+			mat3 := (&M3{}).M3(v.Mv)
+			gc.bindUniforms(ref, m3, mat3.Pointer())
 		case "l":
 			gc.bindUniforms(ref, f4, v.L.X, v.L.Y, v.L.Z, float32(1.0))
 		case "ld":
@@ -274,18 +262,14 @@ func (gc *opengl) bindShaderUniforms(v *Visible) {
 		case "ks":
 			gc.bindUniforms(ref, f3, v.Mat.Ks.R, v.Mat.Ks.G, v.Mat.Ks.B)
 		case "scale":
-			gc.bindUniforms(ref, f1, v.Scale)
+			gc.bindUniforms(ref, f3, v.Scale.X, v.Scale.Y, v.Scale.Z)
 		case "fd":
 			gc.bindUniforms(ref, f1, v.Fade)
 		case "alpha":
-			if v.Mat != nil {
-				gc.bindUniforms(ref, f1, v.Mat.Tr)
-			} else {
-				gc.bindUniforms(ref, f1, float32(1))
-			}
+			gc.bindUniforms(ref, f1, v.Alpha)
 		case "uv":
 			gc.bindUniforms(ref, i1, int32(0))
-			gc.MapTexture(0, v.Texture)
+			gc.MapTexture(0, v.Tex)
 		case "time":
 			gc.bindUniforms(v.Shader.Uniforms["time"], f1, float32(time.Since(sTime).Seconds()))
 		case "resolution":
@@ -356,9 +340,8 @@ const (
 	vi1        // glUniform1iv
 )
 
-// validate that OpenGL is available at the right version.  For OpenGL 3.2
+// validate that OpenGL is available at the right version. For OpenGL 3.2
 // the following lines should be in the report.
-//	    GL_VERSION_3_2
 //	       [+] glFramebufferTexture
 //	       [+] glGetBufferParameteri64v
 //	       [+] glGetInteger64i_v

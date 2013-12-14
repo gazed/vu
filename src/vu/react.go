@@ -5,7 +5,7 @@ package vu
 
 // react is a means of linking user key sequences to code that updates state.
 // Applications can bind reactions to pressed key sequences.
-// TODO Move from engine to application? Not a lot of value add.
+// FUTURE: Move from engine to application? Not a lot of value add.
 
 import (
 	"time"
@@ -15,19 +15,10 @@ import (
 // The "Do" reaction is triggered when the user pressed key sequence matches
 // the reaction id.
 type Reaction interface {
-	// Name uniquely identifies and describes a reaction.  This is generally
-	// action oriented word or phrase like "moveUp".
-	Name() string
-
-	// Do is the application hander called when the user triggers the pressed
-	// key sequence identified by Name.
-	Do()
-
-	// Time is the last time this reaction was triggered.
-	Time() time.Time
-
-	// SetTime
-	SetTime()
+	Name() string    // Unique reaction identifier i.e. "moveUp".
+	Do()             // Application action handler.
+	Time() time.Time // Last time this reaction was triggered.
+	SetTime()        // Updates Time.
 }
 
 // Reaction interface
@@ -59,8 +50,8 @@ func (r *reaction) Do() {
 // ===========================================================================
 // reactOnce
 
-// NewReactOnce (metered reaction) wraps a Reaction with a holdoff timer so that
-// the reaction is preformed every so often and not every event loop.
+// NewReactOnce (metered reaction) wraps a Reaction with a hold off timer so that
+// the reaction is performed every so often and not every event loop.
 //
 // This is because key and mouse events are processed many times a
 // second and even a quick key press will generate multiple user pressed key

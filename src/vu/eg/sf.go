@@ -1,5 +1,5 @@
-// Copyright © 2013 Galvanized Logic Inc.
 // Use is governed by a FreeBSD license found in the LICENSE file.
+// Copyright © 2013 Galvanized Logic Inc.
 
 package main
 
@@ -9,10 +9,11 @@ import (
 	"vu/data"
 	"vu/device"
 	"vu/math/lin"
+	"vu/render"
 	"vu/render/gl"
 )
 
-// sf demonstartes one example of shader only rendering. This shows the power of shaders using
+// sf demonstrates one example of shader only rendering. This shows the power of shaders using
 // an example from shadertoy.com. Specifically:
 //       https://www.shadertoy.com/view/Xsl3zN
 // For more shader examples also check out:
@@ -20,47 +21,53 @@ import (
 // The real star of this demo though is found in ./shaders/fire.fsh.  Kudos to @301z and
 // the other contributors to shadertoy and heroku.
 //
-// sf only uses base OpenGL "vu/render/gl" package calls.
+// This also demonstrates basic rendering by using OpenGL calls from
+// package "vu/render/gl" for rendering.
 func sf() {
 	sf := new(sftag)
 	dev := device.New("Shader Fire", 400, 100, 500, 500)
-	dev.SetResizer(sf)
 	sf.initScene()
 	dev.Open()
 	for dev.IsAlive() {
-		dev.ReadAndDispatch()
+		sf.update(dev)
 		sf.drawScene()
 		dev.SwapBuffers()
 	}
 	dev.Dispose()
 }
 
-// Globally unique "tag" for this example.
-// Also hides any variables shared between methods in this example.
+// Globally unique "tag" that encapsulates example specific data.
 type sftag struct {
 	vao     uint32
-	sTime   time.Time // start time.
-	gTime   int32     // uniform reference to time in seconds since startup.
-	sizes   int32     // uniform reference to the viewport sizes vector.
-	shaders uint32    // program reference.
-	mvp     *lin.M4   // model view perspective matrix.
-	mvpref  int32     // mvp uniform id
+	sTime   time.Time  // start time.
+	gTime   int32      // uniform reference to time in seconds since startup.
+	sizes   int32      // uniform reference to the viewport sizes vector.
+	shaders uint32     // program reference.
+	ortho   *lin.M4    // perspective matrix.
+	mvp32   *render.M4 // passed to graphics layer.
+	mvpref  int32      // mvp uniform id
 
 	// mesh information
 	points []float32
 	faces  []uint8
 }
 
-func (sf *sftag) Resize(x, y, width, height int) {
+// update handles user input.
+func (sf *sftag) update(dev device.Device) {
+	pressed := dev.Update()
+	if pressed.Resized {
+		sf.resize(dev.Size())
+	}
+}
+
+// resize handles user screen/window changes.
+func (sf *sftag) resize(x, y, width, height int) {
 	gl.Viewport(0, 0, int32(width), int32(height))
 }
 
-////////////////////////////////////////////////////
-// the rest is OpenGL initialization and drawing.
-////////////////////////////////////////////////////
-
-// Create a single VAO
+// initScene is one time initialization that creates a single VAO
 func (sf *sftag) initScene() {
+	sf.mvp32 = &render.M4{}
 	sf.sTime = time.Now()
 	sf.initData()
 
@@ -98,12 +105,13 @@ func (sf *sftag) initScene() {
 	sf.mvpref = gl.GetUniformLocation(sf.shaders, "Mvpm")
 	sf.gTime = gl.GetUniformLocation(sf.shaders, "time")
 	sf.sizes = gl.GetUniformLocation(sf.shaders, "resolution")
-	sf.mvp = lin.M4Orthographic(0, 4, 0, 4, 0, 10)
+	sf.ortho = lin.NewOrtho(0, 4, 0, 4, 0, 10)
 
 	// set some state that doesn't need to change during drawing.
 	gl.ClearColor(0.0, 0.0, 0.0, 1.0)
 }
 
+// initData creates a flat mesh that the shader renders onto.
 func (sf *sftag) initData() {
 	sf.points = []float32{
 		0, 0, 0, 1,
@@ -117,16 +125,16 @@ func (sf *sftag) initData() {
 	}
 }
 
-// This is a shader only rendered scene.
+// drawScene renders the shader-only scene.
 func (sf *sftag) drawScene() {
 	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 	gl.UseProgram(sf.shaders)
 	gl.BindVertexArray(sf.vao)
-
 	timeSinceStart := time.Since(sf.sTime).Seconds()
 	gl.Uniform1f(sf.gTime, float32(timeSinceStart))
 	gl.Uniform2f(sf.sizes, 500, 500)
-	gl.UniformMatrix4fv(sf.mvpref, 1, false, sf.mvp.Pointer())
+	sf.mvp32 = renderMatrix(sf.ortho, sf.mvp32)
+	gl.UniformMatrix4fv(sf.mvpref, 1, false, sf.mvp32.Pointer())
 	gl.DrawElements(gl.TRIANGLES, int32(len(sf.faces)), gl.UNSIGNED_BYTE, gl.Pointer(nil))
 
 	// cleanup

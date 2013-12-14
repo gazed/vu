@@ -5,12 +5,11 @@ package data
 
 // Glyphs holds a single bitmapped font. It knows how to pull individual
 // character images out of a single image that contains all the characters
-// for a font.
+// for a font. It has to be combined with a texture (the font bitmapped image)
+// in order to produce displayable strings.
 //
-// Glyphs just holds the pixel mapping information. It has to be combined
-// with a texture (the font bitmapped image) in order to produce displayable strings.
 // Glyphs can be used with any image of the same font and font size with identical
-// bitmapped layouts. Effectively different colours of the same font and font size
+// bitmapped layouts, i.e. different colours of the same font and font size
 // can use the same Glyph instance.
 type Glyphs struct {
 	Name   string          // Unique id for a glyph set.
@@ -18,10 +17,9 @@ type Glyphs struct {
 	glyphs map[rune]*glyph // The "characters".
 }
 
-// Panel creates a string image for the given string.  It does this by initializing
-// the given mesh with a flat mesh big enough to display the given string.  The mesh
-// has all the necessary texture (uv) mapping information and is ready to be combined
-// with a texture corresponding to the bitmapped font.
+// Panel creates a string image for the given string using a flat mesh.
+// The mesh has the necessary texture (uv) mapping information and is ready
+// to be combined with a texture corresponding to the bitmapped font.
 // Note that the mesh has not yet been bound to the graphics card.
 //
 // The width in pixels for the resulting string image is returned.
@@ -66,7 +64,7 @@ func (gs *Glyphs) Panel(b *Mesh, phrase string) (panelWidth int) {
 
 // uvs calculates the four UV points for one glyph.  The x,y coordinates
 // are the top left of the glyph.  Note that the UV's are added to the array
-// so as to match the order the verticies are created later on.  This makes
+// so as to match the order the vertices are created later on.  This makes
 // the letters appear the right way up rather than flipped.
 //
 // Only expected to be used when loading glyphsets from disk.

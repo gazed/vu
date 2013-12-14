@@ -11,20 +11,18 @@ import (
 
 // sh is used to test and showcase the vu/device package.  Just getting a window
 // to appear demonstrates that the majority of the functionality is working.
-// The remainder of the example dumps and keyboard and mouse events showing that
+// The remainder of the example dumps keyboard and mouse events showing that
 // user input is being processed.
 func sh() {
 	sh := &shtag{}
 	dev := device.New("Shell", 400, 100, 800, 600)
-	dev.SetFocuser(sh)
 	gl.Init()
 	fmt.Printf("%s %s", gl.GetString(gl.RENDERER), gl.GetString(gl.VERSION))
 	fmt.Printf(" GLSL %s\n", gl.GetString(gl.SHADING_LANGUAGE_VERSION))
 	dev.Open()
 	gl.ClearColor(0.3, 0.6, 0.4, 1.0)
 	for dev.IsAlive() {
-		pressed, _, _ := dev.ReadAndDispatch()
-		sh.React(pressed)
+		sh.update(dev)
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 		dev.SwapBuffers()
 	}
@@ -36,13 +34,22 @@ func sh() {
 type shtag struct{}
 
 // Show all the concurrent user actions.
-func (sh *shtag) React(pressed []string) {
-	if len(pressed) > 0 {
-		for _, p := range pressed {
-			print(p, ":")
+func (sh *shtag) update(dev device.Device) {
+	pressed := dev.Update()
+	if len(pressed.Down) > 0 {
+		fmt.Print(pressed.Mx, ",", pressed.My, ":")
+		fmt.Print("shf:", pressed.Shift, " ctl:", pressed.Control)
+		if pressed.Resized {
+			fmt.Print("resized:")
 		}
-		println()
+		if pressed.Focus {
+			fmt.Print("   focus:")
+		} else {
+			fmt.Print(" nofocus:")
+		}
+		for key, duration := range pressed.Down {
+			fmt.Print(key, ",", duration, ":")
+		}
+		fmt.Println()
 	}
 }
-
-func (sh *shtag) Focus(focus bool) { println("window has focus", focus) }

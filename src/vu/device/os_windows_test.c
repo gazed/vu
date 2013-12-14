@@ -46,17 +46,20 @@
 //         gsu.mods = 0;
 //         gsu.scroll = 0;
 //         gs_read_dispatch(display, &gsu);
-//         if (gsu.event > 0) 
-//         {
-//             printf("event %ld mouse %ld,%ld - ", gsu.event, gsu.mousex, gsu.mousey);
-//             if (gsu.event == GS_KeyDown || gsu.event == GS_KeyUp)
-//             {
-//                 printf("keys 0x%.2lX:0x%.2lX - ", gsu.mods, gsu.key);
-//             } 
-//             else if (gsu.event == GS_ScrollWheel) 
-//             {
+//         if (gsu.event >= 0) {
+// 
+//             // show current key code
+//             printf("mouse %ld,%ld - ", gsu.mousex, gsu.mousey);
+//             printf("[mods  0x%.2lX] - ", gsu.mods);
+//             if (gsu.event == GS_KeyUp) {
+//                 printf("key up   0x%.2lX - ", gsu.key);
+//             } else if (gsu.event == GS_KeyDown) {
+//                 printf("key down 0x%.2lX - ", gsu.key);
+//             } else if (gsu.event == GS_ScrollWheel) { 
 //                 printf("wheel %ld - ", gsu.scroll);
-//             } 
+//             }  else {
+//                 printf("event %ld - ", gsu.event);
+//             }
 //             printf("\n");
 //         }
 //         gs_swap_buffers(shell);

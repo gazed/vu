@@ -4,225 +4,150 @@
 package lin
 
 import (
-	"fmt"
 	"testing"
 )
 
 // While the functions being tested are not complicated, they are foundational in that many
-// other libraries depend on them.  As such they each need a test.
+// other libraries depend on them. As such they each need a test. Where applicable, tests
+// check that the output quaternion can also be used as the input quaternion.
 
-func TestCloneQ(t *testing.T) {
-	q := &Q{1, 2, 3, 4}
-	q2 := q.Clone()
-	got, want := q.Dump(), "{1.0 2.0 3.0 4.0}"
-	if got != want {
-		t.Errorf(format, got, want)
-	}
-	if &q == &q2 {
-		t.Error("q and q2 should be distinct")
+func TestAddQ(t *testing.T) {
+	q, want := &Q{1, 2, 3, 4}, &Q{2, 4, 6, 8}
+	if !q.Add(q, q).Eq(want) {
+		t.Errorf(format, q.Dump(), want.Dump())
 	}
 }
 
-func TestQIdentity(t *testing.T) {
-	q := QIdentity()
-	got, want := q.Dump(), "{0.0 0.0 0.0 1.0}"
-	if got != want {
-		t.Errorf(format, got, want)
-	}
-}
-
-func TestNormalizeQ(t *testing.T) {
-	q := Q{1, 2, 3, 4}
-	q.Unit()
-	got, want := q.Dump(), "{0.2 0.4 0.5 0.7}"
-	if got != want {
-		t.Errorf(format, got, want)
-	}
-	q = Q{0, 0, 0, 1}
-	q.Unit()
-	got, want = q.Dump(), "{0.0 0.0 0.0 1.0}"
-	if got != want {
-		t.Errorf(format, got, want)
-	}
-	q = Q{0, 0, 0, 0}
-	q.Unit()
-	got, want = q.Dump(), "{0.0 0.0 0.0 0.0}"
-	if got != want {
-		t.Errorf(format, got, want)
+func TestSubtractQ(t *testing.T) {
+	q, want := &Q{1, 2, 3, 4}, &Q{0, 0, 0, 0}
+	if !q.Sub(q, q).Eq(want) {
+		t.Errorf(format, q.Dump(), want.Dump())
 	}
 }
 
 func TestInverseQ(t *testing.T) {
-	q := Q{0.2, 0.4, 0.5, 0.7}
-	q = *q.Inverse()
-	got, want := q.Dump(), "{-0.2 -0.4 -0.5 0.7}"
-	if got != want {
-		t.Errorf(format, got, want)
+	q, qi, want := &Q{0.2, 0.4, 0.5, 0.7}, &Q{}, &Q{-0.2, -0.4, -0.5, 0.7}
+	if !qi.Inv(q).Eq(want) {
+		t.Errorf(format, q.Dump(), want.Dump())
+	}
+	if !q.Mult(q, qi).Unit().Aeq(QI) {
+		t.Errorf(format, q.Dump(), QI.Dump())
 	}
 }
 
-func TestAddQ(t *testing.T) {
-	q := Q{0.2, 0.4, 0.5, 0.7}
-	q.Add(&Q{1, 2, 3, 4})
-	got, want := q.Dump(), "{1.2 2.4 3.5 4.7}"
-	if got != want {
-		t.Errorf(format, got, want)
+func TestNormalizeQ(t *testing.T) {
+	q, want := &Q{1, 2, 3, 4}, &Q{0.1825742, 0.3651484, 0.5477226, 0.7302967}
+	if !q.Unit().Aeq(want) {
+		t.Errorf(format, q.Dump(), want.Dump())
+	}
+	q, want = &Q{0, 0, 0, 1}, &Q{0, 0, 0, 1}
+	if !q.Unit().Eq(want) {
+		t.Errorf(format, q.Dump(), want.Dump())
+	}
+	q, want = &Q{0, 0, 0, 0}, &Q{0, 0, 0, 0}
+	if !q.Unit().Eq(want) {
+		t.Errorf(format, q.Dump(), want.Dump())
 	}
 }
 
 func TestScaleQ(t *testing.T) {
-	q := Q{0.2, 0.4, 0.5, 0.7}
-	q.Scale(2)
-	got, want := q.Dump(), "{0.4 0.8 1.0 1.4}"
-	if got != want {
-		t.Errorf(format, got, want)
+	q, want := &Q{1, 2, 3, 4}, &Q{2, 4, 6, 8}
+	if !q.Scale(2).Eq(want) {
+		t.Errorf(format, q.Dump(), want.Dump())
+	}
+}
+
+func TestInverseScaleQ(t *testing.T) {
+	q, want := &Q{1, 2, 3, 4}, &Q{0.5, 1, 1.5, 2}
+	if !q.Div(2).Eq(want) {
+		t.Errorf(format, q.Dump(), want.Dump())
 	}
 }
 
 func TestMultiplyQ(t *testing.T) {
-	q1, q2 := (&Q{0, 1, 0, 2}).Unit(), (&Q{1, 0, 0, 2}).Unit()
-	q1.Mult(q2)
-	got, want := q1.Dump(), "{0.4 0.4 -0.2 0.8}"
-	if got != want {
-		t.Errorf(format, got, want)
-	}
-
-	// show that q1*q2 does not equal q2*q1
-	q1, q2 = (&Q{0, 1, 0, 2}).Unit(), (&Q{1, 0, 0, 2}).Unit()
-	q2.Mult(q1)
-	got, want = q2.Dump(), "{0.4 0.4 0.2 0.8}"
-	if got != want {
-		t.Errorf(format, got, want)
+	q, want := &Q{1, 2, 3, 4}, &Q{8, 16, 24, 2}
+	if !q.Mult(q, q).Eq(want) {
+		t.Errorf(format, q.Dump(), want.Dump())
 	}
 }
 
-func TestQAxisAngleQ(t *testing.T) {
-	q := QAxisAngle(&V3{1, 1, 1}, 90)
-	got, want := q.Dump(), "{0.4 0.4 0.4 0.7}"
-	if got != want {
-		t.Errorf(format, got, want)
-	}
-
-	q = QAxisAngle(&V3{0, 0, -1}, 0)
-	got, want = q.Dump(), "{0.0 0.0 -0.0 1.0}"
-	if got != want {
-		t.Errorf(format, got, want)
+func TestDotQ(t *testing.T) {
+	q := &Q{0.1825742, 0.3651484, 0.5477226, 0.7302967}
+	if !Aeq(q.Len(), 1) {
+		t.Errorf("Dot is not %+2.8f", q.Dot(q))
 	}
 }
 
-func TestAxisAngleQ(t *testing.T) {
-	q := Q{0.4, 0.4, 0.4, 0.7}
-	axis, angle := q.AxisAngle()
-	got, want := axis.Dump(), "{0.6 0.6 0.6}"
-	if got != want {
-		t.Errorf(format, got, want)
+func TestLenQ(t *testing.T) {
+	q := &Q{0.1825742, 0.3651484, 0.5477226, 0.7302967}
+	if !Aeq(q.Len(), 1) {
+		t.Errorf("Len is %+2.7f", q.Len())
 	}
-	got, want = fmt.Sprintf("%2.1f", angle), "91.1"
-	if got != want {
-		t.Errorf(format, got, want)
-	}
+}
 
-	// test the identity quaternion
-	q = Q{0, 0, 0, 1}
-	axis, angle = q.AxisAngle()
-	got, want = axis.Dump(), "{0.0 0.0 -1.0}"
-	if got != want {
-		t.Errorf(format, got, want)
+func TestAngQ(t *testing.T) {
+	q, a := NewQ().SetAa(1, 0, 0, Rad(90)), NewQ().SetAa(1, 0, 0, Rad(135))
+	angle := Deg(q.Ang(a))
+	if !Aeq(angle, 45) {
+		t.Errorf("Angle is %+2.7f", angle)
 	}
-	got, want = fmt.Sprintf("%2.1f", angle), "0.0"
-	if got != want {
-		t.Errorf(format, got, want)
+	angle = Deg(q.Ang(q)) // angle between the same.
+	if !Aeq(angle, 0) {
+		t.Errorf("Angle is %+2.7f", angle)
 	}
 }
 
 func TestNLerpQ(t *testing.T) {
-	q := (&Q{0.2, 0.4, 0.5, 0.7}).Nlerp(&Q{8, 2, 6, 10}, 0.5)
-	got, want := q.Dump(), "{0.5 0.2 0.4 0.7}"
-	if got != want {
-		t.Errorf(format, got, want)
+	q, b, want := (&Q{1, 2, 3, 4}).Unit(), (&Q{8, 2, 6, 10}).Unit(), &Q{0.38151321, 0.25950587, 0.49715611, 0.73480630}
+	if !q.Nlerp(q, b, 0.5).Aeq(want) {
+		t.Errorf(format, q.Dump(), want.Dump())
+	}
+	if !Aeq(q.Len(), 1) {
+		t.Errorf("Nlerp result should be unit length")
 	}
 }
 
-func TestM4Q(t *testing.T) {
-	q := Q{0.2, 0.4, 0.5, 0.7}
-	m := q.M4()
-	expect := M4{
-		+0.18, +0.86, -0.36, +0.00,
-		-0.54, +0.42, +0.68, +0.00,
-		+0.76, +0.12, +0.60, +0.00,
-		+0.00, +0.00, +0.00, +1.00}
-	got, want := m.Dump(), expect.Dump()
-	if got != want {
-		t.Errorf(format, got, want)
-	}
-
-	// check identity quaternion
-	q = Q{0, 0, 0, 1}
-	m = q.M4()
-	expect = M4{
-		1, 0, 0, 0,
-		0, 1, 0, 0,
-		0, 0, 1, 0,
-		0, 0, 0, 1}
-	got, want = m.Dump(), expect.Dump()
-	if got != want {
-		t.Errorf(format, got, want)
+func TestMultiplyQV(t *testing.T) {
+	q, v, want := &Q{1, 2, 3, 4}, &V3{1, 2, 3}, &Q{4, 8, 12, -14}
+	if !q.MultQV(q, v).Eq(want) {
+		t.Errorf(format, q.Dump(), want.Dump())
 	}
 }
 
-func TestMovementAroundY(t *testing.T) {
-	loc := &V3{}          // at origin
-	dir := &Q{0, 0, 0, 1} // no rotation
-
-	// move 1 unit along X
-	loc.Add((&V3{1, 0, 0}).MultQ(dir))
-	got, want := loc.Dump(), "{1.0 0.0 0.0}"
-	if got != want {
-		t.Errorf(format, got, want)
+func TestGetAxisAngle(t *testing.T) {
+	q, v, angle, want := &Q{0.40824829, 0.40824829, 0.40824829, 0.707106781}, &V3{}, 0.0, NewV3().SetS(1, 1, 1).Unit()
+	if v.X, v.Y, v.Z, angle = q.Aa(); !v.Aeq(want) || !Aeq(Deg(angle), 90) {
+		t.Errorf("Got axis %s and angle %+2.7f", v.Dump(), Deg(angle))
 	}
-
-	// rotate 90 degrees around Y and move 1 unit along X (should be moving along -Z)
-	//dir = QAxisAngle(&V3{0, 1, 0}, 90).Mult(dir)
-	dir = dir.Mult(QAxisAngle(&V3{0, 1, 0}, 90))
-	loc.Add((&V3{1, 0, 0}).MultQ(dir))
-	got, want = loc.Dump(), "{1.0 0.0 -1.0}"
-	if got != want {
-		t.Errorf(format, got, want)
-	}
-
-	// rotate -90 degrees around Y and move 1 unit along X (should be moving along X again)
-	dir = QAxisAngle(&V3{0, 1, 0}, -90).Mult(dir)
-	loc.Add((&V3{1, 0, 0}).MultQ(dir))
-	got, want = loc.Dump(), "{2.0 0.0 -1.0}"
-	if got != want {
-		t.Errorf(format, got, want)
+}
+func TestDefaultAxisAngle(t *testing.T) {
+	q, v, angle, want := &Q{0, 0, 0, 1}, &V3{}, 0.0, &V3{1, 0, 0}
+	if v.X, v.Y, v.Z, angle = q.Aa(); !v.Aeq(want) || !Aeq(Deg(angle), 0) {
+		t.Errorf("Got axis %s and angle %+2.7f", v.Dump(), Deg(angle))
 	}
 }
 
-func TestMovementAroundX(t *testing.T) {
-	loc := &V3{}          // at origin
-	dir := &Q{0, 0, 0, 1} // no rotation
-
-	// move 1 unit along Z
-	loc.Add((&V3{0, 0, 1}).MultQ(dir))
-	got, want := loc.Dump(), "{0.0 0.0 1.0}"
-	if got != want {
-		t.Errorf(format, got, want)
+func TestSetAxisAngleQ(t *testing.T) {
+	q, want := &Q{}, &Q{0.40824829, 0.40824829, 0.40824829, 0.707106781}
+	if !q.SetAa(1, 1, 1, Rad(90)).Aeq(want) {
+		t.Errorf(format, q.Dump(), want.Dump())
 	}
+}
 
-	// rotate 90 degrees around X and move 1 unit along Z (should be moving along -Y)
-	dir = QAxisAngle(&V3{1, 0, 0}, 90).Mult(dir)
-	loc.Add((&V3{0, 0, 1}).MultQ(dir))
-	got, want = loc.Dump(), "{0.0 -1.0 1.0}"
-	if got != want {
-		t.Errorf(format, got, want)
+func TestSetRotationM(t *testing.T) {
+	q := NewQ().SetAa(1, 1, 1, Rad(90))
+	m := NewM3().SetQ(q)
+	want := &Q{0.40824831, 0.40824831, 0.40824831, 0.70710677}
+	if !q.SetM(m).Aeq(want) {
+		t.Errorf(format, q.Dump(), want.Dump())
 	}
+}
 
-	// rotate -90 degrees around X and move 1 unit along Z (should be moving along Z again)
-	dir = QAxisAngle(&V3{1, 0, 0}, -90).Mult(dir)
-	loc.Add((&V3{0, 0, 1}).MultQ(dir))
-	got, want = loc.Dump(), "{0.0 -1.0 2.0}"
-	if got != want {
-		t.Errorf(format, got, want)
+// Rotation 45deg * transform of another rotation of 45deg should give 90deg rotation.
+func TestMultTransformQ(t *testing.T) {
+	q, want := NewQ().SetAa(1, 1, 1, Rad(45)), &Q{0.40824831, 0.40824831, 0.40824831, 0.70710677}
+	transform := NewT().SetLoc(10, 0, 0).SetAa(1, 1, 1, Rad(45))
+	if !q.MultT(transform).Aeq(want) {
+		t.Errorf(format, q.Dump(), want.Dump())
 	}
 }
