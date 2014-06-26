@@ -1,4 +1,4 @@
-// Copyright © 2013 Galvanized Logic Inc.
+// Copyright © 2013-2014 Galvanized Logic Inc.
 // Use is governed by a FreeBSD license found in the LICENSE file.
 
 package lin
@@ -91,31 +91,22 @@ func BenchmarkAtan2F(b *testing.B) {
 // Dictate how errors get printed.
 const format = "\ngot\n%s\nwanted\n%s"
 
-// Dumps the matrix to a string in row-major order.
-//
-//   [ x0 y0 z0 ]
-//   [ x1 y1 z1 ]
-//   [ x2 y2 z2 ]
+// Dumps the matrix to a string.
 func (m *M3) Dump() string {
 	format := "[%+2.9f, %+2.9f, %+2.9f]\n"
-	str := fmt.Sprintf(format, m.X0, m.Y0, m.Z0)
-	str += fmt.Sprintf(format, m.X1, m.Y1, m.Z1)
-	str += fmt.Sprintf(format, m.X2, m.Y2, m.Z2)
+	str := fmt.Sprintf(format, m.Xx, m.Xy, m.Xz)
+	str += fmt.Sprintf(format, m.Yx, m.Yy, m.Yz)
+	str += fmt.Sprintf(format, m.Zx, m.Zy, m.Zz)
 	return str
 }
 
 // Dump like M3.Dump().
-//
-//   [ x0 y0 z0 w0 ]
-//   [ x1 y1 z1 w1 ]
-//   [ x2 y2 z2 w2 ]
-//   [ x3 y3 z3 w3 ]
 func (m *M4) Dump() string {
 	format := "[%+2.9f, %+2.9f, %+2.9f, %+2.9f]\n"
-	str := fmt.Sprintf(format, m.X0, m.Y0, m.Z0, m.W0)
-	str += fmt.Sprintf(format, m.X1, m.Y1, m.Z1, m.W1)
-	str += fmt.Sprintf(format, m.X2, m.Y2, m.Z2, m.W2)
-	str += fmt.Sprintf(format, m.X3, m.Y3, m.Z3, m.W3)
+	str := fmt.Sprintf(format, m.Xx, m.Xy, m.Xz, m.Xw)
+	str += fmt.Sprintf(format, m.Yx, m.Yy, m.Yz, m.Yw)
+	str += fmt.Sprintf(format, m.Zx, m.Zy, m.Zz, m.Zw)
+	str += fmt.Sprintf(format, m.Wx, m.Wy, m.Wz, m.Ww)
 	return str
 }
 

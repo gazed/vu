@@ -1,9 +1,9 @@
-// Copyright © 2013 Galvanized Logic Inc.
+// Copyright © 2013-2014 Galvanized Logic Inc.
 // Use is governed by a FreeBSD license found in the LICENSE file.
 
 package lin
 
-// Vector performs vector size 3 or 4 related math needed for 3D graphics.
+// Vector performs 3 or 4 element vector related math needed for 3D applications.
 
 import (
 	"log"
@@ -214,6 +214,24 @@ func (v *V4) Mult(a, b *V4) *V4 {
 	return v
 }
 
+// MultQ (*) multiplies a vector by quaternion, effectively applying the
+// rotation of quaternion q to vector a and storing the result in v. The input
+// vector a, and quaternion q are unchanged.
+func (v *V3) MultQ(a *V3, q *Q) *V3 {
+	// A implementation based on:
+	//   http://molecularmusings.wordpress.com/2013/05/24/a-faster-quaternion-vector-multiplication/
+	// It benchmarked about 40% faster than the standard implementation at:
+	//   http://www.mathworks.com/help/aeroblks/quaternionrotation.html
+
+	// t = 2 * cross(q.xyz, v)
+	c0x, c0y, c0z := 2*(q.Y*a.Z-q.Z*a.Y), 2*(q.Z*a.X-q.X*a.Z), 2*(q.X*a.Y-q.Y*a.X) //cross(q.xyz, v)
+
+	// v' = v + q.w * t + cross(q.xyz, t)
+	c1x, c1y, c1z := q.Y*c0z-q.Z*c0y, q.Z*c0x-q.X*c0z, q.X*c0y-q.Y*c0x // cross(q.xyz, t)
+	v.X, v.Y, v.Z = a.X+q.W*c0x+c1x, a.Y+q.W*c0y+c1y, a.Z+q.W*c0z+c1z
+	return v
+}
+
 // Scale (*=) updates the elements in vector v by multiplying the
 // corresponding elements in vector a by the given scalar value.
 // Vector v may be used as one or both of the vector parameters.
@@ -390,91 +408,61 @@ func (v *V3) Plane(p, q *V3) {
 // ============================================================================
 // vector-matrix operations
 
-// MultVM updates vector v to be the multiplication of row vector rv
+// MultvM updates vector v to be the multiplication of row vector rv
 // and matrix m. Vector v may be used as the input vector rv.
 // The udpated vector v is returned.
-//                   [ x0 y0 z0 ]   [ vx' ]
-//    [ vx vy vz ] x [ x1 y1 z1 ] = [ vy' ]
-//                   [ x2 y2 z2 ]   [ vz' ]
-func (v *V3) MultVM(rv *V3, m *M3) *V3 {
-	x := rv.X*m.X0 + rv.Y*m.X1 + rv.Z*m.X2
-	y := rv.X*m.Y0 + rv.Y*m.Y1 + rv.Z*m.Y2
-	z := rv.X*m.Z0 + rv.Y*m.Z1 + rv.Z*m.Z2
+//                   [ Xx Xy Xz ]
+//    [ vx vy vz ] x [ Yx Yy Yz ] = [ vx' vy' vz' ]
+//                   [ Zx Zy Zz ]
+func (v *V3) MultvM(rv *V3, m *M3) *V3 {
+	x := rv.X*m.Xx + rv.Y*m.Yx + rv.Z*m.Zx
+	y := rv.X*m.Xy + rv.Y*m.Yy + rv.Z*m.Zy
+	z := rv.X*m.Xz + rv.Y*m.Yz + rv.Z*m.Zz
 	v.X, v.Y, v.Z = x, y, z
 	return v
 }
 
-// MultVM updates vector v to be the multiplication of row vector rv
-// and matrix m. Same behaviour as V4.MultVM().
-//                      [ x0 y0 z0 w0 ]   [ vx' ]
-//    [ vx vy vz vw ] x [ x1 y1 z1 w1 ] = [ vy' ]
-//                      [ x2 y2 z2 w2 ]   [ vz' ]
-//                      [ x3 y3 z3 w3 ]   [ vw' ]
-func (v *V4) MultVM(rv *V4, m *M4) *V4 {
-	x := rv.X*m.X0 + rv.Y*m.X1 + rv.Z*m.X2 + rv.W*m.X3
-	y := rv.X*m.Y0 + rv.Y*m.Y1 + rv.Z*m.Y2 + rv.W*m.Y3
-	z := rv.X*m.Z0 + rv.Y*m.Z1 + rv.Z*m.Z2 + rv.W*m.Z3
-	w := rv.X*m.W0 + rv.Y*m.W1 + rv.Z*m.W2 + rv.W*m.W3
+// MultvM updates vector v to be the multiplication of row vector rv
+// and matrix m. Same behaviour as V4.MultvM().
+//                      [ Xx Xy Xz Xw ]
+//    [ vx vy vz vw ] x [ Yx Yy Yz Yw ] = [ vx' vy' vz' vw']
+//                      [ Zx Zy Zz Zw ]
+//                      [ Wx Wy Wz Ww ]
+func (v *V4) MultvM(rv *V4, m *M4) *V4 {
+	x := rv.X*m.Xx + rv.Y*m.Yx + rv.Z*m.Zx + rv.W*m.Wx
+	y := rv.X*m.Xy + rv.Y*m.Yy + rv.Z*m.Zy + rv.W*m.Wy
+	z := rv.X*m.Xz + rv.Y*m.Yz + rv.Z*m.Zz + rv.W*m.Wz
+	w := rv.X*m.Xw + rv.Y*m.Yw + rv.Z*m.Zw + rv.W*m.Ww
 	v.X, v.Y, v.Z, v.W = x, y, z, w
 	return v
 }
 
-// MultMV updates vector v to be the multiplication of matrix m and
+// MultMv updates vector v to be the multiplication of matrix m and
 // column vector cv. Vector v may be used as the input vector cv.
 // The udpated vector v is returned.
-//    [ x0 y0 z0 ]   [ vx ]
-//    [ x1 y1 z1 ] x [ vy ] = [ vx' vy' vz' ]
-//    [ x2 y2 z2 ]   [ vz ]
-func (v *V3) MultMV(m *M3, cv *V3) *V3 {
-	x := m.X0*cv.X + m.Y0*cv.Y + m.Z0*cv.Z
-	y := m.X1*cv.X + m.Y1*cv.Y + m.Z1*cv.Z
-	z := m.X2*cv.X + m.Y2*cv.Y + m.Z2*cv.Z
+//    [ Xx Xy Xz ]   [ vx ]   [ vx' ]
+//    [ Yx Yy Yz ] x [ vy ] = [ vx' ]
+//    [ Zx Zy Zz ]   [ vz ]   [ vz' ]
+func (v *V3) MultMv(m *M3, cv *V3) *V3 {
+	x := m.Xx*cv.X + m.Xy*cv.Y + m.Xz*cv.Z
+	y := m.Yx*cv.X + m.Yy*cv.Y + m.Yz*cv.Z
+	z := m.Zx*cv.X + m.Zy*cv.Y + m.Zz*cv.Z
 	v.X, v.Y, v.Z = x, y, z
 	return v
 }
 
-// MultMV updates vector v to be the multiplication of matrix m and
-// column vector cv.  Same behaviour as V3.MultMV().
-//    [ x0 y0 z0 w0 ]   [ vx ]
-//    [ x1 y1 z1 w1 ] x [ vy ] = [ vx' vy' vz' vw' ]
-//    [ x2 y2 z2 w2 ]   [ vz ]
-//    [ x3 y3 z3 w3 ]   [ vw ]
-func (v *V4) MultMV(m *M4, cv *V4) *V4 {
-	x := m.X0*cv.X + m.Y0*cv.Y + m.Z0*cv.Z + m.W0*cv.W
-	y := m.X1*cv.X + m.Y1*cv.Y + m.Z1*cv.Z + m.W1*cv.W
-	z := m.X2*cv.X + m.Y2*cv.Y + m.Z2*cv.Z + m.W2*cv.W
-	w := m.X3*cv.X + m.Y3*cv.Y + m.Z3*cv.Z + m.W3*cv.W
+// MultMv updates vector v to be the multiplication of matrix m and
+// column vector cv.  Same behaviour as V3.MultMv().
+//    [ Xx Xy Xz Xw ]   [ vx ]   [ vx' ]
+//    [ Yx Yy Yz Yw ] x [ vy ] = [ vy' ]
+//    [ Zx Zy Zz Zw ]   [ vz ]   [ vz' ]
+//    [ Wx Wy Wz Ww ]   [ vw ]   [ vw' ]
+func (v *V4) MultMv(m *M4, cv *V4) *V4 {
+	x := m.Xx*cv.X + m.Xy*cv.Y + m.Xz*cv.Z + m.Xw*cv.W
+	y := m.Yx*cv.X + m.Yy*cv.Y + m.Yz*cv.Z + m.Yw*cv.W
+	z := m.Zx*cv.X + m.Zy*cv.Y + m.Zz*cv.Z + m.Zw*cv.W
+	w := m.Wx*cv.X + m.Wy*cv.Y + m.Wz*cv.Z + m.Ww*cv.W
 	v.X, v.Y, v.Z, v.W = x, y, z, w
-	return v
-}
-
-// Col updates vector v to be filled with the matrix elements from the
-// indicated column of matrix m. The updated vector v is returned.
-// Vector v is only updated for valid column indices.
-func (v *V3) Col(index int, m *M3) *V3 {
-	switch index {
-	case 0:
-		return v.SetS(m.X0, m.X1, m.X2)
-	case 1:
-		return v.SetS(m.Y0, m.Y1, m.Y2)
-	case 2:
-		return v.SetS(m.Z0, m.Z1, m.Z2)
-	}
-	return v
-}
-
-// Row updates vector v to be filled with the matrix elements from the
-// indicated row of matrix m. The updated vector v is returned.
-// Vector v is only updated for valid row indices.
-func (v *V3) Row(index int, m *M3) *V3 {
-	switch index {
-	case 0:
-		return v.SetS(m.X0, m.Y0, m.Z0)
-	case 1:
-		return v.SetS(m.X1, m.Y1, m.Z1)
-	case 2:
-		return v.SetS(m.X2, m.Y2, m.Z2)
-	}
 	return v
 }
 
@@ -482,8 +470,8 @@ func (v *V3) Row(index int, m *M3) *V3 {
 // ============================================================================
 // vector-quaternion operations
 
-// MultVQ  updates vector v to be the rotation of vector a by quaternion q.
-func (v *V3) MultVQ(a *V3, q *Q) *V3 {
+// MultvQ  updates vector v to be the rotation of vector a by quaternion q.
+func (v *V3) MultvQ(a *V3, q *Q) *V3 {
 	v.X, v.Y, v.Z = MultSQ(a.X, a.Y, a.Z, q)
 	return v
 }

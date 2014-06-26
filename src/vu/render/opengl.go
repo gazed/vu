@@ -1,24 +1,48 @@
-// Copyright © 2013 Galvanized Logic Inc.
+// Copyright © 2013-2014 Galvanized Logic Inc.
 // Use is governed by a FreeBSD license found in the LICENSE file.
 
 package render
+
+// FUTURE: need a directx.go implementation to test the Render API and the
+//         graphics layer encapsulation.
 
 import (
 	"errors"
 	"fmt"
 	"image"
-	"image/draw"
+	// "image/draw"
 	"log"
 	"strings"
-	"time"
-	"vu/data"
 	"vu/render/gl"
 )
 
-// opengl implements the Renderer interface wrapping all OpenGL calls.
-// See the Renderer interface for comments. Also see the OpenGL documentation
-// for the individual calls.
-type opengl struct{}
+// opengl is the OpenGL implemntation of Renderer.  See the Renderer interface
+// for comments. Also see the OpenGL documentation for the individual calls.
+type opengl struct {
+	currentShader uint32 // Track the current shader to reduce shader switching.
+}
+
+// newRenderer returns an OpenGL implementation of Renderer.
+func newRenderer() Renderer { return &opengl{} }
+
+// Render implementation specific constants.
+const (
+
+	// Values useed in Renderer.Enable() method.
+	BLEND      uint32 = gl.BLEND              // Alpha blending.
+	CULL              = gl.CULL_FACE          // Backface culling.
+	DEPTH             = gl.DEPTH_TEST         // Z-buffer (depth) awareness.
+	POINT_SIZE        = gl.PROGRAM_POINT_SIZE // Use shader gl_PointSize.
+
+	// Vertex data render hints. Used in the Buffer.SetUsage() method.
+	STATIC  = gl.STATIC_DRAW  // Data created once and render many times.
+	DYNAMIC = gl.DYNAMIC_DRAW // Data is continually being updated.
+)
+
+// Internal package constants.
+const (
+	uShort = gl.UNSIGNED_SHORT // Unsigned short data type. Used in Buffer.
+)
 
 // Implements Renderer interface.
 func (gc *opengl) Init() error {
@@ -26,319 +50,101 @@ func (gc *opengl) Init() error {
 	return gc.validate()
 }
 
-// Implements Renderer interface.
+// Renderer implementation.
+func (gc *opengl) NewModel(s Shader) Model        { return newModel(gc, s) }
+func (gc *opengl) NewMesh(name string) Mesh       { return newMesh(name) }
+func (gc *opengl) NewTexture(name string) Texture { return newTexture(name) }
+func (gc *opengl) NewShader(name string) Shader   { return newShader(name) }
 func (gc *opengl) Color(r, g, b, a float32)       { gl.ClearColor(r, g, b, a) }
 func (gc *opengl) Clear()                         { gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT) }
 func (gc *opengl) Viewport(width int, height int) { gl.Viewport(0, 0, int32(width), int32(height)) }
 
-// Implements Renderer interface.
+// Renderer implementation.
 func (gc *opengl) Enable(attribute uint32, enabled bool) {
-	if enabled {
-		gl.Enable(attribute)
-		if attribute == gl.BLEND {
-			gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
-		}
-	} else {
-		gl.Disable(attribute)
-	}
-}
-
-// Implements Renderer interface.
-func (gc *opengl) Render(v *Vis) {
-	if v.Mesh != nil && v.Shader != nil {
-		gl.BindVertexArray(v.Mesh.Vao)
-		gl.UseProgram(v.Shader.Program)
-		gc.bindShaderUniforms(v)
-		gl.DrawElements(gl.TRIANGLES, int32(len(v.Mesh.F)), gl.UNSIGNED_SHORT, gl.Pointer(nil))
-
-		// cleanup.
-		gl.ActiveTexture(gl.TEXTURE0)
-		gl.UseProgram(0)
-		gl.BindVertexArray(0)
-	}
-}
-
-// Implements Renderer interface.
-func (gc *opengl) BindModel(mesh *data.Mesh) (err error) {
-	if glerr := gl.GetError(); glerr != gl.NO_ERROR {
-		log.Printf("opengl:bindModel need to find and fix prior error %X", glerr)
-	}
-
-	// Gather the one scene into this one vertex array object.
-	gl.GenVertexArrays(1, &(mesh.Vao))
-	gl.BindVertexArray(mesh.Vao)
-
-	// vertex data.
-	var vbuff uint32
-	gl.GenBuffers(1, &vbuff)
-	gl.BindBuffer(gl.ARRAY_BUFFER, vbuff)
-	gl.BufferData(gl.ARRAY_BUFFER, int64(len(mesh.V)*4), gl.Pointer(&(mesh.V[0])), gl.STATIC_DRAW)
-	var vattr uint32 = 0
-	gl.VertexAttribPointer(vattr, 4, gl.FLOAT, false, 0, 0)
-	gl.EnableVertexAttribArray(vattr)
-
-	// normal data.
-	var nbuff uint32
-	gl.GenBuffers(1, &nbuff)
-	gl.BindBuffer(gl.ARRAY_BUFFER, nbuff)
-	gl.BufferData(gl.ARRAY_BUFFER, int64(len(mesh.N)*4), gl.Pointer(&(mesh.N[0])), gl.STATIC_DRAW)
-	var nattr uint32 = 1
-	gl.VertexAttribPointer(nattr, 3, gl.FLOAT, false, 0, 0)
-	gl.EnableVertexAttribArray(nattr)
-
-	// texture coordatinate, 2 float32's
-	if len(mesh.T) > 0 {
-		var tbuff uint32
-		gl.GenBuffers(1, &tbuff)
-		gl.BindBuffer(gl.ARRAY_BUFFER, tbuff)
-		gl.BufferData(gl.ARRAY_BUFFER, int64(len(mesh.T)*4), gl.Pointer(&(mesh.T[0])), gl.STATIC_DRAW)
-		var tattr uint32 = 2
-		gl.VertexAttribPointer(tattr, 2, gl.FLOAT, false, 0, 0)
-		gl.EnableVertexAttribArray(tattr)
-	}
-
-	// faces data, uint16 in this case, so 2 bytes per element.
-	var fbuff uint32
-	gl.GenBuffers(1, &fbuff)
-	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, fbuff)
-	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, int64(len(mesh.F)*2), gl.Pointer(&(mesh.F[0])), gl.STATIC_DRAW)
-	if glerr := gl.GetError(); glerr != gl.NO_ERROR {
-		err = fmt.Errorf("Failed binding model %s\n", mesh.Name)
-	}
-	return
-}
-
-// Implements Renderer interface.
-func (gc *opengl) BindGlyphs(mesh *data.Mesh) (err error) {
-	if glerr := gl.GetError(); glerr != gl.NO_ERROR {
-		log.Printf("opengl:bindGlyphs need to find and fix prior error %X", glerr)
-	}
-
-	// Reuse existing vertex array object, otherwise create one.
-	if mesh.Vao == 0 {
-		gl.GenVertexArrays(1, &(mesh.Vao))
-	}
-	gl.BindVertexArray(mesh.Vao)
-
-	// Reuse existing vertex buffer, otherwise create one.
-	if mesh.Vbuf == 0 {
-		gl.GenBuffers(1, &(mesh.Vbuf))
-	}
-	gl.BindBuffer(gl.ARRAY_BUFFER, mesh.Vbuf)
-	gl.BufferData(gl.ARRAY_BUFFER, int64(len(mesh.V)*4), gl.Pointer(&(mesh.V[0])), gl.DYNAMIC_DRAW)
-	var vattr uint32 = 0
-	gl.VertexAttribPointer(vattr, 4, gl.FLOAT, false, 0, 0)
-	gl.EnableVertexAttribArray(vattr)
-
-	// Reuse existing texture buffer, otherwise create one.
-	if mesh.Tbuf == 0 {
-		gl.GenBuffers(1, &(mesh.Tbuf))
-	}
-	gl.BindBuffer(gl.ARRAY_BUFFER, mesh.Tbuf)
-	gl.BufferData(gl.ARRAY_BUFFER, int64(len(mesh.T)*4), gl.Pointer(&(mesh.T[0])), gl.DYNAMIC_DRAW)
-	var tattr uint32 = 2
-	gl.VertexAttribPointer(tattr, 2, gl.FLOAT, false, 0, 0)
-	gl.EnableVertexAttribArray(tattr)
-
-	// Reuse existing faces buffer, otherwise create one.
-	if mesh.Fbuf == 0 {
-		gl.GenBuffers(1, &mesh.Fbuf)
-	}
-	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, mesh.Fbuf)
-	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, int64(len(mesh.F)*2), gl.Pointer(&(mesh.F[0])), gl.DYNAMIC_DRAW)
-	if glerr := gl.GetError(); glerr != gl.NO_ERROR {
-		err = fmt.Errorf("Failed binding glyphs %s\n", mesh.Name)
-	}
-	return
-}
-
-// Implements Renderer interface.
-func (gc *opengl) BindTexture(texture *data.Texture) (err error) {
-	if texture == nil {
-		return
-	}
-	if glerr := gl.GetError(); glerr != gl.NO_ERROR {
-		log.Printf("opengl:bindTexture need to find and fix prior error %X", glerr)
-	}
-	gl.GenTextures(1, &(texture.Tid))
-	gl.BindTexture(gl.TEXTURE_2D, texture.Tid)
-
-	// ensure image is in RGBA format
-	b := texture.Img.Bounds()
-	rgba := image.NewRGBA(image.Rect(0, 0, b.Dx(), b.Dy()))
-	draw.Draw(rgba, rgba.Bounds(), texture.Img, b.Min, draw.Src)
-	width, height := int32(b.Dx()), int32(b.Dy())
-	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, gl.Pointer(&(rgba.Pix[0])))
-	gl.GenerateMipmap(gl.TEXTURE_2D)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR)
-	if glerr := gl.GetError(); glerr != gl.NO_ERROR {
-		err = fmt.Errorf("Failed binding texture %s\n", texture.Name)
-	}
-	return
-}
-
-// Implements Renderer interface.
-func (gc *opengl) MapTexture(tid int, t *data.Texture) {
-	tmap := map[int]uint32{
-		0: gl.TEXTURE0,
-		1: gl.TEXTURE1,
-		2: gl.TEXTURE2,
-		3: gl.TEXTURE3,
-		4: gl.TEXTURE4,
-		5: gl.TEXTURE5,
-		6: gl.TEXTURE6,
-		7: gl.TEXTURE7,
-		8: gl.TEXTURE8,
-		9: gl.TEXTURE9,
-	}
-	gl.ActiveTexture(tmap[tid])
-	gl.BindTexture(gl.TEXTURE_2D, t.Tid)
-}
-
-// Implements Renderer interface.
-func (gc *opengl) BindShader(sh *data.Shader) (pref uint32, err error) {
-	pref = gl.CreateProgram()
-
-	// FUTURE: get rid of BindAttribLocation and use layout instead.
-	//         this needs GLSL 330 instead of 150
-	//         eg: layout(location=0) in vec4 in_position;
-	gl.BindAttribLocation(pref, 0, "in_v") // matches vattr in bindModel
-	gl.BindAttribLocation(pref, 1, "in_n") // matches nattr in bindModel
-	gl.BindAttribLocation(pref, 2, "in_t") // matches tattr in bindModel
-
-	// compile and link the shader program.
-	if glerr := gl.BindProgram(pref, sh.Vsh, sh.Fsh); glerr != nil {
-		err = fmt.Errorf("Failed to create shader program: %s\n", glerr)
-		return
-	}
-
-	// initialize the uniform references
-	var errmsg string
-	for label, _ := range sh.Uniforms {
-		if uid := gl.GetUniformLocation(pref, label); uid >= 0 {
-			sh.Uniforms[label] = uid
+	switch attribute {
+	case CULL, DEPTH:
+		if enabled {
+			gl.Enable(attribute)
 		} else {
-			errnum := gl.GetError()
-			errmsg += fmt.Sprintf("No %s uniform in shader %X\n", label, errnum)
+			gl.Disable(attribute)
 		}
-	}
-	if len(errmsg) > 0 {
-		err = errors.New(errmsg)
-	}
-	if glerr := gl.GetError(); glerr != gl.NO_ERROR {
-		log.Printf("opengl:bindShader need to find and fix error %X", glerr)
-	}
-	return
-}
+	case BLEND:
+		if enabled {
+			gl.Enable(attribute)
 
-// sTime acts as a reference point for the shaders that need the amount of
-// elapsed time in seconds.
-var sTime = time.Now()
-
-// bindShaderUniforms sets the uniforms in the shader to the necessary values.
-// This is done by an agreed uniform naming convention such that the uniforms
-// names used in the shader are unique and apply to a particular set of data.
-func (gc *opengl) bindShaderUniforms(v *Vis) {
-	for key, ref := range v.Shader.Uniforms {
-		switch key {
-		case "mvpm":
-			gc.bindUniforms(ref, m4, v.Mvp.Pointer())
-		case "mvm":
-			gc.bindUniforms(ref, m4, v.Mv.Pointer())
-		case "nm":
-			mat3 := (&M3{}).M3(v.Mv)
-			gc.bindUniforms(ref, m3, mat3.Pointer())
-		case "l":
-			gc.bindUniforms(ref, f4, v.L.X, v.L.Y, v.L.Z, float32(1.0))
-		case "ld":
-			gc.bindUniforms(ref, f3, v.L.Ld.R, v.L.Ld.G, v.L.Ld.B)
-		case "ka":
-			gc.bindUniforms(ref, f3, v.Mat.Ka.R, v.Mat.Ka.G, v.Mat.Ka.B)
-		case "kd":
-			gc.bindUniforms(ref, f3, v.Mat.Kd.R, v.Mat.Kd.G, v.Mat.Kd.B)
-		case "ks":
-			gc.bindUniforms(ref, f3, v.Mat.Ks.R, v.Mat.Ks.G, v.Mat.Ks.B)
-		case "scale":
-			gc.bindUniforms(ref, f3, v.Scale.X, v.Scale.Y, v.Scale.Z)
-		case "fd":
-			gc.bindUniforms(ref, f1, v.Fade)
-		case "alpha":
-			gc.bindUniforms(ref, f1, v.Alpha)
-		case "uv":
-			gc.bindUniforms(ref, i1, int32(0))
-			gc.MapTexture(0, v.Tex)
-		case "time":
-			gc.bindUniforms(v.Shader.Uniforms["time"], f1, float32(time.Since(sTime).Seconds()))
-		case "resolution":
-			gc.bindUniforms(v.Shader.Uniforms["resolution"], f2, float32(500), float32(500))
-		case "rs":
-			gc.bindUniforms(ref, f1, v.RotSpeed)
+			// Using non pre-multiplied alpha colour data so...
+			gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
+		} else {
+			gl.Disable(attribute)
 		}
 	}
 }
 
-// bindUniforms wraps all the various glUniform calls as a single method.
-// It expects the variable parameter list to match the given type.
-func (gc *opengl) bindUniforms(uniform int32, utype int, udata ...interface{}) {
-	switch utype {
-	case i1:
-		i1 := udata[0].(int32)
-		gl.Uniform1i(uniform, i1)
-	case f1:
-		f1 := udata[0].(float32)
-		gl.Uniform1f(uniform, f1)
-	case f2:
-		f1 := udata[0].(float32)
-		f2 := udata[1].(float32)
-		gl.Uniform2f(uniform, f1, f2)
-	case f3:
-		f1 := udata[0].(float32)
-		f2 := udata[1].(float32)
-		f3 := udata[2].(float32)
-		gl.Uniform3f(uniform, f1, f2, f3)
-	case f4:
-		f1 := udata[0].(float32)
-		f2 := udata[1].(float32)
-		f3 := udata[2].(float32)
-		f4 := udata[3].(float32)
-		gl.Uniform4f(uniform, f1, f2, f3, f4)
-	case vf1:
-		count := udata[0].(int32)
-		vptr := udata[1].(*float32)
-		gl.Uniform1fv(uniform, count, vptr)
-	case vf2:
-		count := udata[0].(int32)
-		vptr := udata[1].(*float32)
-		gl.Uniform2fv(uniform, count, vptr)
-	case vi1:
-		count := udata[0].(int32)
-		vptr := udata[1].(*int32)
-		gl.Uniform1iv(uniform, count, vptr)
-	case m3:
-		mptr := udata[0].(*float32)
-		gl.UniformMatrix3fv(uniform, 1, false, mptr)
-	case m4:
-		mptr := udata[0].(*float32)
-		gl.UniformMatrix4fv(uniform, 1, false, mptr)
+// Renderer implementation.
+// FUTURE: all kinds of possible optimizations that would need to be
+//         profiled before implementing.
+//           • group by vao to avoid switching vao's.
+//           • group by texture to avoid switching textures.
+//           • group by Z/transparent to minimize sorting and switching depth mode.
+//           • use interleaved vertex data.
+//           • uniform buffers http://www.opengl.org/wiki/Uniform_Buffer_Object.
+//           • ... lots more possiblities... leave your fav here.
+func (gc *opengl) Render(mod Model) {
+	m := mod.(*model)
+	if m != nil && m.msh != nil && m.shd != nil {
+		gl.Enable(gl.DEPTH_TEST)
+		if m.is2D {
+			gl.Disable(gl.DEPTH_TEST)
+		}
+
+		// switch shaders only if necessary.
+		if m.shd.program != gc.currentShader {
+			gl.UseProgram(m.shd.program)
+			gc.currentShader = m.shd.program
+		}
+
+		// FUTURE: only need to bind uniforms that have changed.
+		m.bindUniforms() // currently bind each time.
+		if m.msh.rebind {
+			gc.bindMesh(m.msh)
+		}
+
+		// bind the data buffers and render.
+		gl.BindVertexArray(m.msh.vao)
+		switch m.mode {
+		case LINES:
+			gl.PolygonMode(gl.FRONT_AND_BACK, gl.LINE)
+			fd := m.msh.faces
+			gl.DrawElements(gl.LINES, int32(len(fd.data)), gl.UNSIGNED_SHORT, 0)
+			gl.PolygonMode(gl.FRONT_AND_BACK, gl.FILL)
+		case POINTS:
+			gl.Enable(gl.PROGRAM_POINT_SIZE)
+			gl.DrawArrays(gl.POINTS, 0, m.msh.numv)
+			gl.Disable(gl.PROGRAM_POINT_SIZE)
+		case TRIANGLES:
+			fd := m.msh.faces
+			if len(m.tmap) > 1 {
+
+				// Some models have multiple texture maps applied to a single set of
+				// vertex data.
+				for cnt, tm := range m.tmap {
+
+					// Use the same texture unit and sampler. Just update which
+					// image is being sampled.
+					gl.BindTexture(gl.TEXTURE_2D, m.tex[cnt].tid)
+
+					// fn is the number of triangles, 3 indicies per triangle.
+					// f0 is the offset in triangles where each triangle has 3 indicies
+					//    of 2 bytes (uShort) each.
+					gl.DrawElements(gl.TRIANGLES, tm.fn*3, gl.UNSIGNED_SHORT, int64(3*2*tm.f0))
+				}
+			} else {
+				gl.DrawElements(gl.TRIANGLES, int32(len(fd.data)), gl.UNSIGNED_SHORT, 0)
+			}
+		}
+		gl.Disable(gl.DEPTH_TEST)
 	}
 }
-
-// Current list of supported uniform types.
-const (
-	i1  = iota // glUniform1i
-	f1         // glUniform1f
-	f2         // glUniform2f
-	f3         // glUniform3f
-	f4         // glUniform4f
-	m3         // glUniformMatrix3fv
-	m4         // glUniformMatrix4fv
-	vf1        // glUniform1fv
-	vf2        // glUniform2fv
-	vi1        // glUniform1iv
-)
 
 // validate that OpenGL is available at the right version. For OpenGL 3.2
 // the following lines should be in the report.
@@ -363,3 +169,229 @@ func (gc *opengl) validate() error {
 	}
 	return nil
 }
+
+// bindMesh copies the existing mesh data to the GPU and initializes the vao and
+// buffer references.
+func (gc *opengl) bindMesh(msh Mesh) error {
+	m := msh.(*mesh)
+	if glerr := gl.GetError(); glerr != gl.NO_ERROR {
+		return fmt.Errorf("BindMesh needs to find and fix prior error %X", glerr)
+	}
+
+	// Reuse existing vao's.
+	if m.vao == 0 {
+		gl.GenVertexArrays(1, &(m.vao))
+	}
+	gl.BindVertexArray(m.vao)
+	for _, vd := range m.vdata {
+		if vd.rebind {
+			gc.bindVertexBuffer(vd)
+			vd.rebind = false
+		}
+	}
+	if glerr := gl.GetError(); glerr != gl.NO_ERROR {
+		return fmt.Errorf("BindMesh failed to bind vb %s %X", m.name, glerr)
+	}
+	if m.faces != nil {
+		if m.faces.rebind {
+			gc.bindFaceBuffer(m.faces)
+			m.faces.rebind = false
+		}
+	}
+	if glerr := gl.GetError(); glerr != gl.NO_ERROR {
+		return fmt.Errorf("BindMesh failed to bind fb %s %X", m.name, glerr)
+	}
+	return nil
+}
+
+// bind the buffer data to the GPU.
+func (gc *opengl) bindVertexBuffer(vd *vertexData) {
+	if vd.ref == 0 {
+		gl.GenBuffers(1, &vd.ref)
+	}
+	bytes := 4 // 4 bytes for float32 (gl.FLOAT)
+	switch vd.usage {
+	case STATIC:
+		switch vd.dtype {
+		case floatData:
+			gl.BindBuffer(gl.ARRAY_BUFFER, vd.ref)
+			gl.BufferData(gl.ARRAY_BUFFER, int64(len(vd.floats)*bytes), gl.Pointer(&(vd.floats[0])), vd.usage)
+			gl.VertexAttribPointer(vd.lloc, vd.span, gl.FLOAT, false, 0, 0)
+		case byteData:
+			gl.BindBuffer(gl.ARRAY_BUFFER, vd.ref)
+			gl.BufferData(gl.ARRAY_BUFFER, int64(len(vd.bytes)), gl.Pointer(&(vd.bytes[0])), vd.usage)
+			gl.VertexAttribPointer(vd.lloc, vd.span, gl.UNSIGNED_BYTE, vd.normalize, 0, 0)
+		}
+	case DYNAMIC:
+		null := gl.Pointer(uintptr(0))
+		switch vd.dtype {
+		case floatData:
+			gl.BindBuffer(gl.ARRAY_BUFFER, vd.ref)
+
+			// Buffer orphaning, a common way to improve streaming perf. See:
+			//         http://www.opengl.org/wiki/Buffer_Object_Streaming
+			gl.BufferData(gl.ARRAY_BUFFER, int64(cap(vd.floats)*bytes), null, vd.usage)
+			gl.BufferSubData(gl.ARRAY_BUFFER, 0, int64(len(vd.floats)*bytes), gl.Pointer(&(vd.floats[0])))
+			gl.VertexAttribPointer(vd.lloc, vd.span, gl.FLOAT, false, 0, 0)
+		}
+	}
+	gl.EnableVertexAttribArray(vd.lloc)
+}
+
+// bind the buffer data to the GPU.
+func (gc *opengl) bindFaceBuffer(fd *faceData) {
+	if len(fd.data) > 0 {
+		if fd.ref == 0 {
+			gl.GenBuffers(1, &fd.ref)
+		}
+		gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, fd.ref)
+		bytes := 2 // 2 bytes for uint16 (gl.UNSIGNED_SHORT)
+		gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, int64(len(fd.data)*bytes), gl.Pointer(&(fd.data[0])), fd.usage)
+	}
+}
+
+// bindShader compiles the shader and makes it available to the GPU.
+func (gc *opengl) bindShader(shdr Shader) (err error) {
+	s := shdr.(*shader)
+	s.ensureNewLines()
+	s.program = gl.CreateProgram()
+
+	// compile and link the shader program.
+	if glerr := gl.BindProgram(s.program, s.vsh, s.fsh); glerr != nil {
+		err = fmt.Errorf("Failed to create shader program: %s", glerr)
+		return
+	}
+
+	// initialize the uniform references
+	var errmsg string
+	for label, _ := range s.uniforms {
+		if uid := gl.GetUniformLocation(s.program, label); uid >= 0 {
+			s.uniforms[label] = uid
+		} else {
+			errnum := gl.GetError()
+			errmsg += fmt.Sprintf("No %s uniform in shader %X", label, errnum)
+		}
+	}
+	if len(errmsg) > 0 {
+		err = errors.New(errmsg)
+	}
+	if glerr := gl.GetError(); glerr != gl.NO_ERROR {
+		log.Printf("shader:Bind need to find and fix error %X", glerr)
+	}
+	return
+}
+
+// bindTexture makes the texture available on the GPU.
+func (gc *opengl) bindTexture(tex Texture) (err error) {
+	t := tex.(*texture)
+	if glerr := gl.GetError(); glerr != gl.NO_ERROR {
+		log.Printf("opengl:bindTexture need to find and fix prior error %X", glerr)
+	}
+
+	if t.tid == 0 {
+		gl.GenTextures(1, &(t.tid))
+	}
+	gl.BindTexture(gl.TEXTURE_2D, t.tid)
+
+	// FUTURE check if RGBA, or NRGBA are alpha pre-multiplied. The docs say yes
+	// for RGBA but the data is read from PNG files which are not pre-multiplied
+	// and the go png Decode looks like its reading values directly.
+	var ptr gl.Pointer
+	bounds := t.img.Bounds()
+	width, height := int32(bounds.Dx()), int32(bounds.Dy())
+	switch imgType := t.img.(type) {
+	case *image.RGBA:
+		i := t.img.(*image.RGBA)
+		ptr = gl.Pointer(&(i.Pix[0]))
+	case *image.NRGBA:
+		i := t.img.(*image.NRGBA)
+		ptr = gl.Pointer(&(i.Pix[0]))
+	default:
+		return fmt.Errorf("Unsupported image format", imgType)
+	}
+	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, ptr)
+	gl.GenerateMipmap(gl.TEXTURE_2D)
+	gc.updateTextureMode(tex)
+	if glerr := gl.GetError(); glerr != gl.NO_ERROR {
+		err = fmt.Errorf("Failed binding texture %s\n", t.name)
+	}
+	return
+}
+
+// updateTextureMode
+func (gc *opengl) updateTextureMode(tex Texture) {
+	t := tex.(*texture)
+	gl.BindTexture(gl.TEXTURE_2D, t.tid)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAX_LEVEL, 7)
+	if t.repeat {
+		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT)
+		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT)
+	} else {
+		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+	}
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST_MIPMAP_LINEAR)
+}
+
+// bindUniform links data to uniforms expected by shaders.
+// It expects the variable parameter list types to match the uniform type.
+func (gc *opengl) bindUniform(uniform int32, utype, cnt int, udata ...interface{}) {
+	switch utype {
+	case i1:
+		i1 := udata[0].(int32)
+		gl.Uniform1i(uniform, i1)
+	case f1:
+		f1 := udata[0].(float32)
+		gl.Uniform1f(uniform, f1)
+	case f2:
+		f1 := udata[0].(float32)
+		f2 := udata[1].(float32)
+		gl.Uniform2f(uniform, f1, f2)
+	case f3:
+		f1 := udata[0].(float32)
+		f2 := udata[1].(float32)
+		f3 := udata[2].(float32)
+		gl.Uniform3f(uniform, f1, f2, f3)
+	case f4:
+		f1 := udata[0].(float32)
+		f2 := udata[1].(float32)
+		f3 := udata[2].(float32)
+		f4 := udata[3].(float32)
+		gl.Uniform4f(uniform, f1, f2, f3, f4)
+	case x3:
+		mptr := udata[0].(*float32)
+		gl.UniformMatrix3fv(uniform, int32(cnt), false, mptr)
+	case x34:
+		mptr := udata[0].(*float32)
+		gl.UniformMatrix3x4fv(uniform, int32(cnt), false, mptr)
+	case x4:
+		mptr := udata[0].(*float32)
+		gl.UniformMatrix4fv(uniform, int32(cnt), false, mptr)
+	}
+}
+
+// Current list of supported uniform types.
+const (
+	i1  = iota // glUniform1i
+	f1         // glUniform1f
+	f2         // glUniform2f
+	f3         // glUniform3f
+	f4         // glUniform4f
+	x3         // glUniformMatrix3fv
+	x34        // glUniformMatrix3x4fv
+	x4         // glUniformMatrix4fv
+)
+
+// useTexture makes the given texture the active texture.
+func (gc *opengl) useTexture(sampler, texUnit int32, tex Texture) {
+	t := tex.(*texture)
+	gc.bindUniform(sampler, i1, 1, texUnit)
+	gl.ActiveTexture(gl.TEXTURE0 + uint32(texUnit))
+	gl.BindTexture(gl.TEXTURE_2D, t.tid)
+}
+
+// Remove graphic resources.
+func (gc *opengl) deleteMesh(mid uint32)    { gl.DeleteVertexArrays(1, &mid) }
+func (gc *opengl) deleteShader(sid uint32)  { gl.DeleteProgram(sid) }
+func (gc *opengl) deleteTexture(tid uint32) { gl.DeleteTextures(1, &tid) }

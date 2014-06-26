@@ -1,4 +1,4 @@
-// Copyright © 2013 Galvanized Logic Inc.
+// Copyright © 2013-2014 Galvanized Logic Inc.
 // Use is governed by a FreeBSD license found in the LICENSE file.
 
 package move
@@ -27,9 +27,9 @@ type collider struct {
 // newCollider initializes the algorithms needed for narrowphase.
 func newCollider() *collider {
 	c := &collider{}
-	c.algorithms = make([][]collide, NumShapes)
+	c.algorithms = make([][]collide, VolumeShapes)
 	for cnt := range c.algorithms {
-		c.algorithms[cnt] = make([]collide, NumShapes)
+		c.algorithms[cnt] = make([]collide, VolumeShapes)
 	}
 	c.algorithms[SphereShape][SphereShape] = collideSphereSphere
 	c.algorithms[SphereShape][BoxShape] = collideSphereBox
@@ -82,8 +82,8 @@ func collideSphereSphere(a, b Body, c []*pointOfContact) (i, j Body, k []*pointO
 // sphere-box collision
 
 // collideSphereBox can handle arbitrarily rotated boxes. It returns
-// 0 or 1 points. Collision maring is used so that close enough objects are
-// reported as colliding.
+// 0 or 1 points. Collision margins are used so that close enough objects
+// are reported as colliding.
 //
 // Based on bullet physics btSphereBoxCollisionAlgorithm::getSphereDistance
 func collideSphereBox(a, b Body, c []*pointOfContact) (i, j Body, k []*pointOfContact) {
@@ -217,13 +217,13 @@ func collideBoxBox(a, b Body, c []*pointOfContact) (i, j Body, k []*pointOfConta
 	bbi.lenB[1] = C.btScalar(sb.Hy + margin)
 	bbi.lenB[2] = C.btScalar(sb.Hz + margin)
 	m3.SetQ(aa.world.Rot)
-	bbi.rotA[0x0], bbi.rotA[0x1], bbi.rotA[0x2] = C.btScalar(m3.X0), C.btScalar(m3.Y0), C.btScalar(m3.Z0)
-	bbi.rotA[0x4], bbi.rotA[0x5], bbi.rotA[0x6] = C.btScalar(m3.X1), C.btScalar(m3.Y1), C.btScalar(m3.Z1)
-	bbi.rotA[0x8], bbi.rotA[0x9], bbi.rotA[0xA] = C.btScalar(m3.X2), C.btScalar(m3.Y2), C.btScalar(m3.Z2)
+	bbi.rotA[0x0], bbi.rotA[0x1], bbi.rotA[0x2] = C.btScalar(m3.Xx), C.btScalar(m3.Xy), C.btScalar(m3.Xz)
+	bbi.rotA[0x4], bbi.rotA[0x5], bbi.rotA[0x6] = C.btScalar(m3.Yx), C.btScalar(m3.Yy), C.btScalar(m3.Yz)
+	bbi.rotA[0x8], bbi.rotA[0x9], bbi.rotA[0xA] = C.btScalar(m3.Zx), C.btScalar(m3.Zy), C.btScalar(m3.Zz)
 	m3.SetQ(bb.world.Rot)
-	bbi.rotB[0x0], bbi.rotB[0x1], bbi.rotB[0x2] = C.btScalar(m3.X0), C.btScalar(m3.Y0), C.btScalar(m3.Z0)
-	bbi.rotB[0x4], bbi.rotB[0x5], bbi.rotB[0x6] = C.btScalar(m3.X1), C.btScalar(m3.Y1), C.btScalar(m3.Z1)
-	bbi.rotB[0x8], bbi.rotB[0x9], bbi.rotB[0xA] = C.btScalar(m3.X2), C.btScalar(m3.Y2), C.btScalar(m3.Z2)
+	bbi.rotB[0x0], bbi.rotB[0x1], bbi.rotB[0x2] = C.btScalar(m3.Xx), C.btScalar(m3.Xy), C.btScalar(m3.Xz)
+	bbi.rotB[0x4], bbi.rotB[0x5], bbi.rotB[0x6] = C.btScalar(m3.Yx), C.btScalar(m3.Yy), C.btScalar(m3.Yz)
+	bbi.rotB[0x8], bbi.rotB[0x9], bbi.rotB[0xA] = C.btScalar(m3.Zx), C.btScalar(m3.Zy), C.btScalar(m3.Zz)
 	bbr.ncp, bbr.code = 0, 0
 	C.boxBoxClosestPoints(bbi, bbr)
 

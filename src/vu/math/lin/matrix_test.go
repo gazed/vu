@@ -1,4 +1,4 @@
-// Copyright © 2013 Galvanized Logic Inc.
+// Copyright © 2013-2014 Galvanized Logic Inc.
 // Use is governed by a FreeBSD license found in the LICENSE file.
 
 package lin
@@ -94,6 +94,21 @@ func TestAddM3(t *testing.T) {
 	}
 }
 
+func TestAddM4(t *testing.T) {
+	m, want :=
+		&M4{11, 12, 13, 14,
+			21, 22, 23, 24,
+			31, 32, 33, 34,
+			41, 42, 43, 44},
+		&M4{22, 24, 26, 28,
+			42, 44, 46, 48,
+			62, 64, 66, 68,
+			82, 84, 86, 88}
+	if !m.Add(m, m).Eq(want) {
+		t.Errorf(format, m.Dump(), want.Dump())
+	}
+}
+
 func TestSubM3(t *testing.T) {
 	m :=
 		&M3{-11, -12, +13,
@@ -175,7 +190,20 @@ func TestTranslateMT(t *testing.T) {
 	}
 }
 
-func TestScaleSM(t *testing.T) {
+func TestScaleM3SM(t *testing.T) {
+	m, want :=
+		&M3{1, 2, 3,
+			1, 2, 3,
+			1, 2, 3},
+		&M3{1, 2, 3,
+			2, 4, 6,
+			3, 6, 9}
+	if !m.ScaleSM(1, 2, 3).Eq(want) {
+		t.Errorf(format, m.Dump(), want.Dump())
+	}
+}
+
+func TestScaleM4SM(t *testing.T) {
 	m, want :=
 		&M4{1, 2, 3, 4,
 			1, 2, 3, 4,
@@ -295,7 +323,7 @@ func TestSetAxisAngle(t *testing.T) {
 }
 
 func TestOrthographicM4(t *testing.T) {
-	m, want := NewOrtho(2, 3, 4, 5, 6, 7),
+	m, want := NewM4().Ortho(2, 3, 4, 5, 6, 7),
 		&M4{+2, +0, +0, +0,
 			+0, +2, +0, +0,
 			+0, +0, -2, +0,
@@ -307,8 +335,8 @@ func TestOrthographicM4(t *testing.T) {
 
 func TestPerspectiveInv(t *testing.T) {
 	m := &M4{}
-	p := NewPersp(45, 800.0/600.0, 0.1, 50)
-	ip := NewPerspInv(45, 800.0/600.0, 0.1, 50)
+	p := NewM4().Persp(45, 800.0/600.0, 0.1, 50)
+	ip := NewM4().PerspInv(45, 800.0/600.0, 0.1, 50)
 	if !m.Mult(p, ip).Aeq(M4I) {
 		t.Errorf(format, m.Dump(), M4I.Dump())
 	}
@@ -327,12 +355,12 @@ func BenchmarkRefMI(b *testing.B) {
 	for cnt := 0; cnt < b.N; cnt++ {
 		m = M4I
 	}
-	m.X0 = 0 // make the compiler happy.
+	m.Xx = 0 // make the compiler happy.
 }
 func BenchmarkNewMI(b *testing.B) {
 	var m *M4
 	for cnt := 0; cnt < b.N; cnt++ {
-		m = &M4{X0: 1, Y1: 1, Z2: 1, W3: 1}
+		m = &M4{Xx: 1, Yy: 1, Zz: 1, Ww: 1}
 	}
-	m.X0 = 0 // make the compiler happy.
+	m.Xx = 0 // make the compiler happy.
 }

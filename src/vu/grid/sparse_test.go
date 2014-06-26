@@ -1,4 +1,4 @@
-// Copyright © 2013 Galvanized Logic Inc.
+// Copyright © 2013-2014 Galvanized Logic Inc.
 // Use is governed by a FreeBSD license found in the LICENSE file.
 
 package grid
@@ -15,31 +15,31 @@ func TestSparseLevel(t *testing.T) {
 	//g.dump() // view level.
 }
 
-func TestSparsePassages(t *testing.T) {
+func TestSparseFloors(t *testing.T) {
 	g := &sparse{}
-	g.create(7, 7, allPassages)
-	passages := g.neighbours(g.cells[0][0], allPassages)
-	if len(passages) != 2 {
-		t.Error("0,0 should have two passages.")
+	g.create(7, 7, allFloors)
+	floors := g.neighbours(g.cells[0][0], allFloors)
+	if len(floors) != 2 {
+		t.Error("0,0 should have two floors.")
 	}
-	passages = g.neighbours(g.cells[6][6], allPassages)
-	if len(passages) != 2 {
-		t.Error("6,6 should have two passages.")
+	floors = g.neighbours(g.cells[6][6], allFloors)
+	if len(floors) != 2 {
+		t.Error("6,6 should have two floors.")
 	}
-	passages = g.neighbours(g.cells[5][6], allPassages)
-	if len(passages) != 3 {
-		t.Error("5,6 should have three passages.")
+	floors = g.neighbours(g.cells[5][6], allFloors)
+	if len(floors) != 3 {
+		t.Error("5,6 should have three floors.")
 	}
-	passages = g.neighbours(g.cells[5][5], allPassages)
-	if len(passages) != 4 {
-		t.Error("5,5 should have four passages.")
+	floors = g.neighbours(g.cells[5][5], allFloors)
+	if len(floors) != 4 {
+		t.Error("5,5 should have four floors.")
 	}
 	g.cells[5][6].isWall = true
 	g.cells[5][4].isWall = true
 	g.cells[4][5].isWall = true
 	g.cells[6][5].isWall = true
-	passages = g.neighbours(g.cells[5][5], allPassages)
-	if len(passages) != 0 {
-		t.Error("5,5 should now have zero passages.")
+	floors = g.neighbours(g.cells[5][5], allFloors)
+	if len(floors) != 0 {
+		t.Error("5,5 should now have zero floors.")
 	}
 }

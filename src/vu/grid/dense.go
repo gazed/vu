@@ -1,4 +1,4 @@
-// Copyright © 2013 Galvanized Logic Inc.
+// Copyright © 2013-2014 Galvanized Logic Inc.
 // Use is governed by a FreeBSD license found in the LICENSE file.
 
 package grid
@@ -37,14 +37,14 @@ func (d *dense) Generate(width, depth int) Grid {
 }
 
 // fixDeadEnd checks if the given cell is a dead end and creates another
-// passage if it is.
+// floor if it is.
 func (d *dense) fixDeadEnd(random *rand.Rand, u *cell) {
 	if !u.isWall {
 		walls := d.neighbours(u, allWalls)
 		if len(walls) > 2 {
 			index := random.Intn(len(walls))
 			u = walls[index]
-			u.isWall = allPassages
+			u.isWall = allFloors
 		}
 	}
 }
@@ -83,14 +83,14 @@ func (d *dense) ensureExit(random *rand.Rand, side []*cell, max int) {
 	if len(side) == max {
 		index := random.Intn(len(side))
 		u := side[index]
-		u.isWall = allPassages
+		u.isWall = allFloors
 
 		// ensure the chop gets into the grid by chopping again if necessary.
 		walls := d.neighbours(u, allWalls)
 		if len(walls) == 3 {
 			wallIndex := random.Intn(len(walls))
 			u := walls[wallIndex]
-			u.isWall = allPassages
+			u.isWall = allFloors
 		}
 	}
 }

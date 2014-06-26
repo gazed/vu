@@ -1,4 +1,4 @@
-// Copyright © 2013 Galvanized Logic Inc.
+// Copyright © 2013-2014 Galvanized Logic Inc.
 // Use is governed by a FreeBSD license found in the LICENSE file.
 
 package device
@@ -15,6 +15,7 @@ package device
 import "C" // must be located here.
 
 import (
+	"runtime"
 	"unsafe"
 )
 
@@ -25,6 +26,9 @@ type win struct {
 	in  *userInput // Used for fetching user input.
 	in1 *userInput // Alternate user input structure.
 }
+
+// OpenGL related, see: https://code.google.com/p/go-wiki/wiki/LockOSThread
+func init() { runtime.LockOSThread() }
 
 // nativeLayer gets a reference to the native operating system.  Each native
 // layer implements this factory method.  Compiling will leave only the one that

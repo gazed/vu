@@ -1,20 +1,20 @@
-// Copyright © 2013 Galvanized Logic Inc.
+// Copyright © 2013-2014 Galvanized Logic Inc.
 // Use is governed by a FreeBSD license found in the LICENSE file.
 
 package vu
 
-// pov combines location and direction to give a "point of view".
+// pov combines location and direction (orientation) to give a "point of view".
 
 import (
 	"vu/math/lin"
 )
 
-// pov combines a location and an orientation.  It is intended to be
-// embedded in other structures as a base class.  While not visible
+// pov combines a location and an orientation. It is intended to be
+// embedded in other structures as a base class. While not visible
 // outside the package, it confers some useful public methods to structures
 // that embed it.
 //
-// pov is used to build up Views and ViewTransforms to get particular types
+// pov is used to build up views and viewTransforms to get particular types
 // of cameras and camera behaviours.
 type pov struct {
 	loc *lin.V3 // location/postion - where we are.
@@ -131,21 +131,6 @@ func newView() *view {
 // rotating the world -x:degrees.
 type viewTransform func(*view, *lin.M4) *lin.M4
 
-// View transform choices. These are used when adding a new scene. The view
-// transform dictates the overall behaviour of the camera.
-//    VP    is a perspective view transform. It is the reverse order of the
-//          model transforms so that the scene revolves around the camera.
-//    VO    is an orthographic view transform used in 2D scenes.
-//    VF    is a first person view transform that uses an up/down angle.
-//    XZ_XY is an overlay view that transforms an X,-Z mapped object to X,Y.
-//          Useful for turning 3D floor plans into 2D mini-maps.
-const (
-	VP    = iota // Perspective view transform.
-	VO           // Orthographic view transform.
-	VF           // First person view transform.
-	XZ_XY        // Perspective to Ortho view transform.
-)
-
 // getViewTransform turns the publicly visible view transform choices
 // into a view tranform function.
 func getViewTransform(transform int) viewTransform {
@@ -171,7 +156,7 @@ func vp(v *view, vm *lin.M4) *lin.M4 {
 
 // vo view transform implementation.
 func vo(v *view, vm *lin.M4) *lin.M4 {
-	return vm.Set(lin.M4I).ScaleMS(1, 1, 0).TranslateMT(5, 5, 0)
+	return vm.Set(lin.M4I).ScaleMS(1, 1, 0)
 }
 
 // vf view transform implementation.

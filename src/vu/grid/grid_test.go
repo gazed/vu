@@ -1,4 +1,4 @@
-// Copyright © 2013 Galvanized Logic Inc.
+// Copyright © 2013-2014 Galvanized Logic Inc.
 // Use is governed by a FreeBSD license found in the LICENSE file.
 
 package grid
@@ -86,26 +86,26 @@ func TestGridWest(t *testing.T) {
 
 func TestNeighbours(t *testing.T) {
 	g := &grid{}
-	g.create(0, 0, allPassages)
+	g.create(0, 0, allFloors)
 	w, h := g.Size()
 	if w != 7 || h != 7 {
 		t.Error("Could not create maze")
 	}
-	passages := g.neighbours(g.cells[0][0], allPassages)
-	if len(passages) != 2 {
-		t.Error("0,0 should have two passages.")
+	floors := g.neighbours(g.cells[0][0], allFloors)
+	if len(floors) != 2 {
+		t.Error("0,0 should have two floors.")
 	}
-	passages = g.neighbours(g.cells[6][6], allPassages)
-	if len(passages) != 2 {
-		t.Error("6,6 should have two passages.")
+	floors = g.neighbours(g.cells[6][6], allFloors)
+	if len(floors) != 2 {
+		t.Error("6,6 should have two floors.")
 	}
-	passages = g.neighbours(g.cells[5][6], allPassages)
-	if len(passages) != 3 {
-		t.Error("5,6 should have three passages.")
+	floors = g.neighbours(g.cells[5][6], allFloors)
+	if len(floors) != 3 {
+		t.Error("5,6 should have three floors.")
 	}
-	passages = g.neighbours(g.cells[5][5], allPassages)
-	if len(passages) != 4 {
-		t.Error("5,5 should have four passages.")
+	floors = g.neighbours(g.cells[5][5], allFloors)
+	if len(floors) != 4 {
+		t.Error("5,5 should have four floors.")
 	}
 
 	// check once for no neighbouring walls

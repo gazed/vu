@@ -1,23 +1,22 @@
-// Copyright © 2013 Galvanized Logic Inc.
+// Copyright © 2013-2014 Galvanized Logic Inc.
 // Use is governed by a FreeBSD license found in the LICENSE file.
 
 // Package eg is used to test and demonstrate different aspects of the
-// vu (virtual universe) engine.  Thus examples are used to both showcase a
+// vu (virtual universe) engine.  Thus examples are used both to showcase a
 // particular 3D capability and to act as high level test cases for the engine.
 // The examples are run using:
 //      eg [example name]
 // Invoking eg without parameters will list the examples that can be run.
-// Please look at specific example source code for more information.
+// Please look at the example source code for possible user actions.
 //
-// The subdirectories contain resource data needed by the examples.
+// The package subdirectories contain resource data needed by the examples.
 package main
 
 import (
 	"fmt"
+	"log"
 	"os"
-	"vu"
-	"vu/math/lin"
-	"vu/render"
+	"runtime/debug"
 )
 
 // example combines example code with descriptions.
@@ -40,11 +39,15 @@ func main() {
 		example{"sh", "sh: Simple Shell", sh},
 		example{"au", "au: Audio", au},
 		example{"sf", "sf: Shader Fire", sf},
-		example{"bb", "bb: Banner & Billborded Textures", bb},
+		example{"bb", "bb: Banners & Billboards", bb},
 		example{"rl", "rl: Random Levels", rl},
 		example{"sg", "sg: Scene Graph", sg},
-		example{"cm", "cm: Collision Motion", cm},
 		example{"cr", "cr: Collision Resolution", cr},
+		example{"tm", "tm: Terrain Map", tm},
+		example{"cp", "cp: Control Panel", cp},
+		example{"ps", "ps: Particle System", ps},
+		example{"rc", "rc: Ray Cast", rc},
+		example{"ma", "ma: Model Animation", ma},
 	}
 
 	// run the first matching example.
@@ -65,6 +68,10 @@ func main() {
 	}
 }
 
-// This is needed by some of the examples that only use the engine subpackages
-// and not the engine itself.
-func renderMatrix(mm *lin.M4, rm *render.M4) *render.M4 { return vu.RenderMatrix(mm, rm) }
+// catchErrors is a utility method used by some examples to trap and
+// dump runtime errors.
+func catchErrors() {
+	if r := recover(); r != nil {
+		log.Printf("Panic %s: %s Shutting down.", r, debug.Stack())
+	}
+}

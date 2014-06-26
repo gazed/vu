@@ -1,8 +1,8 @@
-// Copyright © 2013 Galvanized Logic Inc.
+// Copyright © 2013-2014 Galvanized Logic Inc.
 // Use is governed by a FreeBSD license found in the LICENSE file.
 
-// Package grid is used to generate random maze or skirmish levels.
-// Maze levels have dead ends such that there is only one path to
+// Package grid is used to generate layout data for random maze or skirmish
+// levels. Maze levels have dead ends such that there is only one path to
 // get from one spot in the maze to another.  Skirmish levels have
 // no dead ends in order to provide plenty of movement options.
 //
@@ -14,7 +14,7 @@
 //             if maze.isWall(x, y) {
 //                 // Do something with a wall.
 //             } else {
-//                 // Do something with a passage.
+//                 // Do something with a floor.
 //             }
 //          }
 //       }
@@ -24,15 +24,14 @@ package grid
 
 import (
 	"fmt"
-	"log"
 )
 
 // Grid generates a random floorplan where each grid cell is either a wall or
-// a passage.  The expected usage is to generate a random level and then to use
+// a floor. The expected usage is to generate a random level and then to use
 // the level by traversing it with the Size and IsWall methods.
 type Grid interface {
 
-	// Generate creates a grid full of walls and passages based on
+	// Generate creates a grid full of walls and floors based on
 	// the given depth and width.
 	//
 	// The minimum maze dimension is 7x7, and grids must be odd numbered.
@@ -50,8 +49,8 @@ type Grid interface {
 	// IsWall returns true if the cell at the given location is a wall.
 	IsWall(x, y int) bool
 
-	// Band returns the depth into the based on concentric squares. Numbering
-	// starts at 0 on the outside and increases towards the center.  Using band
+	// Band returns the grid depth based on concentric squares. Numbering
+	// starts at 0 on the outside and increases towards the center. Using band
 	// implies (makes more sense if) the grid width and height are the same.
 	Band(x, y int) int
 }
@@ -74,6 +73,14 @@ const (
 	// where the dead-ends have been eliminated.  Additionally each side of
 	// the grid is guaranteed to have one exit to the level exterior.
 	DENSE_SKIRMISH
+
+	// CAVE produces interconnected non-square areas resembling a large
+	// series of caves.
+	CAVE
+
+	// DUNGEON produces interconnected square areas resembling a series
+	// of rooms connected by corridors.
+	DUNGEON
 )
 
 // New creates a new grid based on the given gridType.  Returns nil if the
@@ -88,8 +95,10 @@ func New(gridType int) Grid {
 		return &rooms{}
 	case DENSE_SKIRMISH:
 		return &dense{}
-	default:
-		log.Printf("grid.New: unknown maze type: %d", gridType)
+	case CAVE:
+		return &cave{}
+	case DUNGEON:
+		return &dungeon{}
 	}
 	return nil
 }
@@ -99,7 +108,7 @@ func New(gridType int) Grid {
 // grid implements Grid
 
 // The base class for a grid holds an x-by-y group of cells where each
-// cell is either a wall or a passage.
+// cell is either a wall or a floor.
 type grid struct {
 	cells [][]*cell
 }
@@ -113,7 +122,7 @@ func (g *grid) Size() (width, height int) {
 }
 
 // IsWall returns true if the cell at position x, y is a wall.  Otherwise
-// it is a passage.
+// it is a floor.
 func (g *grid) IsWall(x, y int) bool {
 	lenx := len(g.cells)
 	if lenx > 0 && lenx > x && len(g.cells[0]) > y {
@@ -123,7 +132,7 @@ func (g *grid) IsWall(x, y int) bool {
 }
 
 // Band returns the concentrix square number where the outermost square is
-// the zeroth band.  Un-generated grids and/or invalid input coordinates
+// the zeroth band. Un-generated grids and/or invalid input coordinates
 // always return 0.
 func (g *grid) Band(x, y int) int {
 	w, h := g.Size()
@@ -155,14 +164,14 @@ func (g *grid) cellSlice() (cells []*cell) {
 }
 
 // Used in create to have the default grid made entirely of walls or
-// passages.  Some algorithms start one way, some the other.
+// floors.  Some algorithms start one way, some the other.
 const (
-	allPassages = false // Indicates the initial grid is all passages.
-	allWalls    = true  // Indicates the initial grid is all walls.
+	allFloors = false // Indicates the initial grid is all floors.
+	allWalls  = true  // Indicates the initial grid is all walls.
 )
 
 // create the space needed by the grid.  This is the same for all grid
-// implementations. The cellType is expected to be allPassasges or allWalls.
+// implementations. The cellType is expected to be allFloors or allWalls.
 func (g *grid) create(width, height int, cellType bool) {
 	gridWidth, gridHeight := g.validateSize(width), g.validateSize(height)
 	g.cells = make([][]*cell, gridWidth)
@@ -215,8 +224,8 @@ func (g *grid) west(u *cell) *cell {
 	return nil
 }
 
-// neighbours returns a list of the passages or walls surrounding the current cell.
-// Corners have at most two passages and edge pieces have at most three.
+// neighbours returns a list of the floors or walls surrounding the current cell.
+// Corners have at most two floors and edge pieces have at most three.
 func (g *grid) neighbours(u *cell, isWall bool) []*cell {
 	wp := []*cell{}
 	neighbours := []*cell{g.north(u), g.south(u), g.west(u), g.east(u)}
@@ -225,7 +234,7 @@ func (g *grid) neighbours(u *cell, isWall bool) []*cell {
 			wp = append(wp, neighbour)
 		}
 	}
-	return wp // walls or passages depending on isWall.
+	return wp // walls or floors depending on isWall.
 }
 
 // dump prints a grid for debugging purposes.  This expects a fixed font
@@ -252,7 +261,7 @@ func (g *grid) dump() {
 // cell
 
 // cell is the building block for a grid.  Each cell knows its position in
-// the grid and whether or not its a wall or a passage.
+// the grid and whether or not its a wall or a floor.
 type cell struct {
 	x, y   int
 	isWall bool

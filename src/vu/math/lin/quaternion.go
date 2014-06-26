@@ -1,4 +1,4 @@
-// Copyright © 2013 Galvanized Logic Inc.
+// Copyright © 2013-2014 Galvanized Logic Inc.
 // Use is governed by a FreeBSD license found in the LICENSE file.
 
 package lin
@@ -13,13 +13,13 @@ import (
 
 // Unit length quaternions represent an angle of rotation and an
 // direction/orientation and are used to track/manipulate 3D object rotations.
-// Quaternions behave nicely for mathematical operations other than they are not
-// commutative.
+// Quaternions behave nicely for mathematical operations other than they are
+// not commutative.
 type Q struct {
-	X float64 // X component of direction vector
-	Y float64 // Y component of direction vector
-	Z float64 // Z component of direction vector
-	W float64 // angle of rotation
+	X float64 // X component of direction vector.
+	Y float64 // Y component of direction vector.
+	Z float64 // Z component of direction vector.
+	W float64 // Angle of rotation.
 }
 
 // QI provides a reference identity matrix that can be used
@@ -219,31 +219,31 @@ func (q *Q) SetAa(ax, ay, az, angle float64) *Q {
 //     http://www.euclideanspace.com/maths/geometry/rotations/conversions/matrixToQuaternion/
 // The updated q is returned.
 func (q *Q) SetM(m *M3) *Q {
-	trace := m.X0 + m.Y1 + m.Z2
+	trace := m.Xx + m.Yy + m.Zz
 	switch {
 	case trace > 0:
 		s := math.Sqrt(trace+1) * 2 // s=4*qw
 		q.W = 0.25 * s
-		q.X = (m.Y2 - m.Z1) / s
-		q.Y = (m.Z0 - m.X2) / s
-		q.Z = (m.X1 - m.Y0) / s
-	case m.X0 > m.Y1 && m.X0 > m.Z2:
-		s := math.Sqrt(m.X0-m.Y1-m.Z2+1) * 2 // s=4*qx
-		q.W = (m.Y2 - m.Z1) / s
+		q.X = (m.Zy - m.Yz) / s
+		q.Y = (m.Xz - m.Zx) / s
+		q.Z = (m.Yx - m.Xy) / s
+	case m.Xx > m.Yy && m.Xx > m.Zz:
+		s := math.Sqrt(m.Xx-m.Yy-m.Zz+1) * 2 // s=4*qx
+		q.W = (m.Zy - m.Yz) / s
 		q.X = 0.25 * s
-		q.Y = (m.Y0 + m.X1) / s
-		q.Z = (m.Z0 + m.X2) / s
-	case m.Y1 > m.Z2:
-		s := math.Sqrt(m.Y1-m.X0-m.Z2+1) * 2 // s=4*qy
-		q.W = (m.Z0 - m.X2) / s
-		q.X = (m.Y0 + m.X1) / s
+		q.Y = (m.Xy + m.Yx) / s
+		q.Z = (m.Xz + m.Zx) / s
+	case m.Yy > m.Zz:
+		s := math.Sqrt(m.Yy-m.Xx-m.Zz+1) * 2 // s=4*qy
+		q.W = (m.Xz - m.Zx) / s
+		q.X = (m.Xy + m.Yx) / s
 		q.Y = 0.25 * s
-		q.Z = (m.Z1 + m.Y2) / s
+		q.Z = (m.Yz + m.Zy) / s
 	default:
-		s := math.Sqrt(m.Z2-m.X0-m.Y1+1) * 2 // s=4*qz
-		q.W = (m.X1 - m.Y0) / s
-		q.X = (m.Z0 + m.X2) / s
-		q.Y = (m.Z1 + m.Y2) / s
+		s := math.Sqrt(m.Zz-m.Xx-m.Yy+1) * 2 // s=4*qz
+		q.W = (m.Yx - m.Xy) / s
+		q.X = (m.Xz + m.Zx) / s
+		q.Y = (m.Yz + m.Zy) / s
 		q.Z = 0.25 * s
 	}
 	q.X, q.Y, q.Z, q.W = math.Abs(q.X), math.Abs(q.Y), math.Abs(q.Z), math.Abs(q.W)

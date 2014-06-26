@@ -1,4 +1,4 @@
-// Copyright © 2013 Galvanized Logic Inc.
+// Copyright © 2013-2014 Galvanized Logic Inc.
 // Use is governed by a FreeBSD license found in the LICENSE file.
 
 package main
@@ -15,10 +15,8 @@ import (
 // Columns of function names marked as [+] (available) or [ ] (missing) will
 // be written the the console if everything is ok.
 func dg() {
-	gl.Dump() // doesn't need context.
-
-	// Also print the opengl version which does need a context.
 	app := device.New("Dump", 400, 100, 600, 600)
+	gl.Dump() // needs context to properly bind.
 	fmt.Printf("%s %s", gl.GetString(gl.RENDERER), gl.GetString(gl.VERSION))
 	fmt.Printf(" GLSL %s\n", gl.GetString(gl.SHADING_LANGUAGE_VERSION))
 	app.Dispose()

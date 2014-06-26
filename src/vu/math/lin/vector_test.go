@@ -1,4 +1,4 @@
-// Copyright © 2013 Galvanized Logic Inc.
+// Copyright © 2013-2014 Galvanized Logic Inc.
 // Use is governed by a FreeBSD license found in the LICENSE file.
 
 package lin
@@ -101,6 +101,20 @@ func TestMultiplyV3(t *testing.T) {
 func TestMultiplyV4(t *testing.T) {
 	v, want := &V4{1, 2, 3, 4}, &V4{1, 4, 9, 16}
 	if !v.Mult(v, v).Eq(want) {
+		t.Errorf(format, v.Dump(), want.Dump())
+	}
+}
+func TestMultiplyV3Q(t *testing.T) {
+	v, q, want := &V3{1, 2, 3}, &Q{0, 0, 0, 1}, &V3{1, 2, 3}
+	if !v.MultQ(v, q).Eq(want) {
+		t.Errorf(format, v.Dump(), want.Dump())
+	}
+	v, q, want = &V3{0, 0, 1}, NewQ().SetAa(1, 0, 0, Rad(90)).Unit(), &V3{0, -1, 0}
+	if !v.MultQ(v, q).Aeq(want) {
+		t.Errorf(format, v.Dump(), want.Dump())
+	}
+	v, q, want = &V3{10, 10, 0}, NewQ().SetAa(1, 0, 0, Rad(-45)).Unit(), &V3{10, 7.071067812, -7.071067812}
+	if !v.MultQ(v, q).Aeq(want) {
 		t.Errorf(format, v.Dump(), want.Dump())
 	}
 }
@@ -226,42 +240,42 @@ func TestPlane(t *testing.T) {
 	}
 }
 
-func TestMultVMV3(t *testing.T) {
+func TestMultvMV3(t *testing.T) {
 	v, m, want := &V3{1, 2, 3},
 		&M3{1, 2, 3,
 			1, 2, 3,
 			1, 2, 3}, &V3{6, 12, 18}
-	if !v.MultVM(v, m).Eq(want) {
+	if !v.MultvM(v, m).Eq(want) {
 		t.Errorf(format, v.Dump(), want.Dump())
 	}
 }
-func TestMultVMV4(t *testing.T) {
+func TestMultvMV4(t *testing.T) {
 	v, m, want := &V4{1, 2, 3, 4},
 		&M4{1, 2, 3, 4,
 			1, 2, 3, 4,
 			1, 2, 3, 4,
 			1, 2, 3, 4}, &V4{10, 20, 30, 40}
-	if !v.MultVM(v, m).Eq(want) {
+	if !v.MultvM(v, m).Eq(want) {
 		t.Errorf(format, v.Dump(), want.Dump())
 	}
 }
 
-func TestMultMVV3(t *testing.T) {
+func TestMultMvV3(t *testing.T) {
 	v, want, m := &V3{1, 2, 3}, &V3{14, 14, 14},
 		&M3{1, 2, 3,
 			1, 2, 3,
 			1, 2, 3}
-	if !v.MultMV(m, v).Eq(want) {
+	if !v.MultMv(m, v).Eq(want) {
 		t.Errorf(format, v.Dump(), want.Dump())
 	}
 }
-func TestMultMVV4(t *testing.T) {
+func TestMultMvV4(t *testing.T) {
 	v, want, m := &V4{1, 2, 3, 4}, &V4{30, 30, 30, 30},
 		&M4{1, 2, 3, 4,
 			1, 2, 3, 4,
 			1, 2, 3, 4,
 			1, 2, 3, 4}
-	if !v.MultMV(m, v).Eq(want) {
+	if !v.MultMv(m, v).Eq(want) {
 		t.Errorf(format, v.Dump(), want.Dump())
 	}
 }

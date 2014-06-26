@@ -1,4 +1,4 @@
-// Copyright © 2013 Galvanized Logic Inc.
+// Copyright © 2013-2014 Galvanized Logic Inc.
 // Use is governed by a FreeBSD license found in the LICENSE file.
 
 package main
@@ -16,7 +16,6 @@ import (
 // parts from a scene graph. The main classes being tested are vu.Scene and vu.Part, eg:
 //	    scene.AddPart()
 //	    scene.RemPart(sg.tr.part)
-//
 // Note that the movement keys move the character and not the camera in this example.
 func sg() {
 	sg := &sgtag{}
@@ -25,10 +24,9 @@ func sg() {
 		log.Printf("sg: error intitializing engine %s", err)
 		return
 	}
-	sg.run = 10            // move so many cubes worth in one second.
-	sg.spin = 270          // spin so many degrees in one second.
-	sg.eng.SetDirector(sg) // override user input handling.
+	sg.eng.SetDirector(sg) // register for user input handling.
 	defer sg.eng.Shutdown()
+	defer catchErrors()
 	sg.eng.Action()
 }
 
@@ -37,7 +35,7 @@ type sgtag struct {
 	eng    vu.Engine
 	scene  vu.Scene
 	tr     *trooper
-	reacts map[string]vu.Reaction
+	reacts map[string]vu.InputHandler
 	run    float64
 	spin   float64
 	dt     float64
@@ -45,36 +43,37 @@ type sgtag struct {
 
 // Create is the engine intialization callback.
 func (sg *sgtag) Create(eng vu.Engine) {
+	sg.run = 10   // move so many cubes worth in one second.
+	sg.spin = 270 // spin so many degrees in one second.
 	sg.scene = eng.AddScene(vu.VP)
 	sg.scene.SetPerspective(60, float64(800)/float64(600), 0.1, 50)
 	sg.scene.SetLightLocation(0, 10, 0)
 	sg.scene.SetLightColour(0.4, 0.7, 0.9)
-	sg.scene.SetViewLocation(0, 0, 6)
+	sg.scene.SetLocation(0, 0, 6)
 	sg.scene.Set2D()
 
 	// load the floor model.
-	floor := sg.scene.AddPart()
-	floor.SetLocation(0, 0, 0)
-	floor.SetFacade("floor", "gouraud").SetMaterial("floor")
+	floor := sg.scene.AddPart().SetLocation(0, 0, 0)
+	floor.SetRole("gouraud").SetMesh("floor").SetMaterial("floor")
 
 	// load the trooper
 	sg.tr = newTrooper(sg.eng, sg.scene, 1)
 
 	// initialize the reactions
-	sg.reacts = map[string]vu.Reaction{
-		"W":   vu.NewReaction("Forward", func() { sg.forward() }),
-		"A":   vu.NewReaction("Left", func() { sg.left() }),
-		"S":   vu.NewReaction("Back", func() { sg.back() }),
-		"D":   vu.NewReaction("Right", func() { sg.right() }),
-		"KP+": vu.NewReaction("Attach", func() { sg.tr.attach() }),
-		"KP-": vu.NewReaction("Detach", func() { sg.tr.detach() }),
-		"0":   vu.NewReactOnce("SL0", func() { sg.setTr(0) }),
-		"1":   vu.NewReactOnce("SL1", func() { sg.setTr(1) }),
-		"2":   vu.NewReactOnce("SL2", func() { sg.setTr(2) }),
-		"3":   vu.NewReactOnce("SL3", func() { sg.setTr(3) }),
-		"4":   vu.NewReactOnce("SL4", func() { sg.setTr(4) }),
-		"5":   vu.NewReactOnce("SL5", func() { sg.setTr(5) }),
-		"P":   vu.NewReactOnce("Stats", func() { sg.stats() }),
+	sg.reacts = map[string]vu.InputHandler{
+		"W":   sg.forward,
+		"A":   sg.left,
+		"S":   sg.back,
+		"D":   sg.right,
+		"KP+": sg.attach,
+		"KP-": sg.detach,
+		"0":   func(i *vu.Input, down int) { sg.setTr(down, 0) },
+		"1":   func(i *vu.Input, down int) { sg.setTr(down, 1) },
+		"2":   func(i *vu.Input, down int) { sg.setTr(down, 2) },
+		"3":   func(i *vu.Input, down int) { sg.setTr(down, 3) },
+		"4":   func(i *vu.Input, down int) { sg.setTr(down, 4) },
+		"5":   func(i *vu.Input, down int) { sg.setTr(down, 5) },
+		"P":   sg.stats,
 	}
 
 	// set some constant state.
@@ -82,14 +81,14 @@ func (sg *sgtag) Create(eng vu.Engine) {
 	sg.eng.Enable(vu.CULL, true)
 	sg.eng.Color(0.1, 0.1, 0.1, 1.0)
 }
-func (sg *sgtag) Update(input *vu.Input) {
-	sg.dt = input.Dt
-	if input.Resized {
+func (sg *sgtag) Update(in *vu.Input) {
+	sg.dt = in.Dt
+	if in.Resized {
 		sg.resize()
 	}
-	for press, _ := range input.Down {
-		if reaction, ok := sg.reacts[press]; ok {
-			reaction.Do()
+	for press, downLength := range in.Down {
+		if react, ok := sg.reacts[press]; ok {
+			react(in, downLength)
 		}
 	}
 }
@@ -103,15 +102,23 @@ func (sg *sgtag) resize() {
 }
 
 // User actions.
-func (sg *sgtag) stats()   { log.Printf("Health %d", sg.tr.health()) }
-func (sg *sgtag) left()    { sg.tr.part.Spin(0, sg.dt*sg.spin, 0) }
-func (sg *sgtag) right()   { sg.tr.part.Spin(0, sg.dt*-sg.spin, 0) }
-func (sg *sgtag) back()    { sg.tr.part.Move(0, 0, sg.dt*sg.run) }
-func (sg *sgtag) forward() { sg.tr.part.Move(0, 0, sg.dt*-sg.run) }
-func (sg *sgtag) setTr(lvl int) {
-	sg.scene.RemPart(sg.tr.part)
-	sg.tr.trash()
-	sg.tr = newTrooper(sg.eng, sg.scene, lvl)
+func (sg *sgtag) stats(i *vu.Input, down int) {
+	if down == 1 {
+		log.Printf("Health %d", sg.tr.health())
+	}
+}
+func (sg *sgtag) left(i *vu.Input, down int)    { sg.tr.part.Spin(0, sg.dt*sg.spin, 0) }
+func (sg *sgtag) right(i *vu.Input, down int)   { sg.tr.part.Spin(0, sg.dt*-sg.spin, 0) }
+func (sg *sgtag) back(i *vu.Input, down int)    { sg.tr.part.Move(0, 0, sg.dt*sg.run) }
+func (sg *sgtag) forward(i *vu.Input, down int) { sg.tr.part.Move(0, 0, sg.dt*-sg.run) }
+func (sg *sgtag) attach(i *vu.Input, down int)  { sg.tr.attach() }
+func (sg *sgtag) detach(i *vu.Input, down int)  { sg.tr.detach() }
+func (sg *sgtag) setTr(down, lvl int) {
+	if down == 1 {
+		sg.scene.RemPart(sg.tr.part)
+		sg.tr.trash()
+		sg.tr = newTrooper(sg.eng, sg.scene, lvl)
+	}
 }
 
 // trooper is an attempt to keep polygon growth linear while the player
@@ -153,12 +160,12 @@ func newTrooper(eng vu.Engine, scene vu.Scene, level int) *trooper {
 	cubeSize := 1.0 / float64(tr.lvl+1)
 	centerOffset := cubeSize * 0.5
 	panelCenter := float64(tr.lvl) * centerOffset
-	tr.bits = append(tr.bits, newPanel(eng, tr.part, panelCenter, 0.0, 0.0, tr.lvl))
-	tr.bits = append(tr.bits, newPanel(eng, tr.part, -panelCenter, 0.0, 0.0, tr.lvl))
-	tr.bits = append(tr.bits, newPanel(eng, tr.part, 0.0, panelCenter, 0.0, tr.lvl))
-	tr.bits = append(tr.bits, newPanel(eng, tr.part, 0.0, -panelCenter, 0.0, tr.lvl))
-	tr.bits = append(tr.bits, newPanel(eng, tr.part, 0.0, 0.0, panelCenter, tr.lvl))
-	tr.bits = append(tr.bits, newPanel(eng, tr.part, 0.0, 0.0, -panelCenter, tr.lvl))
+	tr.bits = append(tr.bits, newBlock(eng, tr.part, panelCenter, 0.0, 0.0, tr.lvl))
+	tr.bits = append(tr.bits, newBlock(eng, tr.part, -panelCenter, 0.0, 0.0, tr.lvl))
+	tr.bits = append(tr.bits, newBlock(eng, tr.part, 0.0, panelCenter, 0.0, tr.lvl))
+	tr.bits = append(tr.bits, newBlock(eng, tr.part, 0.0, -panelCenter, 0.0, tr.lvl))
+	tr.bits = append(tr.bits, newBlock(eng, tr.part, 0.0, 0.0, panelCenter, tr.lvl))
+	tr.bits = append(tr.bits, newBlock(eng, tr.part, 0.0, 0.0, -panelCenter, tr.lvl))
 
 	// troopers are made out of cubes and panels.
 	mx := float64(-tr.lvl)
@@ -185,17 +192,17 @@ func newTrooper(eng vu.Engine, scene vu.Scene, level int) *trooper {
 					// side cubes are added to (controlled by) a panel.
 					x, y, z := mx*centerOffset, my*centerOffset, mz*centerOffset
 					if cx == tr.lvl && x > y && x > z {
-						tr.bits[0].(*panel).addCube(x, y, z, float64(cubeSize))
+						tr.bits[0].(*block).addCube(x, y, z, float64(cubeSize))
 					} else if cx == 0 && x < y && x < z {
-						tr.bits[1].(*panel).addCube(x, y, z, float64(cubeSize))
+						tr.bits[1].(*block).addCube(x, y, z, float64(cubeSize))
 					} else if cy == tr.lvl && y > x && y > z {
-						tr.bits[2].(*panel).addCube(x, y, z, float64(cubeSize))
+						tr.bits[2].(*block).addCube(x, y, z, float64(cubeSize))
 					} else if cy == 0 && y < x && y < z {
-						tr.bits[3].(*panel).addCube(x, y, z, float64(cubeSize))
+						tr.bits[3].(*block).addCube(x, y, z, float64(cubeSize))
 					} else if cz == tr.lvl && z > x && z > y {
-						tr.bits[4].(*panel).addCube(x, y, z, float64(cubeSize))
+						tr.bits[4].(*block).addCube(x, y, z, float64(cubeSize))
 					} else if cz == 0 && z < x && z < y {
-						tr.bits[5].(*panel).addCube(x, y, z, float64(cubeSize))
+						tr.bits[5].(*block).addCube(x, y, z, float64(cubeSize))
 					}
 				}
 				if newCells > 0 {
@@ -218,11 +225,10 @@ func newTrooper(eng vu.Engine, scene vu.Scene, level int) *trooper {
 // This will be nothing on the first level.
 func (tr *trooper) addCenter() {
 	if tr.lvl > 0 {
-		tr.center = tr.part.AddPart()
-		tr.center.SetFacade("cube", "flat").SetMaterial("red")
 		cubeSize := 1.0 / float64(tr.lvl+1)
 		scale := float64(tr.lvl-1) * cubeSize * 0.9 // leave a gap.
-		tr.center.SetScale(scale, scale, scale)
+		tr.center = tr.part.AddPart().SetScale(scale, scale, scale)
+		tr.center.SetRole("flat").SetMesh("cube").SetMaterial("red")
 	}
 }
 
@@ -262,7 +268,7 @@ func (tr *trooper) detach() {
 func (tr *trooper) merge() {
 	tr.trash()
 	tr.neo = tr.part.AddPart()
-	tr.neo.SetFacade("cube", "flat").SetMaterial("blue")
+	tr.neo.SetRole("flat").SetMesh("cube").SetMaterial("blue")
 	tr.addCenter()
 }
 
@@ -368,9 +374,9 @@ func (c *cbox) box() *cbox { return c }
 
 // ===========================================================================
 
-// panels group 0 or more cubes into the center of one of the troopers
+// blocks group 0 or more cubes into the center of one of the troopers
 // six sides.
-type panel struct {
+type block struct {
 	eng   vu.Engine // needed to create new cells.
 	part  vu.Part   // each panel is its own part.
 	lvl   int       // used to scale slab.
@@ -379,55 +385,55 @@ type panel struct {
 	cbox
 }
 
-// newPanel creates a panel with no cubes.  The cubes are added later using
+// newBlock creates a panel with no cubes.  The cubes are added later using
 // panel.addCube().
-func newPanel(eng vu.Engine, part vu.Part, x, y, z float64, level int) *panel {
-	p := &panel{}
-	p.eng = eng
-	p.part = part.AddPart()
-	p.lvl = level
-	p.cubes = []*cube{}
-	p.cx, p.cy, p.cz = x, y, z
-	p.ccnt, p.cmax = 0, (level-1)*(level-1)*8
-	p.mergec = func() { p.merge() }
-	p.trashc = func() { p.trash() }
-	p.addc = func() { p.addCell() }
-	p.remc = func() { p.removeCell() }
-	return p
+func newBlock(eng vu.Engine, part vu.Part, x, y, z float64, level int) *block {
+	b := &block{}
+	b.eng = eng
+	b.part = part.AddPart()
+	b.lvl = level
+	b.cubes = []*cube{}
+	b.cx, b.cy, b.cz = x, y, z
+	b.ccnt, b.cmax = 0, (level-1)*(level-1)*8
+	b.mergec = func() { b.merge() }
+	b.trashc = func() { b.trash() }
+	b.addc = func() { b.addCell() }
+	b.remc = func() { b.removeCell() }
+	return b
 }
 
 // addCube is only used at the begining to add cubes that are owned by this
 // panel.
-func (p *panel) addCube(x, y, z, cubeSize float64) {
-	p.csize = cubeSize
-	c := newCube(p.eng, p.part, x, y, z, p.csize)
-	if (p.cx > p.cy && p.cx > p.cz) || (p.cx < p.cy && p.cx < p.cz) {
+func (b *block) addCube(x, y, z, cubeSize float64) {
+	b.csize = cubeSize
+	c := newCube(b.eng, b.part, x, y, z, b.csize)
+	if (b.cx > b.cy && b.cx > b.cz) || (b.cx < b.cy && b.cx < b.cz) {
 		c.panelSort(1, 0, 0, 4)
-	} else if (p.cy > p.cx && p.cy > p.cz) || (p.cy < p.cx && p.cy < p.cz) {
+	} else if (b.cy > b.cx && b.cy > b.cz) || (b.cy < b.cx && b.cy < b.cz) {
 		c.panelSort(0, 1, 0, 4)
-	} else if (p.cz > p.cx && p.cz > p.cy) || (p.cz < p.cx && p.cz < p.cy) {
+	} else if (b.cz > b.cx && b.cz > b.cy) || (b.cz < b.cx && b.cz < b.cy) {
 		c.panelSort(0, 0, 1, 4)
 	}
 	if c != nil {
-		p.ccnt += 4
-		p.cubes = append(p.cubes, c)
+		b.ccnt += 4
+		b.cubes = append(b.cubes, c)
 	}
 }
 
-func (p *panel) addCell() {
-	for addeven := 0; addeven < p.cubes[0].cmax; addeven++ {
-		for _, c := range p.cubes {
+func (b *block) addCell() {
+	for addeven := 0; addeven < b.cubes[0].cmax; addeven++ {
+		for _, c := range b.cubes {
 			if c.ccnt <= addeven {
 				c.attach()
 				return
 			}
 		}
 	}
-	log.Printf("sg:panel addCell should never reach here. %d %d", p.ccnt, p.cmax)
+	log.Printf("sg:panel addCell should never reach here. %d %d", b.ccnt, b.cmax)
 }
 
-func (p *panel) removeCell() {
-	for _, c := range p.cubes {
+func (b *block) removeCell() {
+	for _, c := range b.cubes {
 		if c.detach() {
 			return
 		}
@@ -436,29 +442,28 @@ func (p *panel) removeCell() {
 }
 
 // merge turns all the cubes into a single slab.
-func (p *panel) merge() {
-	p.trash()
-	p.slab = p.part.AddPart()
-	p.slab.SetFacade("cube", "flat").SetMaterial("blue")
-	p.slab.SetLocation(p.cx, p.cy, p.cz)
-	scale := float64(p.lvl-1) * p.csize
-	if (p.cx > p.cy && p.cx > p.cz) || (p.cx < p.cy && p.cx < p.cz) {
-		p.slab.SetScale(p.csize, scale, scale)
-	} else if (p.cy > p.cx && p.cy > p.cz) || (p.cy < p.cx && p.cy < p.cz) {
-		p.slab.SetScale(scale, p.csize, scale)
-	} else if (p.cz > p.cx && p.cz > p.cy) || (p.cz < p.cx && p.cz < p.cy) {
-		p.slab.SetScale(scale, scale, p.csize)
+func (b *block) merge() {
+	b.trash()
+	b.slab = b.part.AddPart().SetLocation(b.cx, b.cy, b.cz)
+	b.slab.SetRole("flat").SetMesh("cube").SetMaterial("blue")
+	scale := float64(b.lvl-1) * b.csize
+	if (b.cx > b.cy && b.cx > b.cz) || (b.cx < b.cy && b.cx < b.cz) {
+		b.slab.SetScale(b.csize, scale, scale)
+	} else if (b.cy > b.cx && b.cy > b.cz) || (b.cy < b.cx && b.cy < b.cz) {
+		b.slab.SetScale(scale, b.csize, scale)
+	} else if (b.cz > b.cx && b.cz > b.cy) || (b.cz < b.cx && b.cz < b.cy) {
+		b.slab.SetScale(scale, scale, b.csize)
 	}
 }
 
 // trash clears any visible parts from the panel. It is up to calling methods
 // to ensure the cell count is correct.
-func (p *panel) trash() {
-	if p.slab != nil {
-		p.part.RemPart(p.slab)
-		p.slab = nil
+func (b *block) trash() {
+	if b.slab != nil {
+		b.part.RemPart(b.slab)
+		b.slab = nil
 	}
-	for _, cube := range p.cubes {
+	for _, cube := range b.cubes {
 		cube.reset(0)
 	}
 }
@@ -518,10 +523,9 @@ func (c *cube) panelSort(rx, ry, rz float64, startCount int) {
 
 // addCell creates and adds a new cell to the cube.
 func (c *cube) addCell() {
-	cell := c.part.AddPart()
-	cell.SetFacade("cube", "flat").SetMaterial("green")
 	center := c.centers[c.ccnt-1]
-	cell.SetLocation(center.X, center.Y, center.Z)
+	cell := c.part.AddPart().SetLocation(center.X, center.Y, center.Z)
+	cell.SetRole("flat").SetMesh("cube").SetMaterial("green")
 	scale := c.csize * 0.40 // leave a gap (0.5 for no gap).
 	cell.SetScale(scale, scale, scale)
 	c.cells = append(c.cells, cell)
@@ -539,9 +543,8 @@ func (c *cube) removeCell() {
 // merge is called.
 func (c *cube) merge() {
 	c.trash()
-	cell := c.part.AddPart()
-	cell.SetFacade("cube", "flat").SetMaterial("green")
-	cell.SetLocation(c.cx, c.cy, c.cz)
+	cell := c.part.AddPart().SetLocation(c.cx, c.cy, c.cz)
+	cell.SetRole("flat").SetMesh("cube").SetMaterial("green")
 	scale := c.csize - (c.csize * 0.15) // leave a gap (just c.csize for no gap)
 	cell.SetScale(scale, scale, scale)
 	c.cells = append(c.cells, cell)

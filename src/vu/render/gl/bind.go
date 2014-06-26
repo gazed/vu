@@ -1,4 +1,4 @@
-// Copyright © 2013 Galvanized Logic Inc.
+// Copyright © 2013-2014 Galvanized Logic Inc.
 // Use is governed by a FreeBSD license found in the LICENSE file.
 
 package gl
@@ -23,6 +23,7 @@ func BindProgram(program uint32, vertexSource, fragmentSource []string) error {
 	// Compile and attach the vertex shader
 	var status int32
 	vertexShader := CreateShader(VERTEX_SHADER)
+	defer DeleteShader(vertexShader)
 	ShaderSource(vertexShader, int32(len(vertexSource)), vertexSource, nil)
 	CompileShader(vertexShader)
 	GetShaderiv(vertexShader, COMPILE_STATUS, &status)
@@ -41,6 +42,7 @@ func BindProgram(program uint32, vertexSource, fragmentSource []string) error {
 
 	// Compile and attach the fragment shader
 	fragShader := CreateShader(FRAGMENT_SHADER)
+	defer DeleteShader(fragShader)
 	ShaderSource(fragShader, int32(len(fragmentSource)), fragmentSource, nil)
 	CompileShader(fragShader)
 	GetShaderiv(fragShader, COMPILE_STATUS, &status)
@@ -75,10 +77,6 @@ func BindProgram(program uint32, vertexSource, fragmentSource []string) error {
 	// Don't validate since validate checks as if the OpenGL state was ready to use
 	// the program and the lack of a current VAO would cause validate to fail.
 	// The lack of a check allows bindProgram to work even if BindVertexArray(0)
-	// has been called.
-
-	// the shader is no longer needed when everything works.
-	DeleteShader(vertexShader)
-	DeleteShader(fragShader)
+	// has not been called.
 	return nil
 }

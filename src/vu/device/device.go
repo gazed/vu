@@ -1,13 +1,10 @@
-// Copyright © 2013 Galvanized Logic Inc.
+// Copyright © 2013-2014 Galvanized Logic Inc.
 // Use is governed by a FreeBSD license found in the LICENSE file.
 
-// Package device provides platform/os access to a 3D rendering
-// context and user input. It provides only what is necessary
-// to get a OS specific window with a 3D rendering context.
-// The application layer is expected to provide any necessary
-// buttons, controls and sub-panels.
-//
-// Package device provides access to user keyboard and mouse input through
+// Package device provides minimal platform/os access to a 3D rendering
+// context and user input. The onus is on the application layer to provide
+// any necessary buttons, controls, dialogs, sub-panels, text-boxes, etc.
+// Access to user keyboard and mouse input is provided through
 // the Update method and Pressed structure.
 //
 // Package device is provided as part of the vu (virtual universe) 3D engine.
@@ -53,19 +50,18 @@ type Device interface {
 	Update() *Pressed
 }
 
-// Pressed is used to communicate current user input.
-// This is the list of keys that are currently being pressed and
-// how long they have been pressed (measured in update ticks).
+// Pressed is used to communicate current user input. Input mainly consists of
+// the list of keys that are currently being pressed and how long they have been
+// pressed (measured in update ticks).
 //
 // A postitive duration means the key is still being held down.
 // A negative duration means that the key has been released since
 // the last poll. The duration prior to release can be determined by
-// its difference with KEY_RELEASE.
+// its difference with KEY_RELEASED.
 type Pressed struct {
 	Mx, My  int            // Current mouse location.
+	Scroll  int            // The amount of scrolling, if any.
 	Down    map[string]int // Pressed keys and pressed duration.
-	Shift   bool           // True if the shift modifier is pressed.
-	Control bool           // True if the control modifier is pressed.
 	Focus   bool           // True if window has focus.
 	Resized bool           // True if window was resized or moved.
 }

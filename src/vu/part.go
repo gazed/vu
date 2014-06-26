@@ -1,4 +1,4 @@
-// Copyright © 2013 Galvanized Logic Inc.
+// Copyright © 2013-2014 Galvanized Logic Inc.
 // Use is governed by a FreeBSD license found in the LICENSE file.
 
 package vu
@@ -6,71 +6,56 @@ package vu
 import (
 	"vu/math/lin"
 	"vu/move"
-	"vu/render"
 )
 
-// A part is a node in a scene graph (a part in the scene, yah?).  Its main
-// responsibility is positioning. A part can also be associated with one or more
-// of the following:
-//      facade  : A part can have a visible surface. The parts location becomes the
-//                location of the rendered object. SetFacade() and SetBanner() both
-//                associate a facade with a part.
-//      physics : A part can interface with physics. The parts location becomes
-//                controlled by the physics simulation. SetBody() associates a
-//                physics body with a part.
-// Parts are scene graph nodes and as such can themselves have subordinate parts.
+// A part is a node in a scene graph. It is responsibile for positioning
+// itself and its children in 3D space thus forming a transform hierarchy.
+// Note that all child parts will be affected by parent transform changes.
 //
-// It is possible to have a transform-only part (no facade or physics) in order to
-// group other objects in the scene graph. All subordinate parts will be affected
-// by transform changes to parent parts.
+// A part can optionally be rendered and/or participate in physics.
+//    rendered : SetRole with a shader asset makes the part participate in
+//               rendering. Afterwards add the data, textures, and other
+//               assets needed by that shader.
+//    physics  : SetBody makes the part participate in physics. The Parts
+//               location is now controlled by the physics simulation.
 type Part interface {
-
-	// Create, remove, and dispose parts and sub-parts (bit-parts?).
-	AddPart() Part  // Create a new part attached (subordinate) to this one.
-	RemPart(p Part) // Remove a subordinate part, without disposing the sub-part.
+	AddPart() Part  // Create a new subordinate part attached to this one.
+	RemPart(p Part) // Remove, dispose, a subordinate part.
 	Dispose()       // Remove this part, all sub-parts and any associated info.
 
-	// Location, orientation, and scale.
-	Location() (x, y, z float64)    // Get the current location.
-	SetLocation(x, y, z float64)    // Set the current location.
-	Rotation() (x, y, z, w float64) // Get the current quaternion rotation.
-	SetRotation(x, y, z, w float64) // Set the current quaternion rotation.
-	Scale() (x, y, z float64)       // Get the size, one value for each axis.
-	SetScale(x, y, z float64)       // Set the size, one value for each axis.
+	// Moving or Spinning a part that is in physics affects the part's velocity
+	// instead of directly updating the location or orientation.
+	Location() (x, y, z float64)         // Get, or
+	SetLocation(x, y, z float64) Part    // ...Set the current location.
+	Move(x, y, z float64)                // Move along indicated direction.
+	Rotation() (x, y, z, w float64)      // Get, or
+	SetRotation(x, y, z, w float64) Part // ...Set current quaternion rotation.
+	Spin(x, y, z float64)                // Rotate degrees about the given axis.
+	Scale() (x, y, z float64)            // Get, or
+	SetScale(x, y, z float64) Part       // ...Set the current scale.
 
-	// Move and turn control cameras, players, and AIs. When there is a physics
-	// body the velocity is updated. When there is no physics body the position
-	// and direction are upated.
-	Move(x, y, z float64) // Move an amount along the current direction.
-	Spin(x, y, z float64) // Rotate degrees about the given axis.
+	// Role is the optional rendered aspect of the Part.
+	SetRole(shader string) Role // Creates role if no current role.
+	RemRole()                   // Delete the current role.
+	Role() Role                 // Return role, or nil if no current role.
+	SetCullable(cullable bool)  // False excludes a part from being culled.
+	Visible() bool              // Invisible parts are removed from
+	SetVisible(visible bool)    // ...rendering without disposing them.
 
-	// Associates a visible facade with a Part. The facade methods that follow
-	// only work when there is a facade associated with the part.
-	SetFacade(mesh, shader string) Part   // Create a facade for this part.
-	SetMaterial(name string)              // Set the material.
-	Visible() bool                        // Get the parts visibility.
-	SetVisible(visible bool)              // Set the parts visibility.
-	SetCullable(cullable bool)            // Set the parts cullability.
-	Alpha() float64                       // Get the transparency.
-	SetAlpha(a float64)                   // Set the transparency.
-	SetTexture(name string, spin float64) // Set the texture.
-
-	// Associates a text facade with a Part. The banner methods only work
-	// when there is a Banner associated with the part.  Only one of banner
-	// or facade may be associated with a part.
-	SetBanner(text, shader, glyphs, texture string) // Create a banner for this part.
-	UpdateBanner(text string)                       // Change the text for the banner.
-	BannerWidth() int                               // Get the banner width in pixels.
-
-	// Associates a physics body with a Part. The body methods that follow
-	// only work when there is a physics body associated with the part.
-	SetBody(body move.Body, mass, bounce float64) // Create a physics body for this part.
-	RemBody()                                     // Delete the physics body for this part.
-	Speed() (x, y, z float64)                     // Current linear velocity.
-	Push(x, y, z float64)                         // Change the linear velocity.
-	Turn(x, y, z float64)                         // Change the angular velocity.
-	Stop()                                        // Remove all velocity.
+	// Body is the optional physics aspect of the Part.
+	SetBody(bod move.Body, m, b float64) // Body of mass m, bounce b.
+	RemBody()                            // Delete the physics body.
+	Speed() (x, y, z float64)            // Current linear velocity.
+	Push(x, y, z float64)                // Change the linear velocity.
+	Turn(x, y, z float64)                // Change the angular velocity.
+	Stop()                               // Remove all velocity.
+	Solid() move.Solid                   // Solid is a lightweight shape
+	SetSolid(sol move.Solid)             // ...intended for ray casting.
 }
+
+// FUTURE Find a nice, and safe, way to consolidate the location/orientation
+//        information. Currently it is needed/duplicated by pov/part, and the
+//        physics objects, Body, Solid.
 
 // Part interface
 // ===========================================================================
@@ -78,45 +63,45 @@ type Part interface {
 
 // part implements the Part interface.
 type part struct {
-	pov                  // Embed the pov location and orientation struct.
-	staged   bool        // True if the the part is visible.
-	scale    *lin.V3     // Scale, per axis: >1 to enlarge, 0<1 to shrink.
-	parts    []*part     // Each scene node can have 1 or more scene nodes.
-	face     *facade     // Parts can have one optional facade.
-	cullable bool        // Can/can't be culled is under control of the application.
-	culled   bool        // Draw or don't under control of engine.
-	visible  bool        // Draw or don't under control of application.
-	toc      float64     // Distance to center (to->c) for sorting and culling.
-	vis      *render.Vis // Current render data (visible).
-	body     move.Body   // Motion body used mostly by physics subsystem.
-	world    move.World  // Used to add and removed bodies.
+	pov                 // Embed the pov location and orientation struct.
+	scale    *lin.V3    // Scale, per axis: >1 to enlarge, 0<1 to shrink.
+	staged   bool       // True if the the part is visible.
+	parts    []*part    // Each part node can be made of one or more parts.
+	toc      float64    // Distance to center (to->c) for sorting and culling.
+	role     *role      // Render data linking render and asset subsystems.
+	body     move.Body  // Motion body used by physics subsystem.
+	solid    move.Solid // Solid shape used for ray casting.
+	assets   *assets    // Asset manager.
+	tracker  feedback   // Feed tracking information out of the hierarchy.
+	cullable bool       // Can/can't be culled is under control of the application.
+	culled   bool       // Draw or don't under control of engine.
+	visible  bool       // Draw or don't under control of application.
 
 	// scratch variables are used each render cycle. They are optimizations that
 	// prevent having to create temporary structures each render cycle.
-	model *lin.M4 // Calculates model transform each render cycle.
-	pm    *lin.M4 // Scratch parent model transform.
-	vm    *lin.M4 // Scratch view model transform.
+	rotation *lin.Q  // Scratch rotation/orientation.
+	mm       *lin.M4 // Scratch model transform.
+	pt       *lin.M4 // Scratch parent model transform.
 }
 
 // newPart creates and initialzes a part instance.
-func newPart(world move.World) *part {
+func newPart(f feedback, a *assets) *part {
 	p := &part{}
-	p.world = world
+	p.scale = &lin.V3{1, 1, 1}
+	p.tracker = f
 	p.loc = &lin.V3{}
 	p.dir = &lin.Q{0, 0, 0, 1}
-	p.scale = &lin.V3{1, 1, 1}
 	p.parts = []*part{}
-	p.visible = true
+	p.role = nil
+	p.assets = a
 	p.cullable = true
 	p.culled = false
+	p.visible = true
 
 	// scratch variables.
-	p.model = &lin.M4{}
-	p.pm = &lin.M4{}
-	p.vm = &lin.M4{}
-
-	// allocate the visible structures once and reuse.
-	p.vis = render.NewVis()
+	p.rotation = lin.NewQ()
+	p.mm = &lin.M4{}
+	p.pt = &lin.M4{}
 	return p
 }
 
@@ -125,16 +110,17 @@ func (p *part) Dispose() {
 	for _, child := range p.parts {
 		child.Dispose()
 	}
-	p.RemBody()
 	p.parts = nil
-	p.face = nil
-	p.body = nil
-	p.scale = nil
+	p.RemRole()
+	p.RemBody()
 }
+func (p *part) SetCullable(cullable bool) { p.cullable = cullable }
+func (p *part) Visible() bool             { return p.visible }
+func (p *part) SetVisible(visible bool)   { p.visible = visible }
 
 // Part interface implementation.
 func (p *part) AddPart() Part {
-	np := newPart(p.world)
+	np := newPart(p.tracker, p.assets)
 	p.parts = append(p.parts, np)
 	return np
 }
@@ -145,7 +131,7 @@ func (p *part) RemPart(child Part) {
 	if pt, _ := child.(*part); pt != nil {
 		for index, partPtr := range p.parts {
 			if partPtr == pt {
-				p.RemBody()
+				pt.Dispose()
 				p.parts = append(p.parts[:index], p.parts[index+1:]...)
 				return
 			}
@@ -155,20 +141,49 @@ func (p *part) RemPart(child Part) {
 
 // SetLocation directly updates the parts location to the given coordinates.
 // This is a form of teleportation when the part has an active physics body.
-func (p *part) SetLocation(x, y, z float64) {
+func (p *part) SetLocation(x, y, z float64) Part {
 	p.pov.SetLocation(x, y, z)
 	if p.body != nil {
 		p.body.World().Loc.SetS(x, y, z)
 	}
+	if p.solid != nil {
+		p.solid.World().Loc.SetS(x, y, z)
+	}
+	return p
 }
 
 // SetRotation directly updates the parts rotation to the given direction.
 // This is a form of teleportation when the part has an active physics body.
-func (p *part) SetRotation(x, y, z, w float64) {
+func (p *part) SetRotation(x, y, z, w float64) Part {
 	p.pov.SetRotation(x, y, z, w)
 	if p.body != nil {
 		p.body.World().Rot.SetS(x, y, z, w)
 	}
+	if p.solid != nil {
+		p.solid.World().Rot.SetS(x, y, z, w)
+	}
+	return p
+}
+
+// Spin applies the spin to the parts orientation. It also updates any
+// associated Body or Solid
+func (p *part) Spin(x, y, z float64) {
+	p.pov.Spin(x, y, z)
+	if p.body != nil {
+		p.body.World().Rot.Set(p.pov.dir)
+	}
+	if p.solid != nil {
+		p.solid.World().Rot.Set(p.pov.dir)
+	}
+}
+
+func (p *part) Scale() (x, y, z float64) { return p.scale.X, p.scale.Y, p.scale.Z }
+func (p *part) SetScale(x, y, z float64) Part {
+	p.scale.X, p.scale.Y, p.scale.Z = x, y, z
+	if p.role != nil {
+		p.role.model.SetScale(x, y, z)
+	}
+	return p
 }
 
 // Move overrides the default movement behaviour so that motion is applied to
@@ -181,6 +196,25 @@ func (p *part) Move(x, y, z float64) {
 		// apply push in the current direction.
 		dx, dy, dz := lin.MultSQ(x, y, z, p.dir)
 		p.body.Push(dx, dy, dz)
+	}
+	if p.solid != nil {
+		p.solid.World().Loc.Set(p.pov.loc)
+	}
+}
+
+// Model returns the current rendered model.
+func (p *part) Role() Role { return p.role }
+func (p *part) SetRole(shader string) Role {
+	if p.role == nil {
+		p.role = newRole(shader, p.assets)
+		p.role.model.SetScale(p.scale.X, p.scale.Y, p.scale.Z)
+	}
+	return p.role
+}
+func (p *part) RemRole() {
+	if p.role != nil {
+		p.role.dispose()
+		p.role = nil
 	}
 }
 
@@ -219,24 +253,6 @@ func (p *part) Speed() (x, y, z float64) {
 }
 
 // Part interface implementation.
-func (p *part) Scale() (x, y, z float64)  { return p.scale.X, p.scale.Y, p.scale.Z }
-func (p *part) SetScale(x, y, z float64)  { p.scale.X, p.scale.Y, p.scale.Z = x, y, z }
-func (p *part) Visible() bool             { return p.visible }
-func (p *part) SetVisible(visible bool)   { p.visible = visible }
-func (p *part) SetCullable(cullable bool) { p.cullable = cullable }
-func (p *part) SetFacade(mesh, shader string) Part {
-	p.face = newFacade(mesh, shader)
-	return p
-}
-
-// Part interface implementation.
-func (p *part) SetMaterial(material string) {
-	if p.face != nil {
-		p.face.mat = material
-	}
-}
-
-// Part interface implementation.
 func (p *part) SetBody(body move.Body, mass, bounce float64) {
 	if p.body != nil {
 		p.RemBody()
@@ -245,57 +261,21 @@ func (p *part) SetBody(body move.Body, mass, bounce float64) {
 	p.body.SetData(p)
 	p.body.World().Loc.Set(p.loc)
 	p.body.World().Rot.Set(p.dir)
-	p.world.Add(p.body)
+	p.tracker.track(p.body)
 }
+func (p *part) SetSolid(sol move.Solid) {
+	p.solid = sol
+	p.solid.World().Loc.Set(p.loc)
+	p.solid.World().Rot.Set(p.dir)
+}
+func (p *part) Solid() move.Solid { return p.solid }
 
 // Part interface implementation.
 func (p *part) RemBody() {
 	if p.body != nil {
-		p.world.Rem(p.body)
+		p.tracker.release(p.body)
 		p.body = nil
 	}
-}
-
-// Part interface implementation.
-func (p *part) SetTexture(texture string, rotSpeed float64) {
-	if p.face != nil {
-		p.face.tex, p.face.rots = texture, rotSpeed
-	}
-}
-
-// Part interface implementation.
-func (p *part) Alpha() float64 {
-	if p.face != nil {
-		return p.face.alpha
-	}
-	return 0
-}
-
-// Part interface implementation.
-func (p *part) SetAlpha(a float64) {
-	if p.face != nil {
-		p.face.alpha = a
-	}
-}
-
-// Part interface implementation.
-func (p *part) SetBanner(text, shader, glyphs, texture string) {
-	p.face = newBanner(text, shader, glyphs, texture)
-}
-
-// Part interface implementation.
-func (p *part) UpdateBanner(text string) {
-	if p.face != nil {
-		p.face.text = text
-	}
-}
-
-// Part interface implementation.
-func (p *part) BannerWidth() int {
-	if p.face != nil {
-		return p.vis.GlyphWidth
-	}
-	return 0
 }
 
 // distanceTo returns the distance squared of the part to the given center.
@@ -306,65 +286,58 @@ func (p *part) distanceTo(cenx, ceny, cenz float64) float64 {
 	return float64(dx*dx + dy*dy + dz*dz)
 }
 
-// outside returns true if the node's distance to center is bigger than the
-// given radius.
-func (p *part) outside(radius float64) bool { return p.toc > float64(radius*radius) }
+// model transform must be done in scale, rotate, translate order.
+func (p *part) modelTransform(m *lin.M4) *lin.M4 {
+	p.mm.SetQ(p.rotation.Inv(p.dir))                   // rotation.
+	p.mm.ScaleSM(p.Scale())                            // scale is applied first (on left of rotation)
+	return p.mm.TranslateMT(p.loc.X, p.loc.Y, p.loc.Z) // translate is applied last (on right of rotation).
 
-// model transform must be done in rotation, scale, translate order.
-func (p *part) mt() *lin.M4 {
-	mt := p.model.SetQ(lin.NewQ().Inv(p.dir)) // rotation.
-	mt.ScaleSM(p.Scale())                     // scale is applied first (on left of rotation)
-	return mt.TranslateMT(p.Location())       // translate is applied last (on right of rotation).
 }
 
-// temporary matrix used and reused for model view transforms.
-var tm = &lin.M4{}
-
-// stage the part for rendering. This takes the parts rendering specific information
-// and copies it into a rendering structure.
-func (p *part) stage(visible *[]*render.Vis, sc *scene, parentTransform *lin.M4) {
-	if p.visible {
-		m := p.mt()
-		m.Mult(m, parentTransform) // model transform + parent transform
-
-		// only render nodes with facades or banners.
-		// transfer the rendering information in a graphics structure.
-		if p.face != nil {
-			vis := p.vis
-			vis.L = sc.L
-			vis.Mv = RenderMatrix(tm.Mult(m, sc.vt(p.vm)), vis.Mv) // generate the model-view transform
-			vis.Mvp = RenderMatrix(tm.Mult(tm, sc.P), vis.Mvp)     // generate model-view-projection transform
-
-			// both banners and facades render the same way. Should only be one
-			// specified, but prefer a facade over a banner in the case of dev error.
-			face := p.face
-			vis.Is2D = sc.is2D
-			vis.MeshName = face.mesh
-			vis.ShaderName = face.shader
-			vis.MatName = face.mat
-			vis.TexName = face.tex
-			vis.RotSpeed = float32(face.rots)
-			vis.GlyphName = face.glyphs
-			vis.GlyphText = face.text
-			vis.Alpha = float32(face.alpha)
-			vis.Scale.X, vis.Scale.Y, vis.Scale.Z = float32(p.scale.X), float32(p.scale.Y), float32(p.scale.Z)
-
-			// Use a large fade default for scenes without radius.
-			vis.Fade = 1000
-			if sc.radius != 0 {
-				vis.Fade = float32(sc.radius)
+// stage the part for rendering. Update the part and add it to the list of
+// rendered parts.
+func (p *part) stage(sc *scene, dt float64) {
+	p.pt.Set(lin.M4I)
+	p.stagePart(sc, p.pt, dt)
+}
+func (p *part) stagePart(sc *scene, pt *lin.M4, dt float64) {
+	if p.Visible() {
+		p.mm = p.modelTransform(p.mm) // updates p.mm (model transform matrix)
+		p.mm.Mult(p.mm, pt)           // model transform + parent transform
+		if p.role != nil {
+			if sc.is2D {
+				p.role.Set2D()
 			}
-			*visible = append(*visible, vis)
+			p.role.update(sc.l, p.mm, sc.vm, sc.pm, dt)
+			if p.role.effect != nil {
+				p.role.effect.Update(p.role.Mesh(), dt)
+			}
+			p.tracker.stage(p.role.model) // add to the list of rendered parts.
 		}
 
 		// render all the parts children
 		for _, child := range p.parts {
 			if !child.culled {
-				p.pm.Set(m) // ensures the original model transform does not change.
-				child.stage(visible, sc, p.pm)
+				p.pt.Set(p.mm) // ensures the original model transform does not change.
+				child.stagePart(sc, p.pt, dt)
 			}
 		}
 	}
+}
+
+// verify passes the request down to the render.Model.
+func (p *part) verify() (err error) {
+	if p.role != nil {
+		if err = p.role.model.Verify(); err != nil {
+			return err
+		}
+	}
+	for _, p := range p.parts {
+		if err = p.verify(); err != nil {
+			return err
+		}
+	}
+	return
 }
 
 // part

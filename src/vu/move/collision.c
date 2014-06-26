@@ -1,4 +1,4 @@
-// Vu Copyright © 2013 Galvanized Logic Inc.
+// Copyright © 2013-2014 Galvanized Logic Inc.
 // Use is governed by a FreeBSD license found in the LICENSE file.
 //
 // ODE (bullet) box-box collision detection is adapted to work with Vu.  

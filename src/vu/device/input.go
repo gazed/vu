@@ -1,4 +1,4 @@
-// Copyright © 2013 Galvanized Logic Inc.
+// Copyright © 2013-2014 Galvanized Logic Inc.
 // Use is governed by a FreeBSD license found in the LICENSE file.
 
 package device
@@ -44,7 +44,7 @@ func (i *input) processEvents() {
 // KEY_RELEASED is used to indicate a key up event has occurred.
 // The total duration of a key press can be calculated by the difference
 // of Pressed.Down duration with KEY_RELEASED. A user would have to hold
-// down a key for 24 hours before the released duration became positive
+// a key down for 24 hours before the released duration became positive
 // (assuming a reasonable update time of 0.02 seconds).
 const KEY_RELEASED = -1000000000
 
@@ -54,8 +54,26 @@ const KEY_RELEASED = -1000000000
 // This method is only expected to be called by i.processEvents().
 func (i *input) processEvent(event *userInput) {
 	i.curr.Mx, i.curr.My = event.mouseX, event.mouseY
-	i.curr.Shift = (event.mods & shiftKeyMask) != 0
-	i.curr.Control = (event.mods & controlKeyMask) != 0
+	i.curr.Scroll = event.scroll
+
+	// capture modifier key state.
+	if event.mods&shiftKeyMask != 0 {
+		i.recordPress(shiftKey)
+	} else {
+		i.recordRelease(shiftKey)
+	}
+	if event.mods&controlKeyMask != 0 {
+		i.recordPress(controlKey)
+	} else {
+		i.recordRelease(controlKey)
+	}
+	if event.mods&functionKeyMask != 0 {
+		i.recordPress(functionKey)
+	} else {
+		i.recordRelease(functionKey)
+	}
+
+	// turn key and mouse events into state
 	switch event.id {
 	case resizedShell, movedShell:
 		i.curr.Resized = true
@@ -85,7 +103,9 @@ func (i *input) recordPress(code int) {
 // recordRelease tracks key or mouse up user input events.
 func (i *input) recordRelease(code int) {
 	released := keyNames[code]
-	i.curr.Down[released] = i.curr.Down[released] + KEY_RELEASED
+	if _, ok := i.curr.Down[released]; ok {
+		i.curr.Down[released] = i.curr.Down[released] + KEY_RELEASED
+	}
 }
 
 // updateDurations tracks how long keys have been pressed for.
@@ -113,10 +133,9 @@ func (i *input) clone(in, out *Pressed) {
 		}
 	}
 	out.Mx, out.My = in.Mx, in.My
-	out.Shift = in.Shift
-	out.Control = in.Control
 	out.Focus = in.Focus
 	out.Resized = in.Resized
+	out.Scroll = in.Scroll
 	in.Resized = false
 }
 
@@ -167,13 +186,12 @@ const (
 	scrolled
 )
 
-// mods is the list of valid modifier keys. Modifier keys are expected to be used
-// in conjunction with other normal keys to form key sequences that identify what
-// the user is currently pressing.
-var mods []int = []int{controlKeyMask, functionKeyMask, shiftKeyMask}
-
-// modNames holds the names of the above modifier keys.
-var modNames []string = []string{"Ctl", "Fn", "Sh"}
+// Map the modifier key mask values so they don't conflict with regular keys.
+const (
+	controlKey  = controlKeyMask + 0xFF
+	shiftKey    = shiftKeyMask + 0xFF
+	functionKey = functionKeyMask + 0xFF
+)
 
 // keyNames holds the names of the individual key presses.
 var keyNames map[int]string = map[int]string{
@@ -278,4 +296,7 @@ var keyNames map[int]string = map[int]string{
 	mouse_Left:         "Lm", // Treat pressing a mouse button like pressing a key.
 	mouse_Right:        "Rm",
 	mouse_Middle:       "Mm",
+	controlKey:         "Ctl",
+	functionKey:        "Fn",
+	shiftKey:           "Sh",
 }

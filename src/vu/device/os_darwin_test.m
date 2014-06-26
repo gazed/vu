@@ -1,13 +1,18 @@
-// Copyright © 2013 Galvanized Logic Inc.
+// Copyright © 2013-2014 Galvanized Logic Inc.
 // Use is governed by a FreeBSD license found in the LICENSE file.
 
-#include "os_darwin.m"
+// +build ignore
+//
+// Ignored because cgo attempts to compile it during normal builds. 
+// To build a native test application :
+//     clang -framework Cocoa -framework OpenGL -o App os_darwin_test.m
+
 #import <stdio.h>
 #import <OpenGL/gl3.h> // Needed for the OpenGL gl* functions.
 
-// An native test application can be built using:
-//     clang -framework Cocoa -framework OpenGL -o App os_darwin_test.m
-// This gives an idea of the expected usage exposed gs_* functions.
+// Example Objective-C program that ensures the graphic shell works.
+// This tests the native layer implmentation without golang.
+#include "os_darwin.m"
 int main(int argc, char *argv[]) {
     long display = gs_display_init();
     gs_set_attr_s(GS_AppName, "Gsh");

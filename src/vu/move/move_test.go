@@ -1,4 +1,4 @@
-// Copyright © 2013 Galvanized Logic Inc.
+// Copyright © 2013-2014 Galvanized Logic Inc.
 // Use is governed by a FreeBSD license found in the LICENSE file.
 
 package move
@@ -50,8 +50,8 @@ func dumpQ(q *lin.Q) string   { return fmt.Sprintf("%2.1f", *q) }
 func dumpV3(v *lin.V3) string { return fmt.Sprintf("%2.1f", *v) }
 func dumpM3(m *lin.M3) string {
 	format := "[%+2.1f, %+2.1f, %+2.1f]\n"
-	str := fmt.Sprintf(format, m.X0, m.Y0, m.Z0)
-	str += fmt.Sprintf(format, m.X1, m.Y1, m.Z1)
-	str += fmt.Sprintf(format, m.X2, m.Y2, m.Z2)
+	str := fmt.Sprintf(format, m.Xx, m.Xy, m.Xz)
+	str += fmt.Sprintf(format, m.Yx, m.Yy, m.Yz)
+	str += fmt.Sprintf(format, m.Zx, m.Zy, m.Zz)
 	return str
 }

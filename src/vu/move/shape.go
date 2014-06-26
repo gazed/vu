@@ -1,4 +1,4 @@
-// Copyright © 2013 Galvanized Logic Inc.
+// Copyright © 2013-2014 Galvanized Logic Inc.
 // Use is governed by a FreeBSD license found in the LICENSE file.
 
 package move
@@ -32,11 +32,15 @@ type Shape interface {
 }
 
 // Enumerate the shapes handled by physics and returned
-// by Shape.Type()
+// by Shape.Type(). Currently volume shapes are used in physics collision
+// and the non-volume shapes are used in ray-casting.
 const (
-	SphereShape = iota // Considered convex (curving outwards).
-	BoxShape           // Polyhedral (flat faces, straight edges). Considered convex.
-	NumShapes          // Keep as last constant.
+	SphereShape  = iota // Considered convex (curving outwards).
+	BoxShape            // Polyhedral (flat faces, straight edges). Considered convex.
+	VolumeShapes        // Separates shapes that have volume from those that don't
+	PlaneShape          // Area, no volume or mass.
+	RayShape            // No area, volume or mass.
+	NumShapes           // Keep this last.
 )
 
 // Currently the shapes are so simple they are all kept in this one file.
@@ -164,3 +168,40 @@ type Abox struct {
 func (a *Abox) Overlaps(b *Abox) bool {
 	return a.Lx > b.Sx && a.Sx < b.Lx && a.Ly > b.Sy && a.Sy < b.Ly && a.Lz > b.Sz && a.Sz < b.Lz
 }
+
+// Abox
+// ============================================================================
+// plane
+
+// plane describes an infinite flat 2D area with the origin as the defining
+// point on the plane.
+type plane struct {
+	nx, ny, nz float64 // plane normal.
+}
+
+// NewPlane creates a plane shape using on the given plane normal x, y, z.
+func NewPlane(x, y, z float64) Shape { return &plane{x, y, z} }
+
+// Plane is not a full physics shape having no volume, mass or bounding box.
+func (p *plane) Type() int                                { return PlaneShape }
+func (p *plane) Aabb(t *lin.T, ab *Abox, m float64) *Abox { return nil }
+func (p *plane) Volume() float64                          { return 0 }
+func (p *plane) Inertia(m float64, i *lin.V3) *lin.V3     { return nil }
+
+// plane
+// ============================================================================
+// ray
+
+// ray describes an infinite line with origin at the origin.
+type ray struct {
+	dx, dy, dz float64 // ray direction.
+}
+
+// NewRay creates a ray shape using the given ray direction x, y, z.
+func NewRay(x, y, z float64) Shape { return &ray{x, y, z} }
+
+// Ray is not a full physics shape having no volume, mass or bounding box.
+func (r *ray) Type() int                                { return RayShape }
+func (r *ray) Aabb(t *lin.T, ab *Abox, m float64) *Abox { return nil }
+func (r *ray) Volume() float64                          { return 0 }
+func (r *ray) Inertia(m float64, i *lin.V3) *lin.V3     { return nil }

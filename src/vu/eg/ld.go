@@ -1,24 +1,22 @@
-// Copyright © 2013 Galvanized Logic Inc.
+// Copyright © 2013-2014 Galvanized Logic Inc.
 // Use is governed by a FreeBSD license found in the LICENSE file.
 
 package main
 
 import (
 	"fmt"
-	"vu/data"
 	"vu/device"
+	"vu/load"
 	"vu/math/lin"
 	"vu/render"
 	"vu/render/gl"
 )
 
 // ld loads a mesh model that has been exported from another tool -
-// a .obj file from Blender in this case. It is really testing the
-// "data" package with the key line being:
-//        loader.Load("monkey", &mesh)
-//
-// This also demonstrates basic rendering by using OpenGL calls from
-// package "vu/render/gl" to render the imported mesh.
+// in this case an .obj file from Blender. It is really testing the
+// vu/load package with the key line being:
+//	      meshes, _ := ldr.Obj("monkey")
+// This example renders using OpenGL calls from package vu/render/gl.
 func ld() {
 	ld := &ldtag{}
 	dev := device.New("Load Model", 400, 100, 800, 600)
@@ -39,7 +37,7 @@ type ldtag struct {
 	mvpref    int32
 	persp     *lin.M4    // perspective matrix.
 	mvp64     *lin.M4    // scratch for transform calculations.
-	mvp32     *render.M4 // passed to graphics layer.
+	mvp       render.Mvp // transform matrix for rendering.
 	faceCount int32
 }
 
@@ -54,18 +52,18 @@ func (ld *ldtag) update(dev device.Device) {
 // resize handles user screen/window changes.
 func (ld *ldtag) resize(x, y, width, height int) {
 	gl.Viewport(0, 0, int32(width), int32(height))
-	ld.persp = lin.NewPersp(60, float64(width)/float64(height), 0.1, 50)
+	ld.persp.Persp(60, float64(width)/float64(height), 0.1, 50)
 }
 
 // initScene is called once on startup to load the 3D data.
 func (ld *ldtag) initScene() {
 	ld.persp = lin.NewM4()
 	ld.mvp64 = lin.NewM4()
-	ld.mvp32 = &render.M4{}
+	ld.mvp = render.NewMvp()
 	gl.Init()
-	mesh := &data.Mesh{}
-	loader := data.NewLoader()
-	loader.Load("monkey", &mesh)
+	ldr := load.NewLoader()
+	meshes, _ := ldr.Obj("monkey")
+	mesh := meshes[0]
 	ld.faceCount = int32(len(mesh.F))
 
 	// Gather the one scene into this one vertex array object.
@@ -77,23 +75,21 @@ func (ld *ldtag) initScene() {
 	gl.GenBuffers(1, &vbuff)
 	gl.BindBuffer(gl.ARRAY_BUFFER, vbuff)
 	gl.BufferData(gl.ARRAY_BUFFER, int64(len(mesh.V)*4), gl.Pointer(&(mesh.V[0])), gl.STATIC_DRAW)
-	var vattr uint32 = 0
-	gl.VertexAttribPointer(vattr, 4, gl.FLOAT, false, 0, 0)
-	gl.EnableVertexAttribArray(vattr)
+	gl.VertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0)
+	gl.EnableVertexAttribArray(0)
 
 	// normal data.
 	var nbuff uint32
 	gl.GenBuffers(1, &nbuff)
 	gl.BindBuffer(gl.ARRAY_BUFFER, nbuff)
 	gl.BufferData(gl.ARRAY_BUFFER, int64(len(mesh.N)*4), gl.Pointer(&(mesh.N[0])), gl.STATIC_DRAW)
-	var nattr uint32 = 1
-	gl.VertexAttribPointer(nattr, 3, gl.FLOAT, false, 0, 0)
-	gl.EnableVertexAttribArray(nattr)
+	gl.VertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0)
+	gl.EnableVertexAttribArray(1)
 
 	// faces data, uint32 in this case, so 4 bytes per element.
-	var ebuff uint32
-	gl.GenBuffers(1, &ebuff)
-	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, ebuff)
+	var fbuff uint32
+	gl.GenBuffers(1, &fbuff)
+	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, fbuff)
 	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, int64(len(mesh.F)*2), gl.Pointer(&(mesh.F[0])), gl.STATIC_DRAW)
 
 	ld.initShader()
@@ -107,18 +103,21 @@ func (ld *ldtag) initScene() {
 
 // initShader compiles shaders and links them into a shader program.
 func (ld *ldtag) initShader() {
-	shader := &data.Shader{}
-	loader := data.NewLoader()
-	loader.Load("monkey", &shader)
-	ld.shaders = gl.CreateProgram()
-	gl.BindAttribLocation(ld.shaders, 0, "inPosition")
-	gl.BindAttribLocation(ld.shaders, 1, "inNormal")
-	if err := gl.BindProgram(ld.shaders, shader.Vsh, shader.Fsh); err != nil {
-		fmt.Printf("Failed to create program: %s\n", err)
-	}
-	ld.mvpref = gl.GetUniformLocation(ld.shaders, "modelViewProjectionMatrix")
-	if ld.mvpref < 0 {
-		fmt.Printf("No modelViewProjectionMatrix in vertex shader\n")
+	renderer := render.New()
+	shader := renderer.NewShader("monkey")
+	loader := load.NewLoader()
+	vsrc, verr := loader.Vsh(shader.Name())
+	fsrc, ferr := loader.Fsh(shader.Name())
+	if verr == nil && ferr == nil {
+		shader.SetSource(vsrc, fsrc)
+		ld.shaders = gl.CreateProgram()
+		if err := gl.BindProgram(ld.shaders, shader.Vsh(), shader.Fsh()); err != nil {
+			fmt.Printf("Failed to create program: %s\n", err)
+		}
+		ld.mvpref = gl.GetUniformLocation(ld.shaders, "modelViewProjectionMatrix")
+		if ld.mvpref < 0 {
+			fmt.Printf("No modelViewProjectionMatrix in vertex shader\n")
+		}
 	}
 }
 
@@ -130,11 +129,9 @@ func (ld *ldtag) render() {
 
 	// use a model-view-projection matrix
 	ld.mvp64.Set(lin.M4I).ScaleSM(0.5, 0.5, 0.5).TranslateMT(0, 0, -2)
-	ld.mvp64.Mult(ld.mvp64, ld.persp)
-	v3 := renderMatrix(ld.mvp64, ld.mvp32)
-	gl.UniformMatrix4fv(ld.mvpref, 1, false, v3.Pointer())
-	gl.CullFace(gl.BACK)
-	gl.DrawElements(gl.TRIANGLES, ld.faceCount, gl.UNSIGNED_SHORT, gl.Pointer(nil))
+	ld.mvp.Set(ld.mvp64.Mult(ld.mvp64, ld.persp))
+	gl.UniformMatrix4fv(ld.mvpref, 1, false, ld.mvp.Pointer())
+	gl.DrawElements(gl.TRIANGLES, ld.faceCount, gl.UNSIGNED_SHORT, 0)
 
 	// cleanup
 	gl.UseProgram(0)

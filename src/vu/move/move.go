@@ -1,4 +1,4 @@
-// Copyright © 2013 Galvanized Logic Inc.
+// Copyright © 2013-2014 Galvanized Logic Inc.
 // Use is governed by a FreeBSD license found in the LICENSE file.
 //
 // Huge thanks to bullet physics for showing what a physics engine is all about
@@ -6,33 +6,32 @@
 // derived from bullet physics are commented to indicate their origin.
 // Bullet physics, for the most part, has the following license:
 //
-// Bullet Continuous Collision Detection and Physics Library
-// Copyright (c) 2003-2006 Erwin Coumans  http://continuousphysics.com/Bullet/
+//   Bullet Continuous Collision Detection and Physics Library
+//   Copyright (c) 2003-2006 Erwin Coumans  http://continuousphysics.com/Bullet/
 //
-// This software is provided 'as-is', without any express or implied warranty.
-// In no event will the authors be held liable for any damages arising from the use of this software.
-// Permission is granted to anyone to use this software for any purpose,
-// including commercial applications, and to alter it and redistribute it freely,
-// subject to the following restrictions:
+//   This software is provided 'as-is', without any express or implied warranty.
+//   In no event will the authors be held liable for any damages arising from the use of this software.
+//   Permission is granted to anyone to use this software for any purpose,
+//   including commercial applications, and to alter it and redistribute it freely,
+//   subject to the following restrictions:
 //
-// 1. The origin of this software must not be misrepresented; you must not claim that you wrote the original software.
-//    If you use this software in a product, an acknowledgment in the product documentation would be appreciated but is not required.
-// 2. Altered source versions must be plainly marked as such, and must not be misrepresented as being the original software.
-// 3. This notice may not be removed or altered from any source distribution.
+//   1. The origin of this software must not be misrepresented; you must not claim that you wrote the original software.
+//      If you use this software in a product, an acknowledgment in the product documentation would be appreciated but is not required.
+//   2. Altered source versions must be plainly marked as such, and must not be misrepresented as being the original software.
+//   3. This notice may not be removed or altered from any source distribution.
 
 // Move is a real-time simulation of real-world physics.  Move deals with
 // automatically applying simulated forces to virtual 3D objects known as bodies.
-// Move updates all bodies locations and directions based on forces and collisions
+// Move updates bodies locations and directions based on forces and collisions
 // with other bodies.
 //
 // Bodies are created using NewBody(shape). For example:
 //    box    := NewBody(NewBox(hx, hy, hz))
 //    sphere := NewBody(NewSphere(radius))
-// Creating and tracking bodies is the responsibility of the calling application.
-// Bodies are moved by regularly calling Mover.Step(). Regulating the calls
-// to Step() is the responsibility of the calling application. See:
-//     http://gafferongames.com/game-physics/fix-your-timestep
-// Once Step has completed, all bodies new locations and directions are stored
+// Creating and storing bodies is the responsibility of the calling application.
+// Bodies are moved with frequent and regular calls to Mover.Step(). Regulating
+// the calls to Step() is the responsibility of the calling application. Once
+// Step() has completed, each bodies new location and direction are available
 // in body.World.
 //
 // Package move is provided as part of the vu (virtual universe) 3D engine.
@@ -42,7 +41,9 @@ package move
 //     www.bulletphysics.com
 //     www.ode.org
 // There is a 2D engine physics engine architecture overview at
-//     http://gamedev.tutsplus.com/series/custom-game-physics-engine/
+//     http://gamedev.tutsplus.com/series/custom-game-physics-engine
+// For regulating physics timesteps see:
+//     http://gafferongames.com/game-physics/fix-your-timestep
 
 // Mover simulates forces acting on moving bodies. Expected usage
 // is to simulate real-life conditions like air resistance and gravity,
@@ -52,9 +53,9 @@ type Mover interface {
 	SetMargin(margin float64)   // Default is 0.04.
 
 	// Step the physics simulation one tiny bit forward. This is expected
-	// to be called regularly from the main engine loop.  At the end of
+	// to be called regularly from the main engine loop. At the end of
 	// a simulation step, all the bodies positions will be updated based on
-	// forces acting upon them and/or collision results.  Unmoving/unmoved
+	// forces acting upon them and/or collision results. Unmoving/unmoved
 	// bodies, or bodies with zero mass are not updated.
 	Step(bodies []Body, timestep float64)
 }
@@ -244,16 +245,12 @@ func (mov *mover) clearForces(bodies []Body) {
 	}
 }
 
-// mover
-// ============================================================================
-// World
-
-// World is anything that wants to track a population (a bunch of bodies).
-// It is expected to be used for organizing bodies into structures that can
-// be efficiently traversed and manipulated.
-//
-// There is currently no default implementation in the move package.
-type World interface {
-	Add(body Body) // Add to the current population (immigrate?).
-	Rem(body Body) // Remove from the current population (emigrate?).
+// Cast checks if a ray r intersects the given Solid s, giving back the
+// nearest point of intersection if there is one. The point of contact
+// x, y, z is valid when hit is true.
+func Cast(ray, sol Solid) (hit bool, x, y, z float64) {
+	if alg, ok := rayCastAlgorithms[sol.(*solid).shape.Type()]; ok {
+		return alg(ray, sol)
+	}
+	return false, 0, 0, 0
 }

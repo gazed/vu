@@ -1,4 +1,4 @@
-// Copyright © 2013 Galvanized Logic Inc.
+// Copyright © 2013-2014 Galvanized Logic Inc.
 // Use is governed by a FreeBSD license found in the LICENSE file.
 
 // Package gen is used to generate the golang OpenGL bindings from the
@@ -254,8 +254,8 @@ func genGoPreamble(gout *os.File) {
 	fmt.Fprintf(gout, "type (\n")
 	fmt.Fprintf(gout, "	Pointer      unsafe.Pointer\n")
 	fmt.Fprintf(gout, "	Sync         C.GLsync\n")
-	fmt.Fprintf(gout, "	clContext    C.struct_cl_context\n")
-	fmt.Fprintf(gout, "	clEvent      C.struct_cl_event\n")
+	fmt.Fprintf(gout, "	clContext    C.struct_Cl_context\n")
+	fmt.Fprintf(gout, "	clEvent      C.struct_Cl_event\n")
 	fmt.Fprintf(gout, "	DEBUGPROCARB C.GLDEBUGPROCARB\n")
 	fmt.Fprintf(gout, "	DEBUGPROC    C.GLDEBUGPROC\n")
 	fmt.Fprintf(gout, ")\n\n")
@@ -392,8 +392,8 @@ func gowrapper(apiLine string) (mname, goparms, goret, cgoparms string) {
 }
 
 // alterSpec changes the OpenGL API for some OpenGL functions where the use of the parameters
-// do not really align with the c-specification (making the binding translation awkward
-// unless changed).  Note that the pointer definition always matches the original spec with.
+// does not really align with the c-specification (making the binding translation awkward
+// unless changed). Note that the pointer definition always matches the original spec with.
 // the alterations being made afterwards for the other definitions (wrapper, go, cgo). Casts
 // are used as appropriate to ensure everything aligns with the original spec API.
 func alterSpec(apiLine string) string {
@@ -416,6 +416,11 @@ func alterSpec(apiLine string) string {
 		return strings.Replace(apiLine, "GLvoid *", "GLint64 ", 1)
 	case "glGetVertexAttribPointerv":
 		return strings.Replace(apiLine, "GLvoid* *", "GLint64 *", 1)
+	case "glDrawElements", "glDrawElementsBaseVertex", "glDrawElementsInstanced",
+		"glDrawElementsInstancedBaseInstance", "glDrawElementsInstancedBaseVertex",
+		"glDrawElementsInstancedBaseVertexBaseInstance", "glDrawRangeElements",
+		"glDrawRangeElementsBaseVertex":
+		return strings.Replace(apiLine, "const GLvoid *indices", "GLintptr indicies", 1)
 	}
 	return apiLine
 }
@@ -607,8 +612,8 @@ var typemap = map[string][]string{
 	"constGLchar*const*": []string{"const char* const*", "[]string", strArray},
 
 	// The following may not be in every spec.
-	"struct_cl_context*": []string{"struct _cl_context*", "*clContext", "(*C.struct_cl_context)"},
-	"struct_cl_event*":   []string{"struct _cl_event*", "*clEvent", "(*C.struct_cl_event)"},
+	"struct_cl_context*": []string{"struct _cl_context*", "*clContext", "(*C.struct__cl_context)"},
+	"struct_cl_event*":   []string{"struct _cl_event*", "*clEvent", "(*C.struct__cl_event)"},
 	"GLDEBUGPROCARB":     []string{"GLDEBUGPROCARB", "DEBUGPROCARB", "C.GLDEBUGPROCARB"},
 	"GLDEBUGPROC":        []string{"GLDEBUGPROC", "DEBUGPROC", "C.GLDEBUGPROC"},
 }

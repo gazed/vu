@@ -1,4 +1,4 @@
-// Copyright © 2013 Galvanized Logic Inc.
+// Copyright © 2013-2014 Galvanized Logic Inc.
 // Use is governed by a FreeBSD license found in the LICENSE file.
 
 package main
@@ -7,7 +7,7 @@ import (
 	"log"
 	"time"
 	"vu/audio/al"
-	"vu/data"
+	"vu/load"
 )
 
 // au demonstrates basic audio library (vu/audio/al) capabilities.
@@ -32,22 +32,21 @@ func au() {
 			al.GenSources(1, &source)
 
 			// read in the audio data.
-			sound := &data.Sound{}
-			loader := data.NewLoader()
-			loader.Load("bloop", &sound)
-			if sound == nil {
-				log.Printf("au: error loading audio file", "bloop")
+			ldr := load.NewLoader()
+			wh, data, err := ldr.Wav("bloop")
+			if err != nil {
+				log.Printf("au: error loading audio file %s %s", "bloop", err)
 				return
 			}
 
 			// copy the audio data into the buffer
 			tag := &autag{}
-			format := tag.audioFormat(sound)
+			format := tag.audioFormat(wh)
 			if format < 0 {
 				log.Printf("au: error recognizing audio format")
 				return
 			}
-			al.BufferData(buffer, int32(format), al.Pointer(&(sound.AudioData[0])), int32(sound.DataSize), int32(sound.Frequency))
+			al.BufferData(buffer, int32(format), al.Pointer(&(data[0])), int32(wh.DataSize), int32(wh.Frequency))
 
 			// attach the source to a buffer.
 			al.Sourcei(source, al.BUFFER, int32(buffer))
@@ -73,15 +72,15 @@ type autag struct{}
 
 // audioFormat figures out which of the OpenAL formats to use based on the
 // WAVE file information.
-func (a *autag) audioFormat(s *data.Sound) int32 {
+func (a *autag) audioFormat(wh *load.WavHdr) int32 {
 	format := int32(-1)
-	if s.Channels == 1 && s.SampleBits == 8 {
+	if wh.Channels == 1 && wh.SampleBits == 8 {
 		format = al.FORMAT_MONO8
-	} else if s.Channels == 1 && s.SampleBits == 16 {
+	} else if wh.Channels == 1 && wh.SampleBits == 16 {
 		format = al.FORMAT_MONO16
-	} else if s.Channels == 2 && s.SampleBits == 8 {
+	} else if wh.Channels == 2 && wh.SampleBits == 8 {
 		format = al.FORMAT_STEREO8
-	} else if s.Channels == 2 && s.SampleBits == 16 {
+	} else if wh.Channels == 2 && wh.SampleBits == 16 {
 		format = al.FORMAT_STEREO16
 	}
 	return format

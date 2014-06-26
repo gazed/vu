@@ -1,28 +1,22 @@
-// Copyright © 2013 Galvanized Logic Inc.
+// Copyright © 2013-2014 Galvanized Logic Inc.
 // Use is governed by a FreeBSD license found in the LICENSE file.
 
 package main
 
 import (
 	"log"
-	"time"
 	"vu"
 	"vu/grid"
 )
 
 // rl tests higher level graphics functionality. This includes:
-//    vu culling/reducing the total objects rendered based on distance. See:
-//   		 flr.plan.SetVisibleRadius(10)
-//   		 flr.plan.SetVisibleDirection(true)
-//    vu 2D overlay scene, in this case a minimap.  See:
-//   		flr.mmap = rl.eng.AddScene(vu.XZtoXY)
-//   		flr.mmap.Set2D()
-//   		flr.mmap.SetOrthographic(-0.2, 100, -0.2, 75, 0, 10)
-//    vu grid generation. See:
-//   		 &grid.Dense{},
-//   		 &grid.Sparse{},
-//   		 &grid.Rooms{},
-//
+//   • vu culling/reducing the total objects rendered based on distance. See:
+//      • flr.SetCull()
+//   • vu 2D overlay scene, in this case a minimap.  See:
+//    	• flr.mmap = rl.eng.AddScene(vu.XZtoXY)
+//    	• flr.mmap.Set2D()
+//    	• flr.mmap.SetOrthographic()
+//   • vu grid generation. See: vu/grid.
 // rl also tests camera movement that includes holding multiple movement keys
 // at the same time. The example does not have collision detection so you can
 // literally run through the maze.
@@ -36,7 +30,11 @@ func rl() {
 	rl.run = 5             // move so many cubes worth in one second.
 	rl.spin = 270          // spin so many degrees in one second.
 	rl.eng.SetDirector(rl) // override user input handling.
+	if err = rl.eng.Verify(); err != nil {
+		log.Fatalf("bb: error initializing model :: %s", err)
+	}
 	defer rl.eng.Shutdown()
+	defer catchErrors()
 	rl.eng.Action()
 }
 
@@ -46,8 +44,6 @@ type rltag struct {
 	floors        map[string]*floor // The random grid
 	flr           *floor            // The current floor.
 	width, height int               // Window size
-	holdoff       time.Duration     // Time in milliseconds before swtiching levels.
-	levelSwitch   time.Time         // Last time a level switch happened.
 	arrow         vu.Part           // Camera/player minimap marker.
 	run           float64           // Camera movement speed.
 	spin          float64           // Camera spin speed.
@@ -58,27 +54,21 @@ func (rl *rltag) Create(eng vu.Engine) {
 	rl.width, rl.height = 800, 600
 	rl.floors = make(map[string]*floor)
 	rl.setLevel("1")
-	rl.holdoff, _ = time.ParseDuration("1000ms")
-	rl.levelSwitch = time.Now()
-
-	// set some constant state.
-	rl.eng.Enable(vu.BLEND, true)
-	rl.eng.Enable(vu.CULL, true)
-	rl.eng.Color(0.1, 0.1, 0.1, 1)
+	eng.Color(0.15, 0.15, 0.15, 1)
 	return
 }
 
 // Update is the regular engine callback.
-func (rl *rltag) Update(input *vu.Input) {
-	if input.Resized {
+func (rl *rltag) Update(in *vu.Input) {
+	if in.Resized {
 		rl.resize()
 	}
 
 	// pre-process user presses.
 	// reduce individual move amounts for multiple move requests.
-	dt := input.Dt
+	dt := in.Dt
 	moveDelta := dt * 2
-	for press, _ := range input.Down {
+	for press, _ := range in.Down {
 		switch press {
 		case "W", "S", "Q", "E":
 			moveDelta *= 0.5
@@ -86,30 +76,29 @@ func (rl *rltag) Update(input *vu.Input) {
 	}
 
 	// process user presses.
-	for press, _ := range input.Down {
+	for press, down := range in.Down {
 		switch press {
 		case "W":
-			rl.flr.plan.MoveView(0, 0, moveDelta*-rl.run)
-			rl.arrow.SetLocation(rl.flr.plan.ViewLocation())
+			rl.flr.plan.Move(0, 0, moveDelta*-rl.run)
+			rl.arrow.SetLocation(rl.flr.plan.Location())
 		case "S":
-			rl.flr.plan.MoveView(0, 0, moveDelta*rl.run)
-			rl.arrow.SetLocation(rl.flr.plan.ViewLocation())
+			rl.flr.plan.Move(0, 0, moveDelta*rl.run)
+			rl.arrow.SetLocation(rl.flr.plan.Location())
 		case "Q":
-			rl.flr.plan.MoveView(moveDelta*-rl.run, 0, 0)
-			rl.arrow.SetLocation(rl.flr.plan.ViewLocation())
+			rl.flr.plan.Move(moveDelta*-rl.run, 0, 0)
+			rl.arrow.SetLocation(rl.flr.plan.Location())
 		case "E":
-			rl.flr.plan.MoveView(moveDelta*rl.run, 0, 0)
-			rl.arrow.SetLocation(rl.flr.plan.ViewLocation())
+			rl.flr.plan.Move(moveDelta*rl.run, 0, 0)
+			rl.arrow.SetLocation(rl.flr.plan.Location())
 		case "A":
-			rl.flr.plan.PanView(vu.YAxis, dt*rl.spin)
-			rl.arrow.SetRotation(rl.flr.plan.ViewRotation())
+			rl.flr.plan.Spin(vu.YAxis, dt*rl.spin)
+			rl.arrow.SetRotation(rl.flr.plan.Rotation())
 		case "D":
-			rl.flr.plan.PanView(vu.YAxis, dt*-rl.spin)
-			rl.arrow.SetRotation(rl.flr.plan.ViewRotation())
+			rl.flr.plan.Spin(vu.YAxis, dt*-rl.spin)
+			rl.arrow.SetRotation(rl.flr.plan.Rotation())
 		case "1", "2", "3", "4", "5", "6", "7", "8", "9", "0":
-			if time.Now().After(rl.levelSwitch.Add(rl.holdoff)) {
+			if down == 1 {
 				rl.setLevel(press)
-				rl.levelSwitch = time.Now()
 			}
 		}
 	}
@@ -154,14 +143,14 @@ func (rl *rltag) setLevel(id string) {
 		var gridType = map[string]grid.Grid{
 			"1": grid.New(grid.DENSE_SKIRMISH),
 			"2": grid.New(grid.DENSE_SKIRMISH),
-			"3": grid.New(grid.DENSE_SKIRMISH),
+			"3": grid.New(grid.SPARSE_SKIRMISH),
 			"4": grid.New(grid.SPARSE_SKIRMISH),
-			"5": grid.New(grid.SPARSE_SKIRMISH),
-			"6": grid.New(grid.SPARSE_SKIRMISH),
-			"7": grid.New(grid.ROOMS_SKIRMISH),
-			"8": grid.New(grid.ROOMS_SKIRMISH),
-			"9": grid.New(grid.ROOMS_SKIRMISH),
-			"0": grid.New(grid.ROOMS_SKIRMISH),
+			"5": grid.New(grid.ROOMS_SKIRMISH),
+			"6": grid.New(grid.ROOMS_SKIRMISH),
+			"7": grid.New(grid.CAVE),
+			"8": grid.New(grid.CAVE),
+			"9": grid.New(grid.DUNGEON),
+			"0": grid.New(grid.DUNGEON),
 		}
 		flr := &floor{}
 
@@ -170,9 +159,9 @@ func (rl *rltag) setLevel(id string) {
 		flr.plan.SetPerspective(60, float64(rl.width)/float64(rl.height), 0.1, 50)
 		flr.plan.SetLightLocation(0, 10, 0)
 		flr.plan.SetLightColour(0.4, 0.7, 0.9)
-		flr.plan.SetVisibleRadius(10)
 		flr.plan.SetSorted(true)
-		flr.plan.SetVisibleDirection(true)
+		flr.plan.SetCuller(vu.NewFacingCuller(10))
+		flr.plan.SetLocation(1, 0, -1)
 
 		// create the overlay
 		flr.mmap = rl.eng.AddScene(vu.XZ_XY)
@@ -180,9 +169,7 @@ func (rl *rltag) setLevel(id string) {
 		flr.mmap.SetOrthographic(-0.2, 100, -0.2, 75, 0, 10)
 		flr.mmap.SetLightLocation(1, 1, 1)
 		flr.mmap.SetLightColour(1, 1, 1)
-		flr.mapPart = flr.mmap.AddPart()
-		flr.mapPart.SetLocation(3, 0, -3)
-		flr.plan.SetViewLocation(1, 0, -1)
+		flr.mapPart = flr.mmap.AddPart().SetLocation(3, 0, -3)
 
 		// populate the scenes
 		lsize := gridSizes[id]
@@ -192,20 +179,17 @@ func (rl *rltag) setLevel(id string) {
 		for x := 0; x < width; x++ {
 			for y := 0; y < height; y++ {
 				if flr.layout.IsWall(x, y) {
-					block := flr.plan.AddPart()
-					block.SetFacade("cube", "gouraud").SetMaterial("cube")
-					block.SetLocation(float64(x), 0, float64(-y))
-
-					// use flat, gray for the overlay.
-					block = flr.mapPart.AddPart()
-					block.SetFacade("cube", "flat").SetMaterial("gray")
-					block.SetLocation(float64(x), 0, float64(-y))
+					block := flr.plan.AddPart().SetLocation(float64(x), 0, float64(-y))
+					block.SetRole("gouraud").SetMesh("cube").SetMaterial("cube")
+				} else {
+					block := flr.mapPart.AddPart().SetLocation(float64(x), 0, float64(-y))
+					block.SetRole("flat").SetMesh("cube").SetMaterial("gray")
 				}
 			}
 		}
 		flr.arrow = flr.mapPart.AddPart()
-		flr.arrow.SetFacade("arrow", "flat").SetMaterial("blue")
-		flr.arrow.SetLocation(flr.plan.ViewLocation())
+		flr.arrow.SetRole("flat").SetMesh("arrow").SetMaterial("blue")
+		flr.arrow.SetLocation(flr.plan.Location())
 		rl.floors[id] = flr
 	}
 	if rl.flr != nil {

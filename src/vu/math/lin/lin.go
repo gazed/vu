@@ -1,9 +1,10 @@
-// Copyright © 2013 Galvanized Logic Inc.
+// Copyright © 2013-2014 Galvanized Logic Inc.
 // Use is governed by a FreeBSD license found in the LICENSE file.
 
 // Package lin provides a linear math library that includes vectors,
-// matrices, quaternions, and transforms. Linear math operations are useful
-// in 3D applications for describing virtual objects and simulating physics.
+// matrices, quaternions, transforms and some utility functions.
+// Linear math operations are useful in 3D applications for describing
+// and transforming virtual objects as well as simulating physics.
 //
 // Package lin is provided as part of the vu (virtual universe) 3D engine.
 package lin
@@ -17,8 +18,8 @@ package lin
 //     - use pointers to structures
 //     - prefer multiply over divide
 //
-// 2) Optimized/performant 3D math is expected to be done on the GPU.
-//    A future library may address this.
+// 2) Optimized/performant 3D math is expected to be done using a GPGPU
+//    base like OpenCL. A future package may address this.
 //
 // 3) Wikipedia states: "In linear algebra, real numbers are called scalars...".
 //    Currently the default scalar size is float64 since the underlying go math
@@ -49,7 +50,7 @@ const (
 // Rad converts degrees to radians.
 func Rad(deg float64) float64 { return deg * DEG_RAD }
 
-// Degrees converts radians to degrees.
+// Deg converts radians to degrees.
 func Deg(rad float64) float64 { return rad * RAD_DEG }
 
 // IsNeg returns true if x is less than zero.

@@ -1,4 +1,4 @@
-// Copyright © 2013 Galvanized Logic Inc.
+// Copyright © 2013-2014 Galvanized Logic Inc.
 // Use is governed by a FreeBSD license found in the LICENSE file.
 
 package main
@@ -24,6 +24,7 @@ func cr() {
 	cr.spin = 270          // spin so many degrees in one second.
 	cr.eng.SetDirector(cr) // override user input handling.
 	defer cr.eng.Shutdown()
+	defer catchErrors()
 	cr.eng.Action()
 }
 
@@ -42,14 +43,12 @@ func (cr *crtag) Create(eng vu.Engine) {
 	cr.scene.SetPerspective(60, float64(800)/float64(600), 0.1, 50)
 	cr.scene.SetLightLocation(0, 5, 0)
 	cr.scene.SetLightColour(0.4, 0.7, 0.9)
-	cr.scene.SetViewLocation(0, 10, 25)
+	cr.scene.SetLocation(0, 10, 25)
 
 	// load the static slab.
-	slab := cr.scene.AddPart()
-	slab.SetFacade("cube", "gouraud").SetMaterial("floor")
-	slab.SetScale(50, 50, 50)
+	slab := cr.scene.AddPart().SetLocation(0, -25, 0).SetScale(50, 50, 50)
+	slab.SetRole("gouraud").SetMesh("cube").SetMaterial("floor")
 	slab.SetBody(vu.Box(25, 25, 25), 0, 0.4)
-	slab.SetLocation(0, -25, 0)
 
 	// create a single moving body.
 	useBalls := true
@@ -61,8 +60,6 @@ func (cr *crtag) Create(eng vu.Engine) {
 		cr.getBox(cr.bod)
 		cr.bod.SetRotation(0.1825742, 0.3651484, 0.5477226, 0.7302967)
 	}
-
-	// Box can be used as a ball replacement.
 
 	// create a block of physics bodies.
 	cubeSize := 3
@@ -85,37 +82,32 @@ func (cr *crtag) Create(eng vu.Engine) {
 			}
 		}
 	}
-
-	// set some constant state.
+	eng.Color(0.15, 0.15, 0.15, 1)
 	rand.Seed(time.Now().UTC().UnixNano())
-	cr.eng.Enable(vu.BLEND, true)
-	cr.eng.Enable(vu.CULL, true)
-	cr.eng.Enable(vu.DEPTH, true)
-	cr.eng.Color(0.1, 0.1, 0.1, 1.0)
 	return
 }
 
 // Update is the regular engine callback.
-func (cr *crtag) Update(input *vu.Input) {
-	if input.Resized {
+func (cr *crtag) Update(in *vu.Input) {
+	if in.Resized {
 		cr.resize()
 	}
-	dt := input.Dt
-	for press, _ := range input.Down {
+	dt := in.Dt
+	for press, _ := range in.Down {
 		switch press {
 		case "W":
-			cr.scene.MoveView(0, 0, dt*-cr.run)
+			cr.scene.Move(0, 0, dt*-cr.run)
 		case "S":
-			cr.scene.MoveView(0, 0, dt*cr.run)
+			cr.scene.Move(0, 0, dt*cr.run)
 		case "A":
-			cr.scene.PanView(vu.YAxis, dt*cr.spin)
+			cr.scene.Spin(vu.YAxis, dt*cr.spin)
 		case "D":
-			cr.scene.PanView(vu.YAxis, dt*-cr.spin)
+			cr.scene.Spin(vu.YAxis, dt*-cr.spin)
 		case "B":
 			ball := cr.scene.AddPart()
-			ball.SetFacade("sphere", "gouraud").SetMaterial("sphere")
-			ball.SetBody(vu.Sphere(1), 1, 0.9)
+			ball.SetRole("gouraud").SetMesh("sphere").SetMaterial("sphere")
 			ball.SetLocation(-2.5+rand.Float64(), 15, -1.5-rand.Float64())
+			ball.SetBody(vu.Sphere(1), 1, 0.9)
 		case "Sp":
 			cr.bod.Push(-2.5, 0, -0.5)
 		}
@@ -131,13 +123,13 @@ func (cr *crtag) resize() {
 
 // getBall creates a visible sphere physics body.
 func (cr *crtag) getBall(bod vu.Part) {
-	bod.SetFacade("sphere", "gouraud").SetMaterial("sphere")
+	bod.SetRole("gouraud").SetMesh("sphere").SetMaterial("sphere")
 	bod.SetBody(vu.Sphere(1), 1, 0.5)
 }
 
 // getBox creates a visible box physics body.
 func (cr *crtag) getBox(bod vu.Part) {
 	bod.SetScale(2, 2, 2)
-	bod.SetFacade("cube", "gouraud").SetMaterial("sphere")
+	bod.SetRole("gouraud").SetMesh("cube").SetMaterial("sphere")
 	bod.SetBody(vu.Box(1, 1, 1), 1, 0)
 }

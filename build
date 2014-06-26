@@ -1,5 +1,5 @@
 #! /usr/bin/python 
-# Copyright (c) 2013 Galvanized Logic Inc.
+# Copyright (c) 2013-2014 Galvanized Logic Inc.
 # Use is governed by a FreeBSD license found in the LICENSE file.
 
 """
@@ -28,16 +28,25 @@ def clean():
             print '    ' + gdir
             shutil.rmtree(gdir)
 
+def buildDoc():
+    # Build the project documentation and bug list.
+    cwd = os.getcwd()
+    os.chdir('doc')
+    subprocess.call('./publish', shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    os.chdir(cwd)
+
 def buildSrc():
     # Builds all packages.
     buildRender()
     buildAudio()
     buildDevice()
+    buildPanel()
     buildMath()
     buildGrid()
-    buildData()
-    buildPhysics()
-    buildRealm()
+    buildLand()
+    buildLoad()
+    buildMove()
+    buildVu()
 
 def buildRender():
     # Build the (OpenGL) rendering component.
@@ -49,6 +58,7 @@ def buildRender():
     subprocess.call(shlex.split('go install vu/render/gl'))
     subprocess.call(shlex.split('go test vu/render/gl'))
     subprocess.call(shlex.split('go fmt vu/render'))
+    subprocess.call(shlex.split('go test vu/render'))
     subprocess.call(shlex.split('go install vu/render'))
 
 def buildAudio():
@@ -57,25 +67,31 @@ def buildAudio():
     subprocess.call(shlex.split('go install vu/audio/al'))
     subprocess.call(shlex.split('go test vu/audio/al'))
     subprocess.call(shlex.split('go fmt vu/audio'))
-    subprocess.call(shlex.split('go install vu/audio'))
     subprocess.call(shlex.split('go test vu/audio'))
+    subprocess.call(shlex.split('go install vu/audio'))
 
 def buildDevice():
 	# Build the native application package.
     subprocess.call(shlex.split('go install vu/device'))
     subprocess.call(shlex.split('go fmt vu/device'))
 
-def buildPhysics():
+def buildMove():
     # Build the physics (vu/move) package. 
     subprocess.call(shlex.split('go fmt vu/move'))
     subprocess.call(shlex.split('go test vu/move'))
     subprocess.call(shlex.split('go install vu/move'))
 
-def buildData():
-    # Build the data import (vu/data) package. 
-    subprocess.call(shlex.split('go fmt vu/data'))
-    subprocess.call(shlex.split('go test vu/data'))
-    subprocess.call(shlex.split('go install vu/data'))
+def buildLoad():
+    # Build the data load (vu/load) package. 
+    subprocess.call(shlex.split('go fmt vu/load'))
+    subprocess.call(shlex.split('go test vu/load'))
+    subprocess.call(shlex.split('go install vu/load'))
+
+def buildLand():
+    # Build the random land generation package. 
+    subprocess.call(shlex.split('go fmt vu/land'))
+    subprocess.call(shlex.split('go test vu/land'))
+    subprocess.call(shlex.split('go install vu/land'))
 
 def buildGrid():
     # Build the grid generation package. 
@@ -89,18 +105,26 @@ def buildMath():
     subprocess.call(shlex.split('go test vu/math/lin'))
     subprocess.call(shlex.split('go install vu/math/lin'))
 
-def buildRealm():
+def buildPanel():
+    # Build the 2D ui control package. 
+    subprocess.call(shlex.split('go fmt vu/panel'))
+    subprocess.call(shlex.split('go test vu/panel'))
+    subprocess.call(shlex.split('go install vu/panel'))
+
+def buildVu():
     # Build the 3D virtual universe engine package and examples.
     subprocess.call(shlex.split('go fmt vu'))
+    subprocess.call(shlex.split('go test vu'))
     subprocess.call(shlex.split('go install vu'))
     subprocess.call(shlex.split('go fmt vu/eg'))
     subprocess.call(shlex.split('go install vu/eg'))
 
 def usage():
-    print 'Usage: build [clean] [src]'
+    print 'Usage: build [clean] [doc] [src]'
 
 if __name__ == "__main__":
     options = {'clean' : clean, 
+               'doc'   : buildDoc,
                'src'   : buildSrc}
     somethingBuilt = False
     for arg in sys.argv:

@@ -1,4 +1,4 @@
-// Copyright © 2013 Galvanized Logic Inc.
+// Copyright © 2013-2014 Galvanized Logic Inc.
 // Use is governed by a FreeBSD license found in the LICENSE file.
 
 package grid
@@ -20,7 +20,7 @@ type primMaze struct {
 //   - While there are walls in the list:
 //     - Pick a random wall from the list. If the cell on the opposite side
 //       isn't in the maze yet:
-//       - Make the wall a passage and mark the cell on the opposite side as
+//       - Make the wall a floor and mark the cell on the opposite side as
 //         part of the grid.
 //       - Add the neighboring walls of the cell to the wall list.
 //     - If the cell on the opposite side already was in the grid, remove the
@@ -32,7 +32,7 @@ func (pm *primMaze) Generate(width, depth int) Grid {
 	// Pick a cell, mark it as part of the grid. Add the walls of the cell to
 	// the wall list.
 	start := pm.cells[1][1]
-	start.isWall = allPassages
+	start.isWall = allFloors
 	walls := []*cell{pm.north(start), pm.south(start), pm.west(start), pm.east(start)}
 
 	// While there are walls in the list:
@@ -44,10 +44,10 @@ func (pm *primMaze) Generate(width, depth int) Grid {
 		wall := walls[randomWall]
 		if link := pm.link(wall); link != nil {
 
-			// ... then: make the wall a passage and mark the cell on the
+			// ... then: make the wall a floor and mark the cell on the
 			// opposite side as part of the maze.
-			pm.cells[wall.x][wall.y].isWall = allPassages
-			pm.cells[link.x][link.y].isWall = allPassages
+			pm.cells[wall.x][wall.y].isWall = allFloors
+			pm.cells[link.x][link.y].isWall = allFloors
 
 			// Add the neighboring walls of the new Passage  to the wall list.
 			newWalls := []*cell{pm.north(link), pm.south(link), pm.west(link), pm.east(link)}

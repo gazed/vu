@@ -1,4 +1,4 @@
-// Copyright © 2013 Galvanized Logic Inc.
+// Copyright © 2013-2014 Galvanized Logic Inc.
 // Use is governed by a FreeBSD license found in the LICENSE file.
 
 package move
@@ -25,7 +25,6 @@ import (
 // controlled by the physics simulation and not the application.
 type Body interface {
 	Id() uint32               // The unique body id.
-	SetShape(shape Shape)     // Shape is mandatory.
 	World() *lin.T            // Get/Set world transform which is the...
 	SetWorld(world *lin.T)    // ...bodies location and direction.
 	IsMovable() bool          // True if the body has mass.
@@ -135,7 +134,6 @@ func (b *body) Id() uint32               { return b.bid }
 func (b *body) IsMovable() bool          { return b.movable }
 func (b *body) Data() interface{}        { return b.data }
 func (b *body) SetData(data interface{}) { b.data = data }
-func (b *body) SetShape(shape Shape)     { b.shape = shape }
 func (b *body) SetWorld(world *lin.T)    { b.world.Set(world) }
 func (b *body) World() *lin.T            { return b.world }
 func (b *body) Speed() (x, y, z float64) { return b.lvel.X, b.lvel.Y, b.lvel.Z }
@@ -223,7 +221,7 @@ func (b *body) integrateVelocities(ts float64) {
 	// update angular velocity
 	{ // scratch v0
 		torq, a := b.v0, b.avel
-		torq.MultMV(b.iitw, b.afor)
+		torq.MultMv(b.iitw, b.afor)
 		a.X, a.Y, a.Z = a.X+torq.X*ts, a.Y+torq.Y*ts, a.Z+torq.Z*ts
 	} // scratch v0 free
 

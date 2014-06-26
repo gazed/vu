@@ -1,4 +1,4 @@
-// Vu Copyright © 2013 Galvanized Logic Inc.
+// Copyright © 2013-2014 Galvanized Logic Inc.
 // Use is governed by a FreeBSD license found in the LICENSE file.
 //
 // Solver is a un-optimized, scaled-down, golang version of the Bullet physics
@@ -92,7 +92,7 @@ func (sol *solver) setupConstraints(bodies map[uint32]*body, contactPairs map[ui
 		if sb := b.initSolverBody(); sb.oBody != nil {
 			{ // scratch v0
 				sb.linearVelocity.Add(sb.linearVelocity, sol.v0.Scale(b.lfor, b.imass*sol.info.timestep))
-				sb.angularVelocity.Add(sb.angularVelocity, sol.v0.MultMV(b.iitw, b.afor).Scale(sol.v0, sol.info.timestep))
+				sb.angularVelocity.Add(sb.angularVelocity, sol.v0.MultMv(b.iitw, b.afor).Scale(sol.v0, sol.info.timestep))
 			} // scratch v0 free
 		}
 	}
@@ -163,12 +163,12 @@ func (sol *solver) setupContactConstraint(sc *solverConstraint, sbodA, sbodB *so
 		torqueAxis0 := sol.v0.Cross(relPosA, poc.sp.normalWorldB)
 		sc.angularComponentA.SetS(0, 0, 0)
 		if bodyA != nil {
-			sc.angularComponentA.MultMV(bodyA.iitw, torqueAxis0)
+			sc.angularComponentA.MultMv(bodyA.iitw, torqueAxis0)
 		}
 		torqueAxis1 := sol.v1.Cross(relPosB, poc.sp.normalWorldB)
 		sc.angularComponentB.SetS(0, 0, 0)
 		if bodyB != nil { // scratch v2
-			sc.angularComponentB.MultMV(bodyB.iitw, sol.v2.Neg(torqueAxis1))
+			sc.angularComponentB.MultMv(bodyB.iitw, sol.v2.Neg(torqueAxis1))
 		} // scratch v2 free
 
 		denom0, denom1 := 0.0, 0.0
@@ -273,14 +273,14 @@ func (sol *solver) setupFrictionConstraint(sc *solverConstraint, normalAxis *lin
 	ftorqueAxis := sc.relpos1CrossNormal.Cross(relPosA, sc.normal)
 	sc.angularComponentA.SetS(0, 0, 0)
 	if bodyA != nil {
-		sc.angularComponentA.MultMV(bodyA.iitw, ftorqueAxis)
+		sc.angularComponentA.MultMv(bodyA.iitw, ftorqueAxis)
 	}
 	{ // scratch v0
 		ftorqueAxis = sc.relpos2CrossNormal.Cross(relPosB, sol.v0.Neg(sc.normal))
 	} // scratch v0 free
 	sc.angularComponentB.SetS(0, 0, 0)
 	if bodyB != nil {
-		sc.angularComponentB.MultMV(bodyB.iitw, ftorqueAxis)
+		sc.angularComponentB.MultMv(bodyB.iitw, ftorqueAxis)
 	}
 
 	// compute sc.jacDiagABInv

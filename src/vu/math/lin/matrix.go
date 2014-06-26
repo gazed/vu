@@ -1,23 +1,53 @@
-// Copyright © 2013 Galvanized Logic Inc.
+// Copyright © 2013-2014 Galvanized Logic Inc.
 // Use is governed by a FreeBSD license found in the LICENSE file.
 
 package lin
 
 // Matrix functions deal with 3x3 and 4x4 matrices expected to be used
-// in 3D transform calculations. See appendix G of OpenGL Red Book for matrix
-// algorithms. Unused Matrix methods like rotation are not included
-// (use quaternions instead).
+// in CPU 3D transform or physics calculations. An example of CPU math is in
+// providing precalulated per-frame transform matricies to the GPU rather than
+// having the GPU calculate identical per-vertex or per-fragment matricies.
+// Large scale, time-critical, repetitive math operations are expected to use
+// a GPGPU based package, eg. OpenCL.
 //
-// Golang stores matrix structures in row-major order. That is structure elements
-// are stored sequentially in memory as row1, row2, row3, etc...  This matches
-// http://www.opengl.org/archives/resources/faq/technical/transformations.htm#tran0005
-// which states:
+// Note that this matrix implementation does not attempt to be  all inclusive.
+// Unused matrix methods, like rotation, are excluded. Ie. rotations are
+// tracked using quaternions.
+//
+// Row or Column Major order? No matter the convention, the end result of a
+// vector point (x, y, z, 1) multiplied with a transform matrix must be:
+//   x' = x*Xx + y*Yx + z*Zx + Tx
+//   y' = x*Xy + y*Yy + z*Zy + Ty
+//	 z' = x*Xz + y*Yz + z*Zz + Tz
+// Where x, y, z is the original vector and X, Y, Z are the three axes of the
+// coordinate system. Note that expectations can differ per implementation, eg:
 //   “For programming purposes, OpenGL matrices are 16-value arrays with base
 //    vectors laid out contiguously in memory. The translation components occupy
 //    the 13th, 14th, and 15th elements of the 16-element matrix, where indices
 //    are numbered from 1 to 16"
+// This means the memory layout expected by OpenGL is:
+//    Xx, Xy, Xz, Xw, Yx, Yy, Yz, Yw, Zx, Zy, Zz, Zw, Wx, Wy, Wz, Ww
+// with the translation values Tx, Ty, Tz at Wx, Wy, Wz and that GLSL, OpenGL
+// GLSL shaders interpret each base vector as a column (Column-Major)
+// although it is appears as Row-Major when viewed from Golang. Note that
+// DirectX HLSL shaders interpret the same memory layout as Row-Major.
+// In either case, consistency is key, especially for transforms where it's
+// always apply Scale first, then Rotatate, then Translate.
+//
+// Conforming to the above memory layout, this matrix implementation uses
+// explicitly indexed, Row-Major, matrix members as follows:
+//          3x3 M3          4x4 M4
+//	     [Xx, Xy, Xz]  [Xx, Xy, Xz, Xw]  X-Axis
+//	     [Yx, Yy, Yz]  [Yx, Yy, Yz, Yw]  Y-Axis
+//	     [Zx, Zy, Zz]  [Zx, Zy, Zz, Zw]  Z-Axis
+//	                   [Wx, Wy, Wz, Ww]  Translation vector, Ww == 1.
 // This layout allows the entire structure to be passed as a pointer to the
 // underlying (C-language) graphics layer.
+//
+// See appendix G of OpenGL Red Book for matrix algorithms. Also see:
+// http://steve.hollasch.net/cgindex/math/matrix/column-vec.html
+// http://stackoverflow.com/questions/17784791/4x4-matrix-pre-multiplication-vs-post-multiplication
+// http://www.scratchapixel.com/lessons/3d-basic-lessons/lesson-4-geometry/conventions-again-row-major-vs-column-major-vector/
 
 import (
 	"log"
@@ -26,17 +56,17 @@ import (
 
 // M3 is a 3x3 matrix where the matrix elements are individually addressable.
 type M3 struct {
-	X0, Y0, Z0 float64 // row 1 : indices 0, 1, 2   [00, 01, 02]
-	X1, Y1, Z1 float64 // row 2 : indices 3, 4, 5   [10, 11, 12]
-	X2, Y2, Z2 float64 // row 3 : indices 6, 7, 8   [20, 21, 22]
+	Xx, Xy, Xz float64 // indices 0, 1, 2  [00, 01, 02]  X-Axis
+	Yx, Yy, Yz float64 // indices 3, 4, 5  [10, 11, 12]  Y-Axis
+	Zx, Zy, Zz float64 // indices 6, 7, 8  [20, 21, 22]  Z-Axis
 }
 
 // M4 is a 4x4 matrix where the matrix elements are individually addressable.
 type M4 struct {
-	X0, Y0, Z0, W0 float64 // row 1 : indices 0, 1, 2, 3   [00, 01, 02, 03]
-	X1, Y1, Z1, W1 float64 // row 2 : indices 4, 5, 6, 7   [10, 11, 12, 13]
-	X2, Y2, Z2, W2 float64 // row 3 : indices 8, 9, a, b   [20, 21, 22, 23]
-	X3, Y3, Z3, W3 float64 // row 4 : indices c, d, e, f   [30, 31, 32, 33]
+	Xx, Xy, Xz, Xw float64 // indices 0, 1, 2, 3  [00, 01, 02, 03] X-Axis
+	Yx, Yy, Yz, Yw float64 // indices 4, 5, 6, 7  [10, 11, 12, 13] Y-Axis
+	Zx, Zy, Zz, Zw float64 // indices 8, 9, a, b  [20, 21, 22, 23] Z-Axis
+	Wx, Wy, Wz, Ww float64 // indices c, d, e, f  [30, 31, 32, 33]
 }
 
 // M3Z provides a reference zero matrix that can be used
@@ -69,23 +99,23 @@ var M4I = &M4{
 	0, 0, 1, 0,
 	0, 0, 0, 1}
 
-// Eq returns true if all the elements in matrix m have the same value
+// Eq (==) returns true if all the elements in matrix m have the same value
 // as the corresponding elements in matrix a.
 func (m *M3) Eq(a *M3) bool {
 	return true &&
-		m.X0 == a.X0 && m.X1 == a.X1 && m.X2 == a.X2 &&
-		m.Y0 == a.Y0 && m.Y1 == a.Y1 && m.Y2 == a.Y2 &&
-		m.Z0 == a.Z0 && m.Z1 == a.Z1 && m.Z2 == a.Z2
+		m.Xx == a.Xx && m.Xy == a.Xy && m.Xz == a.Xz &&
+		m.Yx == a.Yx && m.Yy == a.Yy && m.Yz == a.Yz &&
+		m.Zx == a.Zx && m.Zy == a.Zy && m.Zz == a.Zz
 }
 
-// Eq returns true if all the elements in matrix m have the same value
+// Eq (==) returns true if all the elements in matrix m have the same value
 // as the corresponding elements in matrix a.
 func (m *M4) Eq(a *M4) bool {
 	return true &&
-		m.X0 == a.X0 && m.X1 == a.X1 && m.X2 == a.X2 && m.X3 == a.X3 &&
-		m.Y0 == a.Y0 && m.Y1 == a.Y1 && m.Y2 == a.Y2 && m.Y3 == a.Y3 &&
-		m.Z0 == a.Z0 && m.Z1 == a.Z1 && m.Z2 == a.Z2 && m.Z3 == a.Z3 &&
-		m.W0 == a.W0 && m.W1 == a.W1 && m.W2 == a.W2 && m.W3 == a.W3
+		m.Xx == a.Xx && m.Xy == a.Xy && m.Xz == a.Xz && m.Xw == a.Xw &&
+		m.Yx == a.Yx && m.Yy == a.Yy && m.Yz == a.Yz && m.Yw == a.Yw &&
+		m.Zx == a.Zx && m.Zy == a.Zy && m.Zz == a.Zz && m.Zw == a.Zw &&
+		m.Wx == a.Wx && m.Wy == a.Wy && m.Wz == a.Wz && m.Ww == a.Ww
 }
 
 // Aeq (~=) almost equals returns true if all the elements in matrix m have
@@ -93,9 +123,9 @@ func (m *M4) Eq(a *M4) bool {
 // Used where equals is unlikely to return true due to float precision.
 func (m *M3) Aeq(a *M3) bool {
 	return true &&
-		Aeq(m.X0, a.X0) && Aeq(m.X1, a.X1) && Aeq(m.X2, a.X2) &&
-		Aeq(m.Y0, a.Y0) && Aeq(m.Y1, a.Y1) && Aeq(m.Y2, a.Y2) &&
-		Aeq(m.Z0, a.Z0) && Aeq(m.Z1, a.Z1) && Aeq(m.Z2, a.Z2)
+		Aeq(m.Xx, a.Xx) && Aeq(m.Xy, a.Xy) && Aeq(m.Xz, a.Xz) &&
+		Aeq(m.Yx, a.Yx) && Aeq(m.Yy, a.Yy) && Aeq(m.Yz, a.Yz) &&
+		Aeq(m.Zx, a.Zx) && Aeq(m.Zy, a.Zy) && Aeq(m.Zz, a.Zz)
 }
 
 // Aeq (~=) almost equals returns true if all the elements in matrix m have
@@ -103,95 +133,98 @@ func (m *M3) Aeq(a *M3) bool {
 // Same as M3.Aeq().
 func (m *M4) Aeq(a *M4) bool {
 	return true &&
-		Aeq(m.X0, a.X0) && Aeq(m.X1, a.X1) && Aeq(m.X2, a.X2) && Aeq(m.X3, a.X3) &&
-		Aeq(m.Y0, a.Y0) && Aeq(m.Y1, a.Y1) && Aeq(m.Y2, a.Y2) && Aeq(m.Y3, a.Y3) &&
-		Aeq(m.Z0, a.Z0) && Aeq(m.Z1, a.Z1) && Aeq(m.Z2, a.Z2) && Aeq(m.Z3, a.Z3) &&
-		Aeq(m.W0, a.W0) && Aeq(m.W1, a.W1) && Aeq(m.W2, a.W2) && Aeq(m.W3, a.W3)
+		Aeq(m.Xx, a.Xx) && Aeq(m.Xy, a.Xy) && Aeq(m.Xz, a.Xz) && Aeq(m.Xw, a.Xw) &&
+		Aeq(m.Yx, a.Yx) && Aeq(m.Yy, a.Yy) && Aeq(m.Yz, a.Yz) && Aeq(m.Yw, a.Yw) &&
+		Aeq(m.Zx, a.Zx) && Aeq(m.Zy, a.Zy) && Aeq(m.Zz, a.Zz) && Aeq(m.Zw, a.Zw) &&
+		Aeq(m.Wx, a.Wx) && Aeq(m.Wy, a.Wy) && Aeq(m.Wz, a.Wz) && Aeq(m.Ww, a.Ww)
 }
 
-// SetS (=) explicitly sets the elements values of each of the matrix values.
+// SetS (=) explicitly sets the matrix scaler values using the given scalers.
 // The source matrix a is unchanged. The updated matrix m is returned.
-func (m *M3) SetS(x0, y0, z0, x1, y1, z1, x2, y2, z2 float64) *M3 {
-	m.X0, m.Y0, m.Z0 = x0, y0, z0
-	m.X1, m.Y1, m.Z1 = x1, y1, z1
-	m.X2, m.Y2, m.Z2 = x2, y2, z2
+// 	  Xx, Xy, Xz is the X Axis.
+// 	  Yx, Yy, Yz is the Y Axis.
+// 	  Zx, Zy, Zz is the Z Axis.
+func (m *M3) SetS(Xx, Xy, Xz, Yx, Yy, Yz, Zx, Zy, Zz float64) *M3 {
+	m.Xx, m.Xy, m.Xz = Xx, Xy, Xz
+	m.Yx, m.Yy, m.Yz = Yx, Yy, Yz
+	m.Zx, m.Zy, m.Zz = Zx, Zy, Zz
 	return m
 }
 
-// Set (=) assigns all the elements values from matrix a to the
-// corresponding element values in matrix m.
+// Set (=) assigns all the scaler values from matrix a to the
+// corresponding scaler values in matrix m.
 // The source matrix a is unchanged. The updated matrix m is returned.
 func (m *M3) Set(a *M3) *M3 {
-	m.X0, m.Y0, m.Z0 = a.X0, a.Y0, a.Z0
-	m.X1, m.Y1, m.Z1 = a.X1, a.Y1, a.Z1
-	m.X2, m.Y2, m.Z2 = a.X2, a.Y2, a.Z2
+	m.Xx, m.Xy, m.Xz = a.Xx, a.Xy, a.Xz
+	m.Yx, m.Yy, m.Yz = a.Yx, a.Yy, a.Yz
+	m.Zx, m.Zy, m.Zz = a.Zx, a.Zy, a.Zz
 	return m
 }
 
 // SetM4 (=) updates calling matrix m to be the 3x3 matrix from the top left
-// corner of the given 4x4 matrix m4.  The source matrix a is unchanged.
+// corner of the given 4x4 matrix m4. The source matrix a is unchanged.
 // The updated matrix m is returned.
-//    [ x0 y0 z0 w0 ]    [ x0 y0 z0 ]
-//    [ x1 y1 z1 w1 ] => [ x1 y1 z1 ]
-//    [ x2 y2 z2 w2 ]    [ x2 y2 z2 ]
-//    [ x3 y3 z3 w3 ]
+//    [ Xx Xy Xz Xw ]    [ Xx Xy Xz ]
+//    [ Yx Yy Yz Yw ] => [ Yx Yy Yz ]
+//    [ Zx Zy Zz Zw ]    [ Zx Zy Zz ]
+//    [ Wx Wy Wz Ww ]
 func (m *M3) SetM4(a *M4) *M3 {
-	m.X0, m.Y0, m.Z0 = a.X0, a.Y0, a.Z0
-	m.X1, m.Y1, m.Z1 = a.X1, a.Y1, a.Z1
-	m.X2, m.Y2, m.Z2 = a.X2, a.Y2, a.Z2
+	m.Xx, m.Xy, m.Xz = a.Xx, a.Xy, a.Xz
+	m.Yx, m.Yy, m.Yz = a.Yx, a.Yy, a.Yz
+	m.Zx, m.Zy, m.Zz = a.Zx, a.Zy, a.Zz
 	return m
 }
 
 // Set (=) assigns all the elements values from matrix a to the
-// corresponding element values in matrix m.  The source matrix a is unchanged.
+// corresponding element values in matrix m. The source matrix a is unchanged.
 // The updated matrix m is returned.
 func (m *M4) Set(a *M4) *M4 {
-	m.X0, m.Y0, m.Z0, m.W0 = a.X0, a.Y0, a.Z0, a.W0
-	m.X1, m.Y1, m.Z1, m.W1 = a.X1, a.Y1, a.Z1, a.W1
-	m.X2, m.Y2, m.Z2, m.W2 = a.X2, a.Y2, a.Z2, a.W2
-	m.X3, m.Y3, m.Z3, m.W3 = a.X3, a.Y3, a.Z3, a.W3
+	m.Xx, m.Xy, m.Xz, m.Xw = a.Xx, a.Xy, a.Xz, a.Xw
+	m.Yx, m.Yy, m.Yz, m.Yw = a.Yx, a.Yy, a.Yz, a.Yw
+	m.Zx, m.Zy, m.Zz, m.Zw = a.Zx, a.Zy, a.Zz, a.Zw
+	m.Wx, m.Wy, m.Wz, m.Ww = a.Wx, a.Wy, a.Wz, a.Ww
 	return m
 }
 
-// Abs updates m to be the the absolute (non-negative) element values of
-// the corresponding element values in matrix a.  The source matrix a is unchanged.
+// Abs updates m to be the the absolute (non-negative) element values of the
+// corresponding element values in matrix a. The source matrix a is unchanged.
 // The updated matrix m is returned.
 func (m *M3) Abs(a *M3) *M3 {
-	m.X0, m.Y0, m.Z0 = math.Abs(a.X0), math.Abs(a.Y0), math.Abs(a.Z0)
-	m.X1, m.Y1, m.Z1 = math.Abs(a.X1), math.Abs(a.Y1), math.Abs(a.Z1)
-	m.X2, m.Y2, m.Z2 = math.Abs(a.X2), math.Abs(a.Y2), math.Abs(a.Z2)
+	m.Xx, m.Xy, m.Xz = math.Abs(a.Xx), math.Abs(a.Xy), math.Abs(a.Xz)
+	m.Yx, m.Yy, m.Yz = math.Abs(a.Yx), math.Abs(a.Yy), math.Abs(a.Yz)
+	m.Zx, m.Zy, m.Zz = math.Abs(a.Zx), math.Abs(a.Zy), math.Abs(a.Zz)
 	return m
 }
 
 // Transpose updates m to be the reflection of matrix a over its diagonal.
-// This essentially changes column major order to row major order
+// This essentially changes row-major order to column-major order
 // or vice-versa.
-//    [ x0 y0 z0 ]    [ x0 x1 x2 ]
-//    [ x1 y1 z1 ] => [ y0 y1 y2 ]
-//    [ x2 y2 z2 ]    [ z0 z1 z2 ]
+//    [ Xx Xy Xz ]    [ Xx Yx Zx ]
+//    [ Yx Yy Yz ] => [ Xy Yy Zy ]
+//    [ Zx Zy Zz ]    [ Xz Yz Zz ]
 // The input matrix a is not changed. Matrix m may be used as the input parameter.
 // The updated matrix m is returned.
 func (m *M3) Transpose(a *M3) *M3 {
-	t_y0, t_z0, t_z1 := a.Y0, a.Z0, a.Z1
-	m.X0, m.Y0, m.Z0 = a.X0, a.X1, a.X2
-	m.X1, m.Y1, m.Z1 = t_y0, a.Y1, a.Y2
-	m.X2, m.Y2, m.Z2 = t_z0, t_z1, a.Z2
+	t_Xy, t_Xz, t_Yz := a.Xy, a.Xz, a.Yz
+	m.Xx, m.Xy, m.Xz = a.Xx, a.Yx, a.Zx
+	m.Yx, m.Yy, m.Yz = t_Xy, a.Yy, a.Zy
+	m.Zx, m.Zy, m.Zz = t_Xz, t_Yz, a.Zz
 	return m
 }
 
 // Transpose updates m to be the reflection of matrix a over its diagonal.
-//    [ x0 y0 z0 w0 ]    [ x0 x1 x2 x3 ]
-//    [ x1 y1 z1 w1 ] => [ y0 y1 y2 y3 ]
-//    [ x2 y2 z2 w2 ]    [ z0 z1 z2 z3 ]
-//    [ x3 y3 z3 w3 ]    [ w0 w1 w2 w3 ]
+//    [ Xx Xy Xz Xw ]    [ Xx Yx Zx Wx ]
+//    [ Yx Yy Yz Yw ] => [ Xy Yy Zy Wy ]
+//    [ Zx Zy Zz Zw ]    [ Xz Yz Zz Wz ]
+//    [ Wx Wy Wz Ww ]    [ Xw Yw Zw Ww ]
 // Same behaviour as M3.Transpose()
 func (m *M4) Transpose(a *M4) *M4 {
-	t_y0, t_z0, t_w0 := a.Y0, a.Z0, a.W0
-	t_z1, t_w1, t_w2 := a.Z1, a.W1, a.W2
-	m.X0, m.Y0, m.Z0, m.W0 = a.X0, a.X1, a.X2, a.X3
-	m.X1, m.Y1, m.Z1, m.W1 = t_y0, a.Y1, a.Y2, a.Y3
-	m.X2, m.Y2, m.Z2, m.W2 = t_z0, t_z1, a.Z2, a.Z3
-	m.X3, m.Y3, m.Z3, m.W3 = t_w0, t_w1, t_w2, a.W3
+	t_Xy, t_Xz, t_Yz := a.Xy, a.Xz, a.Yz
+	t_Xw, t_Yw, t_Zw := a.Xw, a.Yw, a.Zw
+	m.Xx, m.Xy, m.Xz, m.Xw = a.Xx, a.Yx, a.Zx, a.Wx
+	m.Yx, m.Yy, m.Yz, m.Yw = t_Xy, a.Yy, a.Zy, a.Wy
+	m.Zx, m.Zy, m.Zz, m.Zw = t_Xz, t_Yz, a.Zz, a.Wz
+	m.Wx, m.Wy, m.Wz, m.Ww = t_Xw, t_Yw, t_Zw, a.Ww
 	return m
 }
 
@@ -202,9 +235,19 @@ func (m *M4) Transpose(a *M4) *M4 {
 //     m.Add(m, b)
 // The updated matrix m is returned.
 func (m *M3) Add(a, b *M3) *M3 {
-	m.X0, m.Y0, m.Z0 = a.X0+b.X0, a.Y0+b.Y0, a.Z0+b.Z0
-	m.X1, m.Y1, m.Z1 = a.X1+b.X1, a.Y1+b.Y1, a.Z1+b.Z1
-	m.X2, m.Y2, m.Z2 = a.X2+b.X2, a.Y2+b.Y2, a.Z2+b.Z2
+	m.Xx, m.Xy, m.Xz = a.Xx+b.Xx, a.Xy+b.Xy, a.Xz+b.Xz
+	m.Yx, m.Yy, m.Yz = a.Yx+b.Yx, a.Yy+b.Yy, a.Yz+b.Yz
+	m.Zx, m.Zy, m.Zz = a.Zx+b.Zx, a.Zy+b.Zy, a.Zz+b.Zz
+	return m
+}
+
+// Add (+) adds matrices a and b storing the results in m.
+// Same behaviour as M3.Add()
+func (m *M4) Add(a, b *M4) *M4 {
+	m.Xx, m.Xy, m.Xz, m.Xw = a.Xx+b.Xx, a.Xy+b.Xy, a.Xz+b.Xz, a.Xw+b.Xw
+	m.Yx, m.Yy, m.Yz, m.Yw = a.Yx+b.Yx, a.Yy+b.Yy, a.Yz+b.Yz, a.Yw+b.Yw
+	m.Zx, m.Zy, m.Zz, m.Zw = a.Zx+b.Zx, a.Zy+b.Zy, a.Zz+b.Zz, a.Zw+b.Zw
+	m.Wx, m.Wy, m.Wz, m.Ww = a.Wx+b.Wx, a.Wy+b.Wy, a.Wz+b.Wz, a.Ww+b.Ww
 	return m
 }
 
@@ -215,220 +258,235 @@ func (m *M3) Add(a, b *M3) *M3 {
 //     m.Sub(m, b)
 // The updated matrix m is returned.
 func (m *M3) Sub(a, b *M3) *M3 {
-	m.X0, m.Y0, m.Z0 = a.X0-b.X0, a.Y0-b.Y0, a.Z0-b.Z0
-	m.X1, m.Y1, m.Z1 = a.X1-b.X1, a.Y1-b.Y1, a.Z1-b.Z1
-	m.X2, m.Y2, m.Z2 = a.X2-b.X2, a.Y2-b.Y2, a.Z2-b.Z2
+	m.Xx, m.Xy, m.Xz = a.Xx-b.Xx, a.Xy-b.Xy, a.Xz-b.Xz
+	m.Yx, m.Yy, m.Yz = a.Yx-b.Yx, a.Yy-b.Yy, a.Yz-b.Yz
+	m.Zx, m.Zy, m.Zz = a.Zx-b.Zx, a.Zy-b.Zy, a.Zz-b.Zz
 	return m
 }
 
 // Mult (*) multiplies matrices l and r storing the results in m.
-//    [ lx0 ly0 lz0 ] [ rx0 ry0 rz0 ]    [ mx0 my0 mz0 ]
-//    [ lx1 ly1 lz1 ]x[ rx1 ry1 rz1 ] => [ mx1 my1 mz1 ]
-//    [ lx2 ly2 lz2 ] [ rx2 ry2 rz2 ]    [ mx2 my2 mz2 ]
+//    [ lXx lXy lXz ] [ rXx rXy rXz ]    [ mXx mXy mXz ]
+//    [ lYx lYy lYz ]x[ rYx rYy rYz ] => [ mYx mYy mYz ]
+//    [ lZx lZy lZz ] [ rZx rZy rZz ]    [ mZx mZy mZz ]
 // It is safe to use the calling matrix m as one or both of the parameters.
 // For example (*=) is
 //     m.Mult(m, r)
 // The updated matrix m is returned.
 func (m *M3) Mult(l, r *M3) *M3 {
-	x0 := l.X0*r.X0 + l.Y0*r.X1 + l.Z0*r.X2
-	y0 := l.X0*r.Y0 + l.Y0*r.Y1 + l.Z0*r.Y2
-	z0 := l.X0*r.Z0 + l.Y0*r.Z1 + l.Z0*r.Z2
-	x1 := l.X1*r.X0 + l.Y1*r.X1 + l.Z1*r.X2
-	y1 := l.X1*r.Y0 + l.Y1*r.Y1 + l.Z1*r.Y2
-	z1 := l.X1*r.Z0 + l.Y1*r.Z1 + l.Z1*r.Z2
-	x2 := l.X2*r.X0 + l.Y2*r.X1 + l.Z2*r.X2
-	y2 := l.X2*r.Y0 + l.Y2*r.Y1 + l.Z2*r.Y2
-	z2 := l.X2*r.Z0 + l.Y2*r.Z1 + l.Z2*r.Z2
-	m.X0, m.Y0, m.Z0 = x0, y0, z0
-	m.X1, m.Y1, m.Z1 = x1, y1, z1
-	m.X2, m.Y2, m.Z2 = x2, y2, z2
+	xx := l.Xx*r.Xx + l.Xy*r.Yx + l.Xz*r.Zx
+	xy := l.Xx*r.Xy + l.Xy*r.Yy + l.Xz*r.Zy
+	xz := l.Xx*r.Xz + l.Xy*r.Yz + l.Xz*r.Zz
+	yx := l.Yx*r.Xx + l.Yy*r.Yx + l.Yz*r.Zx
+	yy := l.Yx*r.Xy + l.Yy*r.Yy + l.Yz*r.Zy
+	yz := l.Yx*r.Xz + l.Yy*r.Yz + l.Yz*r.Zz
+	zx := l.Zx*r.Xx + l.Zy*r.Yx + l.Zz*r.Zx
+	zy := l.Zx*r.Xy + l.Zy*r.Yy + l.Zz*r.Zy
+	zz := l.Zx*r.Xz + l.Zy*r.Yz + l.Zz*r.Zz
+	m.Xx, m.Xy, m.Xz = xx, xy, xz
+	m.Yx, m.Yy, m.Yz = yx, yy, yz
+	m.Zx, m.Zy, m.Zz = zx, zy, zz
 	return m
 }
 
 // Mult updates matrix m to be the multiplication of input matrices l, r.
-//    [ lx0 ly0 lz0 lw0 ] [ rx0 ry0 rz0 rw0 ]    [ mx0 my0 mz0 mw0 ]
-//    [ lx1 ly1 lz1 lw1 ]x[ rx1 ry1 rz1 rw1 ] => [ mx1 my1 mz1 mw1 ]
-//    [ lx2 ly2 lz2 lw2 ] [ rx2 ry2 rz2 rw2 ]    [ mx2 my2 mz2 mw2 ]
-//    [ lx3 ly3 lz3 lw3 ] [ rx3 ry3 rz3 rw3 ]    [ mx3 my3 mz3 mw3 ]
+//    [ lXx lXy lXz lXw ] [ rXx rXy rXz rXw ]    [ mXx mXy mXz mXw ]
+//    [ lYx lYy lYz lYw ]x[ rYx rYy rYz rYw ] => [ mYx mYy mYz mYw ]
+//    [ lZx lZy lZz lZw ] [ rZx rZy rZz rZw ]    [ mZx mZy mZz mZw ]
+//    [ lWx lWy lWz lWw ] [ rWx rWy rWz rWw ]    [ mWx mWy mWz mWw ]
 // Same behaviour as M3.Mult()
 func (m *M4) Mult(l, r *M4) *M4 {
-	x0 := l.X0*r.X0 + l.Y0*r.X1 + l.Z0*r.X2 + l.W0*r.X3
-	y0 := l.X0*r.Y0 + l.Y0*r.Y1 + l.Z0*r.Y2 + l.W0*r.Y3
-	z0 := l.X0*r.Z0 + l.Y0*r.Z1 + l.Z0*r.Z2 + l.W0*r.Z3
-	w0 := l.X0*r.W0 + l.Y0*r.W1 + l.Z0*r.W2 + l.W0*r.W3
-	x1 := l.X1*r.X0 + l.Y1*r.X1 + l.Z1*r.X2 + l.W1*r.X3
-	y1 := l.X1*r.Y0 + l.Y1*r.Y1 + l.Z1*r.Y2 + l.W1*r.Y3
-	z1 := l.X1*r.Z0 + l.Y1*r.Z1 + l.Z1*r.Z2 + l.W1*r.Z3
-	w1 := l.X1*r.W0 + l.Y1*r.W1 + l.Z1*r.W2 + l.W1*r.W3
-	x2 := l.X2*r.X0 + l.Y2*r.X1 + l.Z2*r.X2 + l.W2*r.X3
-	y2 := l.X2*r.Y0 + l.Y2*r.Y1 + l.Z2*r.Y2 + l.W2*r.Y3
-	z2 := l.X2*r.Z0 + l.Y2*r.Z1 + l.Z2*r.Z2 + l.W2*r.Z3
-	w2 := l.X2*r.W0 + l.Y2*r.W1 + l.Z2*r.W2 + l.W2*r.W3
-	x3 := l.X3*r.X0 + l.Y3*r.X1 + l.Z3*r.X2 + l.W3*r.X3
-	y3 := l.X3*r.Y0 + l.Y3*r.Y1 + l.Z3*r.Y2 + l.W3*r.Y3
-	z3 := l.X3*r.Z0 + l.Y3*r.Z1 + l.Z3*r.Z2 + l.W3*r.Z3
-	w3 := l.X3*r.W0 + l.Y3*r.W1 + l.Z3*r.W2 + l.W3*r.W3
-	m.X0, m.Y0, m.Z0, m.W0 = x0, y0, z0, w0
-	m.X1, m.Y1, m.Z1, m.W1 = x1, y1, z1, w1
-	m.X2, m.Y2, m.Z2, m.W2 = x2, y2, z2, w2
-	m.X3, m.Y3, m.Z3, m.W3 = x3, y3, z3, w3
+	xx := l.Xx*r.Xx + l.Xy*r.Yx + l.Xz*r.Zx + l.Xw*r.Wx
+	xy := l.Xx*r.Xy + l.Xy*r.Yy + l.Xz*r.Zy + l.Xw*r.Wy
+	xz := l.Xx*r.Xz + l.Xy*r.Yz + l.Xz*r.Zz + l.Xw*r.Wz
+	xw := l.Xx*r.Xw + l.Xy*r.Yw + l.Xz*r.Zw + l.Xw*r.Ww
+	yx := l.Yx*r.Xx + l.Yy*r.Yx + l.Yz*r.Zx + l.Yw*r.Wx
+	yy := l.Yx*r.Xy + l.Yy*r.Yy + l.Yz*r.Zy + l.Yw*r.Wy
+	yz := l.Yx*r.Xz + l.Yy*r.Yz + l.Yz*r.Zz + l.Yw*r.Wz
+	yw := l.Yx*r.Xw + l.Yy*r.Yw + l.Yz*r.Zw + l.Yw*r.Ww
+	zx := l.Zx*r.Xx + l.Zy*r.Yx + l.Zz*r.Zx + l.Zw*r.Wx
+	zy := l.Zx*r.Xy + l.Zy*r.Yy + l.Zz*r.Zy + l.Zw*r.Wy
+	zz := l.Zx*r.Xz + l.Zy*r.Yz + l.Zz*r.Zz + l.Zw*r.Wz
+	zw := l.Zx*r.Xw + l.Zy*r.Yw + l.Zz*r.Zw + l.Zw*r.Ww
+	wx := l.Wx*r.Xx + l.Wy*r.Yx + l.Wz*r.Zx + l.Ww*r.Wx
+	wy := l.Wx*r.Xy + l.Wy*r.Yy + l.Wz*r.Zy + l.Ww*r.Wy
+	wz := l.Wx*r.Xz + l.Wy*r.Yz + l.Wz*r.Zz + l.Ww*r.Wz
+	ww := l.Wx*r.Xw + l.Wy*r.Yw + l.Wz*r.Zw + l.Ww*r.Ww
+	m.Xx, m.Xy, m.Xz, m.Xw = xx, xy, xz, xw
+	m.Yx, m.Yy, m.Yz, m.Yw = yx, yy, yz, yw
+	m.Zx, m.Zy, m.Zz, m.Zw = zx, zy, zz, zw
+	m.Wx, m.Wy, m.Wz, m.Ww = wx, wy, wz, ww
 	return m
 }
 
 // MultLtR multiplies the transpose of matrix l on left of matrix r
-// and stores the result in m. This can be used for inverse transforms.
-//    [ lx0 lx1 lx0 ] [ rx0 ry0 rz0 ]    [ mx0 my0 mz0 ]
-//    [ ly0 ly1 ly2 ]x[ rx1 ry1 rz1 ] => [ mx1 my1 mz1 ]
-//    [ lz0 lz1 lz2 ] [ rx2 ry2 rz2 ]    [ mx2 my2 mz2 ]
+// and stores the result in m. This can be used for saving a method call
+// when calculating inverse transforms.
+//    [ lXx lYx lZx ] [ rXx rXy rXz ]    [ mXx mXy mXz ]
+//    [ lXy lYy lZy ]x[ rYx rYy rYz ] => [ mYx mYy mYz ]
+//    [ lXz lYz lZz ] [ rZx rZy rZz ]    [ mZx mZy mZz ]
 // It is safe to use the calling matrix m as one or both of the parameters.
 // The updated matrix m is returned.
 func (m *M3) MultLtR(lt, r *M3) *M3 {
-	x0 := lt.X0*r.X0 + lt.X1*r.X1 + lt.X2*r.X2
-	y0 := lt.X0*r.Y0 + lt.X1*r.Y1 + lt.X2*r.Y2
-	z0 := lt.X0*r.Z0 + lt.X1*r.Z1 + lt.X2*r.Z2
-	x1 := lt.Y0*r.X0 + lt.Y1*r.X1 + lt.Y2*r.X2
-	y1 := lt.Y0*r.Y0 + lt.Y1*r.Y1 + lt.Y2*r.Y2
-	z1 := lt.Y0*r.Z0 + lt.Y1*r.Z1 + lt.Y2*r.Z2
-	x2 := lt.Z0*r.X0 + lt.Z1*r.X1 + lt.Z2*r.X2
-	y2 := lt.Z0*r.Y0 + lt.Z1*r.Y1 + lt.Z2*r.Y2
-	z2 := lt.Z0*r.Z0 + lt.Z1*r.Z1 + lt.Z2*r.Z2
-	m.X0, m.Y0, m.Z0 = x0, y0, z0
-	m.X1, m.Y1, m.Z1 = x1, y1, z1
-	m.X2, m.Y2, m.Z2 = x2, y2, z2
+	xx := lt.Xx*r.Xx + lt.Yx*r.Yx + lt.Zx*r.Zx
+	xy := lt.Xx*r.Xy + lt.Yx*r.Yy + lt.Zx*r.Zy
+	xz := lt.Xx*r.Xz + lt.Yx*r.Yz + lt.Zx*r.Zz
+	yx := lt.Xy*r.Xx + lt.Yy*r.Yx + lt.Zy*r.Zx
+	yy := lt.Xy*r.Xy + lt.Yy*r.Yy + lt.Zy*r.Zy
+	yz := lt.Xy*r.Xz + lt.Yy*r.Yz + lt.Zy*r.Zz
+	zx := lt.Xz*r.Xx + lt.Yz*r.Yx + lt.Zz*r.Zx
+	zy := lt.Xz*r.Xy + lt.Yz*r.Yy + lt.Zz*r.Zy
+	zz := lt.Xz*r.Xz + lt.Yz*r.Yz + lt.Zz*r.Zz
+	m.Xx, m.Xy, m.Xz = xx, xy, xz
+	m.Yx, m.Yy, m.Yz = yx, yy, yz
+	m.Zx, m.Zy, m.Zz = zx, zy, zz
 	return m
 }
 
 // TranslateTM updates m to be the multiplication of a translation matrix
 // T created from x, y, z, and itself. The updated matrix m is returned.
-//    [ 1 0 0 0 ]   [ x0 y0 z0 w0 ]     [ x0  y0  z0  w0 ]
-//    [ 0 1 0 0 ] x [ x1 y1 z1 w1 ]  => [ x1  y1  z1  w1 ]
-//    [ 0 0 1 0 ]   [ x2 y2 z2 w2 ]     [ x2  y2  z2  w2 ]
-//    [ x y z 1 ]   [ x3 y3 z3 w3 ]     [ x3' y3' z3' w3']
+//    [ 1 0 0 0 ]   [ mXx mXy mXz mXw ]     [ mXx  mXy  mXz  mXw  ]
+//    [ 0 1 0 0 ] x [ mYx mYy mYz mYw ]  => [ mYx  mYy  mYz  mYw  ]
+//    [ 0 0 1 0 ]   [ mZx mZy mZz mZw ]     [ mZx  mZy  mZz  mZw  ]
+//    [ x y z 1 ]   [ mWx mWy mWz mWw ]     [ mWx' mWy' mWz' mWw' ]
 // Be sure to pick the correct translate (TM or MT) when doing transforms.
-// Generally its TranslateMT since translate is the last transform
-// (given that M4 is in row major order).
 func (m *M4) TranslateTM(x, y, z float64) *M4 {
-	x3 := x*m.X0 + y*m.X1 + z*m.X2 + m.X3
-	y3 := x*m.Y0 + y*m.Y1 + z*m.Y2 + m.Y3
-	z3 := x*m.Z0 + y*m.Z1 + z*m.Z2 + m.Z3
-	w3 := x*m.W0 + y*m.W1 + z*m.W2 + m.W3
-	m.X3, m.Y3, m.Z3, m.W3 = x3, y3, z3, w3
+	wx := x*m.Xx + y*m.Yx + z*m.Zx + m.Wx
+	wy := x*m.Xy + y*m.Yy + z*m.Zy + m.Wy
+	wz := x*m.Xz + y*m.Yz + z*m.Zz + m.Wz
+	ww := x*m.Xw + y*m.Yw + z*m.Zw + m.Ww
+	m.Wx, m.Wy, m.Wz, m.Ww = wx, wy, wz, ww
 	return m
 }
 
 // TranslateMT updates m to be the multiplication of itself
 // and a translation matrix created from x, y, z.
 // The updated matrix m is returned.
-//    [ x0 y0 z0 w0 ]   [ 1 0 0 0 ]    [ x0'  y0' z0' w0 ]
-//    [ x1 y1 z1 w1 ] x [ 0 1 0 0 ] => [ x1'  y1' z1' w1 ]
-//    [ x2 y2 z2 w2 ]   [ 0 0 1 0 ]    [ x2'  y2' z2' w2 ]
-//    [ x3 y3 z3 w3 ]   [ x y z 1 ]    [ x3'  y3' z3' w3 ]
+//    [ mXx mXy mXz mXw ]   [ 1 0 0 0 ]    [ mXx' mXy' mXz' mXw ]
+//    [ mYx mYy mYz mYw ] x [ 0 1 0 0 ] => [ mYx' mYy' mYz' mYw ]
+//    [ mZx mZy mZz mZw ]   [ 0 0 1 0 ]    [ mZx' mZy' mZz' mZw ]
+//    [ mWx mWy mWz mWw ]   [ x y z 1 ]    [ mWx' mWy' mWz' mWw ]
 // Be sure to pick the correct translate (TM or MT) when doing transforms.
-// Generally its TranslateMT since translate is the last transform
-// (given that M4 is in row major order).
 func (m *M4) TranslateMT(x, y, z float64) *M4 {
-	m.X0, m.Y0, m.Z0 = m.X0+m.W0*x, m.Y0+m.W0*y, m.Z0+m.W0*z
-	m.X1, m.Y1, m.Z1 = m.X1+m.W1*x, m.Y1+m.W1*y, m.Z1+m.W1*z
-	m.X2, m.Y2, m.Z2 = m.X2+m.W2*x, m.Y2+m.W2*y, m.Z2+m.W2*z
-	m.X3, m.Y3, m.Z3 = m.X3+m.W3*x, m.Y3+m.W3*y, m.Z3+m.W3*z
+	m.Xx, m.Xy, m.Xz = m.Xx+m.Xw*x, m.Xy+m.Xw*y, m.Xz+m.Xw*z
+	m.Yx, m.Yy, m.Yz = m.Yx+m.Yw*x, m.Yy+m.Yw*y, m.Yz+m.Yw*z
+	m.Zx, m.Zy, m.Zz = m.Zx+m.Zw*x, m.Zy+m.Zw*y, m.Zz+m.Zw*z
+	m.Wx, m.Wy, m.Wz = m.Wx+m.Ww*x, m.Wy+m.Ww*y, m.Wz+m.Ww*z
 	return m
 }
 
 // Scale (*) each element of matrix m by the given scalar.
 // The updated matrix m is returned.
 func (m *M3) Scale(s float64) *M3 {
-	m.X0, m.Y0, m.Z0 = m.X0*s, m.Y0*s, m.Z0*s
-	m.X1, m.Y1, m.Z1 = m.X1*s, m.Y1*s, m.Z1*s
-	m.X2, m.Y2, m.Z2 = m.X2*s, m.Y2*s, m.Z2*s
+	m.Xx, m.Xy, m.Xz = m.Xx*s, m.Xy*s, m.Xz*s
+	m.Yx, m.Yy, m.Yz = m.Yx*s, m.Yy*s, m.Yz*s
+	m.Zx, m.Zy, m.Zz = m.Zx*s, m.Zy*s, m.Zz*s
 	return m
 }
 
-// ScaleS (*) scales each column of matrix m using the corresponding vector
-// elements for x, y, z.  The updated matrix m is returned.
+// Scale (*) each element of matrix m by the given scalar.
+// The updated matrix m is returned.
+func (m *M4) Scale(s float64) *M4 {
+	m.Xx, m.Xy, m.Xz, m.Xw = m.Xx*s, m.Xy*s, m.Xz*s, m.Xw*s
+	m.Yx, m.Yy, m.Yz, m.Yw = m.Yx*s, m.Yy*s, m.Yz*s, m.Yw*s
+	m.Zx, m.Zy, m.Zz, m.Zw = m.Zx*s, m.Zy*s, m.Zz*s, m.Zw*s
+	m.Wx, m.Wy, m.Wz, m.Ww = m.Wx*s, m.Wy*s, m.Wz*s, m.Ww*s
+	return m
+}
+
+// ScaleS (*) scales each column of matrix m using the corresponding scaler
+// elements x, y, z. The updated matrix m is returned.
 func (m *M3) ScaleS(x, y, z float64) *M3 {
-	m.X0, m.Y0, m.Z0 = m.X0*x, m.Y0*y, m.Z0*z
-	m.X1, m.Y1, m.Z1 = m.X1*x, m.Y1*y, m.Z1*z
-	m.X2, m.Y2, m.Z2 = m.X2*x, m.Y2*y, m.Z2*z
+	m.Xx, m.Xy, m.Xz = m.Xx*x, m.Xy*y, m.Xz*z
+	m.Yx, m.Yy, m.Yz = m.Yx*x, m.Yy*y, m.Yz*z
+	m.Zx, m.Zy, m.Zz = m.Zx*x, m.Zy*y, m.Zz*z
 	return m
 }
 
 // ScaleV (*) scales each column of matrix m using the given vector v
 // for elements for x, y, z.  The updated matrix m is returned.
 func (m *M3) ScaleV(v *V3) *M3 {
-	m.X0, m.Y0, m.Z0 = m.X0*v.X, m.Y0*v.Y, m.Z0*v.Z
-	m.X1, m.Y1, m.Z1 = m.X1*v.X, m.Y1*v.Y, m.Z1*v.Z
-	m.X2, m.Y2, m.Z2 = m.X2*v.X, m.Y2*v.Y, m.Z2*v.Z
+	m.Xx, m.Xy, m.Xz = m.Xx*v.X, m.Xy*v.Y, m.Xz*v.Z
+	m.Yx, m.Yy, m.Yz = m.Yx*v.X, m.Yy*v.Y, m.Yz*v.Z
+	m.Zx, m.Zy, m.Zz = m.Zx*v.X, m.Zy*v.Y, m.Zz*v.Z
 	return m
 }
 
 // ScaleSM updates m to be the multiplication of a scale matrix
 // created from x, y, z and itself. The updated matrix m is
 // returned so that it may be immediately used in another operation.
-//    [ x 0 0 0 ]   [ x0 y0 z0 w0 ]    [ x0' y0' z0' w0' ]
-//    [ 0 y 0 0 ] x [ x1 y1 z1 w1 ] => [ x1' y1' z1' w1' ]
-//    [ 0 0 z 0 ]   [ x2 y2 z2 w2 ]    [ x2' y2' z2' w2' ]
-//    [ 0 0 0 1 ]   [ x3 y3 z3 w3 ]    [ x3  y3  z3  w3  ]
+//    [ x 0 0 ]   [ mXx mXy mXz ]    [ mXx' mXy' mXz' ]
+//    [ 0 y 0 ] x [ mYx mYy mYz ] => [ mYx' mYy' mYz' ]
+//    [ 0 0 z ]   [ mZx mZy mZz ]    [ mZx' mZy' mZz' ]
 // Be sure to pick the correct scale (SM or MS) when doing transforms.
-// Generally its ScaleSM since scale is the first transform on the left
-// (given that M4 is in row major order).
+func (m *M3) ScaleSM(x, y, z float64) *M3 {
+	m.Xx, m.Xy, m.Xz = m.Xx*x, m.Xy*x, m.Xz*x
+	m.Yx, m.Yy, m.Yz = m.Yx*y, m.Yy*y, m.Yz*y
+	m.Zx, m.Zy, m.Zz = m.Zx*z, m.Zy*z, m.Zz*z
+	return m
+}
+
+// ScaleSM updates m to be the multiplication of a scale matrix
+// created from x, y, z and itself. Same behaviours as M3.ScaleSM.
+//    [ x 0 0 0 ]   [ mXx mXy mXz mXw ]    [ mXx' mXy' mXz' mXw' ]
+//    [ 0 y 0 0 ] x [ mYx mYy mYz mYw ] => [ mYx' mYy' mYz' mYw' ]
+//    [ 0 0 z 0 ]   [ mZx mZy mZz mZw ]    [ mZx' mZy' mZz' mZw' ]
+//    [ 0 0 0 1 ]   [ mWx mWy mWz mWw ]    [ mWx  mWy  mWz  mWw  ]
 func (m *M4) ScaleSM(x, y, z float64) *M4 {
-	m.X0, m.Y0, m.Z0, m.W0 = m.X0*x, m.Y0*x, m.Z0*x, m.W0*x
-	m.X1, m.Y1, m.Z1, m.W1 = m.X1*y, m.Y1*y, m.Z1*y, m.W1*y
-	m.X2, m.Y2, m.Z2, m.W2 = m.X2*z, m.Y2*z, m.Z2*z, m.W2*z
+	m.Xx, m.Xy, m.Xz, m.Xw = m.Xx*x, m.Xy*x, m.Xz*x, m.Xw*x
+	m.Yx, m.Yy, m.Yz, m.Yw = m.Yx*y, m.Yy*y, m.Yz*y, m.Yw*y
+	m.Zx, m.Zy, m.Zz, m.Zw = m.Zx*z, m.Zy*z, m.Zz*z, m.Zw*z
 	return m
 }
 
 // ScaleMS updates m to be the multiplication of m and a scale matrix created
 // from x, y, z. The updated matrix m is returned so that it may be immediately
 // used in another operation.
-//    [ x0 y0 z0 w0 ]   [ x 0 0 0 ]    [ x0' y0' z0' w0 ]
-//    [ x1 y1 z1 w1 ] x [ 0 y 0 0 ] => [ x1' y1' z1' w1 ]
-//    [ x2 y2 z2 w2 ]   [ 0 0 z 0 ]    [ x2' y2' z2' w2 ]
-//    [ x3 y3 z3 w3 ]   [ 0 0 0 1 ]    [ x3' y3' z3' w3 ]
+//    [ mXx mXy mXz mXw ]   [ x 0 0 0 ]    [ mXx' mXy' mXz' mXw ]
+//    [ mYx mYy mYz mYw ] x [ 0 y 0 0 ] => [ mYx' mYy' mYz' mYw ]
+//    [ mZx mZy mZz mZw ]   [ 0 0 z 0 ]    [ mZx' mZy' mZz' mZw ]
+//    [ mWx mWy mWz mWw ]   [ 0 0 0 1 ]    [ mWx' mWy' mWz' mWw ]
 // Be sure to pick the correct scale (SM or MS) when doing transforms.
-// Generally its ScaleSM since scale is the first transform on the left
-// (given that M4 is in row major order).
 func (m *M4) ScaleMS(x, y, z float64) *M4 {
-	m.X0, m.Y0, m.Z0 = m.X0*x, m.Y0*y, m.Z0*z
-	m.X1, m.Y1, m.Z1 = m.X1*x, m.Y1*y, m.Z1*z
-	m.X2, m.Y2, m.Z2 = m.X2*x, m.Y2*y, m.Z2*z
-	m.X3, m.Y3, m.Z3 = m.X3*x, m.Y3*y, m.Z3*z
+	m.Xx, m.Xy, m.Xz = m.Xx*x, m.Xy*y, m.Xz*z
+	m.Yx, m.Yy, m.Yz = m.Yx*x, m.Yy*y, m.Yz*z
+	m.Zx, m.Zy, m.Zz = m.Zx*x, m.Zy*y, m.Zz*z
+	m.Wx, m.Wy, m.Wz = m.Wx*x, m.Wy*y, m.Wz*z
 	return m
 }
 
 // SetQ converts a quaternion rotation representation to a matrix
 // rotation representation. SetQ updates matrix m to be the rotation
 // matrix representing the rotation described by unit-quaternion q.
-//                       [ x0 y0 z0 ]
-//    [ qx qy qz qw ] => [ x1 y1 z1 ]
-//                       [ x2 y2 z2 ]
+//                       [ mXx mXy mXz ]
+//    [ qx qy qz qw ] => [ mYx mYy mYz ]
+//                       [ mZx mZy mZz ]
 // The parameter q is unchanged. The updated matrix m is returned.
 func (m *M3) SetQ(q *Q) *M3 {
 	xx, yy, zz := q.X*q.X, q.Y*q.Y, q.Z*q.Z
 	xy, xz, yz := q.X*q.Y, q.X*q.Z, q.Y*q.Z
 	wx, wy, wz := q.W*q.X, q.W*q.Y, q.W*q.Z
-	m.X0, m.Y0, m.Z0 = 1-2*(yy+zz), 2*(xy-wz), 2*(xz+wy)
-	m.X1, m.Y1, m.Z1 = 2*(xy+wz), 1-2*(xx+zz), 2*(yz-wx)
-	m.X2, m.Y2, m.Z2 = 2*(xz-wy), 2*(yz+wx), 1-2*(xx+yy)
+	m.Xx, m.Xy, m.Xz = 1-2*(yy+zz), 2*(xy-wz), 2*(xz+wy)
+	m.Yx, m.Yy, m.Yz = 2*(xy+wz), 1-2*(xx+zz), 2*(yz-wx)
+	m.Zx, m.Zy, m.Zz = 2*(xz-wy), 2*(yz+wx), 1-2*(xx+yy)
 	return m
 }
 
 // SetQ converts a quaternion rotation representation to a matrix
 // rotation representation. SetQ updates matrix m to be the rotation
 // matrix representing the rotation described by unit-quaternion q.
-//                       [ x0 y0 z0 0 ]
-//    [ qx qy qz qw ] => [ x1 y1 z1 0 ]
-//                       [ x2 y2 z2 0 ]
-//                       [  0  0  0 1 ]
+//                       [ mXx mXy mXz 0 ]
+//    [ qx qy qz qw ] => [ mYx mYy mYz 0 ]
+//                       [ mZx mZy mZz 0 ]
+//                       [  0   0   0  1 ]
 // The parameter q is unchanged. The updated matrix m is returned.
 func (m *M4) SetQ(q *Q) *M4 {
 	xx, yy, zz := q.X*q.X, q.Y*q.Y, q.Z*q.Z
 	xy, xz, yz := q.X*q.Y, q.X*q.Z, q.Y*q.Z
 	wx, wy, wz := q.W*q.X, q.W*q.Y, q.W*q.Z
-	m.X0, m.Y0, m.Z0, m.W0 = 1-2*(yy+zz), 2*(xy-wz), 2*(xz+wy), 0
-	m.X1, m.Y1, m.Z1, m.W1 = 2*(xy+wz), 1-2*(xx+zz), 2*(yz-wx), 0
-	m.X2, m.Y2, m.Z2, m.W2 = 2*(xz-wy), 2*(yz+wx), 1-2*(xx+yy), 0
-	m.X3, m.Y3, m.Z3, m.W3 = 0, 0, 0, 1
+	m.Xx, m.Xy, m.Xz, m.Xw = 1-2*(yy+zz), 2*(xy-wz), 2*(xz+wy), 0
+	m.Yx, m.Yy, m.Yz, m.Yw = 2*(xy+wz), 1-2*(xx+zz), 2*(yz-wx), 0
+	m.Zx, m.Zy, m.Zz, m.Zw = 2*(xz-wy), 2*(yz+wx), 1-2*(xx+yy), 0
+	m.Wx, m.Wy, m.Wz, m.Ww = 0, 0, 0, 1
 	return m
 }
 
@@ -437,9 +495,9 @@ func (m *M4) SetQ(q *Q) *M4 {
 //    "A skew-symmetric matrix is a square matrix whose transpose is
 //     also its negative."
 func (m *M3) SetSkewSym(v *V3) *M3 {
-	m.X0, m.Y0, m.Z0 = 0, -v.Z, v.Y
-	m.X1, m.Y1, m.Z1 = v.Z, 0, -v.X
-	m.X2, m.Y2, m.Z2 = -v.Y, v.X, 0
+	m.Xx, m.Xy, m.Xz = 0, -v.Z, v.Y
+	m.Yx, m.Yy, m.Yz = v.Z, 0, -v.X
+	m.Zx, m.Zy, m.Zz = -v.Y, v.X, 0
 	return m
 }
 
@@ -449,7 +507,7 @@ func (m *M3) SetSkewSym(v *V3) *M3 {
 //     corresponds to a linear transformation of a vector space [..] the transformation
 //     has an inverse operation exactly when the determinant is nonzero."
 func (m *M3) Det() float64 {
-	return m.X0*(m.Y1*m.Z2-m.Z1*m.Y2) + m.Y0*(m.Z1*m.X2-m.X1*m.Z2) + m.Z0*(m.X1*m.Y2-m.Y1*m.X2)
+	return m.Xx*(m.Yy*m.Zz-m.Yz*m.Zy) + m.Xy*(m.Yz*m.Zx-m.Yx*m.Zz) + m.Xz*(m.Yx*m.Zy-m.Yy*m.Zx)
 }
 
 // Cof returns one of the possible cofactors of a 3x3 matrix given the
@@ -461,41 +519,41 @@ func (m *M3) Cof(row, col int) float64 {
 	minor := row*10 + col // minor given by the removed row and column.
 	switch minor {
 	case 00:
-		return m.Y1*m.Z2 - m.Z1*m.Y2
+		return m.Yy*m.Zz - m.Yz*m.Zy
 	case 01:
-		return m.Z1*m.X2 - m.X1*m.Z2 // flip to negate.
+		return m.Yz*m.Zx - m.Yx*m.Zz // flip to negate.
 	case 02:
-		return m.X1*m.Y2 - m.Y1*m.X2
+		return m.Yx*m.Zy - m.Yy*m.Zx
 	case 10:
-		return m.Z0*m.Y2 - m.Y0*m.Z2 // flip to negate.
+		return m.Xz*m.Zy - m.Xy*m.Zz // flip to negate.
 	case 11:
-		return m.X0*m.Z2 - m.Z0*m.X2
+		return m.Xx*m.Zz - m.Xz*m.Zx
 	case 12:
-		return m.Y0*m.X2 - m.X0*m.Y2 // flip to negate.
+		return m.Xy*m.Zx - m.Xx*m.Zy // flip to negate.
 	case 20:
-		return m.Y0*m.Z1 - m.Z0*m.Y1
+		return m.Xy*m.Yz - m.Xz*m.Yy
 	case 21:
-		return m.Z0*m.X1 - m.X0*m.Z1 // flip to negate.
+		return m.Xz*m.Yx - m.Xx*m.Yz // flip to negate.
 	case 22:
-		return m.X0*m.Y1 - m.Y0*m.X1
+		return m.Xx*m.Yy - m.Xy*m.Yx
 	}
 	log.Printf("matrix M3.Cof developer error %d", minor)
 	return 0
 }
 
-// Adj updates m to be the adjoint matrix of matrix a.  The adjoint matrix is
+// Adj updates m to be the adjoint matrix of matrix a. The adjoint matrix is
 // created by the transpose of the cofactor matrix of the original matrix.
-//     [ a.cof(0,0) a.cof(1,0) a.cof(2,0) ]    [ x0 y0 z0 ]
-//     [ a.cof(0,1) a.cof(1,1) a.cof(2,1) ] => [ x1 y1 z1 ]
-//     [ a.cof(0,2) a.cof(1,2) a.cof(2,2) ]    [ x2 y2 z2 ]
+//     [ a.cof(0,0) a.cof(1,0) a.cof(2,0) ]    [ mXx mXy mXz ]
+//     [ a.cof(0,1) a.cof(1,1) a.cof(2,1) ] => [ mYx mYy mYz ]
+//     [ a.cof(0,2) a.cof(1,2) a.cof(2,2) ]    [ mZx mZy mZz ]
 // The updated matrix m is returned.
 func (m *M3) Adj(a *M3) *M3 {
-	x0, y0, z0 := a.Cof(0, 0), a.Cof(1, 0), a.Cof(2, 0)
-	x1, y1, z1 := a.Cof(0, 1), a.Cof(1, 1), a.Cof(2, 1)
-	x2, y2, z2 := a.Cof(0, 2), a.Cof(1, 2), a.Cof(2, 2)
-	m.X0, m.Y0, m.Z0 = x0, y0, z0
-	m.X1, m.Y1, m.Z1 = x1, y1, z1
-	m.X2, m.Y2, m.Z2 = x2, y2, z2
+	xx, xy, xz := a.Cof(0, 0), a.Cof(1, 0), a.Cof(2, 0)
+	yx, yy, yz := a.Cof(0, 1), a.Cof(1, 1), a.Cof(2, 1)
+	zx, zy, zz := a.Cof(0, 2), a.Cof(1, 2), a.Cof(2, 2)
+	m.Xx, m.Xy, m.Xz = xx, xy, xz
+	m.Yx, m.Yy, m.Yz = yx, yy, yz
+	m.Zx, m.Zy, m.Zz = zx, zy, zz
 	return m
 }
 
@@ -505,12 +563,12 @@ func (m *M3) Inv(a *M3) *M3 {
 	det := a.Det()
 	if det != 0 {
 		s := 1 / det
-		x0, y0, z0 := a.Cof(0, 0)*s, a.Cof(1, 0)*s, a.Cof(2, 0)*s
-		x1, y1, z1 := a.Cof(0, 1)*s, a.Cof(1, 1)*s, a.Cof(2, 1)*s
-		x2, y2, z2 := a.Cof(0, 2)*s, a.Cof(1, 2)*s, a.Cof(2, 2)*s
-		m.X0, m.Y0, m.Z0 = x0, y0, z0
-		m.X1, m.Y1, m.Z1 = x1, y1, z1
-		m.X2, m.Y2, m.Z2 = x2, y2, z2
+		xx, xy, xz := a.Cof(0, 0)*s, a.Cof(1, 0)*s, a.Cof(2, 0)*s
+		yx, yy, yz := a.Cof(0, 1)*s, a.Cof(1, 1)*s, a.Cof(2, 1)*s
+		zx, zy, zz := a.Cof(0, 2)*s, a.Cof(1, 2)*s, a.Cof(2, 2)*s
+		m.Xx, m.Xy, m.Xz = xx, xy, xz
+		m.Yx, m.Yy, m.Yz = yx, yy, yz
+		m.Zx, m.Zy, m.Zz = zx, zy, zz
 	}
 	return m
 }
@@ -534,15 +592,112 @@ func (m *M3) SetAa(ax, ay, az, ang float64) *M3 {
 
 	// now set the rotation.
 	rcos, rsin := math.Cos(ang), math.Sin(ang)
-	m.X0 = rcos + ax*ax*(1-rcos)
-	m.Y0 = -az*rsin + ay*ax*(1-rcos)
-	m.Z0 = ay*rsin + az*ax*(1-rcos)
-	m.X1 = az*rsin + ax*ay*(1-rcos)
-	m.Y1 = rcos + ay*ay*(1-rcos)
-	m.Z1 = -ax*rsin + az*ay*(1-rcos)
-	m.X2 = -ay*rsin + ax*az*(1-rcos)
-	m.Y2 = ax*rsin + ay*az*(1-rcos)
-	m.Z2 = rcos + az*az*(1-rcos)
+	m.Xx = rcos + ax*ax*(1-rcos)
+	m.Xy = -az*rsin + ay*ax*(1-rcos)
+	m.Xz = ay*rsin + az*ax*(1-rcos)
+	m.Yx = az*rsin + ax*ay*(1-rcos)
+	m.Yy = rcos + ay*ay*(1-rcos)
+	m.Yz = -ax*rsin + az*ay*(1-rcos)
+	m.Zx = -ay*rsin + ax*az*(1-rcos)
+	m.Zy = ax*rsin + ay*az*(1-rcos)
+	m.Zz = rcos + az*az*(1-rcos)
+	return m
+}
+
+// Ortho sets matrix m with projection values needed to
+// transform a 3 dimensional model to a 2 dimensional plane.
+// Orthographic projection ignores depth. The input arguments are:
+//     left, right:  Vertical clipping planes.
+//     bottom, top:  Horizontal clipping planes.
+//     near, far  :  Depth clipping planes. The depth values are
+//                   negative if the plane is to be behind the viewer
+// An orthographic matrix fills the following matrix locations:
+//    [ a 0 0 0 ]    [ Xx Xy Xz Xw ]
+//    [ 0 b 0 0 ] => [ Yx Yy Yz Yw ]
+//    [ 0 0 c 0 ]    [ Zx Zy Zz Zw ]
+//    [ d e f 1 ]    [ Wx Wy Wz Ww ]
+func (m *M4) Ortho(left, right, bottom, top, near, far float64) *M4 {
+	m.Xx = 2 / (right - left)
+	m.Xy = 0
+	m.Xz = 0
+	m.Xw = 0
+	m.Yx = 0
+	m.Yy = 2 / (top - bottom)
+	m.Yz = 0
+	m.Yw = 0
+	m.Zx = 0
+	m.Zy = 0
+	m.Zz = -2 / (far - near)
+	m.Zw = 0
+	m.Wx = -(right + left) / (right - left)
+	m.Wy = -(top + bottom) / (top - bottom)
+	m.Wz = -(far + near) / (far - near)
+	m.Ww = 1
+	return m
+}
+
+// Persp sets matrix m with projection values needed to
+// transform a 3 dimensional model to a 2 dimensional plane.
+// Objects that are further away from the viewer will appear smaller.
+// The input arguments are:
+//    fov        An amount in degrees indicating how much of the
+//               scene is visible.
+//    aspect     The ratio of height to width of the model.
+//    near, far  The depth clipping planes. The depth values are
+//               negative if the plane is to be behind the viewer
+// A perspective projection matrix fills the following matrix locations:
+//    [ a 0 0 0 ]    [ Xx Xy Xz Xw ]
+//    [ 0 b 0 0 ] => [ Yx Yy Yz Yw ]
+//    [ 0 0 c d ]    [ Zx Zy Zz Zw ]
+//    [ 0 0 e 0 ]    [ Wx Wy Wz Ww ]
+func (m *M4) Persp(fov, aspect, near, far float64) *M4 {
+	f := 1 / float64(math.Tan(Rad(fov)*0.5))
+	m.Xx = f / aspect
+	m.Yx = 0
+	m.Zx = 0
+	m.Wx = 0
+	m.Xy = 0
+	m.Yy = f
+	m.Zy = 0
+	m.Wy = 0
+	m.Xz = 0
+	m.Yz = 0
+	m.Zz = (far + near) / (near - far)
+	m.Wz = 2 * far * near / (near - far)
+	m.Xw = 0
+	m.Yw = 0
+	m.Zw = -1
+	m.Ww = 0
+	return m
+}
+
+// PerspInv sets matrix m to be a new inverse matrix of the given
+// perspective matrix values (see NewPersp()).
+//   [ a' 0  0  0 ] where a' = 1/a     d' = 1/e    [ Xx Xy Xz Xw ]
+//   [ 0  b' 0  0 ]       b' = 1/b     e' = 1/d => [ Yx Yy Yz Yw ]
+//   [ 0  0  0  d']       c' = -(c/de)             [ Zx Zy Zz Zw ]
+//   [ 0  0  e' c']                                [ Wx Wy Wz Ww ]
+// This is used when going from screen x,y coordinates to 3D coordinates.
+// as in the case when creating a picking ray from a mouse location.
+func (m *M4) PerspInv(fov, aspect, near, far float64) *M4 {
+	f := float64(math.Tan(Rad(fov) * 0.5))
+	c := 2 * far * near / (near - far)
+	m.Xx = f * aspect
+	m.Yx = 0
+	m.Zx = 0
+	m.Wx = 0
+	m.Xy = 0
+	m.Yy = f
+	m.Zy = 0
+	m.Wy = 0
+	m.Xz = 0
+	m.Yz = 0
+	m.Zz = 0
+	m.Wz = -1
+	m.Xw = 0
+	m.Yw = 0
+	m.Zw = 1 / c
+	m.Ww = -((far + near) / (near - far) / (-1 * c))
 	return m
 }
 
@@ -557,114 +712,14 @@ func NewM3() *M3 { return &M3{} }
 func NewM4() *M4 { return &M4{} }
 
 // NewM3I creates a new 3x3 identity matrix.
-//    [ x0 y0 z0 ]   [ 1 0 0 ]
-//    [ x1 y1 z1 ] = [ 0 1 0 ]
-//    [ x2 y2 z2 ]   [ 0 0 1 ]
-func NewM3I() *M3 { return &M3{X0: 1, Y1: 1, Z2: 1} }
+//    [ 1 0 0 ]    [ Xx Xy Xz ]
+//    [ 0 1 0 ] => [ Yx Yy Yz ]
+//    [ 0 0 1 ]    [ Zx Zy Zz ]
+func NewM3I() *M3 { return &M3{Xx: 1, Yy: 1, Zz: 1} }
 
 // NewM4I creates a new 4x4 identity matrix.
-//    [ x0 y0 z0 w0 ]   [ 1 0 0 0 ]
-//    [ x1 y1 z1 w1 ] = [ 0 1 0 0 ]
-//    [ x2 y2 z2 w2 ]   [ 0 0 1 0 ]
-//    [ x3 y3 z3 w3 ]   [ 0 0 0 1 ]
-func NewM4I() *M4 { return &M4{X0: 1, Y1: 1, Z2: 1, W3: 1} }
-
-// NewOrtho creates a new 4x4 matrix with projection values needed to
-// transform a 3 dimensional model to a 2 dimensional plane.
-// Orthographic projection ignores depth. The input arguments are:
-//     left, right:  Vertical clipping planes.
-//     bottom, top:  Horizontal clipping planes.
-//     near, far  :  Depth clipping planes. The depth values are
-//                   negative if the plane is to be behind the viewer
-// An orthographic matrix fills the following matrix locations:
-//    [ a 0 0 0 ]
-//    [ 0 b 0 0 ]
-//    [ 0 0 c 0 ]
-//    [ d e f 1 ]
-func NewOrtho(left, right, bottom, top, near, far float64) *M4 {
-	m := &M4{}
-	m.X0 = 2 / (right - left)
-	m.Y0 = 0
-	m.Z0 = 0
-	m.W0 = 0
-	m.X1 = 0
-	m.Y1 = 2 / (top - bottom)
-	m.Z1 = 0
-	m.W1 = 0
-	m.X2 = 0
-	m.Y2 = 0
-	m.Z2 = -2 / (far - near)
-	m.W2 = 0
-	m.X3 = -(right + left) / (right - left)
-	m.Y3 = -(top + bottom) / (top - bottom)
-	m.Z3 = -(far + near) / (far - near)
-	m.W3 = 1
-	return m
-}
-
-// NewPersp creates a new 4x4 matrix with projection values needed to
-// transform a 3 dimentional model to a 2 dimensional plane.
-// Objects that are further away from the viewer will appear smaller.
-// The input arguments are:
-//    fov        An amount in degrees indicating how much of the
-//               scene is visible.
-//    aspect     The ratio of height to width of the model.
-//    near, far  The depth clipping planes. The depth values are
-//               negative if the plane is to be behind the viewer
-// A perspective matrix fills the following matrix locations:
-//    [ a 0 0 0 ]
-//    [ 0 b 0 0 ]
-//    [ 0 0 c d ]
-//    [ 0 0 e 0 ]
-func NewPersp(fov, aspect, near, far float64) *M4 {
-	m := &M4{}
-	f := 1 / float64(math.Tan(Rad(fov)*0.5))
-	m.X0 = f / aspect
-	m.X1 = 0
-	m.X2 = 0
-	m.X3 = 0
-	m.Y0 = 0
-	m.Y1 = f
-	m.Y2 = 0
-	m.Y3 = 0
-	m.Z0 = 0
-	m.Z1 = 0
-	m.Z2 = (far + near) / (near - far)
-	m.Z3 = 2 * far * near / (near - far)
-	m.W0 = 0
-	m.W1 = 0
-	m.W2 = -1
-	m.W3 = 0
-	return m
-}
-
-// NewPerspInv creates a new inverse matrix of the given perspective
-// matrix values (see NewPersp()).
-//   [ a' 0  0  0 ] where a' = 1/a       d' = 1/e
-//   [ 0  b' 0  0 ]       b' = 1/b       e' = 1/d
-//   [ 0  0  0  d']       c' = -(c/de)
-//   [ 0  0  e' c']
-// This is used when going from screen x,y coordinates to 3D coordinates.
-// as in the case when creating a picking ray from a mouse location.
-func NewPerspInv(fov, aspect, near, far float64) *M4 {
-	m := &M4{}
-	f := float64(math.Tan(Rad(fov) * 0.5))
-	c := 2 * far * near / (near - far)
-	m.X0 = f * aspect
-	m.X1 = 0
-	m.X2 = 0
-	m.X3 = 0
-	m.Y0 = 0
-	m.Y1 = f
-	m.Y2 = 0
-	m.Y3 = 0
-	m.Z0 = 0
-	m.Z1 = 0
-	m.Z2 = 0
-	m.Z3 = -1
-	m.W0 = 0
-	m.W1 = 0
-	m.W2 = 1 / c
-	m.W3 = -((far + near) / (near - far) / (-1 * c))
-	return m
-}
+//    [ 1 0 0 0 ]    [ Xx Xy Xz Xw ]
+//    [ 0 1 0 0 ] => [ Yx Yy Yz Yw ]
+//    [ 0 0 1 0 ]    [ Zx Zy Zz Zw ]
+//    [ 0 0 0 1 ]    [ Wx Wy Wz Ww ]
+func NewM4I() *M4 { return &M4{Xx: 1, Yy: 1, Zz: 1, Ww: 1} }

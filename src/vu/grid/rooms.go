@@ -1,4 +1,4 @@
-// Copyright © 2013 Galvanized Logic Inc.
+// Copyright © 2013-2014 Galvanized Logic Inc.
 // Use is governed by a FreeBSD license found in the LICENSE file.
 
 package grid
@@ -46,7 +46,7 @@ func (rms *rooms) Generate(width, depth int) Grid {
 	for _, rm := range dividedRooms {
 		for x := rm.x + 1; x < rm.x+rm.w-1; x++ {
 			for y := rm.y + 1; y < rm.y+rm.h-1; y++ {
-				rms.cells[x][y].isWall = allPassages
+				rms.cells[x][y].isWall = allFloors
 			}
 		}
 		rms.ensureExits(random, rm)
@@ -152,7 +152,7 @@ func (rms *rooms) ensureExit(random *rand.Rand, side []*cell, max int) {
 	if len(side) == max {
 		index := random.Intn(len(side))
 		u := side[index]
-		u.isWall = allPassages
+		u.isWall = allFloors
 		rms.cells[u.x][u.y].isWall = u.isWall
 
 		// ensure the chop gets into the maze by chopping again if necessary.
@@ -160,7 +160,7 @@ func (rms *rooms) ensureExit(random *rand.Rand, side []*cell, max int) {
 		if len(walls) == 3 {
 			wallIndex := random.Intn(len(walls))
 			u := walls[wallIndex]
-			u.isWall = allPassages
+			u.isWall = allFloors
 			rms.cells[u.x][u.y].isWall = u.isWall
 		}
 	}

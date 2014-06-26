@@ -657,31 +657,31 @@ package gl
 // GLAPI void APIENTRY wrap_glDrawBuffers(int n, const unsigned int* bufs) {  (*pfn_glDrawBuffers)((GLsizei)n, (const GLenum *)bufs); }
 //
 // void (APIENTRYP pfn_glDrawElements)(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices);
-// GLAPI void APIENTRY wrap_glDrawElements(unsigned int mode, int count, unsigned int t_ype, const void* indices) {  (*pfn_glDrawElements)((GLenum)mode, (GLsizei)count, (GLenum)t_ype, (const GLvoid *)indices); }
+// GLAPI void APIENTRY wrap_glDrawElements(unsigned int mode, int count, unsigned int t_ype, long long indicies) {  (*pfn_glDrawElements)((GLenum)mode, (GLsizei)count, (GLenum)t_ype, (const GLvoid *)indicies); }
 //
 // void (APIENTRYP pfn_glDrawElementsBaseVertex)(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLint basevertex);
-// GLAPI void APIENTRY wrap_glDrawElementsBaseVertex(unsigned int mode, int count, unsigned int t_ype, const void* indices, int basevertex) {  (*pfn_glDrawElementsBaseVertex)((GLenum)mode, (GLsizei)count, (GLenum)t_ype, (const GLvoid *)indices, (GLint)basevertex); }
+// GLAPI void APIENTRY wrap_glDrawElementsBaseVertex(unsigned int mode, int count, unsigned int t_ype, long long indicies, int basevertex) {  (*pfn_glDrawElementsBaseVertex)((GLenum)mode, (GLsizei)count, (GLenum)t_ype, (const GLvoid *)indicies, (GLint)basevertex); }
 //
 // void (APIENTRYP pfn_glDrawElementsIndirect)(GLenum mode, GLenum type, const GLvoid *indirect);
 // GLAPI void APIENTRY wrap_glDrawElementsIndirect(unsigned int mode, unsigned int t_ype, const void* indirect) {  (*pfn_glDrawElementsIndirect)((GLenum)mode, (GLenum)t_ype, (const GLvoid *)indirect); }
 //
 // void (APIENTRYP pfn_glDrawElementsInstanced)(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei instancecount);
-// GLAPI void APIENTRY wrap_glDrawElementsInstanced(unsigned int mode, int count, unsigned int t_ype, const void* indices, int instancecount) {  (*pfn_glDrawElementsInstanced)((GLenum)mode, (GLsizei)count, (GLenum)t_ype, (const GLvoid *)indices, (GLsizei)instancecount); }
+// GLAPI void APIENTRY wrap_glDrawElementsInstanced(unsigned int mode, int count, unsigned int t_ype, long long indicies, int instancecount) {  (*pfn_glDrawElementsInstanced)((GLenum)mode, (GLsizei)count, (GLenum)t_ype, (const GLvoid *)indicies, (GLsizei)instancecount); }
 //
 // void (APIENTRYP pfn_glDrawElementsInstancedBaseInstance)(GLenum mode, GLsizei count, GLenum type, const void *indices, GLsizei instancecount, GLuint baseinstance);
 // GLAPI void APIENTRY wrap_glDrawElementsInstancedBaseInstance(unsigned int mode, int count, unsigned int t_ype, const void* indices, int instancecount, unsigned int baseinstance) {  (*pfn_glDrawElementsInstancedBaseInstance)((GLenum)mode, (GLsizei)count, (GLenum)t_ype, (const void *)indices, (GLsizei)instancecount, (GLuint)baseinstance); }
 //
 // void (APIENTRYP pfn_glDrawElementsInstancedBaseVertex)(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei instancecount, GLint basevertex);
-// GLAPI void APIENTRY wrap_glDrawElementsInstancedBaseVertex(unsigned int mode, int count, unsigned int t_ype, const void* indices, int instancecount, int basevertex) {  (*pfn_glDrawElementsInstancedBaseVertex)((GLenum)mode, (GLsizei)count, (GLenum)t_ype, (const GLvoid *)indices, (GLsizei)instancecount, (GLint)basevertex); }
+// GLAPI void APIENTRY wrap_glDrawElementsInstancedBaseVertex(unsigned int mode, int count, unsigned int t_ype, long long indicies, int instancecount, int basevertex) {  (*pfn_glDrawElementsInstancedBaseVertex)((GLenum)mode, (GLsizei)count, (GLenum)t_ype, (const GLvoid *)indicies, (GLsizei)instancecount, (GLint)basevertex); }
 //
 // void (APIENTRYP pfn_glDrawElementsInstancedBaseVertexBaseInstance)(GLenum mode, GLsizei count, GLenum type, const void *indices, GLsizei instancecount, GLint basevertex, GLuint baseinstance);
 // GLAPI void APIENTRY wrap_glDrawElementsInstancedBaseVertexBaseInstance(unsigned int mode, int count, unsigned int t_ype, const void* indices, int instancecount, int basevertex, unsigned int baseinstance) {  (*pfn_glDrawElementsInstancedBaseVertexBaseInstance)((GLenum)mode, (GLsizei)count, (GLenum)t_ype, (const void *)indices, (GLsizei)instancecount, (GLint)basevertex, (GLuint)baseinstance); }
 //
 // void (APIENTRYP pfn_glDrawRangeElements)(GLenum mode, GLuint start, GLuint end, GLsizei count, GLenum type, const GLvoid *indices);
-// GLAPI void APIENTRY wrap_glDrawRangeElements(unsigned int mode, unsigned int start, unsigned int end, int count, unsigned int t_ype, const void* indices) {  (*pfn_glDrawRangeElements)((GLenum)mode, (GLuint)start, (GLuint)end, (GLsizei)count, (GLenum)t_ype, (const GLvoid *)indices); }
+// GLAPI void APIENTRY wrap_glDrawRangeElements(unsigned int mode, unsigned int start, unsigned int end, int count, unsigned int t_ype, long long indicies) {  (*pfn_glDrawRangeElements)((GLenum)mode, (GLuint)start, (GLuint)end, (GLsizei)count, (GLenum)t_ype, (const GLvoid *)indicies); }
 //
 // void (APIENTRYP pfn_glDrawRangeElementsBaseVertex)(GLenum mode, GLuint start, GLuint end, GLsizei count, GLenum type, const GLvoid *indices, GLint basevertex);
-// GLAPI void APIENTRY wrap_glDrawRangeElementsBaseVertex(unsigned int mode, unsigned int start, unsigned int end, int count, unsigned int t_ype, const void* indices, int basevertex) {  (*pfn_glDrawRangeElementsBaseVertex)((GLenum)mode, (GLuint)start, (GLuint)end, (GLsizei)count, (GLenum)t_ype, (const GLvoid *)indices, (GLint)basevertex); }
+// GLAPI void APIENTRY wrap_glDrawRangeElementsBaseVertex(unsigned int mode, unsigned int start, unsigned int end, int count, unsigned int t_ype, long long indicies, int basevertex) {  (*pfn_glDrawRangeElementsBaseVertex)((GLenum)mode, (GLuint)start, (GLuint)end, (GLsizei)count, (GLenum)t_ype, (const GLvoid *)indicies, (GLint)basevertex); }
 //
 // void (APIENTRYP pfn_glDrawTransformFeedback)(GLenum mode, GLuint id);
 // GLAPI void APIENTRY wrap_glDrawTransformFeedback(unsigned int mode, unsigned int id) {  (*pfn_glDrawTransformFeedback)((GLenum)mode, (GLuint)id); }
@@ -2682,8 +2682,8 @@ func cbool(glbool uint) bool {
 type (
 	Pointer      unsafe.Pointer
 	Sync         C.GLsync
-	clContext    C.struct_cl_context
-	clEvent      C.struct_cl_event
+	clContext    C.struct_Cl_context
+	clEvent      C.struct_Cl_event
 	DEBUGPROCARB C.GLDEBUGPROCARB
 	DEBUGPROC    C.GLDEBUGPROC
 )
@@ -4158,7 +4158,7 @@ func GetUniformLocation(program uint32, name string) int32 {
 	return int32(C.wrap_glGetUniformLocation(C.uint(program), cstr1))
 }
 func CreateSyncFromCLeventARB(context *clContext, event *clEvent, flags uint32) Sync {
-	return Sync(C.wrap_glCreateSyncFromCLeventARB((*C.struct_cl_context)(context), (*C.struct_cl_event)(event), C.uint(flags)))
+	return Sync(C.wrap_glCreateSyncFromCLeventARB((*C.struct__cl_context)(context), (*C.struct__cl_event)(event), C.uint(flags)))
 }
 func FenceSync(condition uint32, flags uint32) Sync {
 	return Sync(C.wrap_glFenceSync(C.uint(condition), C.uint(flags)))
@@ -4608,32 +4608,32 @@ func DrawBuffer(mode uint32) {
 func DrawBuffers(n int32, bufs *uint32) {
 	C.wrap_glDrawBuffers(C.int(n), (*C.uint)(bufs))
 }
-func DrawElements(mode uint32, count int32, t_ype uint32, indices Pointer) {
-	C.wrap_glDrawElements(C.uint(mode), C.int(count), C.uint(t_ype), unsafe.Pointer(indices))
+func DrawElements(mode uint32, count int32, t_ype uint32, indicies int64) {
+	C.wrap_glDrawElements(C.uint(mode), C.int(count), C.uint(t_ype), C.longlong(indicies))
 }
-func DrawElementsBaseVertex(mode uint32, count int32, t_ype uint32, indices Pointer, basevertex int32) {
-	C.wrap_glDrawElementsBaseVertex(C.uint(mode), C.int(count), C.uint(t_ype), unsafe.Pointer(indices), C.int(basevertex))
+func DrawElementsBaseVertex(mode uint32, count int32, t_ype uint32, indicies int64, basevertex int32) {
+	C.wrap_glDrawElementsBaseVertex(C.uint(mode), C.int(count), C.uint(t_ype), C.longlong(indicies), C.int(basevertex))
 }
 func DrawElementsIndirect(mode uint32, t_ype uint32, indirect Pointer) {
 	C.wrap_glDrawElementsIndirect(C.uint(mode), C.uint(t_ype), unsafe.Pointer(indirect))
 }
-func DrawElementsInstanced(mode uint32, count int32, t_ype uint32, indices Pointer, instancecount int32) {
-	C.wrap_glDrawElementsInstanced(C.uint(mode), C.int(count), C.uint(t_ype), unsafe.Pointer(indices), C.int(instancecount))
+func DrawElementsInstanced(mode uint32, count int32, t_ype uint32, indicies int64, instancecount int32) {
+	C.wrap_glDrawElementsInstanced(C.uint(mode), C.int(count), C.uint(t_ype), C.longlong(indicies), C.int(instancecount))
 }
 func DrawElementsInstancedBaseInstance(mode uint32, count int32, t_ype uint32, indices Pointer, instancecount int32, baseinstance uint32) {
 	C.wrap_glDrawElementsInstancedBaseInstance(C.uint(mode), C.int(count), C.uint(t_ype), unsafe.Pointer(indices), C.int(instancecount), C.uint(baseinstance))
 }
-func DrawElementsInstancedBaseVertex(mode uint32, count int32, t_ype uint32, indices Pointer, instancecount int32, basevertex int32) {
-	C.wrap_glDrawElementsInstancedBaseVertex(C.uint(mode), C.int(count), C.uint(t_ype), unsafe.Pointer(indices), C.int(instancecount), C.int(basevertex))
+func DrawElementsInstancedBaseVertex(mode uint32, count int32, t_ype uint32, indicies int64, instancecount int32, basevertex int32) {
+	C.wrap_glDrawElementsInstancedBaseVertex(C.uint(mode), C.int(count), C.uint(t_ype), C.longlong(indicies), C.int(instancecount), C.int(basevertex))
 }
 func DrawElementsInstancedBaseVertexBaseInstance(mode uint32, count int32, t_ype uint32, indices Pointer, instancecount int32, basevertex int32, baseinstance uint32) {
 	C.wrap_glDrawElementsInstancedBaseVertexBaseInstance(C.uint(mode), C.int(count), C.uint(t_ype), unsafe.Pointer(indices), C.int(instancecount), C.int(basevertex), C.uint(baseinstance))
 }
-func DrawRangeElements(mode uint32, start uint32, end uint32, count int32, t_ype uint32, indices Pointer) {
-	C.wrap_glDrawRangeElements(C.uint(mode), C.uint(start), C.uint(end), C.int(count), C.uint(t_ype), unsafe.Pointer(indices))
+func DrawRangeElements(mode uint32, start uint32, end uint32, count int32, t_ype uint32, indicies int64) {
+	C.wrap_glDrawRangeElements(C.uint(mode), C.uint(start), C.uint(end), C.int(count), C.uint(t_ype), C.longlong(indicies))
 }
-func DrawRangeElementsBaseVertex(mode uint32, start uint32, end uint32, count int32, t_ype uint32, indices Pointer, basevertex int32) {
-	C.wrap_glDrawRangeElementsBaseVertex(C.uint(mode), C.uint(start), C.uint(end), C.int(count), C.uint(t_ype), unsafe.Pointer(indices), C.int(basevertex))
+func DrawRangeElementsBaseVertex(mode uint32, start uint32, end uint32, count int32, t_ype uint32, indicies int64, basevertex int32) {
+	C.wrap_glDrawRangeElementsBaseVertex(C.uint(mode), C.uint(start), C.uint(end), C.int(count), C.uint(t_ype), C.longlong(indicies), C.int(basevertex))
 }
 func DrawTransformFeedback(mode uint32, id uint32) {
 	C.wrap_glDrawTransformFeedback(C.uint(mode), C.uint(id))

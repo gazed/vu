@@ -1,4 +1,4 @@
-// Copyright © 2013 Galvanized Logic Inc.
+// Copyright © 2013-2014 Galvanized Logic Inc.
 // Use is governed by a FreeBSD license found in the LICENSE file.
 
 package device
@@ -13,7 +13,7 @@ package device
 // #cgo darwin LDFLAGS: -framework Cocoa -framework OpenGL -framework IOKit
 //
 // #include <stdlib.h>
-// #include "os_darwin.m"
+// #include "os_darwin.h"
 import "C" // must be located here.
 
 import (

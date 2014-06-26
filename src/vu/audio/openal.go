@@ -1,4 +1,4 @@
-// Copyright © 2013 Galvanized Logic Inc.
+// Copyright © 2013-2014 Galvanized Logic Inc.
 // Use is governed by a FreeBSD license found in the LICENSE file.
 
 package audio
@@ -8,7 +8,6 @@ import (
 	"log"
 	"strings"
 	"vu/audio/al"
-	"vu/data"
 )
 
 // OSX has OpenAL. To install 64-bit OpenAL on windows use:
@@ -21,6 +20,15 @@ type openal struct {
 	dev *al.Device  // created on initialization.
 	ctx *al.Context // created on initialization.
 }
+
+// NewSoundMaker provides an audio generator.
+func (a *openal) NewSoundMaker(s Sound) SoundMaker { return newSoundMaker(s.(*sound)) }
+
+// NewSoundListener provides an audio receiver.
+func (a *openal) NewSoundListener() SoundListener { return &soundListener{} }
+
+// NewSound provides a place to put sound data.
+func (a *openal) NewSound(name string) Sound { return newSound(name) }
 
 // Init runs the one time openal library initialization. It is only expected to
 // be called once by the engine on startup.
@@ -68,24 +76,6 @@ func (a *openal) Shutdown() {
 	}
 }
 
-// BindSound loads the raw audio data into the sound buffer.
-func (a *openal) BindSound(s *data.Sound) (err error) {
-	if alerr := al.GetError(); alerr != al.NO_ERROR {
-		log.Printf("openal:bindSound need to find and fix prior error %X", alerr)
-	}
-
-	// create the sound buffer and copy the audio data into the buffer
-	var format int32
-	if format, err = a.format(s); err == nil {
-		al.GenBuffers(1, &(s.Buffer))
-		al.BufferData(s.Buffer, format, al.Pointer(&(s.AudioData[0])), int32(s.DataSize), int32(s.Frequency))
-		if alerr := al.GetError(); alerr != al.NO_ERROR {
-			err = fmt.Errorf("Failed binding sound %s", s.Name)
-		}
-	}
-	return
-}
-
 // Mute turns the listener gain on/off.
 func (a *openal) Mute(mute bool) {
 	if mute {
@@ -93,26 +83,6 @@ func (a *openal) Mute(mute bool) {
 	} else {
 		al.Listenerf(al.GAIN, 1.0)
 	}
-}
-
-// format figures out which of the OpenAL formats to use based on the
-// WAVE file information.  A -1 value, and error, is returned if the format
-// cannot be determined.
-func (a *openal) format(s *data.Sound) (format int32, err error) {
-	format = -1
-	if s.Channels == 1 && s.SampleBits == 8 {
-		format = al.FORMAT_MONO8
-	} else if s.Channels == 1 && s.SampleBits == 16 {
-		format = al.FORMAT_MONO16
-	} else if s.Channels == 2 && s.SampleBits == 8 {
-		format = al.FORMAT_STEREO8
-	} else if s.Channels == 2 && s.SampleBits == 16 {
-		format = al.FORMAT_STEREO16
-	}
-	if format < 0 {
-		err = fmt.Errorf("openal:format cannot recognize audio format")
-	}
-	return
 }
 
 // openal
@@ -127,13 +97,13 @@ type soundMaker struct {
 
 // newSoundMaker creates a noise using the given sound.
 // It conforms to the the SoundMaker interface.
-func newSoundMaker(s *data.Sound) *soundMaker {
+func newSoundMaker(s *sound) *soundMaker {
 	if s == nil {
 		return nil
 	}
 	var source uint32
 	al.GenSources(1, &source)
-	al.Sourcei(source, al.BUFFER, int32(s.Buffer))
+	al.Sourcei(source, al.BUFFER, int32(s.buffer))
 	return &soundMaker{source: source}
 }
 
@@ -158,3 +128,76 @@ func (l *soundListener) SetVelocity(x, y, z float64) {
 	al.Listener3f(al.VELOCITY, float32(x), float32(y), float32(z))
 }
 func (l *soundListener) SetGain(gain float64) { al.Listenerf(al.GAIN, float32(gain)) }
+
+// soundListener
+// ============================================================================
+// sound
+
+// sound is a shared audio resource. Note that the audio data
+// needs to be bound to a sound card using Bind().
+type sound struct {
+	name       string // Unique sound name.
+	audioData  []byte // The raw audio data.
+	channels   uint16 // Number of audio channels.
+	sampleBits uint16 // 8 bits = 8, 16 bits = 16, etc.
+	frequency  uint32 // 8000, 44100, etc.
+	dataSize   uint32 // Size of audio data (total file size minus header size).
+
+	// Buffer is the sound card buffer reference that the sound data is loaded
+	// into. Sound buffers can be shared among many sound sources.
+	buffer uint32
+}
+
+// newSound allocates space for sound data.
+func newSound(name string) *sound { return &sound{name: name} }
+
+// Name implements Sound.
+func (s *sound) Name() string { return s.name }
+
+// SetData populates sound s with newly loaded data.
+func (s *sound) SetData(channels, sampleBits uint16, frequency, dataSize uint32, data []byte) {
+	s.channels = channels
+	s.sampleBits = sampleBits
+	s.frequency = frequency
+	s.dataSize = dataSize
+	s.audioData = s.audioData[:0] // reset, keeping memory.
+	s.audioData = append(s.audioData, data...)
+}
+
+// Bind loads the raw audio data into the sound buffer.
+func (s *sound) Bind() (err error) {
+	if alerr := al.GetError(); alerr != al.NO_ERROR {
+		log.Printf("openal.sound.Bind need to find and fix prior error %X", alerr)
+	}
+
+	// create the sound buffer and copy the audio data into the buffer
+	var format int32
+	if format, err = s.format(); err == nil {
+		al.GenBuffers(1, &(s.buffer))
+		al.BufferData(s.buffer, format, al.Pointer(&(s.audioData[0])), int32(s.dataSize), int32(s.frequency))
+		if alerr := al.GetError(); alerr != al.NO_ERROR {
+			err = fmt.Errorf("Failed binding sound %s", s.name)
+		}
+	}
+	return
+}
+
+// format figures out which of the OpenAL formats to use based on the
+// WAVE file information.  A -1 value, and error, is returned if the format
+// cannot be determined.
+func (s *sound) format() (format int32, err error) {
+	format = -1
+	if s.channels == 1 && s.sampleBits == 8 {
+		format = al.FORMAT_MONO8
+	} else if s.channels == 1 && s.sampleBits == 16 {
+		format = al.FORMAT_MONO16
+	} else if s.channels == 2 && s.sampleBits == 8 {
+		format = al.FORMAT_STEREO8
+	} else if s.channels == 2 && s.sampleBits == 16 {
+		format = al.FORMAT_STEREO16
+	}
+	if format < 0 {
+		err = fmt.Errorf("openal:format cannot recognize audio format")
+	}
+	return
+}
