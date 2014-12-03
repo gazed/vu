@@ -1,11 +1,10 @@
 // Copyright © 2013-2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 package grid
 
 import (
 	"math/rand"
-	"time"
 )
 
 // rooms is a skirmish grid made up of connected empty spaces.
@@ -34,13 +33,12 @@ const (
 // TODO it is possible to get a bisected maze.  It may be necessary
 // to check for a wall across the entire maze and punch a hole in it.
 func (rms *rooms) Generate(width, depth int) Grid {
-	random := rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
 	rms.create(width, depth, allWalls)
 	rms.min = 4 // makes 2x2 rooms (excludes walls), don't want smaller.
 	rms.max = 7 // makes 5x5 rooms (excludes walls), don't want larger.
 	width, depth = rms.Size()
 	initialRoom := &room{0, 0, width, depth}
-	dividedRooms := rms.getRooms(random, initialRoom)
+	dividedRooms := rms.getRooms(initialRoom)
 
 	// clear the interior of each room.
 	for _, rm := range dividedRooms {
@@ -49,7 +47,7 @@ func (rms *rooms) Generate(width, depth int) Grid {
 				rms.cells[x][y].isWall = allFloors
 			}
 		}
-		rms.ensureExits(random, rm)
+		rms.ensureExits(rm)
 	}
 	return rms
 }
@@ -58,14 +56,14 @@ func (rms *rooms) Generate(width, depth int) Grid {
 // This method randomly chooses to split rooms depending on their size.
 // Very large rooms always get split, very small ones don't, and in between
 // may or may not be split.
-func (rms *rooms) getRooms(random *rand.Rand, rm *room) (dividedRooms []*room) {
+func (rms *rooms) getRooms(rm *room) (dividedRooms []*room) {
 
 	// randomly decide if the room must be split
-	maxLR := (rm.w+1)/2 >= rms.min+random.Intn(rms.max/2)
-	maxTB := (rm.h+1)/2 >= rms.min+random.Intn(rms.max/2)
-	if rm1, rm2 := rms.split(random, rm, maxLR, maxTB); rm1 != nil && rm2 != nil {
-		dividedRooms = append(dividedRooms, rms.getRooms(random, rm1)...)
-		dividedRooms = append(dividedRooms, rms.getRooms(random, rm2)...)
+	maxLR := (rm.w+1)/2 >= rms.min+rand.Intn(rms.max/2)
+	maxTB := (rm.h+1)/2 >= rms.min+rand.Intn(rms.max/2)
+	if rm1, rm2 := rms.split(rm, maxLR, maxTB); rm1 != nil && rm2 != nil {
+		dividedRooms = append(dividedRooms, rms.getRooms(rm1)...)
+		dividedRooms = append(dividedRooms, rms.getRooms(rm2)...)
 	} else {
 		dividedRooms = append(dividedRooms, rm)
 	}
@@ -74,16 +72,16 @@ func (rms *rooms) getRooms(random *rand.Rand, rm *room) (dividedRooms []*room) {
 
 // split divides the given room based on the how-to-split booleans.
 // The return is either two valid room pointers, or two nil pointers.
-func (rms *rooms) split(random *rand.Rand, rm *room, lr, tb bool) (rm1, rm2 *room) {
+func (rms *rooms) split(rm *room, lr, tb bool) (rm1, rm2 *room) {
 	if lr || tb {
 		splitType := topBottom
 		if lr && tb {
-			splitType = random.Intn(2) == 0
+			splitType = rand.Intn(2) == 0
 		} else if lr {
 			splitType = leftRight
 		}
 		splitSpot := rms.splitSpots(rm, splitType)
-		splitSpot = random.Intn(splitSpot+1) + rms.min - 1
+		splitSpot = rand.Intn(splitSpot+1) + rms.min - 1
 		r1, r2 := rms.splitRoom(rm, splitSpot, splitType)
 		rm1, rm2 = &r1, &r2
 	}
@@ -111,7 +109,7 @@ func (rms *rooms) splitRoom(rm *room, cut int, lr bool) (rm1, rm2 room) {
 
 // ensureExits makes sure there is an outside exit on two sides
 // of the room. The corners are left alone.
-func (rms *rooms) ensureExits(random *rand.Rand, rm *room) {
+func (rms *rooms) ensureExits(rm *room) {
 	var top, bot, left, right []*cell
 	xmax, ymax := rm.w, rm.h
 	for x := rm.x + 1; x < rm.x+rm.w-1; x++ {
@@ -136,21 +134,21 @@ func (rms *rooms) ensureExits(random *rand.Rand, rm *room) {
 	}
 
 	// randomize which sides get exits.
-	if random.Intn(2) == 0 {
-		rms.ensureExit(random, top, xmax-2)
-		rms.ensureExit(random, left, ymax-2)
+	if rand.Intn(2) == 0 {
+		rms.ensureExit(top, xmax-2)
+		rms.ensureExit(left, ymax-2)
 	} else {
-		rms.ensureExit(random, bot, xmax-2)
-		rms.ensureExit(random, right, ymax-2)
+		rms.ensureExit(bot, xmax-2)
+		rms.ensureExit(right, ymax-2)
 	}
 }
 
 // ensureExit chops a hole in the given side.  Sometimes the hole chopped
 // can be a dead-end.  Chopping an additional hole in the holes neighbouring
 // walls guarantees an exit.
-func (rms *rooms) ensureExit(random *rand.Rand, side []*cell, max int) {
+func (rms *rooms) ensureExit(side []*cell, max int) {
 	if len(side) == max {
-		index := random.Intn(len(side))
+		index := rand.Intn(len(side))
 		u := side[index]
 		u.isWall = allFloors
 		rms.cells[u.x][u.y].isWall = u.isWall
@@ -158,7 +156,7 @@ func (rms *rooms) ensureExit(random *rand.Rand, side []*cell, max int) {
 		// ensure the chop gets into the maze by chopping again if necessary.
 		walls := rms.neighbours(u, allWalls)
 		if len(walls) == 3 {
-			wallIndex := random.Intn(len(walls))
+			wallIndex := rand.Intn(len(walls))
 			u := walls[wallIndex]
 			u.isWall = allFloors
 			rms.cells[u.x][u.y].isWall = u.isWall

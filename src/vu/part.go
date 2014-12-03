@@ -1,9 +1,10 @@
 // Copyright © 2013-2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 package vu
 
 import (
+	"vu/audio"
 	"vu/math/lin"
 	"vu/move"
 )
@@ -12,96 +13,106 @@ import (
 // itself and its children in 3D space thus forming a transform hierarchy.
 // Note that all child parts will be affected by parent transform changes.
 //
-// A part can optionally be rendered and/or participate in physics.
+// A part can optionally be rendered and/or participate in physics, thus
+// providing a link between the two systems.
 //    rendered : SetRole with a shader asset makes the part participate in
 //               rendering. Afterwards add the data, textures, and other
 //               assets needed by that shader.
 //    physics  : SetBody makes the part participate in physics. The Parts
-//               location is now controlled by the physics simulation.
+//               location is controlled by the physics simulation.
 type Part interface {
 	AddPart() Part  // Create a new subordinate part attached to this one.
-	RemPart(p Part) // Remove, dispose, a subordinate part.
-	Dispose()       // Remove this part, all sub-parts and any associated info.
+	RemPart(p Part) // Remove, dispose, the given subordinate part.
+	Dispose()       // Remove this part and all its subordinate parts.
 
-	// Moving or Spinning a part that is in physics affects the part's velocity
-	// instead of directly updating the location or orientation.
-	Location() (x, y, z float64)         // Get, or
-	SetLocation(x, y, z float64) Part    // ...Set the current location.
-	Move(x, y, z float64)                // Move along indicated direction.
-	Rotation() (x, y, z, w float64)      // Get, or
-	SetRotation(x, y, z, w float64) Part // ...Set current quaternion rotation.
-	Spin(x, y, z float64)                // Rotate degrees about the given axis.
-	Scale() (x, y, z float64)            // Get, or
-	SetScale(x, y, z float64) Part       // ...Set the current scale.
+	// Methods for updating data that affects culling.
+	SetCullable(cullable bool) // False excludes a part from being culled.
+	Visible() bool             // Invisible parts are removed from
+	SetVisible(visible bool)   // ...rendering without disposing them.
 
-	// Role is the optional rendered aspect of the Part.
-	SetRole(shader string) Role // Creates role if no current role.
-	RemRole()                   // Delete the current role.
+	// A Part inherently has a point of view. Note that moving a part with
+	// a physics body affects the part's velocity instead of directly
+	// updating the location or orientation.
+	Location() (x, y, z float64)    // Get, or
+	SetLocation(x, y, z float64)    // ...Set the current location.
+	Rotation() (x, y, z, w float64) // Get, or
+	SetRotation(x, y, z, w float64) // ...Set current quaternion rotation.
+	Spin(x, y, z float64)           // Rotate degrees about the given axis.
+	Move(x, y, z float64)           // Move along indicated direction.
+	Scale() (x, y, z float64)       // Get, or
+	SetScale(x, y, z float64) Part  // ...Set the current scale.
+
+	// Role is an optional rendered aspect of the Part. Roles link the
+	// part to a shader and shader data.
 	Role() Role                 // Return role, or nil if no current role.
-	SetCullable(cullable bool)  // False excludes a part from being culled.
-	Visible() bool              // Invisible parts are removed from
-	SetVisible(visible bool)    // ...rendering without disposing them.
+	SetRole(shader string) Role // Create role if no current role.
+	RemRole()                   // Delete the current role.
 
-	// Body is the optional physics aspect of the Part.
-	SetBody(bod move.Body, m, b float64) // Body of mass m, bounce b.
-	RemBody()                            // Delete the physics body.
-	Speed() (x, y, z float64)            // Current linear velocity.
-	Push(x, y, z float64)                // Change the linear velocity.
-	Turn(x, y, z float64)                // Change the angular velocity.
-	Stop()                               // Remove all velocity.
-	Solid() move.Solid                   // Solid is a lightweight shape
-	SetSolid(sol move.Solid)             // ...intended for ray casting.
+	// Body is an optional physics aspect of the Part. Bodies are only to be
+	// associated with root level Parts to ensure valid world coordindates.
+	Body() move.Body                           // Return nil if no body.
+	SetBody(b move.Body, mass, bounce float64) // Body with mass and bounce.
+	RemBody()                                  // Delete the physics body.
+
+	// Form is an optional physics shape and location used for raycasting.
+	// It does not participate in the physics simulation.
+	Form() move.Body     // Return nil if no form.
+	SetForm(g move.Body) // Plane or sphere.
+
+	// Sound is an optional audio component. Played sounds occur at the
+	// parts current location.
+	Sound(name string) audio.SoundMaker    // Return nil if no such sound.
+	AddSound(name string) audio.SoundMaker // Associate sound with this part.
 }
 
-// FUTURE Find a nice, and safe, way to consolidate the location/orientation
-//        information. Currently it is needed/duplicated by pov/part, and the
-//        physics objects, Body, Solid.
-
 // Part interface
-// ===========================================================================
+// =============================================================================
 // part - Part implementation
 
 // part implements the Part interface.
 type part struct {
-	pov                 // Embed the pov location and orientation struct.
-	scale    *lin.V3    // Scale, per axis: >1 to enlarge, 0<1 to shrink.
-	staged   bool       // True if the the part is visible.
-	parts    []*part    // Each part node can be made of one or more parts.
-	toc      float64    // Distance to center (to->c) for sorting and culling.
-	role     *role      // Render data linking render and asset subsystems.
-	body     move.Body  // Motion body used by physics subsystem.
-	solid    move.Solid // Solid shape used for ray casting.
-	assets   *assets    // Asset manager.
-	tracker  feedback   // Feed tracking information out of the hierarchy.
-	cullable bool       // Can/can't be culled is under control of the application.
-	culled   bool       // Draw or don't under control of engine.
-	visible  bool       // Draw or don't under control of application.
+	pov         // point of view: location/orientation.
+	cull        // Any part can potentially be culled.
+	pid  uint32 // Unique part instance identifier.
+	sm   *stage // stage manager is injected on creation.
 
-	// scratch variables are used each render cycle. They are optimizations that
-	// prevent having to create temporary structures each render cycle.
+	// Scene graph hierarchy information.
+	parts  []*part // Each part node can be made of one or more parts.
+	parent uint32  // 0 if no parent.
+
+	// Optional render and transform information.
+	role  *role   // Render data linking render and asset subsystems.
+	scale *lin.V3 // Scale, per axis: >1 to enlarge, 0<1 to shrink.
+
+	// Optional physics fields are nil if not used.
+	body move.Body // Motion body used by physics subsystem.
+	form move.Body // Shape and location/orientation used for ray casting.
+
+	// Optional audio field is nil if not used.
+	sounds map[string]audio.SoundMaker
+
+	// scratch variables are reused each render cycle.
 	rotation *lin.Q  // Scratch rotation/orientation.
 	mm       *lin.M4 // Scratch model transform.
 	pt       *lin.M4 // Scratch parent model transform.
 }
 
 // newPart creates and initialzes a part instance.
-func newPart(f feedback, a *assets) *part {
+func newPart(pid uint32, sm *stage) *part {
 	p := &part{}
+	p.pid = pid
+	p.sm = sm
 	p.scale = &lin.V3{1, 1, 1}
-	p.tracker = f
-	p.loc = &lin.V3{}
-	p.dir = &lin.Q{0, 0, 0, 1}
+	p.pov = newPov()
 	p.parts = []*part{}
 	p.role = nil
-	p.assets = a
 	p.cullable = true
-	p.culled = false
 	p.visible = true
 
 	// scratch variables.
 	p.rotation = lin.NewQ()
 	p.mm = &lin.M4{}
-	p.pt = &lin.M4{}
+	p.pt = lin.NewM4I()
 	return p
 }
 
@@ -110,17 +121,16 @@ func (p *part) Dispose() {
 	for _, child := range p.parts {
 		child.Dispose()
 	}
+	p.sm.remPart(p)
 	p.parts = nil
 	p.RemRole()
 	p.RemBody()
 }
-func (p *part) SetCullable(cullable bool) { p.cullable = cullable }
-func (p *part) Visible() bool             { return p.visible }
-func (p *part) SetVisible(visible bool)   { p.visible = visible }
 
 // Part interface implementation.
 func (p *part) AddPart() Part {
-	np := newPart(p.tracker, p.assets)
+	np := p.sm.addPart()
+	np.parent = p.pid
 	p.parts = append(p.parts, np)
 	return np
 }
@@ -139,44 +149,24 @@ func (p *part) RemPart(child Part) {
 	}
 }
 
-// SetLocation directly updates the parts location to the given coordinates.
-// This is a form of teleportation when the part has an active physics body.
-func (p *part) SetLocation(x, y, z float64) Part {
-	p.pov.SetLocation(x, y, z)
-	if p.body != nil {
-		p.body.World().Loc.SetS(x, y, z)
-	}
-	if p.solid != nil {
-		p.solid.World().Loc.SetS(x, y, z)
-	}
-	return p
+func (p *part) Location() (x, y, z float64) {
+	return p.pov.Loc.X, p.pov.Loc.Y, p.pov.Loc.Z
 }
-
-// SetRotation directly updates the parts rotation to the given direction.
-// This is a form of teleportation when the part has an active physics body.
-func (p *part) SetRotation(x, y, z, w float64) Part {
-	p.pov.SetRotation(x, y, z, w)
-	if p.body != nil {
-		p.body.World().Rot.SetS(x, y, z, w)
-	}
-	if p.solid != nil {
-		p.solid.World().Rot.SetS(x, y, z, w)
-	}
-	return p
-}
-
-// Spin applies the spin to the parts orientation. It also updates any
-// associated Body or Solid
-func (p *part) Spin(x, y, z float64) {
-	p.pov.Spin(x, y, z)
-	if p.body != nil {
-		p.body.World().Rot.Set(p.pov.dir)
-	}
-	if p.solid != nil {
-		p.solid.World().Rot.Set(p.pov.dir)
+func (p *part) SetLocation(x, y, z float64) {
+	p.pov.Loc.X, p.pov.Loc.Y, p.pov.Loc.Z = x, y, z
+	if p.sounds != nil {
+		for _, sound := range p.sounds {
+			sound.SetLocation(x, y, z)
+		}
 	}
 }
-
+func (p *part) Rotation() (x, y, z, w float64) {
+	return p.pov.Rot.X, p.pov.Rot.Y, p.pov.Rot.Z, p.pov.Rot.W
+}
+func (p *part) SetRotation(x, y, z, w float64) {
+	p.pov.Rot.X, p.pov.Rot.Y, p.pov.Rot.Z, p.pov.Rot.W = x, y, z, w
+}
+func (p *part) Spin(x, y, z float64)     { p.pov.Spin(x, y, z) }
 func (p *part) Scale() (x, y, z float64) { return p.scale.X, p.scale.Y, p.scale.Z }
 func (p *part) SetScale(x, y, z float64) Part {
 	p.scale.X, p.scale.Y, p.scale.Z = x, y, z
@@ -187,26 +177,28 @@ func (p *part) SetScale(x, y, z float64) Part {
 }
 
 // Move overrides the default movement behaviour so that motion is applied to
-// any associated bodies as velocity instead of directly updating the location.
+// any associated physics bodies as velocity instead of updating the location.
 func (p *part) Move(x, y, z float64) {
 	if p.body == nil {
 		p.pov.Move(x, y, z)
 	} else {
 
 		// apply push in the current direction.
-		dx, dy, dz := lin.MultSQ(x, y, z, p.dir)
+		dx, dy, dz := lin.MultSQ(x, y, z, p.Rot)
 		p.body.Push(dx, dy, dz)
-	}
-	if p.solid != nil {
-		p.solid.World().Loc.Set(p.pov.loc)
 	}
 }
 
 // Model returns the current rendered model.
-func (p *part) Role() Role { return p.role }
+func (p *part) Role() Role {
+	if p.role != nil {
+		return p.role
+	}
+	return nil
+}
 func (p *part) SetRole(shader string) Role {
 	if p.role == nil {
-		p.role = newRole(shader, p.assets)
+		p.role = newRole(shader, p.sm.assets)
 		p.role.model.SetScale(p.scale.X, p.scale.Y, p.scale.Z)
 	}
 	return p.role
@@ -218,110 +210,67 @@ func (p *part) RemRole() {
 	}
 }
 
-// Stop removes all linear and angular velocity from a physics body.
-// Nothing happens if there is no associated physics body.
-func (p *part) Stop() {
-	if p.body != nil {
-		p.body.Stop()
-		p.body.Rest()
-	}
-}
-
-// Push adds to the bodies current linear velocity.
-// Nothing happens if there is no associated physics body.
-func (p *part) Push(x, y, z float64) {
-	if p.body != nil {
-		p.body.Push(x, y, z)
-	}
-}
-
-// Turn adds to the bodies current linear velocity.
-// Nothing happens if there is no associated physics body.
-func (p *part) Turn(x, y, z float64) {
-	if p.body != nil {
-		p.body.Turn(x, y, z)
-	}
-}
-
-// Speed returns the bodies current linear velocity. Return 0,0,0 if
-// there is no associated physics body.
-func (p *part) Speed() (x, y, z float64) {
-	if p.body != nil {
-		return p.body.Speed()
-	}
-	return 0, 0, 0
-}
-
 // Part interface implementation.
+func (p *part) Body() move.Body { return p.body }
 func (p *part) SetBody(body move.Body, mass, bounce float64) {
 	if p.body != nil {
 		p.RemBody()
 	}
 	p.body = body.SetMaterial(mass, bounce)
-	p.body.SetData(p)
-	p.body.World().Loc.Set(p.loc)
-	p.body.World().Rot.Set(p.dir)
-	p.tracker.track(p.body)
+	p.body.SetWorld((*lin.T)(&p.pov))
+	p.sm.addBody(p.body)
 }
-func (p *part) SetSolid(sol move.Solid) {
-	p.solid = sol
-	p.solid.World().Loc.Set(p.loc)
-	p.solid.World().Rot.Set(p.dir)
-}
-func (p *part) Solid() move.Solid { return p.solid }
 
 // Part interface implementation.
 func (p *part) RemBody() {
 	if p.body != nil {
-		p.tracker.release(p.body)
+		p.sm.remBody(p.body)
 		p.body = nil
 	}
 }
 
-// distanceTo returns the distance squared of the part to the given center.
-func (p *part) distanceTo(cenx, ceny, cenz float64) float64 {
-	dx := p.loc.X - cenx
-	dy := p.loc.Y - ceny
-	dz := p.loc.Z - cenz
-	return float64(dx*dx + dy*dy + dz*dz)
+func (p *part) SetForm(form move.Body) {
+	p.form = form
+	p.form.SetWorld((*lin.T)(&p.pov))
+}
+func (p *part) Form() move.Body { return p.form }
+
+// AddSound creates a SoundMaker that is linked to this part.
+// Nil is returned if there are errors creating the sound.
+func (p *part) AddSound(name string) audio.SoundMaker {
+	if p.sounds == nil {
+		p.sounds = map[string]audio.SoundMaker{}
+	}
+	s := p.sm.assets.getSound(name)
+	sm := p.sm.assets.ac.NewSoundMaker(s)
+	p.sounds[name] = sm
+	return sm
+}
+func (p *part) Sound(name string) audio.SoundMaker {
+	if p.sounds != nil {
+		return p.sounds[name] // returns nil if not found.
+	}
+	return nil // no sounds have been associated with this part.
 }
 
 // model transform must be done in scale, rotate, translate order.
 func (p *part) modelTransform(m *lin.M4) *lin.M4 {
-	p.mm.SetQ(p.rotation.Inv(p.dir))                   // rotation.
+	p.mm.SetQ(p.rotation.Inv(p.Rot))                   // rotation.
 	p.mm.ScaleSM(p.Scale())                            // scale is applied first (on left of rotation)
-	return p.mm.TranslateMT(p.loc.X, p.loc.Y, p.loc.Z) // translate is applied last (on right of rotation).
+	return p.mm.TranslateMT(p.Loc.X, p.Loc.Y, p.Loc.Z) // translate is applied last (on right of rotation).
 
 }
 
-// stage the part for rendering. Update the part and add it to the list of
-// rendered parts.
-func (p *part) stage(sc *scene, dt float64) {
-	p.pt.Set(lin.M4I)
-	p.stagePart(sc, p.pt, dt)
-}
-func (p *part) stagePart(sc *scene, pt *lin.M4, dt float64) {
-	if p.Visible() {
-		p.mm = p.modelTransform(p.mm) // updates p.mm (model transform matrix)
-		p.mm.Mult(p.mm, pt)           // model transform + parent transform
-		if p.role != nil {
-			if sc.is2D {
-				p.role.Set2D()
-			}
-			p.role.update(sc.l, p.mm, sc.vm, sc.pm, dt)
-			if p.role.effect != nil {
-				p.role.effect.Update(p.role.Mesh(), dt)
-			}
-			p.tracker.stage(p.role.model) // add to the list of rendered parts.
+// stage is recursively called down the part hierarchy.
+func (p *part) stage(sc *scene, pt *lin.M4, dt float64) {
+	p.mm = p.modelTransform(p.mm) // updates p.mm (model transform matrix)
+	p.mm.Mult(p.mm, pt)           // model transform + parent transform
+	if p.role != nil {
+		if sc.is2D {
+			p.role.Set2D()
 		}
-
-		// render all the parts children
-		for _, child := range p.parts {
-			if !child.culled {
-				p.pt.Set(p.mm) // ensures the original model transform does not change.
-				child.stagePart(sc, p.pt, dt)
-			}
-		}
+		p.role.update(p.mm, sc.cam.vm, sc.cam.pm, dt)
+		p.sm.stage(p.role.model) // add to the list of rendered parts.
 	}
 }
 

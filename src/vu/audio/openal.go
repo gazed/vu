@@ -1,5 +1,5 @@
 // Copyright © 2013-2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 package audio
 
@@ -17,8 +17,8 @@ import (
 // of the underlying OpenAL audio library as well as providing some sound
 // utility methods.
 type openal struct {
-	dev *al.Device  // created on initialization.
-	ctx *al.Context // created on initialization.
+	dev al.Device  // created on initialization.
+	ctx al.Context // created on initialization.
 }
 
 // NewSoundMaker provides an audio generator.
@@ -39,8 +39,8 @@ func (a *openal) Init() (err error) {
 	}
 
 	// create an openal context for all sounds.
-	if a.dev = al.OpenDevice(""); a.dev != nil {
-		if a.ctx = al.CreateContext(a.dev, nil); a.ctx != nil {
+	if a.dev = al.OpenDevice(""); a.dev != 0 {
+		if a.ctx = al.CreateContext(a.dev, nil); a.ctx != 0 {
 			al.MakeContextCurrent(a.ctx)
 			return // success
 		}
@@ -67,11 +67,11 @@ func (a *openal) validate() error {
 // Shutdown closes down the openal library.  This is only expected to be called
 // once by the engine when it is shutting down.
 func (a *openal) Shutdown() {
-	al.MakeContextCurrent(nil)
-	if a.ctx != nil {
+	al.MakeContextCurrent(0)
+	if a.ctx != 0 {
 		al.DestroyContext(a.ctx)
 	}
-	if a.dev != nil {
+	if a.dev != 0 {
 		al.CloseDevice(a.dev)
 	}
 }

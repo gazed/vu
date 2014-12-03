@@ -1,5 +1,5 @@
 // Copyright © 2013-2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 //
 // Huge thanks to bullet physics for showing what a physics engine is all about
 // in cool-hard-code reality rather than theory. Methods and files that were
@@ -20,9 +20,9 @@
 //   2. Altered source versions must be plainly marked as such, and must not be misrepresented as being the original software.
 //   3. This notice may not be removed or altered from any source distribution.
 
-// Move is a real-time simulation of real-world physics.  Move deals with
-// automatically applying simulated forces to virtual 3D objects known as bodies.
-// Move updates bodies locations and directions based on forces and collisions
+// Move is a real-time simulation of real-world physics.  Move automatically
+// applies simulated forces to virtual 3D objects known as bodies. Move
+// updates bodies locations and directions based on forces and collisions
 // with other bodies.
 //
 // Bodies are created using NewBody(shape). For example:
@@ -31,8 +31,8 @@
 // Creating and storing bodies is the responsibility of the calling application.
 // Bodies are moved with frequent and regular calls to Mover.Step(). Regulating
 // the calls to Step() is the responsibility of the calling application. Once
-// Step() has completed, each bodies new location and direction are available
-// in body.World.
+// Step() has completed, the bodies updated location and direction are available
+// in Body.World().
 //
 // Package move is provided as part of the vu (virtual universe) 3D engine.
 package move
@@ -44,6 +44,8 @@ package move
 //     http://gamedev.tutsplus.com/series/custom-game-physics-engine
 // For regulating physics timesteps see:
 //     http://gafferongames.com/game-physics/fix-your-timestep
+// Other physics references:
+//     http://www.geometrictools.com/Source/Physics.html
 
 // Mover simulates forces acting on moving bodies. Expected usage
 // is to simulate real-life conditions like air resistance and gravity,
@@ -58,6 +60,11 @@ type Mover interface {
 	// forces acting upon them and/or collision results. Unmoving/unmoved
 	// bodies, or bodies with zero mass are not updated.
 	Step(bodies []Body, timestep float64)
+
+	// Collide checks for collision between bodies a, b independent of
+	// the current physics simulation. Bodies positions and velocities
+	// are not updated. Provided for occasional or one-off checks.
+	Collide(a, b Body) bool
 }
 
 // Mover interface
@@ -79,7 +86,8 @@ type mover struct {
 	mf0      []*pointOfContact // Scratch narrowphase manifold.
 }
 
-// NewMover returns the default motion world instance.
+// NewMover creates and returns a mover instance. Generally expected
+// to be called once per application that needs a physics simulation.
 func NewMover() Mover { return newMover() }
 func newMover() *mover {
 	mov := &mover{}
@@ -139,7 +147,7 @@ func (mov *mover) predictBodyLocations(bodies []Body, dt float64) {
 	for _, bb := range bodies {
 		b = bb.(*body)
 		b.guess.Set(b.world)
-		if b.IsMovable() {
+		if b.movable {
 
 			// Fg = m*a. Apply gravity as if mass was 1.
 			// FUTURE: use bodies mass when applying gravity.
@@ -228,7 +236,7 @@ func (mov *mover) updateBodyLocations(bodies []Body, timestep float64) {
 	var b *body
 	for _, bb := range bodies {
 		b = bb.(*body)
-		if b.IsMovable() {
+		if b.movable {
 			b.updateWorldTransform(timestep)
 			b.updateInertiaTensor()
 		}
@@ -245,12 +253,22 @@ func (mov *mover) clearForces(bodies []Body) {
 	}
 }
 
-// Cast checks if a ray r intersects the given Solid s, giving back the
+// Collide returns true if the two shapes, a, b are touching or overlapping.
+func (mov *mover) Collide(a, b Body) (hit bool) {
+	aa, bb := a.(*body), b.(*body)
+	algorithm := mov.col.algorithms[aa.shape.Type()][bb.shape.Type()]
+	_, _, manifold := algorithm(aa, bb, mov.mf0)
+	return len(manifold) > 0
+}
+
+// Cast checks if a ray r intersects the given Form f, giving back the
 // nearest point of intersection if there is one. The point of contact
 // x, y, z is valid when hit is true.
-func Cast(ray, sol Solid) (hit bool, x, y, z float64) {
-	if alg, ok := rayCastAlgorithms[sol.(*solid).shape.Type()]; ok {
-		return alg(ray, sol)
+func Cast(ray, b Body) (hit bool, x, y, z float64) {
+	if ray != nil && b != nil && b.Shape() != nil {
+		if alg, ok := rayCastAlgorithms[b.Shape().Type()]; ok {
+			return alg(ray, b)
+		}
 	}
 	return false, 0, 0, 0
 }

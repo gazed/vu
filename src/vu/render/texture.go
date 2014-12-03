@@ -1,5 +1,5 @@
 // Copyright © 2013-2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 package render
 
@@ -14,7 +14,7 @@ type Texture interface {
 	Name() string        // Unique identifier set on creation.
 	Img() image.Image    // Texture image.
 	Set(img image.Image) // Set the loaded or generated texture data.
-	Bound() bool         // True if the mesh has a GPU reference.
+	Bound() bool         // True if the texture has a GPU reference.
 	FreeImg()            // Used to release the image data after binding.
 }
 
@@ -23,13 +23,19 @@ type Texture interface {
 
 // ============================================================================
 
-// texture is the default implementation of Texture
+// texture is the default implementation of Texture. Some models may have
+// more than one texture so the f0, fn fields are used to indicate which
+// model faces apply to this texture.
 type texture struct {
 	name   string      // Unique name of the texture.
 	img    image.Image // Texture data. Release (set to nil) after GPU binding.
 	tid    uint32      // Graphics card texture identifier.
 	refs   uint32      // Number of Model references.
 	repeat bool        // Repeat the texture when UV greater than 1.
+
+	// First face index and number of faces. Used when more than one uv
+	// texture is used for the same model.
+	f0, fn int32 // Non-zero if texture only applies to particular faces.
 }
 
 // newTexture allocates space for a texture object.

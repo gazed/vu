@@ -1,5 +1,5 @@
 // Copyright © 2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 package load
 
@@ -47,7 +47,7 @@ func (l *loader) loadIqe(file io.ReadCloser, iqd *IqData) (*IqData, error) {
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		tokens := strings.Split(line, " ")
-		if len(tokens) < 2 {
+		if len(tokens) < 1 {
 			continue
 		}
 		key := tokens[0]
@@ -70,34 +70,41 @@ func (l *loader) loadIqe(file io.ReadCloser, iqd *IqData) (*IqData, error) {
 			if _, e := fmt.Sscanf(line, "vn %f %f %f", &f0, &f1, &f2); e == nil {
 				iqd.N = append(iqd.N, f0, f1, f2)
 			}
+
 		case "vb": // pairs of int indexes and float weights.
+			// Note that the weights need to be normalized.
 			switch len(tokens) {
 			case 3:
 				if _, e := fmt.Sscanf(line, "vb %d %f", &i0, &f0); e == nil {
-					iqd.B = append(iqd.B, byte(i0), 0, 0, 0)
-					iqd.W = append(iqd.W, byte(f0*255), 0, 0, 0)
+					iqd.B = append(iqd.B, byte(i0), byte(i0), byte(i0), byte(i0))
+					fn := f0
+					iqd.W = append(iqd.W, byte(f0/fn*255), 0, 0, 0)
 				}
 			case 5:
 				if _, e := fmt.Sscanf(line, "vb %d %f %d %f",
 					&i0, &f0, &i1, &f1); e == nil {
-					iqd.B = append(iqd.B, byte(i0), byte(i1), 0, 0)
-					iqd.W = append(iqd.W, byte(f0*255), byte(f1*255), 0, 0)
+					iqd.B = append(iqd.B, byte(i0), byte(i1), byte(i1), byte(i1))
+					fn := f0 + f1
+					iqd.W = append(iqd.W, byte(f0/fn*255), byte(f1/fn*255), 0, 0)
 				}
 			case 7:
 				if _, e := fmt.Sscanf(line, "vb %d %f %d %f %d %f",
 					&i0, &f0, &i1, &f1, &i2, &f2); e == nil {
-					iqd.B = append(iqd.B, byte(i0), byte(i1), byte(i2), 0)
-					iqd.W = append(iqd.W, byte(f0*255), byte(f1*255), byte(f1*255), 0)
+					iqd.B = append(iqd.B, byte(i0), byte(i1), byte(i2), byte(i2))
+					fn := f0 + f1 + f2
+					iqd.W = append(iqd.W, byte(f0/fn*255), byte(f1/fn*255), byte(f2/fn*255), 0)
 				}
 			case 9:
 				if _, e := fmt.Sscanf(line, "vb %d %f %d %f %d %f %d %f",
 					&i0, &f0, &i1, &f1, &i2, &f2, &i3, &f3); e == nil {
 					iqd.B = append(iqd.B, byte(i0), byte(i1), byte(i2), byte(i3))
-					iqd.W = append(iqd.W, byte(f0*255), byte(f1*255), byte(f2*255), byte(f3*255))
+					fn := f0 + f1 + f2 + f3
+					iqd.W = append(iqd.W, byte(f0/fn*255), byte(f1/fn*255), byte(f2/fn*255), byte(f3/fn*255))
 				}
+
 			default:
-				if len(tokens) > 9 {
-					log.Printf("iqe: Exceeded limit of 4 joints per vertex")
+				if len(tokens) > 9 || len(tokens) < 3 {
+					log.Printf("iqe: Need 1-4 joints per vertex\n   %s", line)
 				}
 			}
 		case "fm": // parse 3 ints and add a triangle face.
@@ -158,6 +165,8 @@ func (l *loader) loadIqe(file io.ReadCloser, iqd *IqData) (*IqData, error) {
 	}
 
 	// Create the matrix transforms for the animation frames.
+	// The first poses, up to jointCnt are base poses and processed with createBaseFrames.
+	// The remaining poses are frame specfic poses and used to createAnimationFrames.
 	scr := &scratch{}
 	l.createBaseFrames(iqd, poses[:jointCnt], scr)
 	iqd.Frames = l.createAnimationFrames(iqd.Joints, poses[jointCnt:], scr, jointCnt, frameCnt)
@@ -169,8 +178,8 @@ func (l *loader) createAnimationFrames(joints []int32, poses []*transform, scr *
 	frames := make([]*lin.M4, numFrames*numJoints)
 	for frame := 0; frame < numFrames; frame++ {
 		for pose := 0; pose < numJoints; pose++ {
-			p := poses[pose]
 			cnt := frame*numJoints + pose
+			p := poses[cnt]
 			parent := int(joints[pose])
 			frames[cnt] = l.genFrame(scr, p, pose, numJoints, parent)
 		}

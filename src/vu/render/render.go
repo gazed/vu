@@ -1,5 +1,5 @@
 // Copyright © 2013-2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 // Package render provides access to 3D graphics. It makes data visible by
 // sending 3D data to the graphics card. The main steps involved are:
@@ -23,11 +23,12 @@ type Renderer interface {
 	Viewport(width int, height int)  // Set the available screen real estate.
 
 	// Graphics data is encapsulated (combined and managed) in a Model.
-	NewModel(s Shader) Model        // Model encapsulates the following:
-	NewShader(name string) Shader   //    Shader program.
-	NewMesh(name string) Mesh       //    Per vertex data.
-	NewTexture(name string) Texture //    Image data.
-	Render(m Model)                 // Render draws a Model.
+	NewModel(s Shader) Model            // Model encapsulates the following:
+	NewShader(name string) Shader       //    Shader program.
+	NewMesh(name string) Mesh           //    Per vertex data.
+	NewTexture(name string) Texture     //    Image data.
+	NewAnimation(name string) Animation //    Animation data.
+	Render(m Model)                     // Render draws a Model.
 }
 
 // New provides a default graphics implementation.

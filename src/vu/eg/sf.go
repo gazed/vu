@@ -1,5 +1,5 @@
 // Copyright © 2013-2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
 
@@ -13,8 +13,8 @@ import (
 	"vu/render/gl"
 )
 
-// sf demonstrates one example of shader only rendering. This shows the power of shaders using
-// an example from shadertoy.com. Specifically:
+// sf demonstrates one example of shader only rendering. This shows the power
+// of shaders using an example from shadertoy.com. Specifically:
 //       https://www.shadertoy.com/view/Xsl3zN
 // For more shader examples also check out:
 //       http://glsl.heroku.com

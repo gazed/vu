@@ -1,5 +1,5 @@
 // Copyright © 2013-2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
 
@@ -11,12 +11,15 @@ import (
 )
 
 // sg tests the scene graph by building up a movable character that has multiple
-// layers of sub-parts. The scene graph works when changing the top level location,
-// orientation, and scale also affects the subparts. Sg also tests adding and removing
-// parts from a scene graph. The main classes being tested are vu.Scene and vu.Part, eg:
+// layers of sub-parts. The scene graph is demonstrated by changing the top level
+// location, orientation and having it affect the sub-parts. Sg also tests adding
+// and removing parts from a scene graph. The main classes being tested are vu.Scene
+// and vu.Part, eg:
 //	    scene.AddPart()
 //	    scene.RemPart(sg.tr.part)
-// Note that the movement keys move the character and not the camera in this example.
+//
+// This example has a bit more code due to playing around with what can best
+// be described as merging and splitting voxels.
 func sg() {
 	sg := &sgtag{}
 	var err error
@@ -24,7 +27,8 @@ func sg() {
 		log.Printf("sg: error intitializing engine %s", err)
 		return
 	}
-	sg.eng.SetDirector(sg) // register for user input handling.
+	sg.eng.SetDirector(sg) // get user input through Director.Update()
+	sg.create()            // create initial assests.
 	defer sg.eng.Shutdown()
 	defer catchErrors()
 	sg.eng.Action()
@@ -34,33 +38,39 @@ func sg() {
 type sgtag struct {
 	eng    vu.Engine
 	scene  vu.Scene
+	cam    vu.Camera
 	tr     *trooper
-	reacts map[string]vu.InputHandler
+	reacts map[string]inputHandler
 	run    float64
 	spin   float64
 	dt     float64
 }
 
-// Create is the engine intialization callback.
-func (sg *sgtag) Create(eng vu.Engine) {
+// inputHandler helps link keypresses to handling functions.
+type inputHandler func(in *vu.Input, down int)
+
+// create is the startup asset creation.
+func (sg *sgtag) create() {
 	sg.run = 10   // move so many cubes worth in one second.
 	sg.spin = 270 // spin so many degrees in one second.
-	sg.scene = eng.AddScene(vu.VP)
-	sg.scene.SetPerspective(60, float64(800)/float64(600), 0.1, 50)
-	sg.scene.SetLightLocation(0, 10, 0)
-	sg.scene.SetLightColour(0.4, 0.7, 0.9)
-	sg.scene.SetLocation(0, 0, 6)
+	sg.scene = sg.eng.AddScene(vu.VP)
 	sg.scene.Set2D()
+	sg.cam = sg.scene.Cam()
+	sg.cam.SetPerspective(60, float64(800)/float64(600), 0.1, 50)
+	sg.cam.SetLocation(0, 0, 6)
 
 	// load the floor model.
-	floor := sg.scene.AddPart().SetLocation(0, 0, 0)
+	floor := sg.scene.AddPart()
+	floor.SetLocation(0, 0, 0)
 	floor.SetRole("gouraud").SetMesh("floor").SetMaterial("floor")
+	floor.Role().SetLightLocation(0, 10, 0)
+	floor.Role().SetLightColour(0.4, 0.7, 0.9)
 
 	// load the trooper
 	sg.tr = newTrooper(sg.eng, sg.scene, 1)
 
 	// initialize the reactions
-	sg.reacts = map[string]vu.InputHandler{
+	sg.reacts = map[string]inputHandler{
 		"W":   sg.forward,
 		"A":   sg.left,
 		"S":   sg.back,
@@ -98,7 +108,7 @@ func (sg *sgtag) resize() {
 	x, y, width, height := sg.eng.Size()
 	sg.eng.Resize(x, y, width, height)
 	ratio := float64(width) / float64(height)
-	sg.scene.SetPerspective(60, ratio, 0.1, 50)
+	sg.cam.SetPerspective(60, ratio, 0.1, 50)
 }
 
 // User actions.
@@ -109,8 +119,8 @@ func (sg *sgtag) stats(i *vu.Input, down int) {
 }
 func (sg *sgtag) left(i *vu.Input, down int)    { sg.tr.part.Spin(0, sg.dt*sg.spin, 0) }
 func (sg *sgtag) right(i *vu.Input, down int)   { sg.tr.part.Spin(0, sg.dt*-sg.spin, 0) }
-func (sg *sgtag) back(i *vu.Input, down int)    { sg.tr.part.Move(0, 0, sg.dt*sg.run) }
-func (sg *sgtag) forward(i *vu.Input, down int) { sg.tr.part.Move(0, 0, sg.dt*-sg.run) }
+func (sg *sgtag) back(i *vu.Input, down int)    { sg.cam.Move(0, 0, sg.dt*sg.run) }
+func (sg *sgtag) forward(i *vu.Input, down int) { sg.cam.Move(0, 0, sg.dt*-sg.run) }
 func (sg *sgtag) attach(i *vu.Input, down int)  { sg.tr.attach() }
 func (sg *sgtag) detach(i *vu.Input, down int)  { sg.tr.detach() }
 func (sg *sgtag) setTr(down, lvl int) {
@@ -444,7 +454,8 @@ func (b *block) removeCell() {
 // merge turns all the cubes into a single slab.
 func (b *block) merge() {
 	b.trash()
-	b.slab = b.part.AddPart().SetLocation(b.cx, b.cy, b.cz)
+	b.slab = b.part.AddPart()
+	b.slab.SetLocation(b.cx, b.cy, b.cz)
 	b.slab.SetRole("flat").SetMesh("cube").SetMaterial("blue")
 	scale := float64(b.lvl-1) * b.csize
 	if (b.cx > b.cy && b.cx > b.cz) || (b.cx < b.cy && b.cx < b.cz) {
@@ -524,7 +535,8 @@ func (c *cube) panelSort(rx, ry, rz float64, startCount int) {
 // addCell creates and adds a new cell to the cube.
 func (c *cube) addCell() {
 	center := c.centers[c.ccnt-1]
-	cell := c.part.AddPart().SetLocation(center.X, center.Y, center.Z)
+	cell := c.part.AddPart()
+	cell.SetLocation(center.X, center.Y, center.Z)
 	cell.SetRole("flat").SetMesh("cube").SetMaterial("green")
 	scale := c.csize * 0.40 // leave a gap (0.5 for no gap).
 	cell.SetScale(scale, scale, scale)
@@ -543,7 +555,8 @@ func (c *cube) removeCell() {
 // merge is called.
 func (c *cube) merge() {
 	c.trash()
-	cell := c.part.AddPart().SetLocation(c.cx, c.cy, c.cz)
+	cell := c.part.AddPart()
+	cell.SetLocation(c.cx, c.cy, c.cz)
 	cell.SetRole("flat").SetMesh("cube").SetMaterial("green")
 	scale := c.csize - (c.csize * 0.15) // leave a gap (just c.csize for no gap)
 	cell.SetScale(scale, scale, scale)

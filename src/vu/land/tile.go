@@ -1,5 +1,5 @@
 // Copyright © 2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 package land
 
@@ -9,8 +9,9 @@ import (
 	"log"
 )
 
-// Tile holds a portion of the overall world map. It is indexed and labelled
-// for easy storage and access.
+// Tile holds a portion of the overall world map. It is indexed and keyed
+// for easy storage and access. Tile is the pre-rendered portion of the map
+// at different levels of detail.
 type Tile interface {
 	Topo() Topo                // Height data.
 	Zoom() int                 // Zoom (level of detail) for this tile.
@@ -25,10 +26,10 @@ type Tile interface {
 
 // tile is the default implementation of Tile.
 type tile struct {
-	topo Topo   // Height and region data for each patch location.
-	zoom int    // Zoom level of this patch.
-	x, y int    // Patch X and Y within the world at the patch zoom level.
-	key  string // Unique patch key representing zoom, x, and y.
+	topo Topo   // Height and region data.
+	zoom int    // Zoom level of this tile.
+	x, y int    // Tile X and Y within the world at this tile zoom level.
+	key  string // Unique key for this tile representing zoom, x, and y.
 }
 
 // newTile allocates and initializes a new map tile.

@@ -1,5 +1,5 @@
 // Copyright © 2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 package vu
 
@@ -23,21 +23,20 @@ import (
 	"vu/render" // Needed to generate per-vertex data.
 )
 
-// Effect tracks the active particles over their lifespans.
-// An effect is combined with a EffectMover that adjusts active particles
-// positions. The EffectMover will be called each update.
+// Effect tracks active particles over their lifespans.
 type Effect interface {
-
-	// Update will emit new particles, remove particles that are past their
-	// life time, and update the attributes of currently active particles.
+	// Update emits new particles, removes particles that are past their
+	// lifespan, and updates the attributes of currently active particles.
+	// Update calls the EffectMover that was supplied to NewEffect.
 	// Delta-time, dt, is the elapsed time in seconds, eg: 0.02.
-	Update(m render.Mesh, dt float64) // Moves particles, refreshes render data.
+	// Mesh m is updated with the latest particle information.
+	Update(m render.Mesh, dt float64) // Moves particles, refreshes mesh data.
 }
 
 // NewEffect creates a new particle effect that will not exceed maxParticles
 // and which will generate new particles at the given rate per second.
 // The effect relies on an EffectMover supplied by the application which
-// updates particles location and life information.
+// updates particles location and lifespan information.
 func NewEffect(maxParticles, rate int, mover EffectMover) Effect {
 	return newEffect(maxParticles, rate, mover)
 }

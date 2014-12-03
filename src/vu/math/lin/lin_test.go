@@ -1,5 +1,5 @@
 // Copyright © 2013-2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 package lin
 
@@ -63,6 +63,10 @@ func TestRadDeg(t *testing.T) {
 func TestRound(t *testing.T) {
 	f1, f2 := Round(1.48, 0), Round(1.51, 0)
 	if f1 != 1.0 || f2 != 2.0 {
+		t.Error("Failed to round floats", f1, f2)
+	}
+	f1, f2 = Round(-0.49, 0), Round(0.49, 0)
+	if f1 != 0.0 || f2 != 0.0 {
 		t.Error("Failed to round floats", f1, f2)
 	}
 }

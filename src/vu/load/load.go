@@ -1,5 +1,5 @@
 // Copyright © 2013-2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 // Package load fetches disk based data that will be used for 3D assets.
 // Data is loaded directly from disk for development builds and from a zip

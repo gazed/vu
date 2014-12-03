@@ -1,5 +1,5 @@
 // Copyright © 2013-2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 // Package device provides minimal platform/os access to a 3D rendering
 // context and user input. The onus is on the application layer to provide
@@ -53,7 +53,6 @@ type Device interface {
 // Pressed is used to communicate current user input. Input mainly consists of
 // the list of keys that are currently being pressed and how long they have been
 // pressed (measured in update ticks).
-//
 // A postitive duration means the key is still being held down.
 // A negative duration means that the key has been released since
 // the last poll. The duration prior to release can be determined by

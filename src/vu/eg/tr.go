@@ -1,5 +1,5 @@
 // Copyright © 2013-2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
 
@@ -54,9 +54,9 @@ type trtag struct {
 
 // A tetrahedron (triangular pyramid) with sides of length 2 and centered at
 // the origin (in order to look nice), would have points
-//    (0, 2/√3, −1/√6)
+//    (0,  2/√3,  −1/√6)
 //    (±1, −1/√3, −1/√6)
-//    (0, 0, 3/√6)
+//    (0,  0,     3/√6)
 func (tag *trtag) initData() {
 	tag.verticies = []float32{
 		0, float32(2.0 / math.Sqrt(3)), float32(-1.0 / math.Sqrt(6)), // Red

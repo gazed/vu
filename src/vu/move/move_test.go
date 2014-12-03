@@ -1,5 +1,5 @@
 // Copyright © 2013-2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 package move
 
@@ -38,6 +38,22 @@ func TestSphereAt(t *testing.T) {
 	ballAt, want := dumpV3(ball.World().Loc), dumpV3(&lin.V3{-5, 1, -3})
 	if ballAt != want {
 		t.Errorf("Ball should be at %s, but its at %s", want, ballAt)
+	}
+}
+
+// Check that basic collision works independent of general collision resolution.
+func TestCollide(t *testing.T) {
+	mov := newMover()
+	s0 := newBody(NewSphere(1)).SetMaterial(1, 0)
+	s1 := newBody(NewSphere(1)).SetMaterial(1, 0)
+	s0.World().Loc.SetS(0, 0, 0)
+	s1.World().Loc.SetS(1, 1, 1)
+	if !mov.Collide(s0, s1) {
+		t.Errorf("Expected collision did not happen")
+	}
+	s0.World().Loc.SetS(-1, -1, -1)
+	if mov.Collide(s0, s1) {
+		t.Errorf("Unexpected collision")
 	}
 }
 

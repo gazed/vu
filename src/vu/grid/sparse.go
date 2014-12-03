@@ -1,11 +1,10 @@
 // Copyright © 2013-2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 package grid
 
 import (
 	"math/rand"
-	"time"
 )
 
 // sparse is a minimally populated skirmish grid. The grid is created by randomly adding walls around
@@ -24,14 +23,13 @@ type sparse struct {
 // as long as there are more than two ways out of the cell.
 func (s *sparse) Generate(width, depth int) Grid {
 	s.create(width, depth, allFloors)
-	random := rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
 
 	// randomly check each cell in the grid once.
 	candidates := s.cellSlice()
 	for len(candidates) > 0 {
-		index := random.Intn(len(candidates))
+		index := rand.Intn(len(candidates))
 		u := candidates[index]
-		s.addWall(random, u)
+		s.addWall(u)
 		candidates = append(candidates[:index], candidates[index+1:]...)
 	}
 	return s
@@ -40,12 +38,12 @@ func (s *sparse) Generate(width, depth int) Grid {
 // addWall adds a wall to the grid if by doing so the grid remains valid.
 // A wall is added randomonly to one of the given cells floors
 // if the given cell currently has more than 2 floors.
-func (s *sparse) addWall(random *rand.Rand, u *cell) {
+func (s *sparse) addWall(u *cell) {
 	if !u.isWall {
 		floors := s.neighbours(u, allFloors)
 		if len(floors) > 2 {
 			if s.checkLevel(floors) {
-				index := random.Intn(len(floors))
+				index := rand.Intn(len(floors))
 				u = floors[index]
 				u.isWall = allWalls
 				s.cells[u.x][u.y].isWall = u.isWall

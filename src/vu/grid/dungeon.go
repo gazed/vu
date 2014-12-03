@@ -1,23 +1,20 @@
 // Copyright © 2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 package grid
 
 import (
 	"math/rand"
-	"time"
 )
 
 //
 type dungeon struct {
-	random *rand.Rand
-	grid   // superclass grid
+	grid // superclass grid
 }
 
 // Generate a dungeon by partioning the given space into randomly sized
 // non-overlapping blocks. Reuse the definition of a room from room.go.
 func (d *dungeon) Generate(width, depth int) Grid {
-	d.random = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
 	d.create(width, depth, allWalls)
 	rooms := d.rooms()
 	d.corridors(rooms)
@@ -35,14 +32,14 @@ func (d *dungeon) rooms() []*room {
 	for _, rm := range possibleRooms {
 
 		// Only use some of the possible spots for rooms.
-		if d.random.Intn(100) < 75 {
+		if rand.Intn(100) < 75 {
 			rooms = append(rooms, rm)
 
 			// randomize the dimensions of larger rooms.
 			dx, dy := 1, 1
 			if rm.w > 7 && rm.h > 7 {
-				dx = d.random.Intn(3) + 1
-				dy = d.random.Intn(3) + 1
+				dx = rand.Intn(3) + 1
+				dy = rand.Intn(3) + 1
 			}
 			for x := dx; x < rm.w-dx; x++ {
 				for y := dy; y < rm.h-dy; y++ {
@@ -64,7 +61,7 @@ func (d *dungeon) locateRooms(rm *room) []*room {
 	}
 
 	// split randomly, or if to large.
-	if rm.w > max || rm.h > max || d.random.Intn(100) < 50 {
+	if rm.w > max || rm.h > max || rand.Intn(100) < 50 {
 		rooms := []*room{}
 		rooms = append(rooms, d.locateRooms(&room{rm.x, rm.y, hx, hy})...)
 		rooms = append(rooms, d.locateRooms(&room{rm.x, rm.y + hy, hx, hy})...)

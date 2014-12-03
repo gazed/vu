@@ -1,12 +1,12 @@
 // Copyright © 2013-2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 package vu
 
 import (
 	"fmt"
 	"log"
-	"strings"
+	"strconv"
 	"vu/audio"
 	"vu/load"
 	"vu/render"
@@ -17,7 +17,7 @@ import (
 // vu/load and asset consumption by subsystems like vu/render and vu/audio.
 //
 // Expected usage is to create one instance of assets at startup since assets
-// will cache loaded data.
+// caches loaded data.
 type assets struct {
 	ld load.Loader     // Data load and cache subsystem.
 	gc render.Renderer // Graphics subsystem injected on creation.
@@ -80,7 +80,9 @@ func (a *assets) getShader(name string) render.Shader {
 	log.Printf("assets.getShader: could not fetch %s %s", name, err)
 	return nil
 }
-func (a *assets) remShader(obj render.Shader) { a.d.remove(shd, obj) }
+func (a *assets) remShader(s render.Shader) {
+	a.d.remove(shd, s)
+}
 
 // loadShader transfers data loaded from disk to the render object.
 func (a *assets) loadShader(s render.Shader) error {
@@ -117,7 +119,9 @@ func (a *assets) getTexture(name string) render.Texture {
 	log.Printf("assets.getTexture: could not fetch %s %s", name, err)
 	return nil
 }
-func (a *assets) remTexture(obj render.Texture) { a.d.remove(tex, obj) }
+func (a *assets) remTexture(t render.Texture) {
+	a.d.remove(tex, t)
+}
 
 // loadTexture transfers data loaded from disk to the render object.
 func (a *assets) loadTexture(t render.Texture) error {
@@ -174,7 +178,18 @@ func (a *assets) getMesh(name string) (model render.Mesh) {
 	log.Printf("assets.getMesh: could not fetch %s %s", name, err)
 	return nil
 }
-func (a *assets) remMesh(m render.Mesh) { a.d.remove(msh, m) }
+
+// remMesh clears the given mesh from the cache. Expected to be called
+// once the mesh resource is no longer referenced.
+func (a *assets) remMesh(m render.Mesh) {
+	a.d.remove(msh, m)
+}
+
+// newMesh creates an empty mesh whose vertex and buffer data is
+// expected to be generated later.
+func (a *assets) newMesh(name string) render.Mesh {
+	return a.gc.NewMesh(name)
+}
 
 // loadMesh transfers data loaded from disk to the render object.
 func (a *assets) loadMesh(m render.Mesh) error {
@@ -200,24 +215,38 @@ func (a *assets) loadMesh(m render.Mesh) error {
 func (a *assets) newModel(s render.Shader) render.Model { return a.gc.NewModel(s) }
 
 // getModel loads a complete model from disk.
+// Model's are composite objects created from separately cached items.
+// The first model of each type is cached in order to reference the components
+// needed to build other model instances. Cached models should never be used
+// directly as they contain per instance data.
 func (a *assets) getModel(name string, m render.Model) render.Model {
 	var err error
-	data := m.(asset)
-	if err = a.d.fetch(msh, &data); err == nil {
-		return data.(render.Model)
+	if err, data := a.d.fetchModel(name); err == nil {
+		model := data.(render.Model) // get the reference model.
+		m.SetMesh(model.Mesh())      // reuse the mesh
+		if model.Animation() != nil {
+			m.SetAnimation(model.Animation()) // reuse the animation.
+		}
+		for _, t := range model.Textures() { // reuse the textures.
+			m.AddTexture(t)
+		}
+		return m
 	}
-	if err = a.loadModel(name, m); err == nil {
-		a.d.cache(mod, m)
+	if err = a.loadModel(name, m); err == nil { // create and cache textures.
+		a.d.cache(msh, m.Mesh()) // cache the mesh
+		if m.Animation() != nil {
+			a.d.cache(anm, m.Animation()) // cache the animation.
+		}
+		a.d.cache(mod, m) // cache the reference model
 		return m
 	}
 	log.Printf("assets.getModel: could not fetch %s %s", name, err)
 	return nil
 }
 
-// loadModel
+// loadModel loads the binary IQM file before the text based IQE file.
+// The loaded textures are cached, but the mesh and animation are not.
 func (a *assets) loadModel(name string, m render.Model) (err error) {
-
-	// Try both IQM and IQE files.
 	var iqd *load.IqData
 	if iqd, err = a.ld.Iqm(name); err != nil {
 		if iqd, err = a.ld.Iqe(name); err != nil {
@@ -226,9 +255,8 @@ func (a *assets) loadModel(name string, m render.Model) (err error) {
 	}
 
 	// Use the loaded data to initialize a render.Model
-	msh := a.gc.NewMesh(name)
-
 	// Vertex position data and face data must be present.
+	msh := a.gc.NewMesh(name)
 	msh.InitData(0, 3, render.STATIC, false).SetData(0, iqd.V)
 	msh.InitFaces(render.STATIC).SetFaces(iqd.F)
 
@@ -248,19 +276,32 @@ func (a *assets) loadModel(name string, m render.Model) (err error) {
 
 	// store the animation data.
 	if len(iqd.Frames) > 0 {
-		numFrames := len(iqd.Frames) / len(iqd.Joints)
-		m.SetAnimation(iqd.Frames, iqd.Joints, numFrames)
+		anim := a.gc.NewAnimation(name)
+		movements := []render.Movement{}
+		for _, ia := range iqd.Anims {
+			movement := render.Movement{ia.Name, int(ia.F0), int(ia.Fn)}
+			movements = append(movements, movement)
+		}
+		anim.SetData(iqd.Frames, iqd.Joints, movements)
+		m.SetAnimation(anim)
 	}
 	m.SetMesh(msh)
 
-	// Get the textures for model. There may be more than one.
-	for _, mtex := range iqd.Textures {
-		tname := strings.Replace(mtex.Name, ".tga", "", 1)
+	// Get the textures for model. There may be more than one. Replace the
+	// desired texture name to one based on the model name.
+	for cnt, mtex := range iqd.Textures {
+		tname := name + strconv.Itoa(cnt)
 		if t := a.getTexture(tname); t != nil {
 			m.AddModelTexture(t, mtex.F0, mtex.Fn)
 		}
 	}
 	return nil
+}
+
+// remModel clears the given model from the cache. Expected to be called
+// once the model resource is no longer referenced.
+func (a *assets) remModel(m render.Model) {
+	a.d.remove(mod, m)
 }
 
 // getSound fetches from the asset cache, lazy loading and caching if necessary.
@@ -309,6 +350,7 @@ func newDepot() *depot {
 		shd: make(map[string]interface{}),
 		snd: make(map[string]interface{}),
 		tex: make(map[string]interface{}),
+		anm: make(map[string]interface{}),
 		mod: make(map[string]interface{}),
 	}
 }
@@ -325,6 +367,14 @@ func (d *depot) fetch(dataType int, data *asset) (err error) {
 	return fmt.Errorf("depot.fetch: could not fetch asset.")
 }
 
+func (d *depot) fetchModel(name string) (err error, data asset) {
+	if stored := (*d)[mod][name]; stored != nil {
+		data, _ = stored.(asset)
+		return nil, data
+	}
+	return fmt.Errorf("depot.fetch: could not fetch model asset."), nil
+}
+
 // cache an asset based on its type and name. Subsequent calls to cache the
 // same asset/name combination are ignored. Cache expects data to be one of
 // the valid resource data types and to be uniquely named within its data type.
@@ -334,7 +384,7 @@ func (d *depot) cache(dataType int, data asset) {
 		if _, ok := (*d)[dataType][name]; !ok {
 			(*d)[dataType][name] = data
 		} else {
-			log.Printf("depot.cache: data already exists")
+			log.Printf("depot.cache: data %s already exists", data.Name())
 		}
 	} else {
 		log.Printf("depot.cache: invalid cache data")
@@ -358,6 +408,7 @@ type asset interface {
 }
 
 // Data types. Not expected to be used outside of this file.
+// Cached data is reusable, except for model's.
 const (
 	fnt = iota // font
 	shd        // shader
@@ -365,5 +416,6 @@ const (
 	msh        // mesh
 	tex        // texture
 	snd        // sound
-	mod        // model
+	anm        // animation
+	mod        // model - for reference, don't use directly.
 )

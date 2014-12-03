@@ -1,5 +1,5 @@
 // Copyright © 2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 package land
 
@@ -33,7 +33,7 @@ func NewTopo(xwidth, yheight uint) Topo {
 // Size is the width and height of the topology section.
 func (t Topo) Size() (x, y int) { return len(t), len(t[0]) }
 
-// generate a topolgy section by creating height values between 1 and -1 for each
+// generate a topology section by creating height values between 1 and -1 for each
 // element. Zoom, xoff and yoff can be used to create adjacent topolgy sections
 // that seemlessly stitch together. The final topology section is the result of
 // multiple generated simplex noise (2nd gen Perlin) combined as fractional

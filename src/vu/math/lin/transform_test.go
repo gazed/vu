@@ -1,5 +1,5 @@
 // Copyright © 2013-2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 package lin
 
@@ -47,21 +47,6 @@ func TestMultTransform(t *testing.T) {
 	t2 := NewT().SetLoc(5, 0, 0).SetAa(0, 0, 1, Rad(90)) // move along X rotate about Z, (becomes move along Z).
 	v, want := &V3{2, 0, 0}, &V3{5, 0, -7}
 	if t1.Mult(t1, t2).App(v); !v.Aeq(want) {
-		t.Errorf(format, v.Dump(), want.Dump())
-	}
-}
-
-func TestInvTransform(t *testing.T) {
-	q := &Q{}
-	t1 := NewT().SetLoc(5, 0, 0).SetAa(0, 1, 0, Rad(90))
-	it := NewT().InvT(t1)
-	if !q.Mult(t1.Rot, it.Rot).Aeq(QI) {
-		t.Errorf(format, q.Dump(), QI.Dump())
-	}
-
-	// transform a vector there and back again.
-	v, want := &V3{2, 0, 0}, &V3{2, 0, 0}
-	if it.Inv(it.App(v)); !v.Aeq(want) {
 		t.Errorf(format, v.Dump(), want.Dump())
 	}
 }

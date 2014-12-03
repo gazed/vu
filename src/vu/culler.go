@@ -1,5 +1,5 @@
 // Copyright © 2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 package vu
 
@@ -7,11 +7,25 @@ import (
 	"vu/math/lin"
 )
 
-// Culler can be attached to a scene in order to reduce the number
+// Culler is attached to a scene in order to reduce the number
 // of items sent for rendering.
 type Culler interface {
+
+	// Cull returns true if the given part p should be culled from
+	// the given scene.
 	Cull(sc Scene, p Part) bool
 }
+
+// cull holds the data needing for culling.
+type cull struct {
+	toc      float64 // Distance to center (to->c) for sorting and culling.
+	cullable bool    // Can/can't be culled is under control of the application.
+	visible  bool    // Draw or don't under control of application.
+}
+
+func (c *cull) SetCullable(cullable bool) { c.cullable = cullable }
+func (c *cull) Visible() bool             { return c.visible }
+func (c *cull) SetVisible(visible bool)   { c.visible = visible }
 
 // ============================================================================
 
@@ -66,14 +80,15 @@ func (fc *facingCuller) Cull(s Scene, p Part) bool {
 	toc := prt.toc // get the current distance to camera.
 	cam := scn.cam
 
-	// project the camera location along the lookat vector.
+	// project the part location back along the lookat vector.
 	fudgeFactor := float64(0.8) // don't move all the way up.
 	lookAt := lin.NewQ().SetAa(1, 0, 0, lin.Rad(cam.up))
-	lookAt.Mult(cam.dir, lookAt)
+	lookAt.Mult(cam.Rot, lookAt)
 	cx, cy, cz := lin.MultSQ(0, 0, -fc.radius*fudgeFactor, lookAt) // distance
-	cx, cy, cz = cx+cam.loc.X, cy+cam.loc.Y, cz+cam.loc.Z          // added to location.
+	px, py, pz := p.Location()
+	px, py, pz = px-cx, py-cy, pz-cz // moved part location back.
 
 	// cull the part if its to far away.
-	toc = prt.distanceTo(cx, cy, cz)
+	toc = cam.Distance(px, py, pz)
 	return toc > fc.radius*fc.radius
 }

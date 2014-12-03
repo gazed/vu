@@ -8,9 +8,9 @@ layout(location=2) in vec2 in_t;   // texture coordinates
 layout(location=4) in vec4 joint;  // joint indicies
 layout(location=5) in vec4 weight; // joint weights
 
-uniform mat3x4 bpos[80];  // bone positioning transforms. Row-Major! 
-uniform mat4   mvpm;      // projection * model_view
-out     vec2   t_uv;      // pass uv coordinates through
+uniform mat3x4 bpos[100];  // bone positioning transforms. Row-Major!
+uniform mat4   mvpm;       // projection * model_view
+out     vec2   t_uv;       // pass uv coordinates through
 
 void main() {
    mat3x4 m = bpos[int(joint.x)] * weight.x;

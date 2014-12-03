@@ -1,5 +1,5 @@
 // Copyright © 2013-2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 package lin
 
@@ -326,7 +326,7 @@ func (v *V3) Unit() *V3 {
 	if length != 0 {
 		return v.Div(length)
 	}
-	return v // v is unchanged.
+	return v
 }
 
 // Unit updates vector v such that its length is 1.
@@ -336,7 +336,7 @@ func (v *V4) Unit() *V4 {
 	if length != 0 {
 		return v.Div(length)
 	}
-	return v // v is unchanged.
+	return v
 }
 
 // Cross updates v to be the cross product of vectors a and b.
@@ -472,27 +472,33 @@ func (v *V4) MultMv(m *M4, cv *V4) *V4 {
 
 // MultvQ  updates vector v to be the rotation of vector a by quaternion q.
 func (v *V3) MultvQ(a *V3, q *Q) *V3 {
-	v.X, v.Y, v.Z = MultSQ(a.X, a.Y, a.Z, q)
+	v.X, v.Y, v.Z = multSQ(a.X, a.Y, a.Z, q.X, q.Y, q.Z, q.W)
 	return v
 }
 
 // MultSQ applies rotation q to scalar vector (x,y,z)
 // The updated scalar vector (vx,vy,vz) is returned.
 func MultSQ(x, y, z float64, q *Q) (vx, vy, vz float64) {
-	k0 := q.W*q.W - 0.5
+	return multSQ(x, y, z, q.X, q.Y, q.Z, q.W)
+}
+
+// MultSQ applies rotation q (qx,qy,qz,qw) to scalar vector (x,y,z)
+// The updated scalar vector (vx,vy,vz) is returned.
+func multSQ(x, y, z, qx, qy, qz, qw float64) (vx, vy, vz float64) {
+	k0 := qw*qw - 0.5
 
 	// k1 = Q.V
-	k1 := x*q.X + y*q.Y + z*q.Z
+	k1 := x*qx + y*qy + z*qz
 
 	// (qq-1/2)V+(Q.V)Q
-	rx := x*k0 + q.X*k1
-	ry := y*k0 + q.Y*k1
-	rz := z*k0 + q.Z*k1
+	rx := x*k0 + qx*k1
+	ry := y*k0 + qy*k1
+	rz := z*k0 + qz*k1
 
 	// (Q.V)Q+(qq-1/2)V+q(QxV)
-	rx += q.W * (q.Y*z - q.Z*y)
-	ry += q.W * (q.Z*x - q.X*z)
-	rz += q.W * (q.X*y - q.Y*x)
+	rx += qw * (qy*z - qz*y)
+	ry += qw * (qz*x - qx*z)
+	rz += qw * (qx*y - qy*x)
 
 	//  2((Q.V)Q+(qq-1/2)V+q(QxV))
 	return rx + rx, ry + ry, rz + rz

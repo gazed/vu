@@ -1,8 +1,8 @@
 // Copyright © 2013-2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 // Package eg is used to test and demonstrate different aspects of the
-// vu (virtual universe) engine.  Thus examples are used both to showcase a
+// vu (virtual universe) engine. Examples are used both to showcase a
 // particular 3D capability and to act as high level test cases for the engine.
 // The examples are run using:
 //      eg [example name]
@@ -44,10 +44,11 @@ func main() {
 		example{"sg", "sg: Scene Graph", sg},
 		example{"cr", "cr: Collision Resolution", cr},
 		example{"tm", "tm: Terrain Map", tm},
-		example{"cp", "cp: Control Panel", cp},
+		example{"fm", "fm: Form Layout", fm},
 		example{"ps", "ps: Particle System", ps},
 		example{"rc", "rc: Ray Cast", rc},
 		example{"ma", "ma: Model Animation", ma},
+		example{"ff", "ff: Flow Field", ff},
 	}
 
 	// run the first matching example.

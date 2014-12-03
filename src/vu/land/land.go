@@ -1,5 +1,5 @@
 // Copyright © 2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 // Package land is used to procedurally generate world terrain height maps.
 // Generated lands are unique to a supplied random seed so they can be
@@ -77,7 +77,7 @@ func New(lod, tileSize int, seed int64) Land {
 
 // land creates the world height map.
 // There is a limit to the number of map sections held in memory at any one
-// time. Map patches are expected to be generated as needed for large worlds.
+// time. Map tiles are expected to be generated as needed for large worlds.
 //
 // Nice article on how map level of detail can be organized at:
 //   http://msdn.microsoft.com/en-us/library/bb259689.aspx
@@ -85,8 +85,8 @@ func New(lod, tileSize int, seed int64) Land {
 type land struct {
 	n    *noise // perlin simplex noise maker.
 	seed int64  // for all random calcuations.
-	lod  int    //  lod is the zoom at the maximum map size where 1pixel = 1meter.
-	size int    // land patch width and height.
+	lod  int    // lod is the zoom at the maximum map size where 1pixel = 1meter.
+	size int    // land tile width and height.
 }
 
 // newLand initializes the data needed to create a world land map. The higher
@@ -125,7 +125,7 @@ func (l *land) FillTile(landTile Tile) {
 	l.fill(t.topo, t.zoom, t.x, t.y)
 }
 
-// fill populates the given patch, indentified by px, py, with height data
+// fill populates the given tile, indentified by px, py, with height data
 // calculated using the world random seed.
 func (l *land) fill(topo Topo, atZoom, px, py int) {
 	if len(topo) == l.size && len(topo[0]) == l.size {

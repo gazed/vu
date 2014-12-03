@@ -1,5 +1,5 @@
 // Copyright © 2013-2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 package move
 
@@ -24,10 +24,11 @@ import (
 // Bodies that are added to physics are expected to have their movement
 // controlled by the physics simulation and not the application.
 type Body interface {
-	Id() uint32               // The unique body id.
-	World() *lin.T            // Get/Set world transform which is the...
-	SetWorld(world *lin.T)    // ...bodies location and direction.
-	IsMovable() bool          // True if the body has mass.
+	Shape() Shape          // Physics shape for this form.
+	World() *lin.T         // Get the location and direction
+	SetWorld(world *lin.T) // ...or set the location and direction.
+
+	Eq(b Body) bool           // Return true if the two bodies are the same.
 	Speed() (x, y, z float64) // Current linear velocity.
 	Whirl() (x, y, z float64) // Current angular velocity.
 	Push(x, y, z float64)     // Add to the body's linear velocity.
@@ -43,8 +44,6 @@ type Body interface {
 	//                 of the two colliding bodies. If one of the bodies has 0
 	//                 bounciness then there is no bounce effect.
 	SetMaterial(mass, bounciness float64) Body
-	Data() interface{}        // Get/Set application specific data...
-	SetData(data interface{}) // ...often pointer to the scene graph node.
 }
 
 // Body interface
@@ -53,12 +52,13 @@ type Body interface {
 
 // body is the default implementation of the Body interface.
 type body struct {
-	data    interface{} // Unique data set by the calling application.
-	shape   Shape       // Body shape for collisions.
-	world   *lin.T      // World transform for the given shape.
-	guess   *lin.T      // Predicted world transform for the given shape.
-	movable bool        // Body has mass. It is able to move.
-	bid     uint32      // Unique body id for generating pair identfiers.
+	bid   uint32  // Unique body id for generating pair identfiers.
+	shape Shape   // Body shape for collisions.
+	world *lin.T  // World transform for the given shape.
+	v0    *lin.V3 // Scratch vector.
+
+	guess   *lin.T // Predicted world transform for the given shape.
+	movable bool   // Body has mass. It is able to move.
 
 	// Motion data
 	imass float64 // Inverse mass is calcuated once on object creation.
@@ -82,7 +82,6 @@ type body struct {
 	coi    *C.BoxBoxInput   // Scratch box-box collision input.
 	cor    *C.BoxBoxResults // Scratch box-box collision output.
 	m0, m1 *lin.M3          // Scratch matrices.
-	v0     *lin.V3          // Scratch vector.
 	t0     *lin.T           // Scratch transform.
 }
 
@@ -129,13 +128,21 @@ func newBody(shape Shape) *body {
 	return b
 }
 
-// The Body interface implementation.
-func (b *body) Id() uint32               { return b.bid }
-func (b *body) IsMovable() bool          { return b.movable }
-func (b *body) Data() interface{}        { return b.data }
-func (b *body) SetData(data interface{}) { b.data = data }
-func (b *body) SetWorld(world *lin.T)    { b.world.Set(world) }
-func (b *body) World() *lin.T            { return b.world }
+// Form interface implementation.
+func (b *body) Shape() Shape { return b.shape }
+
+// Allow world to be injected so that it becomes shared data.
+// Lazy create the world transform if one was not set.
+func (b *body) SetWorld(world *lin.T) { b.world = world }
+func (b *body) World() *lin.T {
+	if b.world == nil {
+		b.world = lin.NewT().SetI() // lazy create world transform.
+	}
+	return b.world
+}
+
+// Body interface implementation.
+func (b *body) Eq(a Body) bool           { return b.bid == a.(*body).bid }
 func (b *body) Speed() (x, y, z float64) { return b.lvel.X, b.lvel.Y, b.lvel.Z }
 func (b *body) Whirl() (x, y, z float64) { return b.avel.X, b.avel.Y, b.avel.Z }
 func (b *body) Stop()                    { b.lvel.X, b.lvel.Y, b.lvel.Z = 0, 0, 0 }

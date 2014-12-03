@@ -1,5 +1,5 @@
 // Copyright © 2013-2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 package move
 
@@ -8,11 +8,11 @@ import (
 	"vu/math/lin"
 )
 
-// Shapes are physics collision primitives used to enclose a 3D model.
+// Shapes are physics collision primitives used to represent a 3D model.
 // A Shape is always in local space centered at the origin. Combine a
 // shape with a transform to position the shape anywhere in world space.
-// Shapes do not allocate memory so calculations, like filling
-// in bounding boxes, are expected to be given the necessary structures.
+// Shapes do not allocate memory. They expect to be given the necessary
+// structures when doing calculations like filling in bounding boxes.
 type Shape interface {
 	Type() int       // Type returns the shape type.
 	Volume() float64 // Volume is useful for mass = density*volume.
@@ -23,7 +23,7 @@ type Shape interface {
 	//    margin : Optional small positive value that increases the size
 	//             of the surrounding box. Use 0 for no margin.
 	// The updated Abox ab is returned.
-	Aabb(transfrom *lin.T, ab *Abox, margin float64) *Abox
+	Aabb(transform *lin.T, ab *Abox, margin float64) *Abox
 
 	// Inertia is needed by collision resolution.
 	//    mass   : can be set directly or as density*Volume()
@@ -39,12 +39,12 @@ const (
 	BoxShape            // Polyhedral (flat faces, straight edges). Considered convex.
 	VolumeShapes        // Separates shapes that have volume from those that don't
 	PlaneShape          // Area, no volume or mass.
-	RayShape            // No area, volume or mass.
+	RayShape            // Points on a line, no area, volume or mass.
 	NumShapes           // Keep this last.
 )
 
 // Currently the shapes are so simple they are all kept in this one file.
-// Shapes get crazy complex. For example:
+// Future shapes get crazy complex. For example:
 //    FUTURE Capsule
 //    FUTURE Cylinder
 //    FUTURE Cone
@@ -179,7 +179,7 @@ type plane struct {
 	nx, ny, nz float64 // plane normal.
 }
 
-// NewPlane creates a plane shape using on the given plane normal x, y, z.
+// NewPlane creates a plane shape using the given plane normal x, y, z.
 func NewPlane(x, y, z float64) Shape { return &plane{x, y, z} }
 
 // Plane is not a full physics shape having no volume, mass or bounding box.
@@ -199,6 +199,13 @@ type ray struct {
 
 // NewRay creates a ray shape using the given ray direction x, y, z.
 func NewRay(x, y, z float64) Shape { return &ray{x, y, z} }
+
+// SetRay allows a ray direction to be changed. Body b is expected
+// to be a ray created from NewRay().
+func SetRay(b Body, x, y, z float64) {
+	r := b.(*body).shape.(*ray) // b had better be a ray.
+	r.dx, r.dy, r.dz = x, y, z
+}
 
 // Ray is not a full physics shape having no volume, mass or bounding box.
 func (r *ray) Type() int                                { return RayShape }

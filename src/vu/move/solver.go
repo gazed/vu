@@ -1,5 +1,5 @@
 // Copyright © 2013-2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 //
 // Solver is a un-optimized, scaled-down, golang version of the Bullet physics
 //     bullet-2.81-rev2613/src/.../btSequentialImpulseConstraintSolver.(cpp/h)
@@ -111,7 +111,7 @@ func (sol *solver) setupConstraints(bodies map[uint32]*body, contactPairs map[ui
 func (sol *solver) convertContacts(pair *contactPair, info *solverInfo) {
 	bodyA, bodyB := pair.bodyA, pair.bodyB
 	sbodA, sbodB := bodyA.sbod, bodyB.sbod
-	if sbodA.oBody == nil && sbodB.oBody == nil {
+	if (sbodA == nil || sbodA.oBody == nil) && (sbodB == nil || sbodB.oBody == nil) {
 		log.Printf("Dev error: ignoring collision between two static bodies.")
 		return
 	}

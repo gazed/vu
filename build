@@ -1,16 +1,16 @@
-#! /usr/bin/python 
-# Copyright (c) 2013-2014 Galvanized Logic Inc.
-# Use is governed by a FreeBSD license found in the LICENSE file.
+#! /usr/bin/python
+# Copyright 2013-2014 Galvanized Logic Inc.
+# Use is governed by a BSD-style license found in the LICENSE file.
 
 """
 The build and distribution script for the virtual universe (vu) project.
 
-Note that build commands are specified in such a way that they can be easily 
-copied and tested in a shell.
-
-This script is expected to be called by:
+This script can either be called by:
    1) a continuous integration script from a dedicated build server, or,
-   2) a local developer testing the build.
+   2) a developer from the command line.
+
+Note that build commands are specified in such a way that they can be easily
+copied and tested in a shell.
 """
 
 import os           # for file system manipulation.
@@ -28,24 +28,18 @@ def clean():
             print '    ' + gdir
             shutil.rmtree(gdir)
 
-def buildDoc():
-    # Build the project documentation and bug list.
-    cwd = os.getcwd()
-    os.chdir('doc')
-    subprocess.call('./publish', shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    os.chdir(cwd)
-
 def buildSrc():
     # Builds all packages.
+    buildMath()
+    buildLoad()
     buildRender()
     buildAudio()
     buildDevice()
-    buildPanel()
-    buildMath()
     buildGrid()
     buildLand()
-    buildLoad()
     buildMove()
+    buildForm()
+    buildAi()
     buildVu()
 
 def buildRender():
@@ -71,45 +65,51 @@ def buildAudio():
     subprocess.call(shlex.split('go install vu/audio'))
 
 def buildDevice():
-	# Build the native application package.
+    # Build the native application package.
     subprocess.call(shlex.split('go install vu/device'))
     subprocess.call(shlex.split('go fmt vu/device'))
 
 def buildMove():
-    # Build the physics (vu/move) package. 
+    # Build the physics package.
     subprocess.call(shlex.split('go fmt vu/move'))
     subprocess.call(shlex.split('go test vu/move'))
     subprocess.call(shlex.split('go install vu/move'))
 
 def buildLoad():
-    # Build the data load (vu/load) package. 
+    # Build the asset loading package.
     subprocess.call(shlex.split('go fmt vu/load'))
     subprocess.call(shlex.split('go test vu/load'))
     subprocess.call(shlex.split('go install vu/load'))
 
 def buildLand():
-    # Build the random land generation package. 
+    # Build the random land generation package.
     subprocess.call(shlex.split('go fmt vu/land'))
     subprocess.call(shlex.split('go test vu/land'))
     subprocess.call(shlex.split('go install vu/land'))
 
 def buildGrid():
-    # Build the grid generation package. 
+    # Build the grid generation package.
     subprocess.call(shlex.split('go fmt vu/grid'))
     subprocess.call(shlex.split('go test vu/grid'))
     subprocess.call(shlex.split('go install vu/grid'))
 
 def buildMath():
-    # Build the matrix-vector package.
+    # Build the linear math package.
     subprocess.call(shlex.split('go fmt vu/math/lin'))
     subprocess.call(shlex.split('go test vu/math/lin'))
     subprocess.call(shlex.split('go install vu/math/lin'))
 
-def buildPanel():
-    # Build the 2D ui control package. 
-    subprocess.call(shlex.split('go fmt vu/panel'))
-    subprocess.call(shlex.split('go test vu/panel'))
-    subprocess.call(shlex.split('go install vu/panel'))
+def buildForm():
+    # Build the 2D ui control package.
+    subprocess.call(shlex.split('go fmt vu/form'))
+    subprocess.call(shlex.split('go test vu/form'))
+    subprocess.call(shlex.split('go install vu/form'))
+
+def buildAi():
+    # Build the application ai framework package.
+    subprocess.call(shlex.split('go fmt vu/ai'))
+    subprocess.call(shlex.split('go test vu/ai'))
+    subprocess.call(shlex.split('go install vu/ai'))
 
 def buildVu():
     # Build the 3D virtual universe engine package and examples.
@@ -120,11 +120,10 @@ def buildVu():
     subprocess.call(shlex.split('go install vu/eg'))
 
 def usage():
-    print 'Usage: build [clean] [doc] [src]'
+    print 'Usage: build [clean] [src]'
 
 if __name__ == "__main__":
-    options = {'clean' : clean, 
-               'doc'   : buildDoc,
+    options = {'clean' : clean,
                'src'   : buildSrc}
     somethingBuilt = False
     for arg in sys.argv:

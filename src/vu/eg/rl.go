@@ -1,5 +1,5 @@
 // Copyright © 2013-2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
 
@@ -11,7 +11,7 @@ import (
 
 // rl tests higher level graphics functionality. This includes:
 //   • vu culling/reducing the total objects rendered based on distance. See:
-//      • flr.SetCull()
+//      • plan.SetCuller()
 //   • vu 2D overlay scene, in this case a minimap.  See:
 //    	• flr.mmap = rl.eng.AddScene(vu.XZtoXY)
 //    	• flr.mmap.Set2D()
@@ -20,6 +20,9 @@ import (
 // rl also tests camera movement that includes holding multiple movement keys
 // at the same time. The example does not have collision detection so you can
 // literally run through the maze.
+//
+// rl also tests vu/grid by generating different types and size of grids using
+// the number keys 0-9.
 func rl() {
 	rl := &rltag{}
 	var err error
@@ -27,11 +30,10 @@ func rl() {
 		log.Printf("rl: error intitializing engine %s", err)
 		return
 	}
-	rl.run = 5             // move so many cubes worth in one second.
-	rl.spin = 270          // spin so many degrees in one second.
-	rl.eng.SetDirector(rl) // override user input handling.
+	rl.eng.SetDirector(rl) // get user input through Director.Update()
+	rl.create()            // create initial assests.
 	if err = rl.eng.Verify(); err != nil {
-		log.Fatalf("bb: error initializing model :: %s", err)
+		log.Fatalf("rl: error initializing model :: %s", err)
 	}
 	defer rl.eng.Shutdown()
 	defer catchErrors()
@@ -49,12 +51,14 @@ type rltag struct {
 	spin          float64           // Camera spin speed.
 }
 
-// Create is the engine intialization callback.
-func (rl *rltag) Create(eng vu.Engine) {
+// create is the startup asset creation.
+func (rl *rltag) create() {
+	rl.run = 5    // move so many cubes worth in one second.
+	rl.spin = 270 // spin so many degrees in one second.
 	rl.width, rl.height = 800, 600
 	rl.floors = make(map[string]*floor)
 	rl.setLevel("1")
-	eng.Color(0.15, 0.15, 0.15, 1)
+	rl.eng.Color(0.15, 0.15, 0.15, 1)
 	return
 }
 
@@ -79,23 +83,23 @@ func (rl *rltag) Update(in *vu.Input) {
 	for press, down := range in.Down {
 		switch press {
 		case "W":
-			rl.flr.plan.Move(0, 0, moveDelta*-rl.run)
-			rl.arrow.SetLocation(rl.flr.plan.Location())
+			rl.flr.cam.Move(0, 0, moveDelta*-rl.run)
+			rl.arrow.SetLocation(rl.flr.cam.Location())
 		case "S":
-			rl.flr.plan.Move(0, 0, moveDelta*rl.run)
-			rl.arrow.SetLocation(rl.flr.plan.Location())
+			rl.flr.cam.Move(0, 0, moveDelta*rl.run)
+			rl.arrow.SetLocation(rl.flr.cam.Location())
 		case "Q":
-			rl.flr.plan.Move(moveDelta*-rl.run, 0, 0)
-			rl.arrow.SetLocation(rl.flr.plan.Location())
+			rl.flr.cam.Move(moveDelta*-rl.run, 0, 0)
+			rl.arrow.SetLocation(rl.flr.cam.Location())
 		case "E":
-			rl.flr.plan.Move(moveDelta*rl.run, 0, 0)
-			rl.arrow.SetLocation(rl.flr.plan.Location())
+			rl.flr.cam.Move(moveDelta*rl.run, 0, 0)
+			rl.arrow.SetLocation(rl.flr.cam.Location())
 		case "A":
-			rl.flr.plan.Spin(vu.YAxis, dt*rl.spin)
-			rl.arrow.SetRotation(rl.flr.plan.Rotation())
+			rl.flr.cam.Spin(0, dt*rl.spin, 0)
+			rl.arrow.SetRotation(rl.flr.cam.Rotation())
 		case "D":
-			rl.flr.plan.Spin(vu.YAxis, dt*-rl.spin)
-			rl.arrow.SetRotation(rl.flr.plan.Rotation())
+			rl.flr.cam.Spin(0, dt*-rl.spin, 0)
+			rl.arrow.SetRotation(rl.flr.cam.Rotation())
 		case "1", "2", "3", "4", "5", "6", "7", "8", "9", "0":
 			if down == 1 {
 				rl.setLevel(press)
@@ -112,7 +116,7 @@ func (rl *rltag) resize() {
 	rl.height = height
 	ratio := float64(width) / float64(height)
 	for _, flr := range rl.floors {
-		flr.plan.SetPerspective(60, ratio, 0.1, 50)
+		flr.cam.SetPerspective(60, ratio, 0.1, 50)
 	}
 }
 
@@ -122,6 +126,7 @@ type floor struct {
 	arrow   vu.Part   // cam minimap location.
 	plan    vu.Scene  // how its drawn.
 	mmap    vu.Scene  // how its drawn on the minimap.
+	cam     vu.Camera // main 3D camera.
 	mapPart vu.Part   // allows the minimap to be moved around.
 }
 
@@ -156,20 +161,18 @@ func (rl *rltag) setLevel(id string) {
 
 		// create the scene
 		flr.plan = rl.eng.AddScene(vu.VP)
-		flr.plan.SetPerspective(60, float64(rl.width)/float64(rl.height), 0.1, 50)
-		flr.plan.SetLightLocation(0, 10, 0)
-		flr.plan.SetLightColour(0.4, 0.7, 0.9)
 		flr.plan.SetSorted(true)
 		flr.plan.SetCuller(vu.NewFacingCuller(10))
-		flr.plan.SetLocation(1, 0, -1)
+		flr.cam = flr.plan.Cam()
+		flr.cam.SetLocation(1, 0, -1)
+		flr.cam.SetPerspective(60, float64(rl.width)/float64(rl.height), 0.1, 50)
 
 		// create the overlay
 		flr.mmap = rl.eng.AddScene(vu.XZ_XY)
 		flr.mmap.Set2D()
-		flr.mmap.SetOrthographic(-0.2, 100, -0.2, 75, 0, 10)
-		flr.mmap.SetLightLocation(1, 1, 1)
-		flr.mmap.SetLightColour(1, 1, 1)
-		flr.mapPart = flr.mmap.AddPart().SetLocation(3, 0, -3)
+		flr.mmap.Cam().SetOrthographic(-0.2, 100, -0.2, 75, 0, 10)
+		flr.mapPart = flr.mmap.AddPart()
+		flr.mapPart.SetLocation(3, 0, -3)
 
 		// populate the scenes
 		lsize := gridSizes[id]
@@ -178,18 +181,22 @@ func (rl *rltag) setLevel(id string) {
 		width, height := flr.layout.Size()
 		for x := 0; x < width; x++ {
 			for y := 0; y < height; y++ {
-				if flr.layout.IsWall(x, y) {
-					block := flr.plan.AddPart().SetLocation(float64(x), 0, float64(-y))
-					block.SetRole("gouraud").SetMesh("cube").SetMaterial("cube")
-				} else {
-					block := flr.mapPart.AddPart().SetLocation(float64(x), 0, float64(-y))
+				if flr.layout.IsOpen(x, y) {
+					block := flr.mapPart.AddPart()
+					block.SetLocation(float64(x), 0, float64(-y))
 					block.SetRole("flat").SetMesh("cube").SetMaterial("gray")
+				} else {
+					block := flr.plan.AddPart()
+					block.SetLocation(float64(x), 0, float64(-y))
+					block.SetRole("gouraud").SetMesh("cube").SetMaterial("cube")
+					block.Role().SetLightLocation(0, 10, 0)
+					block.Role().SetLightColour(0.4, 0.7, 0.9)
 				}
 			}
 		}
 		flr.arrow = flr.mapPart.AddPart()
 		flr.arrow.SetRole("flat").SetMesh("arrow").SetMaterial("blue")
-		flr.arrow.SetLocation(flr.plan.Location())
+		flr.arrow.SetLocation(flr.cam.Location())
 		rl.floors[id] = flr
 	}
 	if rl.flr != nil {

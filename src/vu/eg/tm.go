@@ -1,5 +1,5 @@
 // Copyright © 2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
 
@@ -20,7 +20,8 @@ func tm() {
 		log.Printf("tm: error intitializing engine %s", err)
 		return
 	}
-	tm.eng.SetDirector(tm)  // override user input handling.
+	tm.eng.SetDirector(tm)  // get user input through Director.Update()
+	tm.create()             // create initial assests.
 	defer tm.eng.Shutdown() // shut down the engine.
 	defer catchErrors()
 	tm.eng.Action()
@@ -39,12 +40,10 @@ type tmtag struct {
 	evo     [][]float64 // used for evolution experiments.
 }
 
-// Create is the engine intialization callback.
-func (tm *tmtag) Create(eng vu.Engine) {
-	tm.scene = eng.AddScene(vu.VP)
-	tm.scene.SetOrthographic(0, float64(tm.ww), 0, float64(tm.wh), 0, 200)
-	tm.scene.SetLightColour(0.1, 0, 0)
-	tm.scene.SetLightLocation(5, 5, -5)
+// create is the startup asset creation.
+func (tm *tmtag) create() {
+	tm.scene = tm.eng.AddScene(vu.VP)
+	tm.scene.Cam().SetOrthographic(0, float64(tm.ww), 0, float64(tm.wh), 0, 200)
 
 	// create the world surface.
 	seed := int64(123)
@@ -79,16 +78,22 @@ func (tm *tmtag) Create(eng vu.Engine) {
 
 	// Add a rendering component for the surface data.
 	scale := 10.0
-	tm.ground = tm.scene.AddPart().SetLocation(0, 0, -10).SetScale(scale, scale, 1)
+	tm.ground = tm.scene.AddPart().SetScale(scale, scale, 1)
+	tm.ground.SetLocation(0, 0, -10)
 	tm.ground.SetRole("land").AddTex("land")
 	tm.ground.Role().SetMaterial("land").SetUniform("ratio", textureRatio)
+	tm.ground.Role().SetLightColour(0.1, 0, 0)
+	tm.ground.Role().SetLightLocation(5, 5, -5)
+	tm.ground.Role().NewMesh("land")
 	tm.surface.Update(tm.ground.Role().Mesh(), 0, 0)
 
 	// Add water planes.
-	tm.ocean = tm.scene.AddPart().SetLocation(256, 0, -10.5)
+	tm.ocean = tm.scene.AddPart()
+	tm.ocean.SetLocation(256, 0, -10.5)
 	tm.ocean.SetScale(float64(tm.ww), float64(tm.wh), 1)
 	tm.ocean.SetRole("flat").SetMesh("plane").SetMaterial("blue2")
-	tm.coast = tm.scene.AddPart().SetLocation(256, 0, -10)
+	tm.coast = tm.scene.AddPart()
+	tm.coast.SetLocation(256, 0, -10)
 	tm.coast.SetScale(float64(tm.ww), float64(tm.wh), 1)
 	tm.coast.SetRole("flat").SetMesh("plane").SetMaterial("blue")
 	return

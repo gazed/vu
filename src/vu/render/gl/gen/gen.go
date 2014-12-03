@@ -1,5 +1,5 @@
 // Copyright © 2013-2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 // Package gen is used to generate the golang OpenGL bindings from the
 // latest OpenGL specification header file. The 4.3 specification header
@@ -127,7 +127,7 @@ func genPreamble(gout *os.File, pkgname string, typedefs []string) {
 	fmt.Fprintf(gout, "// The official OpenGL documentation for any of the constants\n")
 	fmt.Fprintf(gout, "// or methods can be found online. Just prepend \"GL_\"\n")
 	fmt.Fprintf(gout, "// to the function or constants names in this package.\n//\n")
-	fmt.Fprintf(gout, "// Package gen is provided as part of the vu (virtual universe) 3D engine.\n")
+	fmt.Fprintf(gout, "// Package %s is provided as part of the vu (virtual universe) 3D engine.\n", pkgname)
 	fmt.Fprintf(gout, "package %s\n\n", pkgname)
 	// .
 	for _, line := range cPreamble {

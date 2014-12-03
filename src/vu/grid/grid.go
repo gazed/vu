@@ -1,5 +1,5 @@
 // Copyright © 2013-2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 // Package grid is used to generate layout data for random maze or skirmish
 // levels. Maze levels have dead ends such that there is only one path to
@@ -19,17 +19,26 @@
 //          }
 //       }
 //
+// Package grid also provides A-star and flow field path finding algorihms.
+//
 // Package grid is provided as part of the vu (virtual universe) 3D engine.
 package grid
 
 import (
 	"fmt"
+	"math/rand"
+	"time"
 )
 
-// Grid generates a random floorplan where each grid cell is either a wall or
-// a floor. The expected usage is to generate a random level and then to use
-// the level by traversing it with the Size and IsWall methods.
+// Grid generates a random floor plan where each grid cell is either a wall
+// or a floor. The expected usage is to generate a random level and then to
+// use the level by traversing it with the Size and IsOpen methods.
 type Grid interface {
+	Plan // Grids have sizes and can be queried as to wall/floor status.
+
+	// Seed can be set to generate the same random map each time.
+	// Call Seed with a non-zero value before generating the grid.
+	Seed(seed int64)
 
 	// Generate creates a grid full of walls and floors based on
 	// the given depth and width.
@@ -38,16 +47,9 @@ type Grid interface {
 	// The given grids width and height are modified, if necesary, to ensure
 	// valid values.
 	//
-	// Generate needs to be called first in order for the other methods to return
-	// meaningful results.  It can be called any time to create a new grid.
+	// Generate needs to be called after Seed and before other grid methods.
+	// It can be called any time to create a new grid.
 	Generate(width, depth int) Grid
-
-	// Size returns the current size of the grid.  This will be 0, 0 if Generate
-	// has not yet been called.
-	Size() (width, depth int)
-
-	// IsWall returns true if the cell at the given location is a wall.
-	IsWall(x, y int) bool
 
 	// Band returns the grid depth based on concentric squares. Numbering
 	// starts at 0 on the outside and increases towards the center. Using band
@@ -60,13 +62,13 @@ const (
 	// PRIM_MAZE is a Randomized Prim's Algorithm (see wikipedia).
 	PRIM_MAZE = iota
 
-	// SPARSE_SKIRMISH creates a skirmize grid by randomly traversing all the
+	// SPARSE_SKIRMISH creates a skirmish grid by randomly traversing all the
 	// grid locations and adding random walls as long as there are more than
 	// two ways out of the grid location.
 	SPARSE_SKIRMISH
 
 	// ROOMS_SKIRMISH is a skirmish grid created by subdividing the area
-	// recursively into rooms and chopping random exits in the rooms walls.
+	// recursively into rooms and chopping random exits in the room walls.
 	ROOMS_SKIRMISH
 
 	// DENSE_SKIRMISH is a corridor only skirmish grid. It is a Prim's maze
@@ -82,6 +84,25 @@ const (
 	// of rooms connected by corridors.
 	DUNGEON
 )
+
+// Grid interface and grid types.
+// =============================================================================
+
+// Plan describes a 2D grid where each location in the grid is either open
+// and traversable (passage) or blocked (wall).
+type Plan interface {
+
+	// Size returns the current size of the grid.  This will be 0, 0 if
+	// Generate has not yet been called.
+	Size() (width, depth int) // The current size of the plan.
+
+	// IsOpen returns true if the cell at the given location is traversable.
+	// Otherwise the cell is blocked and can be considered a wall.
+	IsOpen(x, y int) bool // Return true if the given location is traversable.
+}
+
+// ===========================================================================
+// grid implements Grid
 
 // New creates a new grid based on the given gridType.  Returns nil if the
 // gridType is unknown.
@@ -103,15 +124,16 @@ func New(gridType int) Grid {
 	return nil
 }
 
-// Grid interface and grid types.
-// ===========================================================================
-// grid implements Grid
-
 // The base class for a grid holds an x-by-y group of cells where each
 // cell is either a wall or a floor.
 type grid struct {
-	cells [][]*cell
+	cells [][]*cell // walls or open areas.
+	seed  int64     // used for testing with deterministic grids.
 }
+
+// Seed uses the provide seed value to intialize the random source to a
+// deterministic state.
+func (g *grid) Seed(seed int64) { g.seed = seed }
 
 // Size is the generated width and height of the grid.
 func (g *grid) Size() (width, height int) {
@@ -121,12 +143,12 @@ func (g *grid) Size() (width, height int) {
 	return 0, 0
 }
 
-// IsWall returns true if the cell at position x, y is a wall.  Otherwise
-// it is a floor.
-func (g *grid) IsWall(x, y int) bool {
+// IsOpen returns true if the cell at the given location is passable.
+// Otherwise the cell is blocked and can be considered a wall.
+func (g *grid) IsOpen(x, y int) bool {
 	lenx := len(g.cells)
-	if lenx > 0 && lenx > x && len(g.cells[0]) > y {
-		return g.cells[x][y].isWall
+	if x >= 0 && y >= 0 && lenx > 0 && lenx > x && len(g.cells[0]) > y {
+		return !g.cells[x][y].isWall
 	}
 	return false
 }
@@ -180,6 +202,11 @@ func (g *grid) create(width, height int, cellType bool) {
 		for y, _ := range g.cells[x] {
 			g.cells[x][y] = &cell{x, y, cellType}
 		}
+	}
+	if g.seed == 0 {
+		rand.Seed(time.Now().UnixNano())
+	} else {
+		rand.Seed(g.seed)
 	}
 }
 
@@ -245,10 +272,10 @@ func (g *grid) dump() {
 	width, height := g.Size()
 	for y := height - 1; y >= 0; y-- {
 		for x := 0; x < width; x++ {
-			if g.IsWall(x, y) {
-				fmt.Print("◾")
-			} else {
+			if g.IsOpen(x, y) {
 				fmt.Print("◽")
+			} else {
+				fmt.Print("◾")
 			}
 		}
 		fmt.Println()

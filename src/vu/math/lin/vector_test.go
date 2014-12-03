@@ -1,5 +1,5 @@
 // Copyright © 2013-2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 package lin
 
@@ -109,11 +109,11 @@ func TestMultiplyV3Q(t *testing.T) {
 	if !v.MultQ(v, q).Eq(want) {
 		t.Errorf(format, v.Dump(), want.Dump())
 	}
-	v, q, want = &V3{0, 0, 1}, NewQ().SetAa(1, 0, 0, Rad(90)).Unit(), &V3{0, -1, 0}
+	v, q, want = &V3{1, 0, 0}, NewQ().SetAa(0, 0, 1, Rad(90)).Unit(), &V3{0, 1, 0}
 	if !v.MultQ(v, q).Aeq(want) {
 		t.Errorf(format, v.Dump(), want.Dump())
 	}
-	v, q, want = &V3{10, 10, 0}, NewQ().SetAa(1, 0, 0, Rad(-45)).Unit(), &V3{10, 7.071067812, -7.071067812}
+	v, q, want = &V3{10, 10, 0}, NewQ().SetAa(1, 0, 0, Rad(45)).Unit(), &V3{10, 7.071067812, 7.071067812}
 	if !v.MultQ(v, q).Aeq(want) {
 		t.Errorf(format, v.Dump(), want.Dump())
 	}

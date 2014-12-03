@@ -1,5 +1,5 @@
 // Copyright © 2013-2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 package render
 
@@ -113,13 +113,14 @@ type v3 struct {
 
 // =============================================================================
 
-// Mvp exposes the render matrix representation needed for applications that
-// are based directly on the vu/render/gl. This allows the 64-bit linear
-// transform matricies to be used for rendering.
+// Mvp exposes the render matrix representation. This is needed by applications
+// that are using the vu/render system, but not the vu engine.
 type Mvp interface {
 	Set(tm *lin.M4) Mvp // Converts the transform matrix tm to internal data.
 	Pointer() *float32  // A pointer to the internal transform data.
 }
 
 // NewMvp creates a new internal render transform matrix each time.
+// This is needed by applications that are using the vu/render system,
+// but not the vu engine.
 func NewMvp() Mvp { return &m4{} }

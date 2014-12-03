@@ -1,5 +1,5 @@
 // Copyright © 2013-2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 package render
 
@@ -35,8 +35,7 @@ func colourShader() (vsh, fsh []string) {
 		"uniform mat4 mvpm;", // projection * modelView
 		"uniform vec3 kd;",   // material diffuse value
 		"out     vec4 v_c;",  // vertex colour
-		"void main(void)",
-		"{",
+		"void main(void) {",
 		"   gl_Position = mvpm * vec4(in_v, 1.0);",
 		"	v_c = vec4(kd, 1.0);",
 		"}",
@@ -45,8 +44,7 @@ func colourShader() (vsh, fsh []string) {
 		"#version 330",
 		"in  vec4 v_c;",  // color from vertex shader
 		"out vec4 ffc; ", // final fragment colour.
-		"void main(void) ",
-		"{",
+		"void main(void) {",
 		"   ffc = v_c;",
 		"}",
 	}

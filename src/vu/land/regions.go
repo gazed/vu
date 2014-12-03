@@ -1,5 +1,5 @@
 // Copyright © 2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 package land
 
@@ -14,7 +14,7 @@ import (
 type RegionData [][]int
 
 // Regions divides a given land. This is attempting to do
-// something similar to a creating a Voronoi diagram, just using a lot
+// something similar to creating a Voronoi diagram, just using a lot
 // less code (also less efficient). The random seed is injected
 // so that identical results can be re-created.
 func Regions(size, numRegions int, seed int64) RegionData {
@@ -23,7 +23,7 @@ func Regions(size, numRegions int, seed int64) RegionData {
 		data[x] = make([]int, size)
 	}
 
-	// randomly scatter the different regions throughout the base map.
+	// randomly scatter the different seed points for the regions.
 	points := map[int]point{}
 	rgen := rand.New(rand.NewSource(seed))
 	for cnt := 0; cnt < numRegions; cnt++ {
@@ -34,7 +34,7 @@ func Regions(size, numRegions int, seed int64) RegionData {
 		points[cnt+1] = point{int(x), int(y)}
 	}
 
-	// make untouched elements the same as the closest region type.
+	// make unvisited points be part of the closest region type.
 	for x := range data {
 		for y := range data[x] {
 			if data[x][y] == 0 {

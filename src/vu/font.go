@@ -1,5 +1,5 @@
 // Copyright © 2013-2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 package vu
 
@@ -50,26 +50,27 @@ func (f *font) Panel(m render.Mesh, phrase string) (width int) {
 	// gather and arrange the letters for the phrase.
 	width = 0
 	for cnt, char := range phrase {
-		c := f.chars[char]
-		tb = append(tb, c.uvcs...)
+		if c := f.chars[char]; c != nil {
+			tb = append(tb, c.uvcs...)
 
-		// skip spaces.
-		xo, yo := float32(c.xOffset), float32(c.yOffset)
-		if c.w != 0 && c.h != 0 {
-			// calculate the x, y positions based on desired locations.
-			xys := []float32{
-				float32(width) + xo, yo, 0, // upper left
-				float32(c.w+width) + xo, yo, 0, // upper right
-				float32(c.w+width) + xo, float32(c.h) + yo, 0, // lower right
-				float32(width) + xo, float32(c.h) + yo, 0, // lower left
+			// skip spaces.
+			xo, yo := float32(c.xOffset), float32(c.yOffset)
+			if c.w != 0 && c.h != 0 {
+				// calculate the x, y positions based on desired locations.
+				xys := []float32{
+					float32(width) + xo, yo, 0, // upper left
+					float32(c.w+width) + xo, yo, 0, // upper right
+					float32(c.w+width) + xo, float32(c.h) + yo, 0, // lower right
+					float32(width) + xo, float32(c.h) + yo, 0, // lower left
+				}
+				vb = append(vb, xys...)
 			}
-			vb = append(vb, xys...)
-		}
-		width += c.xAdvance
+			width += c.xAdvance
 
-		// create the triangles indexes refering to the points created above.
-		i0 := uint16(cnt * 4)
-		fb = append(fb, i0, i0+1, i0+3, i0+1, i0+2, i0+3)
+			// create the triangles indexes refering to the points created above.
+			i0 := uint16(cnt * 4)
+			fb = append(fb, i0, i0+1, i0+3, i0+1, i0+2, i0+3)
+		}
 	}
 	m.InitData(0, 3, render.STATIC, false).SetData(0, vb)
 	m.InitData(2, 2, render.STATIC, false).SetData(2, tb)

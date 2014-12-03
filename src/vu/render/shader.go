@@ -1,5 +1,5 @@
 // Copyright © 2013-2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 package render
 
@@ -19,7 +19,7 @@ type Shader interface {
 	Fsh() []string               // Fragment shader source.
 	Lib() (vsh, fsh []string)    // Find this shaders source in the library.
 	SetSource(vsh, fsh []string) // Directly set shader source.
-	Bound() bool                 // True if the mesh has a GPU reference.
+	Bound() bool                 // True if the shader has a GPU reference.
 }
 
 // ============================================================================
@@ -86,6 +86,9 @@ func (s *shader) SetSource(vsh, fsh []string) {
 			case "layout(location=4)":
 				bid := s.stripId(fields[3])
 				s.attributes[bid] = 4
+			case "layout(location=5)":
+				bid := s.stripId(fields[3])
+				s.attributes[bid] = 5
 			case "uniform":
 				uid := s.stripId(fields[2])
 				s.uniforms[uid] = -1

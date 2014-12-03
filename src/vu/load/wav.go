@@ -1,5 +1,5 @@
 // Copyright © 2013-2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 package load
 
@@ -13,7 +13,7 @@ import (
 // easily usable by the audio library. The wave PCM soundfile format is:
 //    https://ccrma.stanford.edu/courses/422/projects/WaveFormat/
 // WavHdr is an intermediate format that is intended for populating
-// audio.Sound assets.
+// audio.Sound instances.
 type WavHdr struct {
 	RiffId      [4]byte // "RIFF"
 	FileSize    uint32  // Total file size minus 8 bytes.

@@ -1,5 +1,5 @@
 // Copyright © 2013-2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 package load
 
@@ -13,8 +13,8 @@ import (
 )
 
 // ObjData stores vertex data from .obj files. It is an intermediate format
-// that is intended for populating render.Mesh assets. The V,F buffers are
-// expected to have data. The N,T buffers are optional.
+// that is intended for populating render.Mesh instances. The V,F buffers
+// are expected to have data. The N,T buffers are optional.
 type ObjData struct {
 	Name string    // Data name from .obj file.
 	V    []float32 // Vertex positions.    Arranged as [][3]float32
@@ -48,10 +48,10 @@ func (l *loader) obj(name string) (objs []*ObjData, err error) {
 				if objData, merr := l.obj2ObjData(obj.name, odata, faces); merr == nil {
 					objs = append(objs, objData)
 				} else {
-					return objs, fmt.Errorf("Could not create obj data from %s", fname)
+					return objs, fmt.Errorf("obj2ObjData %s: %s", fname, merr)
 				}
 			} else {
-				return objs, fmt.Errorf("Could not parse obj data from %s", fname)
+				return objs, fmt.Errorf("obj2Data %s: %s", fname, derr)
 			}
 		}
 	}

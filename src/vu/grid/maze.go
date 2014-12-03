@@ -1,19 +1,18 @@
 // Copyright © 2013-2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 package grid
 
 import (
 	"math/rand"
-	"time"
 )
 
-// primMaze is a holds a Randomized Prim's Algorithm: (see wikipedia)
+// primMaze is based on Prim's algorithm: (see wikipedia)
 type primMaze struct {
 	grid // superclass grid
 }
 
-// Generate a maze using a Randomized Prim's Algorithm: (see wikipedia)
+// Generate a maze using  Prim's algorithm: (see wikipedia)
 //   - Start with a grid full of walls.
 //   - Pick a cell, mark it as part of the grid. Add the walls of the cell to
 //     the wall list.
@@ -27,7 +26,6 @@ type primMaze struct {
 //       wall from the list.
 func (pm *primMaze) Generate(width, depth int) Grid {
 	pm.create(width, depth, allWalls)
-	randomGenerator := rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
 
 	// Pick a cell, mark it as part of the grid. Add the walls of the cell to
 	// the wall list.
@@ -40,7 +38,7 @@ func (pm *primMaze) Generate(width, depth int) Grid {
 
 		// Pick a random wall from the list. If the cell on the opposite side
 		// isn't in the maze yet...
-		randomWall := randomGenerator.Intn(len(walls))
+		randomWall := rand.Intn(len(walls))
 		wall := walls[randomWall]
 		if link := pm.link(wall); link != nil {
 

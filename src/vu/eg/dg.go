@@ -1,5 +1,5 @@
 // Copyright © 2013-2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
 
@@ -12,11 +12,11 @@ import (
 // Initialize enough of the opengl context that some OpenGL information
 // can be dumped to screen along with the bindings.  This is a basic graphics
 // package test that checks if the underlying OpenGL functions are available.
-// Columns of function names marked as [+] (available) or [ ] (missing) will
-// be written the the console if everything is ok.
+// Columns of function names marked [+] available or [ ] missing will
+// be written the the console.
 func dg() {
 	app := device.New("Dump", 400, 100, 600, 600)
-	gl.Dump() // needs context to properly bind.
+	gl.Dump() // gets graphic context to properly bind.
 	fmt.Printf("%s %s", gl.GetString(gl.RENDERER), gl.GetString(gl.VERSION))
 	fmt.Printf(" GLSL %s\n", gl.GetString(gl.SHADING_LANGUAGE_VERSION))
 	app.Dispose()

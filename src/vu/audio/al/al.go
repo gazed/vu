@@ -1,5 +1,5 @@
 // Copyright © 2013-2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 // Package al provides a golang audio library based on OpenAL. Official OpenAL
 // documentation can be found online. Just prepend "AL_" to the function
@@ -265,26 +265,26 @@ package al
 // void           (ALC_APIENTRY *pfn_alcCaptureSamples)( ALCdevice *device, ALCvoid *buffer, ALCsizei samples );
 //
 // // AL/alc.h wrappers for the go bindings.
-// ALC_API ALCcontext * ALC_APIENTRY wrap_alcCreateContext( ALCdevice *device, const int* attrlist ) { return (*pfn_alcCreateContext)(device, attrlist); }
-// ALC_API ALCboolean   ALC_APIENTRY wrap_alcMakeContextCurrent( ALCcontext *context ) { return (*pfn_alcMakeContextCurrent)( context ); }
-// ALC_API void         ALC_APIENTRY wrap_alcProcessContext( ALCcontext *context ) { (*pfn_alcProcessContext)( context ); }
-// ALC_API void         ALC_APIENTRY wrap_alcSuspendContext( ALCcontext *context ) { (*pfn_alcSuspendContext)( context ); }
-// ALC_API void         ALC_APIENTRY wrap_alcDestroyContext( ALCcontext *context ) { (*pfn_alcDestroyContext)( context ); }
-// ALC_API ALCcontext * ALC_APIENTRY wrap_alcGetCurrentContext( void ) { return (*pfn_alcGetCurrentContext)(); }
-// ALC_API ALCdevice*   ALC_APIENTRY wrap_alcGetContextsDevice( ALCcontext *context ) { return (*pfn_alcGetContextsDevice)( context ); }
-// ALC_API ALCdevice *  ALC_APIENTRY wrap_alcOpenDevice( const char *devicename ) { return (*pfn_alcOpenDevice)( devicename ); }
-// ALC_API ALCboolean   ALC_APIENTRY wrap_alcCloseDevice( ALCdevice *device ) { return (*pfn_alcCloseDevice)( device ); }
-// ALC_API ALCenum      ALC_APIENTRY wrap_alcGetError( ALCdevice *device ) { return (*pfn_alcGetError)( device ); }
-// ALC_API ALCboolean   ALC_APIENTRY wrap_alcIsExtensionPresent( ALCdevice *device, const char *extname ) { return (*pfn_alcIsExtensionPresent)( device, extname ); }
-// ALC_API void  *      ALC_APIENTRY wrap_alcGetProcAddress( ALCdevice *device, const char *funcname ) { return (*pfn_alcGetProcAddress)(device, funcname ); }
-// ALC_API ALCenum      ALC_APIENTRY wrap_alcGetEnumValue( ALCdevice *device, const char *enumname ) { return (*pfn_alcGetEnumValue)(device, enumname ); }
-// ALC_API const char * ALC_APIENTRY wrap_alcGetString( ALCdevice *device, int param ) { return (*pfn_alcGetString)( device, param ); }
-// ALC_API void         ALC_APIENTRY wrap_alcGetIntegerv( ALCdevice *device, int param, int size, int *data ) { (*pfn_alcGetIntegerv)( device, param, size, data ); }
-// ALC_API ALCdevice*   ALC_APIENTRY wrap_alcCaptureOpenDevice( const char *devicename, unsigned int frequency, int format, int buffersize ) { return (*pfn_alcCaptureOpenDevice)( devicename, frequency, format, buffersize ); }
-// ALC_API ALCboolean   ALC_APIENTRY wrap_alcCaptureCloseDevice( ALCdevice *device ) { return (*pfn_alcCaptureCloseDevice)( device ); }
-// ALC_API void         ALC_APIENTRY wrap_alcCaptureStart( ALCdevice *device ) { (*pfn_alcCaptureStart)( device ); }
-// ALC_API void         ALC_APIENTRY wrap_alcCaptureStop( ALCdevice *device ) { (*pfn_alcCaptureStop)( device ); }
-// ALC_API void         ALC_APIENTRY wrap_alcCaptureSamples( ALCdevice *device, ALCvoid *buffer, int samples ) { (*pfn_alcCaptureSamples)( device, buffer, samples ); }
+// ALC_API uintptr_t    ALC_APIENTRY wrap_alcCreateContext( uintptr_t device, const int* attrlist ) { return (uintptr_t)(*pfn_alcCreateContext)((ALCdevice *)device, attrlist); }
+// ALC_API ALCboolean   ALC_APIENTRY wrap_alcMakeContextCurrent( uintptr_t context ) { return (*pfn_alcMakeContextCurrent)( (ALCcontext *)context ); }
+// ALC_API void         ALC_APIENTRY wrap_alcProcessContext( uintptr_t context ) { (*pfn_alcProcessContext)( (ALCcontext *)context ); }
+// ALC_API void         ALC_APIENTRY wrap_alcSuspendContext( uintptr_t context ) { (*pfn_alcSuspendContext)( (ALCcontext *)context ); }
+// ALC_API void         ALC_APIENTRY wrap_alcDestroyContext( uintptr_t context ) { (*pfn_alcDestroyContext)( (ALCcontext *)context ); }
+// ALC_API uintptr_t    ALC_APIENTRY wrap_alcGetCurrentContext( void ) { return (uintptr_t)(*pfn_alcGetCurrentContext)(); }
+// ALC_API uintptr_t    ALC_APIENTRY wrap_alcGetContextsDevice( uintptr_t context ) { return (uintptr_t)(*pfn_alcGetContextsDevice)( (ALCcontext *)context ); }
+// ALC_API uintptr_t    ALC_APIENTRY wrap_alcOpenDevice( const char *devicename ) { return (uintptr_t)(*pfn_alcOpenDevice)( devicename ); }
+// ALC_API ALCboolean   ALC_APIENTRY wrap_alcCloseDevice( uintptr_t device ) { return (*pfn_alcCloseDevice)( (ALCdevice *)device ); }
+// ALC_API ALCenum      ALC_APIENTRY wrap_alcGetError( uintptr_t device ) { return (*pfn_alcGetError)( (ALCdevice *)device ); }
+// ALC_API ALCboolean   ALC_APIENTRY wrap_alcIsExtensionPresent( uintptr_t device, const char *extname ) { return (*pfn_alcIsExtensionPresent)( (ALCdevice *)device, extname ); }
+// ALC_API void  *      ALC_APIENTRY wrap_alcGetProcAddress( uintptr_t device, const char *funcname ) { return (*pfn_alcGetProcAddress)( (ALCdevice *)device, funcname ); }
+// ALC_API ALCenum      ALC_APIENTRY wrap_alcGetEnumValue( uintptr_t device, const char *enumname ) { return (*pfn_alcGetEnumValue)( (ALCdevice *)device, enumname ); }
+// ALC_API const char * ALC_APIENTRY wrap_alcGetString( uintptr_t device, int param ) { return (*pfn_alcGetString)( (ALCdevice *)device, param ); }
+// ALC_API void         ALC_APIENTRY wrap_alcGetIntegerv( uintptr_t device, int param, int size, int *data ) { (*pfn_alcGetIntegerv)( (ALCdevice *)device, param, size, data ); }
+// ALC_API uintptr_t    ALC_APIENTRY wrap_alcCaptureOpenDevice( const char *devicename, unsigned int frequency, int format, int buffersize ) { return (uintptr_t)(*pfn_alcCaptureOpenDevice)( devicename, frequency, format, buffersize ); }
+// ALC_API ALCboolean   ALC_APIENTRY wrap_alcCaptureCloseDevice( uintptr_t device ) { return (*pfn_alcCaptureCloseDevice)( (ALCdevice *)device ); }
+// ALC_API void         ALC_APIENTRY wrap_alcCaptureStart( uintptr_t device ) { (*pfn_alcCaptureStart)( (ALCdevice *)device ); }
+// ALC_API void         ALC_APIENTRY wrap_alcCaptureStop( uintptr_t device ) { (*pfn_alcCaptureStop)( (ALCdevice *)device ); }
+// ALC_API void         ALC_APIENTRY wrap_alcCaptureSamples( uintptr_t device, ALCvoid *buffer, int samples ) { (*pfn_alcCaptureSamples)( (ALCdevice *)device, buffer, samples ); }
 //
 // void al_init() {
 //    // AL/al.h
@@ -495,10 +495,11 @@ func cbool(albool uint) bool {
 	return albool == TRUE
 }
 
-// Special type mappings
+// Special type mappings. Note that the context and device are pointers
+// on Windows and Linux, but integers on OSX.
 type (
-	Context C.struct_ALCcontext_struct
-	Device  C.struct_ALCdevice_struct
+	Context uintptr // C.struct_ALCcontext_struct
+	Device  uintptr // C.struct_ALCdevice_struct
 	Pointer unsafe.Pointer
 )
 
@@ -654,72 +655,72 @@ func SpeedOfSound(value float32)          { C.wrap_alSpeedOfSound(C.float(value)
 func DistanceModel(distanceModel float32) { C.wrap_alDistanceModel(C.int(distanceModel)) }
 
 // AL/alc.h go bindings
-func CreateContext(device *Device, attrlist *int32) *Context {
-	return (*Context)(C.wrap_alcCreateContext((*C.struct_ALCdevice_struct)(device), (*C.int)(attrlist)))
+func CreateContext(device Device, attrlist *int32) Context {
+	return (Context)(C.wrap_alcCreateContext((C.uintptr_t)(device), (*C.int)(attrlist)))
 }
-func MakeContextCurrent(context *Context) bool {
-	return cbool(uint(C.wrap_alcMakeContextCurrent((*C.struct_ALCcontext_struct)(context))))
+func MakeContextCurrent(context Context) bool {
+	return cbool(uint(C.wrap_alcMakeContextCurrent((C.uintptr_t)(context))))
 }
-func ProcessContext(context *Context) {
-	C.wrap_alcProcessContext((*C.struct_ALCcontext_struct)(context))
+func ProcessContext(context Context) {
+	C.wrap_alcProcessContext((C.uintptr_t)(context))
 }
-func SuspendContext(context *Context) {
-	C.wrap_alcSuspendContext((*C.struct_ALCcontext_struct)(context))
+func SuspendContext(context Context) {
+	C.wrap_alcSuspendContext((C.uintptr_t)(context))
 }
-func DestroyContext(context *Context) {
-	C.wrap_alcDestroyContext((*C.struct_ALCcontext_struct)(context))
+func DestroyContext(context Context) {
+	C.wrap_alcDestroyContext((C.uintptr_t)(context))
 }
-func GetCurrentContext() *Context { return (*Context)(C.wrap_alcGetCurrentContext()) }
-func GetContextsDevice(context *Context) *Device {
-	return (*Device)(C.wrap_alcGetContextsDevice((*C.struct_ALCcontext_struct)(context)))
+func GetCurrentContext() Context { return (Context)(C.wrap_alcGetCurrentContext()) }
+func GetContextsDevice(context Context) Device {
+	return (Device)(C.wrap_alcGetContextsDevice((C.uintptr_t)(context)))
 }
-func OpenDevice(devicename string) *Device {
+func OpenDevice(devicename string) Device {
 	if devicename != "" {
-		return (*Device)(C.wrap_alcOpenDevice(nil))
+		return (Device)(C.wrap_alcOpenDevice(nil))
 	}
 	cstr := C.CString(devicename)
 	defer C.free(unsafe.Pointer(cstr))
-	return (*Device)(C.wrap_alcOpenDevice(cstr))
+	return (Device)(C.wrap_alcOpenDevice(cstr))
 }
-func CloseDevice(device *Device) bool {
-	return cbool(uint(C.wrap_alcCloseDevice((*C.struct_ALCdevice_struct)(device))))
+func CloseDevice(device Device) bool {
+	return cbool(uint(C.wrap_alcCloseDevice((C.uintptr_t)(device))))
 }
-func GetDeviceError(device *Device) int32 {
-	return int32(C.wrap_alcGetError((*C.struct_ALCdevice_struct)(device)))
+func GetDeviceError(device Device) int32 {
+	return int32(C.wrap_alcGetError((C.uintptr_t)(device)))
 }
-func IsDeviceExtensionPresent(device *Device, extname string) bool {
+func IsDeviceExtensionPresent(device Device, extname string) bool {
 	cstr := C.CString(extname)
 	defer C.free(unsafe.Pointer(cstr))
-	return cbool(uint(C.wrap_alcIsExtensionPresent((*C.struct_ALCdevice_struct)(device), cstr)))
+	return cbool(uint(C.wrap_alcIsExtensionPresent((C.uintptr_t)(device), cstr)))
 }
-func GetDeviceProcAddress(device *Device, fname string) Pointer {
+func GetDeviceProcAddress(device Device, fname string) Pointer {
 	cstr := C.CString(fname)
 	defer C.free(unsafe.Pointer(cstr))
-	return Pointer(C.wrap_alcGetProcAddress((*C.struct_ALCdevice_struct)(device), cstr))
+	return Pointer(C.wrap_alcGetProcAddress((C.uintptr_t)(device), cstr))
 }
-func GetDeviceEnumValue(device *Device, ename string) int32 {
+func GetDeviceEnumValue(device Device, ename string) int32 {
 	cstr := C.CString(ename)
 	defer C.free(unsafe.Pointer(cstr))
-	return int32(C.wrap_alcGetEnumValue((*C.struct_ALCdevice_struct)(device), cstr))
+	return int32(C.wrap_alcGetEnumValue((C.uintptr_t)(device), cstr))
 }
-func GetDeviceString(device *Device, param int32) string {
-	return C.GoString(C.wrap_alcGetString((*C.struct_ALCdevice_struct)(device), C.int(param)))
+func GetDeviceString(device Device, param int32) string {
+	return C.GoString(C.wrap_alcGetString((C.uintptr_t)(device), C.int(param)))
 }
-func GetDeviceIntegerv(device *Device, param int32, size int32, data *int32) {
-	C.wrap_alcGetIntegerv((*C.struct_ALCdevice_struct)(device), C.int(param), C.int(size), (*C.int)(data))
+func GetDeviceIntegerv(device Device, param int32, size int32, data *int32) {
+	C.wrap_alcGetIntegerv((C.uintptr_t)(device), C.int(param), C.int(size), (*C.int)(data))
 }
-func CaptureOpenDevice(devicename string, frequency uint32, format int32, buffersize int32) *Device {
+func CaptureOpenDevice(devicename string, frequency uint32, format int32, buffersize int32) Device {
 	cstr := C.CString(devicename)
 	defer C.free(unsafe.Pointer(cstr))
-	return (*Device)(C.wrap_alcCaptureOpenDevice(cstr, C.uint(frequency), C.int(format), C.int(buffersize)))
+	return (Device)(C.wrap_alcCaptureOpenDevice(cstr, C.uint(frequency), C.int(format), C.int(buffersize)))
 }
-func CaptureCloseDevice(device *Device) bool {
-	return cbool(uint(C.wrap_alcCaptureCloseDevice((*C.struct_ALCdevice_struct)(device))))
+func CaptureCloseDevice(device Device) bool {
+	return cbool(uint(C.wrap_alcCaptureCloseDevice((C.uintptr_t)(device))))
 }
-func CaptureStart(device *Device) { C.wrap_alcCaptureStart((*C.struct_ALCdevice_struct)(device)) }
-func CaptureStop(device *Device)  { C.wrap_alcCaptureStop((*C.struct_ALCdevice_struct)(device)) }
-func CaptureSamples(device *Device, buffer Pointer, samples int) {
-	C.wrap_alcCaptureSamples((*C.struct_ALCdevice_struct)(device), unsafe.Pointer(buffer), C.int(samples))
+func CaptureStart(device Device) { C.wrap_alcCaptureStart((C.uintptr_t)(device)) }
+func CaptureStop(device Device)  { C.wrap_alcCaptureStop((C.uintptr_t)(device)) }
+func CaptureSamples(device Device, buffer Pointer, samples int) {
+	C.wrap_alcCaptureSamples((C.uintptr_t)(device), unsafe.Pointer(buffer), C.int(samples))
 }
 
 // Show which function pointers are bound [+] or not bound [-].

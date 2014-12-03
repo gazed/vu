@@ -1,5 +1,5 @@
 // Copyright © 2013-2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 package render
 
@@ -7,35 +7,37 @@ import (
 	"fmt"
 	"image"
 	"log"
-	"math"
 	"time"
 	"vu/math/lin"
 )
 
-// Model supplys a shader with data. Model is initialized with a shader and
+// Model supplies a shader with data. Model is initialized with a shader and
 // provides methods for setting the data expected by the shader. Often data
-// consists of a Mesh, one or more Textures, and uniform values. Animated
-// models expect joint and key frame data. Model also accepts render
-// directives affecting the overall rendering process.
+// consists of a Mesh (vertex data), one or more Textures (image data), and
+// uniform values. Animated models expect joint and key frame data. Model
+// also accepts render directives affecting the overall rendering process.
 type Model interface {
 	Shader() Shader       // One shader must be set on creation.
+	Dispose()             // Release all rendering resources.
 	SetDrawMode(mode int) // Render directive: TRIANGLES, POINTS, or LINES.
 	Set2D()               // Render directive: Turns DEPTH off for this model.
+	SetCullOff()          // Render directive: Turns back face cull off.
+	Gc() Renderer         // Renderer.
 
 	// Shader uniforms are set using uniform specific methods and through
 	// generic SetUniform which takes a uniform name and 1-4 float32 values.
 	SetScale(x, y, z float64)            // Model sizing.
 	SetMvTransform(mv *lin.M4)           // Model-View transform.
 	SetMvpTransform(mvp *lin.M4)         // Model-View-Projection transform.
-	SetAlpha(a float64)                  // Set or get the shaders
-	Alpha() (a float64)                  // ...alpha uniform value.
-	SetUniform(id string, val []float32) // Set or get float32 based
-	Uniform(id string) (val []float32)   // ...shader uniform value.
+	Alpha() (a float64)                  // Get or
+	SetAlpha(a float64)                  // ...set alpha uniform value.
+	Uniform(id string) (val []float32)   // Get or
+	SetUniform(id string, val []float32) // ...set float32 uniform values.
 
-	// Mesh data can be set from a mesh resource using SetMesh, or a set
-	// from generated data on a Mesh created from Mesh().
+	// Mesh data can be set from a mesh resource using SetMesh, or from
+	// generated data.
 	Name() string            // Model name is the Mesh name, "" if no mesh.
-	Mesh() Mesh              // Get existing mesh or lazy creates new Mesh.
+	Mesh() Mesh              // Return existing mesh or nil if no mesh.
 	SetMesh(mesh Mesh) Model // Set to given mesh resource.
 
 	// A model may have 0 to 15 textures to match the shader expectations.
@@ -52,16 +54,20 @@ type Model interface {
 	// The texture affects faces starting at index f0 and continuing for fn.
 	AddModelTexture(t Texture, f0, fn uint32) (index int)
 
-	// Animation data. Each frame contains 1 transform matrix for each joint,
-	// and joints contains the indexed parent hierarchy.
-	SetAnimation(frames []*lin.M4, joints []int32, numFrames int)
-	Animate(dt float64) // Called regularly to interpolate between frames.
+	// Animation data attaches one or more movements to this model.
+	// The PlayMovement done method is called each time the animation
+	// loop completes.
+	Animation() Animation                     // Gets the animation data.
+	SetAnimation(anim Animation)              // Sets the animation data.
+	PlayMovement(index int, done func()) bool // Chooses repeating movement.
+	Movements() []string                      // Available movement names.
+	Animate(dt float64)                       // Interpolates between frames.
 
 	// Verify the availability of the data expected by the shader.
-	Verify() error // Return a nil error if expected data matches available.
-	Dispose()      // Release all rendering resources.
+	Verify() error // Return an error if the shader is missing data.
 }
 
+// Render implementation independent constants.
 const (
 	// Draw mode types for vertex data rendering. One of these is expected
 	// when calling Model.SetDrawMode(mode)
@@ -83,16 +89,10 @@ type model struct {
 	shd  *shader         // Pipeline renderer for this model.
 	msh  *mesh           // Vertex buffer data.
 	tex  []*texture      // Texture data. Needed for a uv texture buffer.
+	anim *animation      // Optional mesh animation.
 	mode int             // How to draw the vertex data.
 	is2D bool            // Whether or not to enable depth testing.
-	tmap []textureMap    // data to map multiple textures to one vertex mesh.
-
-	// Animation data.
-	nFrames int      // number of animation frames.
-	frames  []lin.M4 // nFrames*nPoses transform bone positions.
-	anim    []m34    // nPoses of a frame of animation data sent to GPU.
-	fcnt    float64  // frame counter.
-	jparent []int32  // joint parent indicies.
+	cull bool            // Whether or not to enable back face culling.
 
 	// Predefined shader uniform values.
 	mv    *m4       // Model view.
@@ -102,18 +102,20 @@ type model struct {
 	alpha float32   // Shaders alpha value.
 	time  time.Time // For shaders that need elapsed time.
 
+	// per-instance animation data.
+	pose         []m34   // nPoses of a frame of animation data sent to GPU.
+	movement     int     // current animation defaults to 0.
+	frame        float64 // frame counter.
+	maxFrames    int     // number of frames in the current movement.
+	loopCallback func()  // called each time the animation loop finishes.
+
 	// Applicaiton defined shader uniform values.
 	uniforms map[string][]float32                 // Render pre-defined.
 	common   map[string]func(m *model, ref int32) // Model defined.
-
-	jntM4, tmpM4 *lin.M4 // Per-frame scratch values for animations.
 }
 
-type textureMap struct {
-	f0, fn int32 // First face index and number of faces.
-}
-
-// newModel creates a new model. It needs to be loaded with data.
+// newModel creates a new model. It needs to be associated with a mesh
+// that will give the model its name.
 func newModel(gc Renderer, s Shader) Model {
 	m := &model{}
 	m.gc = gc.(graphicsContext)
@@ -122,12 +124,11 @@ func newModel(gc Renderer, s Shader) Model {
 	m.nm = &m3{}
 	m.scale = &v3{}
 	m.tex = []*texture{}
-	m.anim = []m34{}
 	m.uniforms = map[string][]float32{}
 	m.time = time.Now()
 	m.alpha = 1
+	m.cull = true
 	m.setShader(s)
-	m.jntM4, m.tmpM4 = &lin.M4{}, &lin.M4{}
 
 	// Provide some common shader uniforms that are needed by most shaders.
 	m.common = map[string]func(m *model, ref int32){
@@ -142,8 +143,8 @@ func newModel(gc Renderer, s Shader) Model {
 
 		// bone position animation data.
 		"bpos": func(m *model, ref int32) {
-			if len(m.anim) > 0 {
-				m.gc.bindUniform(ref, x34, len(m.anim), m.anim[0].Pointer())
+			if m.pose != nil {
+				m.gc.bindUniform(ref, x34, len(m.pose), m.pose[0].Pointer())
 			}
 		},
 
@@ -178,10 +179,12 @@ func newModel(gc Renderer, s Shader) Model {
 func (m *model) SetAlpha(a float64)                    { m.alpha = float32(a) }
 func (m *model) Alpha() (a float64)                    { return float64(m.alpha) }
 func (m *model) Set2D()                                { m.is2D = true }
+func (m *model) SetCullOff()                           { m.cull = false }
 func (m *model) SetUniform(id string, value []float32) { m.uniforms[id] = value }
 func (m *model) Uniform(id string) (value []float32)   { return m.uniforms[id] }
 func (m *model) SetMvTransform(mv *lin.M4)             { m.mv.tom4(mv) }
 func (m *model) SetMvpTransform(mvp *lin.M4)           { m.mvp.tom4(mvp) }
+func (m *model) Gc() Renderer                          { return m.gc }
 
 // Model implementation.
 func (m *model) SetScale(x, y, z float64) {
@@ -206,7 +209,8 @@ func (m *model) AddTexture(tex Texture) (index int) {
 // Model implementation.
 func (m *model) AddModelTexture(tex Texture, f0, fn uint32) (index int) {
 	m.AddTexture(tex)
-	m.tmap = append(m.tmap, textureMap{int32(f0), int32(fn)})
+	t := tex.(*texture)
+	t.f0, t.fn = int32(f0), int32(fn)
 	return len(m.tex)
 }
 
@@ -222,6 +226,10 @@ func (m *model) UseTexture(t Texture, index int) {
 		} else {
 			log.Printf("model.AddTexture: could not bind %s %s", newt.Name(), err)
 		}
+	}
+	if tex := m.tex[index]; tex != nil {
+		tex.refs-- // do not delete here.
+		newt.f0, newt.fn = tex.f0, tex.fn
 	}
 	newt.refs++
 	m.tex[index] = newt
@@ -326,22 +334,10 @@ func (m *model) SetMesh(modelMesh Mesh) Model {
 // Model implementation.
 func (m *model) Mesh() Mesh {
 	if m.msh == nil {
-		m.msh = newMesh("mesh") // not cached for reuse.
-		m.msh.refs++
+		return nil
 	}
 	return m.msh
 }
-
-// // Model implementation.
-// // Only overwrite mesh data labelled mesh (not cached mesh data).
-// func (m *model) BindMesh() {
-// 	if m.msh.rebind && m.msh.name == "mesh" {
-// 		if err := m.gc.bindMesh(m.msh); err != nil {
-// 			log.Printf("model.NewMesh failed %s", err)
-// 		}
-// 		m.msh.rebind = false
-// 	}
-// }
 
 // Model implementation.
 func (m *model) SetDrawMode(mode int) {
@@ -409,53 +405,50 @@ func (m *model) bindUniforms() {
 }
 
 // Model implementation.
-func (m *model) SetAnimation(frames []*lin.M4, jparents []int32, numFrames int) {
-	m.nFrames = numFrames
-	m.anim = make([]m34, len(jparents))    // 1 matrix for each joint.
-	m.frames = make([]lin.M4, len(frames)) // transform matrices for each frame.
-	for cnt, frame := range frames {
-		m.frames[cnt].Set(frame)
+func (m *model) Animation() Animation {
+	if m.anim != nil {
+		return m.anim
 	}
-	m.jparent = m.jparent[:0]
-	m.jparent = append(m.jparent, jparents...)
+	return nil
+}
+func (m *model) SetAnimation(a Animation) {
+	if a != nil {
+		m.anim = a.(*animation)
+		m.maxFrames = m.anim.maxFrames(0)
+		m.pose = make([]m34, m.anim.jointCnt) // 1 matrix for each joint.
+	}
 }
 
-// Note that this animates all attributes (position, normal, tangent, bitangent)
-// for expository purposes, even though this demo does not use all of them for rendering.
+// Model implementation.
 func (m *model) Animate(dt float64) {
-	if m.nFrames <= 0 {
-		return
-	}
-
-	// The frame timer, fcnt, controls the speed of the animation.
-	// FUTURE: find a more generic way to time animations.
-	m.fcnt += dt * 10 // Increment frame timer.
-	m.nFrames = 100
-
-	frame1 := int(math.Floor(m.fcnt))
-	frame2 := frame1 + 1
-	frameoffset := float64(m.fcnt) - float64(frame1)
-	frame1 %= m.nFrames
-	frame2 %= m.nFrames
-
-	// Interpolate matrixes between the two closest frames and concatenate with
-	// parent matrix if necessary. Concatenate the result with the inverse of the
-	// base pose. You would normally do animation blending and inter-frame
-	// blending here in a 3D engine.
-	nJoints := len(m.frames) / m.nFrames
-	for cnt := 0; cnt < nJoints; cnt++ {
-
-		// interpolate between the two closest frames.
-		m1, m2 := &m.frames[frame1*nJoints+cnt], &m.frames[frame2*nJoints+cnt]
-		m.jntM4.Set(m1).Scale(1-frameoffset).Add(m.jntM4, m.tmpM4.Set(m2).Scale(frameoffset))
-
-		if m.jparent[cnt] >= 0 {
-
-			// parentPose * childPose * childInverseBasePose
-			m.jntM4.Mult(m.jntM4, (&m.anim[m.jparent[cnt]]).toM4(m.tmpM4))
+	if m.anim != nil {
+		m.frame = m.anim.animate(dt, m.frame, m.movement, m.pose)
+		if int(m.frame) >= m.maxFrames {
+			m.frame = 0
+			if m.loopCallback != nil {
+				m.loopCallback() // An animation loop completed.
+			}
 		}
-		(&m.anim[cnt]).tom34(m.jntM4)
 	}
+}
+
+// Model implementation.
+// Return true if the requested animaiton movement was available.
+func (m *model) PlayMovement(movement int, done func()) bool {
+	m.loopCallback = nil
+	if m.anim != nil {
+		m.loopCallback = done
+		m.movement = m.anim.playMovement(movement)
+		m.maxFrames = m.anim.maxFrames(movement)
+		m.frame = 0
+	}
+	return movement == m.movement // was the requested movement available.
+}
+func (m *model) Movements() []string {
+	if m.anim != nil {
+		return m.anim.Movements()
+	}
+	return []string{}
 }
 
 // Model implementation.

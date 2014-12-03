@@ -1,5 +1,5 @@
 // Copyright © 2013-2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 package move
 
@@ -18,7 +18,7 @@ func TestUuid(t *testing.T) {
 
 func TestSphereProperties(t *testing.T) {
 	b := newBody(NewSphere(1)).SetMaterial(0.5, 0.8).(*body)
-	if b.IsMovable() != true || !lin.Aeq(b.imass, 2) {
+	if b.movable != true || !lin.Aeq(b.imass, 2) {
 		t.Errorf("Expecting movable body with mass %f", b.imass)
 	}
 	if dumpV3(b.iit) != "{5.0 5.0 5.0}" {
@@ -26,8 +26,8 @@ func TestSphereProperties(t *testing.T) {
 	}
 }
 func TestBoxProperties(t *testing.T) {
-	p := newBody(NewBox(100, 1, 100)).SetMaterial(0, 0.1).(*body)
-	if p.IsMovable() == true || p.imass != 0.0 {
+	b := newBody(NewBox(100, 1, 100)).SetMaterial(0, 0.1).(*body)
+	if b.movable == true || b.imass != 0.0 {
 		t.Errorf("Expecting stationary body with no mass.")
 	}
 }

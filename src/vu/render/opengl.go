@@ -1,5 +1,5 @@
 // Copyright © 2013-2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 package render
 
@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"image"
-	// "image/draw"
 	"log"
 	"strings"
 	"vu/render/gl"
@@ -32,10 +31,10 @@ const (
 	BLEND      uint32 = gl.BLEND              // Alpha blending.
 	CULL              = gl.CULL_FACE          // Backface culling.
 	DEPTH             = gl.DEPTH_TEST         // Z-buffer (depth) awareness.
-	POINT_SIZE        = gl.PROGRAM_POINT_SIZE // Use shader gl_PointSize.
+	POINT_SIZE        = gl.PROGRAM_POINT_SIZE // Enable gl_PointSize in shaders.
 
 	// Vertex data render hints. Used in the Buffer.SetUsage() method.
-	STATIC  = gl.STATIC_DRAW  // Data created once and render many times.
+	STATIC  = gl.STATIC_DRAW  // Data created once and rendered many times.
 	DYNAMIC = gl.DYNAMIC_DRAW // Data is continually being updated.
 )
 
@@ -51,13 +50,14 @@ func (gc *opengl) Init() error {
 }
 
 // Renderer implementation.
-func (gc *opengl) NewModel(s Shader) Model        { return newModel(gc, s) }
-func (gc *opengl) NewMesh(name string) Mesh       { return newMesh(name) }
-func (gc *opengl) NewTexture(name string) Texture { return newTexture(name) }
-func (gc *opengl) NewShader(name string) Shader   { return newShader(name) }
-func (gc *opengl) Color(r, g, b, a float32)       { gl.ClearColor(r, g, b, a) }
-func (gc *opengl) Clear()                         { gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT) }
-func (gc *opengl) Viewport(width int, height int) { gl.Viewport(0, 0, int32(width), int32(height)) }
+func (gc *opengl) NewModel(s Shader) Model            { return newModel(gc, s) }
+func (gc *opengl) NewMesh(name string) Mesh           { return newMesh(name) }
+func (gc *opengl) NewTexture(name string) Texture     { return newTexture(name) }
+func (gc *opengl) NewShader(name string) Shader       { return newShader(name) }
+func (gc *opengl) NewAnimation(name string) Animation { return newAnimation(name) }
+func (gc *opengl) Color(r, g, b, a float32)           { gl.ClearColor(r, g, b, a) }
+func (gc *opengl) Clear()                             { gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT) }
+func (gc *opengl) Viewport(width int, height int)     { gl.Viewport(0, 0, int32(width), int32(height)) }
 
 // Renderer implementation.
 func (gc *opengl) Enable(attribute uint32, enabled bool) {
@@ -96,6 +96,11 @@ func (gc *opengl) Render(mod Model) {
 		if m.is2D {
 			gl.Disable(gl.DEPTH_TEST)
 		}
+		if m.cull {
+			gl.Enable(gl.CULL_FACE)
+		} else {
+			gl.Disable(gl.CULL_FACE)
+		}
 
 		// switch shaders only if necessary.
 		if m.shd.program != gc.currentShader {
@@ -107,6 +112,7 @@ func (gc *opengl) Render(mod Model) {
 		m.bindUniforms() // currently bind each time.
 		if m.msh.rebind {
 			gc.bindMesh(m.msh)
+			m.msh.rebind = false
 		}
 
 		// bind the data buffers and render.
@@ -123,11 +129,11 @@ func (gc *opengl) Render(mod Model) {
 			gl.Disable(gl.PROGRAM_POINT_SIZE)
 		case TRIANGLES:
 			fd := m.msh.faces
-			if len(m.tmap) > 1 {
+			if len(m.tex) > 1 && m.tex[0].fn > 0 {
 
 				// Some models have multiple texture maps applied to a single set of
 				// vertex data.
-				for cnt, tm := range m.tmap {
+				for cnt, tex := range m.tex {
 
 					// Use the same texture unit and sampler. Just update which
 					// image is being sampled.
@@ -136,10 +142,14 @@ func (gc *opengl) Render(mod Model) {
 					// fn is the number of triangles, 3 indicies per triangle.
 					// f0 is the offset in triangles where each triangle has 3 indicies
 					//    of 2 bytes (uShort) each.
-					gl.DrawElements(gl.TRIANGLES, tm.fn*3, gl.UNSIGNED_SHORT, int64(3*2*tm.f0))
+					gl.DrawElements(gl.TRIANGLES, tex.fn*3, gl.UNSIGNED_SHORT, int64(3*2*tex.f0))
 				}
 			} else {
-				gl.DrawElements(gl.TRIANGLES, int32(len(fd.data)), gl.UNSIGNED_SHORT, 0)
+				if fd == nil {
+					log.Printf("opengl:Render mesh %s has no data", m.msh.name)
+				} else {
+					gl.DrawElements(gl.TRIANGLES, int32(len(fd.data)), gl.UNSIGNED_SHORT, 0)
+				}
 			}
 		}
 		gl.Disable(gl.DEPTH_TEST)

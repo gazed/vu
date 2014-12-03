@@ -1,5 +1,5 @@
 // Copyright © 2013-2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
 
@@ -17,12 +17,12 @@ func au() {
 	al.Init() // map the bindings to the OpenAL dynamic library.
 
 	// open the default device.
-	if dev := al.OpenDevice(""); dev != nil {
+	if dev := al.OpenDevice(""); dev != 0 {
 		defer al.CloseDevice(dev)
 
 		// create a context on the device.
-		if ctx := al.CreateContext(dev, nil); ctx != nil {
-			defer al.MakeContextCurrent(nil)
+		if ctx := al.CreateContext(dev, nil); ctx != 0 {
+			defer al.MakeContextCurrent(0)
 			defer al.DestroyContext(ctx)
 			al.MakeContextCurrent(ctx)
 

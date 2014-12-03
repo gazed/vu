@@ -1,5 +1,5 @@
 // Copyright © 2013-2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
 
@@ -20,9 +20,8 @@ func cr() {
 		log.Printf("cr: error intitializing engine %s", err)
 		return
 	}
-	cr.run = 10            // move so many cubes worth in one second.
-	cr.spin = 270          // spin so many degrees in one second.
-	cr.eng.SetDirector(cr) // override user input handling.
+	cr.eng.SetDirector(cr) // get user input through Director.Update()
+	cr.create()            // create initial assests.
 	defer cr.eng.Shutdown()
 	defer catchErrors()
 	cr.eng.Action()
@@ -30,35 +29,40 @@ func cr() {
 
 // Globally unique "tag" that encapsulates example specific data.
 type crtag struct {
-	eng   vu.Engine
-	scene vu.Scene
-	bod   vu.Part
-	run   float64 // Camera movement speed.
-	spin  float64 // Camera spin speed.
+	eng     vu.Engine
+	scene   vu.Scene
+	cam     vu.Camera
+	striker vu.Part // Move to hit other items.
+	run     float64 // Camera movement speed.
+	spin    float64 // Camera spin speed.
 }
 
-// Create is the engine intialization callback. Create the physics objects.
-func (cr *crtag) Create(eng vu.Engine) {
-	cr.scene = eng.AddScene(vu.VP)
-	cr.scene.SetPerspective(60, float64(800)/float64(600), 0.1, 50)
-	cr.scene.SetLightLocation(0, 5, 0)
-	cr.scene.SetLightColour(0.4, 0.7, 0.9)
-	cr.scene.SetLocation(0, 10, 25)
+// create is the startup asset creation.
+func (cr *crtag) create() {
+	cr.run = 10   // move so many cubes worth in one second.
+	cr.spin = 270 // spin so many degrees in one second.
+	cr.scene = cr.eng.AddScene(vu.VP)
+	cr.cam = cr.scene.Cam()
+	cr.cam.SetPerspective(60, float64(800)/float64(600), 0.1, 500)
+	cr.cam.SetLocation(0, 10, 25)
 
 	// load the static slab.
-	slab := cr.scene.AddPart().SetLocation(0, -25, 0).SetScale(50, 50, 50)
+	slab := cr.scene.AddPart().SetScale(50, 50, 50)
+	slab.SetLocation(0, -25, 0)
+	slab.SetBody(vu.NewBox(25, 25, 25), 0, 0.4)
 	slab.SetRole("gouraud").SetMesh("cube").SetMaterial("floor")
-	slab.SetBody(vu.Box(25, 25, 25), 0, 0.4)
+	slab.Role().SetLightLocation(0, 5, -100)
+	slab.Role().SetLightColour(0.4, 0.7, 0.9)
 
 	// create a single moving body.
-	useBalls := true
-	cr.bod = cr.scene.AddPart()
-	cr.bod.SetLocation(15, 15, 0) // -5, 15, -3
+	useBalls := true // Change this to use boxes instead of spheres.
+	cr.striker = cr.scene.AddPart()
+	cr.striker.SetLocation(15, 15, 0) // -5, 15, -3
 	if useBalls {
-		cr.getBall(cr.bod)
+		cr.getBall(cr.striker)
 	} else {
-		cr.getBox(cr.bod)
-		cr.bod.SetRotation(0.1825742, 0.3651484, 0.5477226, 0.7302967)
+		cr.getBox(cr.striker)
+		cr.striker.SetRotation(0.1825742, 0.3651484, 0.5477226, 0.7302967)
 	}
 
 	// create a block of physics bodies.
@@ -82,7 +86,7 @@ func (cr *crtag) Create(eng vu.Engine) {
 			}
 		}
 	}
-	eng.Color(0.15, 0.15, 0.15, 1)
+	cr.eng.Color(0.15, 0.15, 0.15, 1)
 	rand.Seed(time.Now().UTC().UnixNano())
 	return
 }
@@ -96,20 +100,25 @@ func (cr *crtag) Update(in *vu.Input) {
 	for press, _ := range in.Down {
 		switch press {
 		case "W":
-			cr.scene.Move(0, 0, dt*-cr.run)
+			cr.cam.Move(0, 0, dt*-cr.run)
 		case "S":
-			cr.scene.Move(0, 0, dt*cr.run)
+			cr.cam.Move(0, 0, dt*cr.run)
 		case "A":
-			cr.scene.Spin(vu.YAxis, dt*cr.spin)
+			cr.cam.Spin(0, dt*cr.spin, 0)
 		case "D":
-			cr.scene.Spin(vu.YAxis, dt*-cr.spin)
+			cr.cam.Spin(0, dt*-cr.spin, 0)
 		case "B":
 			ball := cr.scene.AddPart()
-			ball.SetRole("gouraud").SetMesh("sphere").SetMaterial("sphere")
 			ball.SetLocation(-2.5+rand.Float64(), 15, -1.5-rand.Float64())
-			ball.SetBody(vu.Sphere(1), 1, 0.9)
+			ball.SetBody(vu.NewSphere(1), 1, 0.9)
+			ball.SetRole("gouraud").SetMesh("sphere").SetMaterial("sphere")
+			ball.Role().SetLightLocation(0, 5, 0)
+			r := rand.Float64()
+			g := rand.Float64()
+			b := rand.Float64()
+			ball.Role().SetLightColour(r, g, b)
 		case "Sp":
-			cr.bod.Push(-2.5, 0, -0.5)
+			cr.striker.Body().Push(-2.5, 0, -0.5)
 		}
 	}
 }
@@ -118,18 +127,22 @@ func (cr *crtag) Update(in *vu.Input) {
 func (cr *crtag) resize() {
 	x, y, width, height := cr.eng.Size()
 	cr.eng.Resize(x, y, width, height)
-	cr.scene.SetPerspective(60, float64(width)/float64(height), 0.1, 50)
+	cr.cam.SetPerspective(60, float64(width)/float64(height), 0.1, 50)
 }
 
 // getBall creates a visible sphere physics body.
 func (cr *crtag) getBall(bod vu.Part) {
 	bod.SetRole("gouraud").SetMesh("sphere").SetMaterial("sphere")
-	bod.SetBody(vu.Sphere(1), 1, 0.5)
+	bod.SetBody(vu.NewSphere(1), 1, 0.5)
+	bod.Role().SetLightLocation(0, 5, 0)
+	bod.Role().SetLightColour(0.5, 0.9, 0.7)
 }
 
 // getBox creates a visible box physics body.
 func (cr *crtag) getBox(bod vu.Part) {
 	bod.SetScale(2, 2, 2)
 	bod.SetRole("gouraud").SetMesh("cube").SetMaterial("sphere")
-	bod.SetBody(vu.Box(1, 1, 1), 1, 0)
+	bod.SetBody(vu.NewBox(1, 1, 1), 1, 0)
+	bod.Role().SetLightLocation(0, 5, 0)
+	bod.Role().SetLightColour(0.9, 0.5, 0.7)
 }

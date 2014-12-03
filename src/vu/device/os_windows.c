@@ -1,5 +1,5 @@
 // Copyright © 2013-2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 // The microsoft (windows) native layer implementation.
 // This wraps the microsoft API's (where the real work is done).
@@ -76,7 +76,7 @@ LRESULT CALLBACK gs_wnd_proc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		    long key = wParam;
 
 			// only care about modifiers with other keys.
-			if (key == VK_SHIFT || key == VK_CONTROL) {
+			if (key == VK_SHIFT || key == VK_CONTROL || key == VK_MENU || key == VK_LWIN || key == VK_RWIN) {
 				return 0;
 			}
 			gs_write_urge(msg, key, 0);
@@ -300,13 +300,25 @@ void gs_read_dispatch(long display, GSEvent *gs_urge)
 
 	// always send back the modifier keys.
 	long mods = 0;
-	if ( GetKeyState(VK_SHIFT) & 0x8000 ) 
+	if ( GetKeyState(VK_SHIFT) & 0x8000 )
 	{
-        mods |= GS_ShiftKeyMask; 
+        mods |= GS_ShiftKeyMask;
 	}
-	if ( GetKeyState(VK_CONTROL) & 0x8000 ) 
+	if ( GetKeyState(VK_CONTROL) & 0x8000 )
 	{
-        mods |= GS_ControlKeyMask; 
+        mods |= GS_ControlKeyMask;
+	}
+	if ( GetKeyState(VK_MENU) & 0x8000 )
+	{
+        mods |= GS_AlternateKeyMask;
+	}
+	if ( GetKeyState(VK_LWIN) & 0x8000 )
+	{
+        mods |= GS_CommandKeyMask;
+	}
+	if ( GetKeyState(VK_RWIN) & 0x8000 )
+	{
+        mods |= GS_CommandKeyMask;
 	}
 	gs_urge->mods = mods;
 

@@ -1,11 +1,10 @@
 // Copyright © 2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 package grid
 
 import (
 	"math/rand"
-	"time"
 )
 
 // cave holds a cavern like grid structure.
@@ -22,7 +21,6 @@ type cave struct {
 //         are not a useful gameplay feature.
 func (c *cave) Generate(width, depth int) Grid {
 	c.create(width, depth, allFloors)
-	randomGenerator := rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
 	scratch := make([][]*cell, len(c.cells))
 	for x, _ := range scratch {
 		scratch[x] = make([]*cell, len(c.cells[0]))
@@ -34,7 +32,7 @@ func (c *cave) Generate(width, depth int) Grid {
 	// randomly fill the map with walls.
 	for x, _ := range c.cells {
 		for y, _ := range c.cells[x] {
-			c.cells[x][y].isWall = randomGenerator.Intn(100) < 40 // 40% chance of wall.
+			c.cells[x][y].isWall = rand.Intn(100) < 40 // 40% chance of wall.
 		}
 	}
 

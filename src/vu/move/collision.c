@@ -1,5 +1,5 @@
 // Copyright © 2013-2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 //
 // ODE (bullet) box-box collision detection is adapted to work with Vu.  
 // It was wrapped (instead of ported) due to c-langs ability to inline code 

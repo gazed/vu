@@ -1,5 +1,5 @@
 // Copyright © 2013-2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 // OSX support to get a window with an OpenGL graphic context.
 // All the window is expected to do is to be able to run in full screen mode,

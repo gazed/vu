@@ -1,5 +1,5 @@
 // Copyright © 2013-2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 package device
 
@@ -138,6 +138,8 @@ const (
 	shiftKeyMask    = C.GS_ShiftKeyMask
 	controlKeyMask  = C.GS_ControlKeyMask
 	functionKeyMask = C.GS_FunctionKeyMask
+	commandKeyMask  = C.GS_CommandKeyMask
+	altKeyMask      = C.GS_AlternateKeyMask
 )
 
 // Expose the underlying Win key codes as generic code.

@@ -1,5 +1,5 @@
 // Copyright © 2013-2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 package device
 
@@ -71,6 +71,16 @@ func (i *input) processEvent(event *userInput) {
 		i.recordPress(functionKey)
 	} else {
 		i.recordRelease(functionKey)
+	}
+	if event.mods&commandKeyMask != 0 {
+		i.recordPress(commandKey)
+	} else {
+		i.recordRelease(commandKey)
+	}
+	if event.mods&altKeyMask != 0 {
+		i.recordPress(altKey)
+	} else {
+		i.recordRelease(altKey)
 	}
 
 	// turn key and mouse events into state
@@ -191,6 +201,8 @@ const (
 	controlKey  = controlKeyMask + 0xFF
 	shiftKey    = shiftKeyMask + 0xFF
 	functionKey = functionKeyMask + 0xFF
+	commandKey  = commandKeyMask + 0xFF
+	altKey      = altKeyMask + 0xFF
 )
 
 // keyNames holds the names of the individual key presses.
@@ -299,4 +311,6 @@ var keyNames map[int]string = map[int]string{
 	controlKey:         "Ctl",
 	functionKey:        "Fn",
 	shiftKey:           "Sh",
+	commandKey:         "Cmd",
+	altKey:             "Alt",
 }

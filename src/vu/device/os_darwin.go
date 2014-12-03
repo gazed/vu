@@ -1,5 +1,5 @@
 // Copyright © 2013-2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 package device
 
@@ -74,7 +74,7 @@ func (o *osx) readDispatch(r *nrefs) *userInput {
 	} else {
 		in.button, in.key, in.scroll = 0, 0, 0
 	}
-	in.mods = int(gsu.mods) & (controlKeyMask | shiftKeyMask | functionKeyMask)
+	in.mods = int(gsu.mods) & (controlKeyMask | shiftKeyMask | functionKeyMask | commandKeyMask | altKeyMask)
 	in.mouseX = int(gsu.mousex)
 	in.mouseY = int(gsu.mousey)
 	return in
@@ -133,11 +133,12 @@ var mouseButtons = map[int]int{
 }
 
 // Expose the underlying OSX key modifier masks.
-// Leave the ALT and CMD keys to the OS's.
 const (
 	shiftKeyMask    = C.GS_ShiftKeyMask
 	controlKeyMask  = C.GS_ControlKeyMask
 	functionKeyMask = C.GS_FunctionKeyMask
+	commandKeyMask  = C.GS_CommandKeyMask
+	altKeyMask      = C.GS_AlternateKeyMask
 )
 
 // Expose the underlying OSX key codes as generic code.

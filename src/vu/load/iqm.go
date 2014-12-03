@@ -1,5 +1,5 @@
 // Copyright © 2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 package load
 
@@ -18,7 +18,7 @@ import (
 )
 
 // IqData is model data from IQM or IQE files. It is an intermediate format
-// that is intended for populating render.Model assets.
+// that is intended for populating render.Model instances.
 type IqData struct {
 	Name string // Data name from IQM or IQE file.
 
@@ -31,7 +31,7 @@ type IqData struct {
 	Textures []IqTexture // One or more model textures
 
 	// Optional animation data. Blend indicies indicate which vertex
-	// is influenced by which joint, upto 4 joints per vertex. Blend
+	// is influenced by which joint, up to 4 joints per vertex. Blend
 	// weights gives the amount of influence of a joint on a vertex.
 	Anims  []IqAnim  // One or more animations.
 	B      []byte    // Vertex blend indicies. Arranged as [][4]byte
@@ -268,6 +268,13 @@ func (l *loader) loadIqmAnims(hdr *iqmheader, data []byte, iqd *IqData, scr *scr
 	if err = binary.Read(buff, binary.LittleEndian, animData); err != nil {
 		return fmt.Errorf("Invalid .iqm animations %s", err)
 	}
+	for _, adata := range animData {
+		anim := IqAnim{}
+		anim.Name = scr.labels[adata.Name]
+		anim.F0 = adata.First_frame
+		anim.Fn = adata.Num_frames
+		iqd.Anims = append(iqd.Anims, anim)
+	}
 
 	// Get the animation frames.
 	buff.Seek(int64(hdr.Ofs_frames-iqmheaderSize), 0)
@@ -367,7 +374,6 @@ func (l *loader) genFrame(scr *scratch, pt *transform, pcnt, numPoses, parent in
 	m4 := lin.NewM4().SetQ(pt.q)
 	m4.Transpose(m4).ScaleSM(pt.s.X, pt.s.Y, pt.s.Z)       // apply scale before rotation.
 	m4.Wx, m4.Wy, m4.Wz, m4.Ww = pt.t.X, pt.t.Y, pt.t.Z, 1 // translation added in, not multiplied.
-
 	if parent >= 0 {
 		// parentBasePose * childPose * childInverseBasePose
 		return m4.Mult(scr.inversebaseframe[pcnt], m4).Mult(m4, scr.baseframe[parent])

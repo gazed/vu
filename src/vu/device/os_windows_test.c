@@ -1,5 +1,5 @@
 // Copyright © 2013-2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 // +build ignore
 //
@@ -16,7 +16,7 @@ int main( void )
     // initialize the window.
     gs_set_attr_s(GS_AppName, "Test Window");
     long long display = gs_display_init();
-    if (display == 0)
+    if (display == 0) 
     {
         printf("Failed display init.\n");
         exit( EXIT_FAILURE );
@@ -25,9 +25,9 @@ int main( void )
     // create the window.
     long long shell = gs_shell(display);
     printf("display %ld shell %ld\n", (long)display, (long)shell);
-    long long context = gs_context(&display, &shell);
+    long long context = gs_context(&display, &shell); 
     printf("display %ld shell %ld context %ld\n", (long)display, (long)shell, (long)context);
-    if (context == 0)
+    if (context == 0) 
     {
         printf("Failed context init.\n");
         exit( EXIT_FAILURE );
@@ -39,7 +39,7 @@ int main( void )
 
     // process user events.
     GSEvent gsu = {-1, 0, 0, 0, 0, 0};
-    while (gs_shell_alive(display))
+    while (gs_shell_alive(display)) 
     {
         gsu.event = -1;
         gsu.mousex = 0;
@@ -57,7 +57,7 @@ int main( void )
                 printf("key up   0x%.2lX - ", gsu.key);
             } else if (gsu.event == GS_KeyDown) {
                 printf("key down 0x%.2lX - ", gsu.key);
-            } else if (gsu.event == GS_ScrollWheel) {
+            } else if (gsu.event == GS_ScrollWheel) { 
                 printf("wheel %ld - ", gsu.scroll);
             }  else {
                 printf("event %ld - ", gsu.event);

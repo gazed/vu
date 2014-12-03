@@ -1,5 +1,5 @@
 // Copyright © 2014 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 package land
 
@@ -23,7 +23,7 @@ type noise struct {
 	pseudo    []byte      // pseudo randomly ordered numbers 0-255
 	perm512   []byte      // 512 pseudo random numbers from 0-255
 	permMod12 []byte      // pseudo random numbers mod 12
-	gradients []*gradient // possible slope directions.
+	gradients []*gradient // slopes to adjacent points.
 	random    *rand.Rand  // random number generator.
 }
 
@@ -147,7 +147,8 @@ func (n *noise) generate(xin, yin float64) float64 {
 	return 70.0 * (n0 + n1 + n2)
 }
 
-// gradient is used by the noise generator to create and keep lots of possible slopes.
+// gradient is used by the noise generator.
+// Each gradient is a direction vector to an adjacent height point.
 type gradient struct {
 	x, y, z float64
 }

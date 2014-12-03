@@ -4,7 +4,7 @@
 // or methods can be found online. Just prepend "GL_"
 // to the function or constants names in this package.
 //
-// Package gen is provided as part of the vu (virtual universe) 3D engine.
+// Package gl is provided as part of the vu (virtual universe) 3D engine.
 package gl
 
 // #cgo darwin  LDFLAGS: -framework OpenGL
