@@ -1,55 +1,53 @@
 <!-- Copyright © 2013-2014 Galvanized Logic Inc.                       -->
 <!-- Use is governed by a BSD-style license found in the LICENSE file. -->
 
-#vu
+#Vu
 
-Vu (Virtual Universe) is a minimalist 3D engine written primarily in golang.
-Vu is composed of packages, detailed in the go docs, and briefly summarized below.
+Vu (Virtual Universe) is a minimalist 3D engine written primarily in Go (Golang).
+Vu is composed of packages, detailed in [GoDoc](http://godoc.org/github.com/gazed/vu), and briefly summarized below.
 
-Packages
+Sub packages
 --------
 
-* ``vu`` The 3D application facing layer wraps and extends the other packages.
-* ``vu/audio`` Positions and plays sounds in a 3D environment.
-* ``vu/audio/al`` OpenAL bindings. Links the audio layer and the sound hardware.
-* ``vu/load`` Asset loaders including models, textures, audio, shaders, and bitmapped fonts.
-* ``vu/device`` Links the application to native OS specific window and user events.
-* ``vu/math/lin`` Vector, matrix, quaternion, and transform linear math library.
-* ``vu/move`` Repositions bodies based on simulated physics.
-* ``vu/render`` 3D drawing and graphics interface.
-* ``vu/render/gl`` Generated OpenGL bindings. Links rendering system to graphics hardware.
-* ``vu/render/gl/gen`` OpenGL binding generator.
+* ``audio`` Positions and plays sounds in a 3D environment.
+* ``audio/al`` OpenAL bindings. Links the audio layer and the sound hardware.
+* ``load`` Asset loaders including models, textures, audio, shaders, and bitmapped fonts.
+* ``device`` Links the application to native OS specific window and user events.
+* ``math/lin`` Vector, matrix, quaternion, and transform linear math library.
+* ``move`` Repositions bodies based on simulated physics.
+* ``render`` 3D drawing and graphics interface.
+* ``render/gl`` Generated OpenGL bindings. Links rendering system to graphics hardware.
+* ``render/gl/gen`` OpenGL binding generator.
 
 Less essential, but potentially more fun packages are:
 
-* ``vu/eg`` Examples that both demonstrate and validate the vu engine.
-* ``vu/ai`` Behaviour Tree for autonomous units.
-* ``vu/form`` 2D GUI layout helper.
-* ``vu/grid`` Grid based random level generators. A-star and flow field pathfinding.
-* ``vu/land`` Height map and land surface generator.
+* ``eg`` Examples that both demonstrate and validate the vu engine.
+* ``ai`` Behaviour Tree for autonomous units.
+* ``form`` 2D GUI layout helper.
+* ``grid`` Grid based random level generators. A-star and flow field pathfinding.
+* ``land`` Height map and land surface generator.
 
-Build
+Installation
 -----
 
-* Ensure GOPATH contains the ``vu`` directory.
-* Build using ``build`` from the ``vu`` directory. Eg:
-    * OSX:
-        * ``cd vu``
-        * ``./build src``
-    * WIN:
-        * ``cd vu``
-        * ``python build src``.
-* Build and run the examples from the ``vu/src/vu/eg`` directory:
-        * ``cd vu/src/vu/eg``
-        * ``go build``
-        * ``./eg``
+Ensure you have installed [Go](http://golang.org) > 1.3:
+
+```bash
+go get -u github.com/gazed/vu
+```
+
+Now you can build and run examples:
+
+```bash
+cd $GOPATH/src/github.com/gazed/vu/eg
+go build .
+./eg
+```
 
 **Build Dependencies**
 
-* go1.3
-* python for the build script.
-* ``OSX``: Objective C and C compilers (clang) from XCode command line tools.
-* ``WIN``: C compiler (gcc) from mingw64-bit
+* ``OS X``: Objective C and C compilers (clang) from Xcode command line tools.
+* ``Windows``: C compiler (gcc) from mingw64-bit.
 
 **Runtime Dependencies**
 
@@ -74,7 +72,7 @@ Limitations
 The engine and its packages include the essentials by design. In particular:
 
 * There is no 3D editor.
-* There is no networking support.
+* There is no networking package.
 * Physics only handles boxes and spheres.
 * The device layer interface provides only the absolute minimum from the underlying
   windowing system. Only OSX, Windows 7 and 8 are currently supported.
