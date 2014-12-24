@@ -33,7 +33,7 @@ Installation
 Ensure you have installed [Go](http://golang.org) > 1.3:
 
 ```bash
-go get -u github.com/gazed/vu
+go get -u github.com/gazed/vu/...
 ```
 
 Now you can build and run examples:
