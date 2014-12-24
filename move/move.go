@@ -106,7 +106,7 @@ var margin float64 = 0.04
 
 // maxFriction is used to limit the amount of friction that
 // can be applied to the combined friction of colliding bodies.
-var maxFriction float64 = 100.0
+var maxFriction float64 = 10.0
 
 // Mover interface implementation.
 // Step the physics simulation forward by delta time (timestep).

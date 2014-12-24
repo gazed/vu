@@ -99,7 +99,7 @@ func newBody(shape Shape) *body {
 	b := &body{}
 	b.shape = shape
 	b.imass = 0                 // no mass, static body by default
-	b.friction = 10.0           // good to have some friction
+	b.friction = 0.5            // good to have some friction
 	b.world = lin.NewT().SetI() // world transform
 	b.guess = lin.NewT().SetI() // predicted world transform
 
