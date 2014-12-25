@@ -1,3 +1,5 @@
 pkg/
 bin/
 target
+
+.DS_Store
