@@ -1,4 +1,4 @@
-// Copyright © 2013-2014 Galvanized Logic Inc.
+// Copyright © 2013-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package lin
@@ -10,7 +10,7 @@ package lin
 // Large scale, time-critical, repetitive math operations are expected to use
 // a GPGPU based package, eg. OpenCL.
 //
-// Note that this matrix implementation does not attempt to be  all inclusive.
+// Note that this matrix implementation does not attempt to be all inclusive.
 // Unused matrix methods, like rotation, are excluded. Ie. rotations are
 // tracked using quaternions.
 //
@@ -27,12 +27,12 @@ package lin
 //    are numbered from 1 to 16"
 // This means the memory layout expected by OpenGL is:
 //    Xx, Xy, Xz, Xw, Yx, Yy, Yz, Yw, Zx, Zy, Zz, Zw, Wx, Wy, Wz, Ww
-// with the translation values Tx, Ty, Tz at Wx, Wy, Wz and that GLSL, OpenGL
+// with the translation values Tx, Ty, Tz at Wx, Wy, Wz. Note that OpenGL
 // GLSL shaders interpret each base vector as a column (Column-Major)
 // although it is appears as Row-Major when viewed from Golang. Note that
 // DirectX HLSL shaders interpret the same memory layout as Row-Major.
-// In either case, consistency is key, especially for transforms where it's
-// always apply Scale first, then Rotatate, then Translate.
+// In either case, consistency is key, especially for transforms where it
+// is always apply Scale first, then Rotatate, then Translate.
 //
 // Conforming to the above memory layout, this matrix implementation uses
 // explicitly indexed, Row-Major, matrix members as follows:
@@ -492,8 +492,8 @@ func (m *M4) SetQ(q *Q) *M4 {
 
 // SetSkewSym sets the matrix m to be a skew-symetric matrix based
 // on the elements of vector v. Wikipedia states:
-//    "A skew-symmetric matrix is a square matrix whose transpose is
-//     also its negative."
+//    "A skew-symmetric matrix is a square matrix
+//     whose transpose is also its negative."
 func (m *M3) SetSkewSym(v *V3) *M3 {
 	m.Xx, m.Xy, m.Xz = 0, -v.Z, v.Y
 	m.Yx, m.Yy, m.Yz = v.Z, 0, -v.X
@@ -573,8 +573,8 @@ func (m *M3) Inv(a *M3) *M3 {
 	return m
 }
 
-// SetAa updates m to be a rotation matrix from the given axis (ax, ay, az)
-// and angle (in radians). See:
+// SetAa, set axis-angle, updates m to be a rotation matrix from the
+// given axis (ax, ay, az) and angle (in radians). See:
 //    http://en.wikipedia.org/wiki/Rotation_matrix#Rotation_matrix_from_axis_and_angle
 //    http://web.archive.org/web/20041029003853/...
 //    ...http://www.j3d.org/matrix_faq/matrfaq_latest.html#Q38 (*note column order)

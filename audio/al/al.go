@@ -1,14 +1,16 @@
-// Copyright © 2013-2014 Galvanized Logic Inc.
+// Copyright © 2013-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
-// Package al provides a golang audio library based on OpenAL. Official OpenAL
-// documentation can be found online. Just prepend "AL_" to the function
-// or constants found in this package.
+// Package al provides golang audio library bindings for OpenAL.
+// Official OpenAL documentation can be found online. Prepend "AL_"
+// to the function or constant names found in this package.
 //
 // These bindings were based on the OpenAL header files found at:
 //   http://repo.or.cz/w/openal-soft.git/blob/6dab9d54d1719105e0183f941a2b3dd36e9ba902:/include/AL/al.h
 //   http://repo.or.cz/w/openal-soft.git/blob/6dab9d54d1719105e0183f941a2b3dd36e9ba902:/include/AL/alc.h
 // Refer to the orginal header files and official OpenAL documentation for more information.
+//
+// Package al is provided as part of the vu (virtual universe) 3D engine.
 package al
 
 // #cgo darwin  LDFLAGS: -framework OpenAL

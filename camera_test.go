@@ -1,4 +1,4 @@
-// Copyright © 2014 Galvanized Logic Inc.
+// Copyright © 2014-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package vu
@@ -14,9 +14,9 @@ import (
 // The ray from center screen mouse coordinates should be directly
 // along the -Z axis.
 func TestRay(t *testing.T) {
-	c, ww, wh := initScene()
-	c.Move(0, 0, 15)
-	rx, ry, rz := c.Ray(ww/2, wh/2, ww, wh) // center of screen.
+	cam, ww, wh := initScene()
+	cam.Move(0, 0, 15, cam.Lookat())
+	rx, ry, rz := cam.Ray(ww/2, wh/2, ww, wh) // center of screen.
 	ex, ey, ez := 0.0, 0.0, -1.0
 	if rx != ex || ry != ey || rz != ez {
 		t.Errorf("Expected %f %f %f got %f %f %f", ex, ey, ez, rx, ry, rz)
@@ -25,10 +25,10 @@ func TestRay(t *testing.T) {
 
 // Test a ray cast with perspective inverse and angled view inverse.
 func TestAngledRay(t *testing.T) {
-	sc, ww, wh := initScene()
-	sc.Spin(45, 0, 0)
-	sc.SetLocation(0, -15, 15)
-	rx, ry, rz := sc.Ray(ww/2, wh/2, ww, wh) // center of screen.
+	cam, ww, wh := initScene()
+	cam.AdjustPitch(45)
+	cam.SetLocation(0, -15, 15)
+	rx, ry, rz := cam.Ray(ww/2, wh/2, ww, wh) // center of screen.
 	ex, ey, ez := 0.0, 0.7071068, -0.7071068
 	if !lin.Aeq(rx, ex) || !lin.Aeq(ry, ey) || !lin.Aeq(rz, ez) {
 		t.Errorf("Expected %f %f %f got %f %f %f", ex, ey, ez, rx, ry, rz)
@@ -37,12 +37,12 @@ func TestAngledRay(t *testing.T) {
 
 // Test that the ratio of the rays matches the ratio of the screen.
 func TestRayRatios(t *testing.T) {
-	sc, ww, wh := initScene()
-	sc.Move(0, 0, 15)
+	cam, ww, wh := initScene()
+	cam.Move(0, 0, 15, cam.Lookat())
 
 	// shoot and check opposing corner rays.
-	blx, bly, _ := sc.Ray(0, 0, ww, wh)
-	trx, try, _ := sc.Ray(ww, wh, ww, wh)
+	blx, bly, _ := cam.Ray(0, 0, ww, wh)
+	trx, try, _ := cam.Ray(ww, wh, ww, wh)
 	gotRatio := (try - bly) / (trx - blx)
 	expectedRatio := float64(wh) / float64(ww)
 	if expectedRatio != gotRatio {
@@ -52,27 +52,39 @@ func TestRayRatios(t *testing.T) {
 
 // Test perspective and view inverses.
 func TestInverses(t *testing.T) {
-	sc, _, _ := initScene()
-	sc.Spin(45, 0, 0)
-	sc.Move(0, -15, 15)
+	cam, _, _ := initScene()
+	cam.AdjustPitch(45)
+	cam.Move(0, -15, 15, cam.Lookat())
 
 	// the inverses multiplied with non-inverses should be the identity matrix.
-	if !lin.NewM4().Mult(sc.pm, sc.ipm).Aeq(lin.M4I) {
+	if !lin.NewM4().Mult(cam.pm, cam.ipm).Aeq(lin.M4I) {
 		t.Error("Invalid inverse projection matrix")
 	}
-	if !lin.NewM4().Mult(sc.vm, sc.ivm).Aeq(lin.M4I) {
+	if !lin.NewM4().Mult(cam.vm, cam.ivm).Aeq(lin.M4I) {
 		t.Error("Invalid inverse view matrix")
 	}
 }
 
+// Check that the inverse of a perspective view is correct.
+func TestInverseVp(t *testing.T) {
+	v := newCamera()
+	v.at.Loc.SetS(10, 10, 10)
+	v.at.Rot.SetAa(1, 0, 0, -lin.Rad(90))
+	vm := VP(v.at, lin.NewQ(), &lin.M4{})
+	ivm := ivp(v.at, &lin.Q{X: 1, Y: 0, Z: 0, W: 1}, lin.NewQ(), &lin.M4{})
+	if !vm.Mult(vm, ivm).Aeq(lin.M4I) {
+		t.Errorf("Matrix times inverse should be identity")
+	}
+}
+
 func TestRoundTrip(t *testing.T) {
-	sc, _, _ := initScene()
+	cam, _, _ := initScene()
 	cx, cy, cz := 0.0, 0.0, 14.0 // camera location to
-	sc.SetLocation(cx, cy, cz)   // ...point directly at 0, 0, 0
+	cam.SetLocation(cx, cy, cz)  // ...point directly at 0, 0, 0
 
 	// Create the matricies to go between clip and world space.
-	toClip := lin.NewM4().Mult(sc.vm, sc.pm)
-	toWorld := lin.NewM4().Mult(sc.ipm, sc.ivm)
+	toClip := lin.NewM4().Mult(cam.vm, cam.pm)
+	toWorld := lin.NewM4().Mult(cam.ipm, cam.ivm)
 	if !lin.NewM4().Mult(toClip, toWorld).Aeq(lin.M4I) {
 		t.Errorf("Invalid world<->clip matricies")
 	}
@@ -93,14 +105,14 @@ func TestRoundTrip(t *testing.T) {
 }
 
 func TestRayWithSpin(t *testing.T) {
-	sc, _, _ := initScene()
-	cx, cy, cz := 0.0, -10.0, 14.0            // camera location to
-	sc.SetLocation(cx, cy, cz)                // ...point directly at 0, 0, 0
-	sc.Spin(lin.Deg(math.Atan(-cy/cz)), 0, 0) // 35.53768 degrees
+	cam, _, _ := initScene()
+	cx, cy, cz := 0.0, -10.0, 14.0             // camera location to
+	cam.SetLocation(cx, cy, cz)                // ...point directly at 0, 0, 0
+	cam.SetPitch(lin.Deg(math.Atan(-cy / cz))) // 35.53768 degrees
 	plane := NewPlane(0, 0, -1)
 
 	ww, wh := 1280, 800
-	rx, ry, rz := sc.Ray(0, 0, ww, wh)
+	rx, ry, rz := cam.Ray(0, 0, ww, wh)
 	ray := NewRay(rx, ry, rz)
 	ray.World().SetLoc(cx, cy, cz)
 	hit, hx, hy, hz := Cast(ray, plane)
@@ -109,7 +121,7 @@ func TestRayWithSpin(t *testing.T) {
 		t.Errorf("Hit %t %f %f %f, expected %f %f %f", hit, hx, hy, hz, ex, ey, ez)
 	}
 
-	rx, ry, rz = sc.Ray(0, wh, ww, wh)
+	rx, ry, rz = cam.Ray(0, wh, ww, wh)
 	ray = NewRay(rx, ry, rz)
 	ray.World().SetLoc(cx, cy, cz)
 	hit, hx, hy, hz = Cast(ray, plane)
@@ -118,7 +130,7 @@ func TestRayWithSpin(t *testing.T) {
 		t.Errorf("Hit %t %f %f %f, expected %f %f %f", hit, hx, hy, hz, ex, ey, ez)
 	}
 
-	rx, ry, rz = sc.Ray(ww, 0, ww, wh)
+	rx, ry, rz = cam.Ray(ww, 0, ww, wh)
 	ray = NewRay(rx, ry, rz)
 	ray.World().SetLoc(cx, cy, cz)
 	hit, hx, hy, hz = Cast(ray, plane)
@@ -127,7 +139,7 @@ func TestRayWithSpin(t *testing.T) {
 		t.Errorf("Hit %t %f %f %f, expected %f %f %f", hit, hx, hy, hz, ex, ey, ez)
 	}
 
-	rx, ry, rz = sc.Ray(ww, wh, ww, wh)
+	rx, ry, rz = cam.Ray(ww, wh, ww, wh)
 	ray = NewRay(rx, ry, rz)
 	ray.World().SetLoc(cx, cy, cz)
 	hit, hx, hy, hz = Cast(ray, plane)
@@ -155,7 +167,6 @@ func TestScreen(t *testing.T) {
 // initScene creats a scene with an initialized perspective matrix.
 func initScene() (c *camera, ww, wh int) {
 	c = newCamera()
-	c.SetTransform(VP)
 	ww, wh = 1280, 800
 	fov, ratio, near, far := 30.0, float64(ww)/float64(wh), 0.1, 500.0
 	c.SetPerspective(fov, ratio, near, far)

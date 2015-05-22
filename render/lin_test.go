@@ -1,4 +1,4 @@
-// Copyright © 2013-2014 Galvanized Logic Inc.
+// Copyright © 2013-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package render
@@ -29,5 +29,13 @@ func TestMemoryLayout(t *testing.T) {
 	memc, _ := strconv.ParseUint(fmt.Sprintf("%d", &(x4.yx)), 0, 64) // next row.
 	if memc-mema != fourFloats {
 		t.Errorf("Next row should be %d bytes. Was %d", fourFloats, memc-mema)
+	}
+}
+
+// Check that pointers are initialized to zero.
+func TestNullPointer(t *testing.T) {
+	var null0 unsafe.Pointer
+	if ptr := uintptr(null0); ptr != 0 {
+		t.Error("Default unsafe.Pointers should be zero.")
 	}
 }

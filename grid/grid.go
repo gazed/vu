@@ -1,4 +1,4 @@
-// Copyright © 2013-2014 Galvanized Logic Inc.
+// Copyright © 2013-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 // Package grid is used to generate layout data for random maze or skirmish
@@ -14,7 +14,7 @@
 //             if maze.isWall(x, y) {
 //                 // Do something with a wall.
 //             } else {
-//                 // Do something with a floor.
+//                 // Do something with an open area.
 //             }
 //          }
 //       }
@@ -36,8 +36,8 @@ import (
 type Grid interface {
 	Plan // Grids have sizes and can be queried as to wall/floor status.
 
-	// Seed can be set to generate the same random map each time.
-	// Call Seed with a non-zero value before generating the grid.
+	// Seed can be set to generate the same map each time. Leave it unset
+	// to get a random map each time.
 	Seed(seed int64)
 
 	// Generate creates a grid full of walls and floors based on
@@ -89,10 +89,10 @@ const (
 // =============================================================================
 
 // Plan describes a 2D grid where each location in the grid is either open
-// and traversable (passage) or blocked (wall).
+// and traversable (passage/floor) or blocked (wall).
 type Plan interface {
 
-	// Size returns the current size of the grid.  This will be 0, 0 if
+	// Size returns the current size of the grid. This will be 0, 0 if
 	// Generate has not yet been called.
 	Size() (width, depth int) // The current size of the plan.
 
@@ -104,8 +104,8 @@ type Plan interface {
 // ===========================================================================
 // grid implements Grid
 
-// New creates a new grid based on the given gridType.  Returns nil if the
-// gridType is unknown.
+// New creates a new grid based on the given gridType.
+// Returns nil if the gridType is not recognized.
 func New(gridType int) Grid {
 	switch gridType {
 	case PRIM_MAZE:
@@ -185,8 +185,8 @@ func (g *grid) cellSlice() (cells []*cell) {
 	return
 }
 
-// Used in create to have the default grid made entirely of walls or
-// floors.  Some algorithms start one way, some the other.
+// Used in create to have the default grid made entirely of walls
+// or floors. Some algorithms start one way, some the other.
 const (
 	allFloors = false // Indicates the initial grid is all floors.
 	allWalls  = true  // Indicates the initial grid is all walls.
@@ -210,7 +210,7 @@ func (g *grid) create(width, height int, cellType bool) {
 	}
 }
 
-// validateSize will return valid grid sizes.  Given that some of the cells
+// validateSize will return valid grid sizes. Given that some of the cells
 // are used as walls, and that the grid size must be odd, the minimum grid
 // size is 7x7.
 func (g *grid) validateSize(size int) (validSize int) {
@@ -266,8 +266,8 @@ func (g *grid) neighbours(u *cell, isWall bool) []*cell {
 
 // dump prints a grid for debugging purposes.  This expects a fixed font
 // and looks better with some fixed fonts than others.
-// This dumps the grid such that the 0,0 is at the bottom left and on a console
-// 0,0 will be the first character of the last line dumped.
+// The grid is dumped such that the 0,0 is at the bottom left and on
+// a console 0,0 will be the first character of the last line dumped.
 func (g *grid) dump() {
 	width, height := g.Size()
 	for y := height - 1; y >= 0; y-- {

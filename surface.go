@@ -1,4 +1,4 @@
-// Copyright © 2014 Galvanized Logic Inc.
+// Copyright © 2014-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package vu
@@ -11,12 +11,11 @@ import (
 
 // Surface renders land height data. The surface is rendered
 // based on the height and texture index information in SurfacePoints.
-// A model of the surface can be created and associated with a Role
-// through its Mesh.
+// Surface populates a render Models mesh data.
 type Surface interface {
-	Pts() [][]SurfacePoint            // Per vertex information.
-	Update(m render.Mesh, xo, yo int) // Generates rendering data into Mesh.
-	Resize(w, h int)                  // Resize the surface point holders.
+	Pts() [][]SurfacePoint      // Per vertex information.
+	Update(m Model, xo, yo int) // Generates rendering data into Model.
+	Resize(w, h int)            // Resize the surface point holders.
 }
 
 // SurfacePoint stores a height value and a texture atlas index
@@ -58,6 +57,7 @@ type surface struct {
 	fb []uint16  // Scratch face buffer
 }
 
+// newSurface allocates and initializes surface.
 func newSurface(sx, sy, spread int, textureRatio, scale float32) *surface {
 	s := &surface{}
 	s.tratio = textureRatio
@@ -74,10 +74,8 @@ func newSurface(sx, sy, spread int, textureRatio, scale float32) *surface {
 	return s
 }
 
-// Pts implements Surface.
+// Implement Surface.
 func (s *surface) Pts() [][]SurfacePoint { return s.pts }
-
-// Resize implements Surface.
 func (s *surface) Resize(w, h int) {
 	s.pts = s.pts[:w]
 	for sx := range s.pts {
@@ -90,7 +88,7 @@ func (s *surface) Resize(w, h int) {
 //    scale multiplies the -1<->1 generated height.
 //    textureRatio is the size of one texture divided by the atlas size.
 // Generates rendering data.
-func (s *surface) Update(m render.Mesh, xoff, yoff int) {
+func (s *surface) Update(m Model, xoff, yoff int) {
 	vb := s.vb[:0] // keep any allocated memory.
 	nb := s.nb[:0] //   "
 	tb := s.tb[:0] //   "
@@ -170,8 +168,8 @@ func (s *surface) Update(m render.Mesh, xoff, yoff int) {
 			uv4, uv5 := basex*textureRatio, basey*textureRatio             // uv3 bottom-left  0,0
 			uv6, uv7 := basex*textureRatio+width, basey*textureRatio       // uv4 bottom-right 1,0
 
-			// Add a small border to the outside of the overall texture to avoid a white
-			// line between textures.
+			// Add a small border to the outside of the overall texture
+			// to avoid a white line between textures.
 			if uv0 == 0 {
 				uv0 += border
 				uv4 += border
@@ -205,9 +203,9 @@ func (s *surface) Update(m render.Mesh, xoff, yoff int) {
 			nb = append(nb, norms[x+1][y+1].x, norms[x+1][y+1].y, norms[x+1][y+1].z)
 		}
 	}
-	m.InitData(0, 3, render.DYNAMIC, false).SetData(0, vb)
-	m.InitData(1, 3, render.DYNAMIC, false).SetData(1, nb)
-	m.InitData(2, 4, render.DYNAMIC, false).SetData(2, tb)
+	m.InitMesh(0, 3, render.DYNAMIC, false).SetMeshData(0, vb)
+	m.InitMesh(1, 3, render.DYNAMIC, false).SetMeshData(1, nb)
+	m.InitMesh(2, 4, render.DYNAMIC, false).SetMeshData(2, tb)
 	m.InitFaces(render.DYNAMIC).SetFaces(fb)
 }
 

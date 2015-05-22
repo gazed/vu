@@ -1,4 +1,4 @@
-// Copyright © 2013-2014 Galvanized Logic Inc.
+// Copyright © 2013-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -14,10 +14,10 @@ import (
 )
 
 // ld loads a mesh model that has been exported from another tool -
-// in this case an .obj file from Blender. It is really testing the
-// vu/load package with the key line being:
+// in this case an .obj file from Blender. It is testing the vu/load package
+// with the key line being:
 //	      meshes, _ := ldr.Obj("monkey")
-// This example renders using OpenGL calls from package vu/render/gl.
+// This example renders using OpenGL from package vu/render/gl.
 func ld() {
 	ld := &ldtag{}
 	dev := device.New("Load Model", 400, 100, 800, 600)
@@ -104,15 +104,13 @@ func (ld *ldtag) initScene() {
 
 // initShader compiles shaders and links them into a shader program.
 func (ld *ldtag) initShader() {
-	renderer := render.New()
-	shader := renderer.NewShader("monkey")
+	shader := "monkey"
 	loader := load.NewLoader()
-	vsrc, verr := loader.Vsh(shader.Name())
-	fsrc, ferr := loader.Fsh(shader.Name())
+	vsrc, verr := loader.Vsh(shader)
+	fsrc, ferr := loader.Fsh(shader)
 	if verr == nil && ferr == nil {
-		shader.SetSource(vsrc, fsrc)
 		ld.shaders = gl.CreateProgram()
-		if err := gl.BindProgram(ld.shaders, shader.Vsh(), shader.Fsh()); err != nil {
+		if err := gl.BindProgram(ld.shaders, vsrc, fsrc); err != nil {
 			fmt.Printf("Failed to create program: %s\n", err)
 		}
 		ld.mvpref = gl.GetUniformLocation(ld.shaders, "modelViewProjectionMatrix")

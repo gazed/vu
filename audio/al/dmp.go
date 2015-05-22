@@ -1,4 +1,4 @@
-// Copyright © 2013-2014 Galvanized Logic Inc.
+// Copyright © 2013-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package al
@@ -8,7 +8,7 @@ import (
 )
 
 // Dump shows which OpenAL functions have been bound to an
-// underlying implementation and which haven't.  This is not a guarantee
+// underlying implementation and which haven't. This is not a guarantee
 // that the bound functionality will work, but is an indication of what
 // is supported on the current platform.
 // Bindings can be dumped even without an active OpenAL context.

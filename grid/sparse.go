@@ -1,4 +1,4 @@
-// Copyright © 2013-2014 Galvanized Logic Inc.
+// Copyright © 2013-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package grid
@@ -7,20 +7,21 @@ import (
 	"math/rand"
 )
 
-// sparse is a minimally populated skirmish grid. The grid is created by randomly adding walls around
-// cells, always ensuring that there are no dead ends - there must always be at least 2 ways out of
-// any cell.
+// sparse is a minimally populated skirmish grid. The grid is created by
+// randomly adding walls around cells, always ensuring that there are no
+// dead ends - there must always be at least 2 ways out of any cell.
 //
-// Basic algorithm : start with empty grid. For each cell in the grid, randomly choose one cell and
-// determine if a wall can be placed at one of its neighbour cells (Nx, max 4).
-// This is validated by testing each of the Nx neighbour cells (max 16) and
-// ensuring no dead end (i.e. only 1 floor). Remove that cell from the grid list.
+// Basic algorithm : start with empty grid. For each cell in the grid,
+// randomly choose one cell and determine if a wall can be placed at one
+// of its neighbour cells (Nx, max 4). This is validated by testing each
+// of the Nx neighbour cells (max 16) and ensuring no dead end
+// (i.e. only 1 floor). Remove that cell from the grid list.
 type sparse struct {
 	grid // superclass grid
 }
 
-// Generate the grid by randomly traversing all the cells and adding random walls
-// as long as there are more than two ways out of the cell.
+// Generate the grid by randomly traversing all the cells and adding random
+// walls as long as there are more than two ways out of the cell.
 func (s *sparse) Generate(width, depth int) Grid {
 	s.create(width, depth, allFloors)
 
@@ -53,7 +54,7 @@ func (s *sparse) addWall(u *cell) {
 }
 
 // checkLevel ensures that the grid remains valid if any of the given floors
-// are made into walls.  It does this by putting a temporary wall at each of the
+// are made into walls. It does this by putting a temporary wall at each of the
 // potential floors and checking that the grid has no dead ends.
 //
 // This is the part that makes the grid rather sparse since candidates will be

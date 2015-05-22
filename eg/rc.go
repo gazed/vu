@@ -1,4 +1,4 @@
-// Copyright © 2014 Galvanized Logic. All rights reserved.
+// Copyright © 2014-2015 Galvanized Logic.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -15,88 +15,86 @@ import (
 // is centered at the origin and the camera is tilted 45 degrees around X.
 func rc() {
 	rc := &rctag{}
-	var err error
-	if rc.eng, err = vu.New("Ray Cast", 400, 100, 800, 600); err != nil {
-		log.Fatal("rc: error intitializing engine %s", err)
+	if err := vu.New(rc, "Ray Cast", 400, 100, 800, 600); err != nil {
+		log.Printf("rc: error starting engine %s", err)
 	}
-	rc.eng.SetDirector(rc) // get user input through Director.Update()
-	rc.create()            // create initial assests.
-	defer rc.eng.Shutdown()
 	defer catchErrors()
-	rc.eng.Action()
 }
 
 // Globally unique "tag" for this example.
 type rctag struct {
-	eng    vu.Engine
-	scene  vu.Scene
-	cam    vu.Camera
-	fsize  float64 // floor size in world space units.
-	gsize  float64 // grid size: number visible/virtual tiles in floor image.
-	ww, wh int     // window dimensions.
-	floor  vu.Part // plane for raycast testing
-	hilite vu.Part // tracks which tile is currently selected.
-	s0, s1 vu.Part // spheres for raycast testing.
-	s2, s3 vu.Part // spheres for raycast testing.
-	banner vu.Part // shows selected grid locations.
+	cam    vu.Camera // main 3D camera.
+	ui     vu.Camera // 2D overlay camera.
+	fsize  float64   // floor size in world space units.
+	gsize  float64   // grid size: number visible/virtual tiles in floor image.
+	ww, wh int       // window dimensions.
+	floor  vu.Pov    // plane for raycast testing
+	hilite vu.Pov    // tracks which tile is currently selected.
+	s0, s1 vu.Pov    // spheres for raycast testing.
+	s2, s3 vu.Pov    // spheres for raycast testing.
+	banner vu.Pov    // shows selected grid locations.
 }
 
-// create is the startup asset creation.
-func (rc *rctag) create() {
-	rc.eng.Color(0.2, 0.2, 0.2, 1)
-	rc.scene = rc.eng.AddScene(vu.VP)
-	rc.cam = rc.scene.Cam()
-	rc.cam.Spin(45, 0, 0)          // Tilt the camera and
+// Create is the engine callback for initial asset creation.
+func (rc *rctag) Create(eng vu.Eng, s *vu.State) {
+	top := eng.Root().NewPov()
+	view := top.NewView()
+	rc.cam = view.Cam()
+	rc.cam.SetPitch(45)            // Tilt the camera and
 	rc.cam.SetLocation(0, -14, 14) // ...point directly at 0, 0, 0
 	rc.gsize = 32                  // 4x8 ie. image is 4x4 grid, tile.obj is oversampled by 8.
 
 	// The ray cast target is a plane displaying the image of a 32x32 grid.
-	rc.fsize = 10.0                                       // 2x2 plane to 20x20 plane.
-	rc.floor = rc.scene.AddPart()                         // create the floor.
-	rc.floor.SetForm(vu.NewPlane(0, 0, -1))               // the floors ray intersect shape.
-	rc.floor.SetScale(rc.fsize, rc.fsize, 0)              // scale the model to fsize.
-	rc.floor.SetRole("uv").SetMesh("tile").AddTex("tile") // put the image on the floor.
-	rc.floor.Role().SetTexMode(0, vu.TEX_REPEAT)          // repeat for UV values > 1.
+	rc.fsize = 10.0                               // 2x2 plane to 20x20 plane.
+	rc.floor = top.NewPov()                       // create the floor.
+	rc.floor.NewBody(vu.NewPlane(0, 0, -1))       // the floors ray intersect shape.
+	rc.floor.SetScale(rc.fsize, rc.fsize, 0)      // scale the model to fsize.
+	m := rc.floor.NewModel("uv").LoadMesh("tile") // put the image on the floor.
+	m.AddTex("tile").SetTexMode(0, vu.TEX_REPEAT)
 
 	// create a selected tile tracker.
-	rc.hilite = rc.scene.AddPart()
-	rc.hilite.SetScale(0.625, 0.625, 0.001) // scale to cover a single tile.
-	rc.hilite.SetRole("uv").SetMesh("icon").AddTex("image")
+	rc.hilite = top.NewPov().SetScale(0.625, 0.625, 0.001) // scale to cover a single tile.
+	rc.hilite.NewModel("uv").LoadMesh("icon").AddTex("image")
 
 	// Put spheres at the floor corners.
-	rc.s0 = rc.makeSphere(10, 10, 0, 1, 0, 0)
-	rc.s1 = rc.makeSphere(-10, 10, 0, 0, 1, 0)
-	rc.s2 = rc.makeSphere(10, -10, 0, 0, 0, 1)
-	rc.s3 = rc.makeSphere(-10, -10, 0, 1, 1, 0)
+	rc.s0 = rc.makeSphere(top, 10, 10, 0, 1, 0, 0)
+	rc.s1 = rc.makeSphere(top, -10, 10, 0, 0, 1, 0)
+	rc.s2 = rc.makeSphere(top, 10, -10, 0, 0, 0, 1)
+	rc.s3 = rc.makeSphere(top, -10, -10, 0, 1, 1, 0)
 
 	// Add a banner to show the currently selected grid location.
-	_, _, w, h := rc.eng.Size()
-	over := rc.eng.AddScene(vu.VO)
-	over.Set2D()
-	over.Cam().SetOrthographic(0, float64(w), 0, float64(h), 0, 10)
-	rc.banner = over.AddPart()
-	rc.banner.SetRole("uv").AddTex("weblySleek22White").SetFont("weblySleek22")
+	top2D := eng.Root().NewPov()
+	view2D := top2D.NewView()
+	view2D.SetUI()
+	rc.ui = view2D.Cam()
+	rc.banner = top2D.NewPov()
 	rc.banner.SetLocation(100, 100, 0)
 	rc.banner.SetVisible(false)
-	rc.resize()
+	m = rc.banner.NewModel("uv").AddTex("weblySleek22White")
+	m.LoadFont("weblySleek22").SetPhrase("Overlay Text")
+
+	// set non default engine state.
+	eng.SetColor(0.2, 0.2, 0.2, 1.0)
+	rc.resize(s.W, s.H)
 }
 
 // makeSphere creates a sphere at the given x, y, z location and with
 // the given r, g, b colour.
-func (rc *rctag) makeSphere(x, y, z, r, g, b float64) vu.Part {
+func (rc *rctag) makeSphere(parent vu.Pov, x, y, z float64, r, g, b float32) vu.Pov {
 	sz := 0.5
-	p := rc.scene.AddPart()
-	p.SetForm(vu.NewSphere(sz))
-	p.SetLocation(x, y, z)
-	p.SetScale(sz, sz, sz)
-	p.SetRole("flat").SetMesh("sphere").SetKd(r, g, b)
-	return p
+	sp := parent.NewPov()
+	sp.NewBody(vu.NewSphere(sz))
+	sp.SetLocation(x, y, z)
+	sp.SetScale(sz, sz, sz)
+	model := sp.NewModel("solid").LoadMesh("sphere")
+	model.SetUniform("kd", r, g, b)
+	return sp
 }
 
 // Update is the engine frequent user-input/state-update callback.
-func (rc *rctag) Update(in *vu.Input) {
+func (rc *rctag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 	if in.Resized {
-		rc.resize()
+		rc.resize(s.W, s.H)
 	}
 	for press, down := range in.Down {
 		switch press {
@@ -118,12 +116,11 @@ func (rc *rctag) Update(in *vu.Input) {
 }
 
 // resize handles user screen/window changes.
-func (rc *rctag) resize() {
-	var x, y int
-	x, y, rc.ww, rc.wh = rc.eng.Size()
-	rc.eng.Resize(x, y, rc.ww, rc.wh)
-	fov, ratio, near, far := 60.0, float64(rc.ww)/float64(rc.wh), 0.1, 500.0
+func (rc *rctag) resize(ww, wh int) {
+	rc.ww, rc.wh = ww, wh
+	fov, ratio, near, far := 60.0, float64(ww)/float64(wh), 0.1, 500.0
 	rc.cam.SetPerspective(fov, ratio, near, far)
+	rc.ui.SetOrthographic(0, float64(ww), 0, float64(wh), 0, 10)
 }
 
 // raycast checks which grid tile is selected on a mouse click. It gets
@@ -135,9 +132,9 @@ func (rc *rctag) raycast(mx, my int) {
 	ray.World().SetLoc(rc.cam.Location()) // camera is ray origin.
 
 	// collide the ray with the plane and get the world-space contact point on hit.
-	if hit, x, y, z := vu.Cast(ray, rc.floor.Form()); hit {
-		bot := &lin.V3{-rc.fsize, -rc.fsize, 0}
-		top := &lin.V3{rc.fsize, rc.fsize, 0}
+	if hit, x, y, z := vu.Cast(ray, rc.floor.Body()); hit {
+		bot := &lin.V3{X: -rc.fsize, Y: -rc.fsize, Z: 0}
+		top := &lin.V3{X: rc.fsize, Y: rc.fsize, Z: 0}
 
 		// check if the plane hit was within the floor area.
 		if x >= bot.X && x <= top.X && y >= bot.Y && y <= top.Y {
@@ -146,12 +143,14 @@ func (rc *rctag) raycast(mx, my int) {
 			rc.hilite.SetLocation(x, y, z)
 			rc.hilite.SetVisible(true)
 
-			// adjust and display grid coordinates. Map x, y to 0:31
-			xsize, ysize := top.X-bot.X, top.Y-bot.Y
-			gx := int(((x * 2 / xsize) + 1) / 2 * rc.gsize)
-			gy := int(((y * 2 / ysize) + 1) / 2 * rc.gsize)
-			rc.banner.Role().SetPhrase(fmt.Sprintf("%d:%d", gx, gy))
 			rc.banner.SetVisible(true)
+			if model := rc.banner.Model(); model != nil {
+				// adjust and display grid coordinates. Map x, y to 0:31
+				xsize, ysize := top.X-bot.X, top.Y-bot.Y
+				gx := int(((x * 2 / xsize) + 1) / 2 * rc.gsize)
+				gy := int(((y * 2 / ysize) + 1) / 2 * rc.gsize)
+				model.SetPhrase(fmt.Sprintf("%d:%d", gx, gy))
+			}
 		} else {
 			rc.hilite.SetVisible(false) // missed the grid.
 			rc.banner.SetVisible(false)
@@ -169,15 +168,16 @@ func (rc *rctag) hovercast(mx, my int) {
 	rx, ry, rz := rc.cam.Ray(mx, my, rc.ww, rc.wh)
 	ray := vu.NewRay(rx, ry, rz)
 	ray.World().SetLoc(rc.cam.Location())
-	parts := []vu.Part{rc.s0, rc.s1, rc.s2, rc.s3}
+	parts := []vu.Pov{rc.s0, rc.s1, rc.s2, rc.s3}
 	colors := []rgb{rgb{1, 0, 0}, rgb{0, 1, 0}, rgb{0, 0, 1}, rgb{1, 1, 0}}
 	for cnt, p := range parts {
-		if hit, _, _, _ := vu.Cast(ray, p.Form()); hit {
-			p.Role().SetKd(1, 1, 1)
+		if hit, _, _, _ := vu.Cast(ray, p.Body()); hit {
+			p.Model().SetUniform("kd", 1, 1, 1)
 		} else {
-			p.Role().SetKd(colors[cnt].R, colors[cnt].G, colors[cnt].B)
+			rgb := colors[cnt]
+			p.Model().SetUniform("kd", rgb.R, rgb.G, rgb.B)
 		}
 	}
 }
 
-type rgb struct{ R, G, B float64 } // rgb holds a colour.
+type rgb struct{ R, G, B float32 } // rgb holds a colour.

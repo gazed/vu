@@ -1,4 +1,4 @@
-// Copyright © 2014 Galvanized Logic Inc.
+// Copyright © 2014-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package load
@@ -18,8 +18,8 @@ import (
 	"github.com/gazed/vu/math/lin"
 )
 
-// IqData is model data from IQM or IQE files. It is an intermediate format
-// that is intended for populating render.Model instances.
+// IqData is model data from IQM or IQE files.
+// It is intended for populating animated models.
 type IqData struct {
 	Name string // Data name from IQM or IQE file.
 
@@ -52,8 +52,9 @@ type IqTexture struct {
 // IqAnim allows a model to have multiple animations. The named animation
 // affects frames from F0 to F0+FN. Expected to be used as part of IqData.
 type IqAnim struct {
-	Name   string // Name of the animation
-	F0, Fn uint32 // First frame, number of frames.
+	Name   string  // Name of the animation
+	F0, Fn uint32  // First frame, number of frames.
+	Rate   float32 // Frames per second.
 }
 
 // =============================================================================
@@ -127,13 +128,13 @@ type scratch struct {
 	inversebaseframe []*lin.M4         // inverse joint transform.
 }
 
-// loadIqmMeshes parses the vertex data from the file data into the
-// IqData structure.
+// loadIqmMeshes parses the vertex data from the file data
+// into the IqData structure.
 func (l *loader) loadIqmMeshes(hdr *iqmheader, data []byte, iqd *IqData, scr *scratch) (err error) {
 	buff := bytes.NewReader(data)
 
-	// Get all the text labels referenced by other structures. Index the labels by
-	// their byte position which is how they are referenced
+	// Get all the text labels referenced by other structures. Index the
+	// labels by their byte position which is how they are referenced
 	buff.Seek(int64(hdr.Ofs_text-iqmheaderSize), 0)
 	text := make([]byte, hdr.Num_text)
 	if err = binary.Read(buff, binary.LittleEndian, text); err != nil {
@@ -181,7 +182,7 @@ func (l *loader) loadIqmMeshes(hdr *iqmheader, data []byte, iqd *IqData, scr *sc
 		case iQM_BLENDWEIGHTS:
 			iqd.W = make([]byte, va.Size*hdr.Num_vertexes)
 			err = l.readVertexData(data, va, iQM_UBYTE, 4, iqd.W)
-			// Note: blend weights are normalized to 0-1 floats on transfer to the GPU.
+			// Note: blend weights are normalized to 0-1 floats on GPU transfer.
 		}
 		if err != nil {
 			return err
@@ -231,7 +232,7 @@ func (l *loader) readVertexData(data []byte, va *iqmvertexarray, dtype, dspan ui
 // IqData structure.
 func (l *loader) loadIqmAnims(hdr *iqmheader, data []byte, iqd *IqData, scr *scratch) (err error) {
 	if hdr.Num_poses != hdr.Num_joints {
-		return fmt.Errorf("Invalid .iqm joints must equal poses", hdr.Num_poses, hdr.Num_joints)
+		return fmt.Errorf("Invalid .iqm joints %d must equal poses %d", hdr.Num_joints, hdr.Num_poses)
 	}
 	buff := bytes.NewReader(data)
 
@@ -248,10 +249,15 @@ func (l *loader) loadIqmAnims(hdr *iqmheader, data []byte, iqd *IqData, scr *scr
 	for cnt, j := range jnts {
 		iqd.Joints[cnt] = j.Parent // save the joint parent data
 
+		// FUTURE: use joint names as attachment points where the convention
+		//         is to have "attachment" in the joint name, and not have
+		//         the joint affect any verticies.
+		// println(cnt, "joint", scr.labels[j.Name])
+
 		// put the pose data into a transform ready structure.
-		t := &lin.V3{float64(j.Translate[0]), float64(j.Translate[1]), float64(j.Translate[2])}
-		r := &lin.Q{float64(j.Rotate[0]), float64(j.Rotate[1]), float64(j.Rotate[2]), float64(j.Rotate[3])}
-		s := &lin.V3{float64(j.Scale[0]), float64(j.Scale[1]), float64(j.Scale[2])}
+		t := &lin.V3{X: float64(j.Translate[0]), Y: float64(j.Translate[1]), Z: float64(j.Translate[2])}
+		r := &lin.Q{X: float64(j.Rotate[0]), Y: float64(j.Rotate[1]), Z: float64(j.Rotate[2]), W: float64(j.Rotate[3])}
+		s := &lin.V3{X: float64(j.Scale[0]), Y: float64(j.Scale[1]), Z: float64(j.Scale[2])}
 		basePoses = append(basePoses, &transform{t, r, s})
 	}
 	l.createBaseFrames(iqd, basePoses, scr)
@@ -274,6 +280,7 @@ func (l *loader) loadIqmAnims(hdr *iqmheader, data []byte, iqd *IqData, scr *scr
 		anim.Name = scr.labels[adata.Name]
 		anim.F0 = adata.First_frame
 		anim.Fn = adata.Num_frames
+		anim.Rate = adata.Framerate
 		iqd.Anims = append(iqd.Anims, anim)
 	}
 
@@ -494,3 +501,15 @@ const ( // vertex array format
 	iQM_FLOAT  = 7
 	iQM_DOUBLE = 8
 )
+
+// transform is a temporary structure to help read pose information from
+// IQE/IQM files. It consists of:
+//    translation <Tx, Ty, Tz>,
+//    quaternion rotation <Qx, Qy, Qz, Qw> (in relative/parent local space)
+//    scale is pre-scaling <Sx, Sy, Sz>
+// It is combined as follows: (input*scale)*rotation + translation
+type transform struct {
+	t *lin.V3 // translate.
+	q *lin.Q  // rotation (orientation) quaternion.
+	s *lin.V3 // scale.
+}

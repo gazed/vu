@@ -1,4 +1,4 @@
-// Copyright © 2014 Galvanized Logic Inc.
+// Copyright © 2014-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package grid
@@ -13,7 +13,7 @@ package grid
 //     http://grail.cs.washington.edu/projects/crowd-flows/ (flowfield algorithm)
 
 // Design Notes:
-//   • This A* implementation has been lightly optimized for short routes
+//   c This A* implementation has been lightly optimized for short routes
 //     on small grids.
 //   • Scratch variables avoid reallocating memory for sequential path lookups,
 //     but may not be the way to go if concurrent access is needed.

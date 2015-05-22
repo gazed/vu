@@ -1,5 +1,5 @@
-// Copyright © 2013-2014 Galvanized Logic Inc.
-// Use is governed by a BSD-style license found in the LICENSE file.
+// Copyright © 2013-2015 Galvanized Logic Inc.
+// Use is governed by a FreeBSD license found in the LICENSE file.
 //
 // Huge thanks to bullet physics for showing what a physics engine is all about
 // in cool-hard-code reality rather than theory. Methods and files that were
@@ -20,7 +20,7 @@
 //   2. Altered source versions must be plainly marked as such, and must not be misrepresented as being the original software.
 //   3. This notice may not be removed or altered from any source distribution.
 
-// Move is a real-time simulation of real-world physics.  Move automatically
+// Move is a real-time simulation of real-world physics. Move automatically
 // applies simulated forces to virtual 3D objects known as bodies. Move
 // updates bodies locations and directions based on forces and collisions
 // with other bodies.
@@ -28,11 +28,12 @@
 // Bodies are created using NewBody(shape). For example:
 //    box    := NewBody(NewBox(hx, hy, hz))
 //    sphere := NewBody(NewSphere(radius))
+//
 // Creating and storing bodies is the responsibility of the calling application.
 // Bodies are moved with frequent and regular calls to Mover.Step(). Regulating
-// the calls to Step() is the responsibility of the calling application. Once
-// Step() has completed, the bodies updated location and direction are available
-// in Body.World().
+// the calls to Step() is also the responsibility of the calling application.
+// Once Step() has completed, the bodies updated location and direction are
+// available in Body.World().
 //
 // Package move is provided as part of the vu (virtual universe) 3D engine.
 package move
@@ -165,6 +166,9 @@ func (mov *mover) predictBodyLocations(bodies []Body, dt float64) {
 // FUTURE: create a broadphase bounding volume hierarchy to help with dealing
 //         with a much larger number of bodies. Especially non-colliding bodies.
 func (mov *mover) broadphase(bodies []Body, pairs map[uint64]*contactPair) {
+	for _, pair := range pairs {
+		pair.valid = false // validate checks for deleted bodies.
+	}
 	var bodyA, bodyB *body
 	var uniques []Body
 	var pairId uint64
@@ -180,8 +184,9 @@ func (mov *mover) broadphase(bodies []Body, pairs map[uint64]*contactPair) {
 			// check as long as one of the bodies can move.
 			if bodyA.movable || bodyB.movable {
 				pairId = bodyA.pairId(bodyB)
-				_, existing := pairs[pairId]
+				pair, existing := pairs[pairId]
 				if existing {
+					pair.valid = true
 					abA := bodyA.predictedAabb(mov.abA, margin)
 					abB := bodyB.predictedAabb(mov.abB, margin)
 					overlaps := abA.Overlaps(abB)
@@ -189,18 +194,27 @@ func (mov *mover) broadphase(bodies []Body, pairs map[uint64]*contactPair) {
 						// Remove existing
 						delete(pairs, pairId)
 					}
-					// Otherwise Hold existing
+					// Otherwise hold existing
 				} else {
 					abA := bodyA.worldAabb(mov.abA)
 					abB := bodyB.worldAabb(mov.abB)
 					overlaps := abA.Overlaps(abB)
 					if overlaps {
 						// Add new
-						pairs[pairId] = newContactPair(bodyA, bodyB)
+						pair = newContactPair(bodyA, bodyB)
+						pair.valid = true
+						pairs[pairId] = pair
 					}
 					// Otherwise ignore non-overlapping pair
 				}
 			}
+		}
+	}
+
+	// remove contact pairs referencing deleted bodies.
+	for pairId, pair := range pairs {
+		if !pair.valid {
+			delete(pairs, pairId)
 		}
 	}
 }

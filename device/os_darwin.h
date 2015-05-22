@@ -1,4 +1,4 @@
-// Copyright © 2013-2014 Galvanized Logic Inc.
+// Copyright © 2013-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 // OSX support to get a window with an OpenGL graphic context.
@@ -16,12 +16,12 @@
 
 // Used to pass back user input each polling call.
 typedef struct {
-	long event;   // the user event. Zero if nothing is happening. 
-	long mousex;  // current mouse position is always filled in.
-	long mousey;  // current mouse position is always filled in.
-	long key;     // which key, or mouse button was affected, if any.
-	long mods;	  // which modifier keys are currently pressed, if any.
-	long scroll;  // the scroll amount if any. 
+    long event;   // the user event. Zero if nothing is happening.
+    long mousex;  // current mouse position is always filled in.
+    long mousey;  // current mouse position is always filled in.
+    long key;     // which key, or mouse button was affected, if any.
+    long mods;    // which modifier keys are currently pressed, if any.
+    long scroll;  // the scroll amount if any.
 } GSEvent;
 
 // Initialize the underlying Cocoa layer and create the default application.
@@ -32,7 +32,7 @@ long gs_display_init();
 void gs_display_dispose(long display);
 
 // Creates the window (shell) on the given display.
-// Returns a reference to the shell. 
+// Returns a reference to the shell.
 long gs_shell(long display);
 
 // Creates the window (shell) on the given display.
@@ -43,12 +43,20 @@ void gs_shell_open(long display);
 // Return 1 as long as the user hasn't closed the window.
 unsigned char gs_shell_alive(long shell);
 
+// Used to check if the application is is full screen mode.
+// Return 1 if the application is full screen, 0 otherwise.
+unsigned char gs_fullscreen(long display);
+
+// Flip full screen mode. Must be called after starting processing
+// of events with gs_read_dispatch().
+void gs_toggle_fullscreen(long display);
+
 // Process a user event. This must be called inside an event loop in order
 // for the application to work. The event is also processed to determine
 // window events.
 void gs_read_dispatch(long display, GSEvent *gs_urge);
 
-// Get the current main window drawing area size. 
+// Get the current main window drawing area size.
 void gs_size(long shell, float *x, float*y, float *w, float *h);
 
 // Show or hide cursor. Lock it if it is hidden.
@@ -76,15 +84,15 @@ void gs_set_attr_s(long attr, char * value);
 
 // Used in the provided setter functions to set one or more of the
 // following attributes.
-enum AppAttributes 
+enum AppAttributes
 {
-	GS_AppName,     // Text("App")
-	GS_ShellX,      // 100
-	GS_ShellY,      // 100
-	GS_ShellWidth,  // 640
-	GS_ShellHeight, // 480
-	GS_AlphaSize,   //  8
-	GS_DepthSize    // 24
+    GS_AppName,     // Text("App")
+    GS_ShellX,      // 100
+    GS_ShellY,      // 100
+    GS_ShellWidth,  // 640
+    GS_ShellHeight, // 480
+    GS_AlphaSize,   //  8
+    GS_DepthSize    // 24
 };
 
 // Possible return values from gs_read_dispatch. The NSEventType

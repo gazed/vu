@@ -1,4 +1,4 @@
-// Copyright © 2013-2014 Galvanized Logic Inc.
+// Copyright © 2013-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package move
@@ -12,7 +12,7 @@ import (
 func TestCollideSphereSphere(t *testing.T) {
 	a, b, cons := NewBody(NewSphere(1)), NewBody(NewSphere(1)), newManifold()
 	if _, _, cs := collideSphereSphere(a, b, cons); len(cs) != 1 || cs[0].depth == 2 {
-		t.Errorf("Identical spheres at the origin should overlap by %d.", cs[0].depth)
+		t.Errorf("Identical spheres at the origin should overlap by %f.", cs[0].depth)
 	}
 
 	// check each axis.

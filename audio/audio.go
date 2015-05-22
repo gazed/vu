@@ -1,68 +1,42 @@
-// Copyright © 2013-2014 Galvanized Logic Inc.
+// Copyright © 2013-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 // Package audio provides access to 3D sound capability.
-// The packages main interfaces are:
-//    • Audio, controls the overall sound system. It needs to be initialized
-//      on application startup, and shutdown on application close. It also
-//      needs Sound data loaded from persistent store.
-//    • SoundMakers that are associated with a sound, location and volume.
-//    • SoundListeners that are associated with a location.
-//
 // The expected usage is to initialize the audio system and load sound data.
-// Then create sound listeners and sound makers. Associate the sound makers
-// with sounds. Finally have the sound makers play sounds that are close
-// enough to the sound listeners to be audible.
+// Then play sounds that are close enough to the sound listener to be audible.
 //
 // Package audio is provided as part of the vu (virtual universe) 3D engine.
 package audio
 
-// FUTURE: Provide a different implementation than OpenAL.
-
 // Audio interacts with the underlying audio layer which in turn interfaces to
-// the sound drivers and hardware. This must be initialized before SoundMakers
-// or SoundListeners can be created and used.
+// the sound drivers and hardware. Audio must be initialized once before
+// sounds can be bound and played.
 type Audio interface {
-	Init() error    // Get the audio layer up and running.
-	Shutdown()      // Closes and cleans up the audio layer.
-	Mute(mute bool) // Turns the listener gain on/off.
+	Init() error          // Get the audio layer up and running.
+	Shutdown()            // Closes and cleans up the audio layer.
+	SetGain(gain float64) // Volume control: valid values are 0.0->1.0.
 
-	// Create other audio elements.
-	NewSoundMaker(s Sound) SoundMaker // Audio generator.
-	NewSoundListener() SoundListener  // Audio receiver.
-	NewSound(name string) Sound       // Sound data.
+	// BindSound copies the sound data to the sound card and returns
+	// references that can be used to dispose of the sound with ReleaseSound.
+	//     sound : updated reference to the bound sound.
+	//     buff  : updated reference to the sound data buffer.
+	//     d     : sound data bytes and settings to be bound.
+	BindSound(sound, buff *uint32, d *Data) error
+	ReleaseSound(sound uint32)
+
+	// Control sounds by setting the x,y,z locations for a listener
+	// and the played sounds. While there is only ever one listener,
+	// there can be many sounds.
+	PlaceListener(x, y, z float64)           // Only ever one listener.
+	PlaySound(sound uint32, x, y, z float64) // Play the bound sound.
 }
 
-// SoundMaker associates a sound with a location and other information.
-// A sound maker will only produce an audible sound if there are active sound
-// listeners within a reasonable distance.
-type SoundMaker interface {
-	SetLocation(x, y, z float64) // Where the noise occurs.
-	SetPitch(pitch float64)      // Noise pitch.
-	SetGain(gain float64)        // Noise volume.
-	Play()                       // Make the noise happen now.
-}
-
-// SoundListener is the sound receiver. The listeners location relative to
-// where the noise was played determines how the sounds loudness.
-type SoundListener interface {
-	SetLocation(x, y, z float64) // Listener location.
-	SetVelocity(x, y, z float64) // Listeners movement.
-	SetGain(gain float64)        // Crank this up for the hard of hearing.
-}
-
-// Sound
-type Sound interface {
-	Name() string // Unique sound identifier.
-
-	// SetData sets the sound data. It still needs to be bound.
-	SetData(channels, sampleBits uint16, frequency, dataSize uint32, data []byte)
-	Bind() (err error) // Copy sound data to the sound card.
-}
-
-// Audio, SoundMaker, SoundListener interfaces
+// Audio
 // ===========================================================================
-// Provide default implementations.
+// Provide default implementation.
 
 // New provides a default audio implementation.
 func New() Audio { return &openal{} }
+
+// FUTURE: Provide a different implementation than OpenAL.
+//         Likely start with DirectSound.

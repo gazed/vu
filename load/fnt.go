@@ -1,4 +1,4 @@
-// Copyright © 2013-2014 Galvanized Logic Inc.
+// Copyright © 2013-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package load
@@ -11,21 +11,19 @@ import (
 	"unicode/utf8"
 )
 
-// FontData holds UV texture mapping information for a font.
-// It is an intermediate format that is intended for populating
-// render assets.
+// FntData holds UV texture mapping information for a font.
+// It is intended for populating rendered models of strings.
 type FntData struct {
-	W, H  int       // width and height
-	Chars []ChrData // character data.
+	W, H  int       // Width and height
+	Chars []ChrData // Character data.
 }
 
 // ChrData holds UV texture mapping information for one character.
-// It is an intermediate format that is intended for populating
-// render assets.
+// It is an intermediate format intended for vu/Model instances.
 type ChrData struct {
-	Char       rune // character.
-	X, Y, W, H int  // character bit size.
-	Xo, Yo, Xa int  // character offset.
+	Char       rune // Character.
+	X, Y, W, H int  // Character bit size.
+	Xo, Yo, Xa int  // Character offset.
 }
 
 // fnt reads in a text file describing the UV texture mapping for a
@@ -40,7 +38,7 @@ func (l *loader) fnt(name string) (data *FntData, err error) {
 	// the header is the first line in the file.
 	var file io.ReadCloser
 	if file, err = l.getResource(l.dir[src], filename); err != nil {
-		return nil, fmt.Errorf("Could not load glyphs from %s\n", filename, err)
+		return nil, fmt.Errorf("Could not load glyphs from %s: %s\n", filename, err)
 	}
 	defer file.Close()
 	reader := bufio.NewReader(file)

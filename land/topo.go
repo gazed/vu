@@ -1,4 +1,4 @@
-// Copyright © 2014 Galvanized Logic Inc.
+// Copyright © 2014-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package land
@@ -20,8 +20,8 @@ import (
 // zoom level has an implied x, y index based on the topo size and zoom level.
 type Topo [][]float64
 
-// NewTopo allocates space for a single topology section. This is independent of
-// zoom level.
+// NewTopo allocates space for a single topology section.
+// This is independent of zoom level.
 func NewTopo(xwidth, yheight uint) Topo {
 	t := make(Topo, xwidth)
 	for x := range t {
@@ -78,8 +78,8 @@ func (t Topo) generate(zoom, xoff, yoff uint, n *noise) {
 }
 
 // paint associates a colour for the indicated section value.
-// Note: this is for debugging only. Colour should be based on
-// land type, not height.
+// Note: this is for debugging only. Colour probably should be a
+// combination of land type and height.
 func (t Topo) paint(height, landSplit float64) (c *color.NRGBA) {
 	c = &color.NRGBA{255, 255, 255, 255}
 	switch {

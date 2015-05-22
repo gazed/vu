@@ -1,4 +1,4 @@
-// Copyright © 2014 Galvanized Logic Inc.
+// Copyright © 2014-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -10,41 +10,37 @@ import (
 	"github.com/gazed/vu/land"
 )
 
-// tm demonstrates creating and rendering a dynamic terrain map from a
-// generated height map. The intent is to mimic a landscape seen from above.
-// The main engine pieces of the demo are are vu/Surface and package vu/land.
+// tm demonstrates creating, texturing, and rendering a dynamic terrain map
+// from a generated height map. The intent is to mimic a surface/land map.
 func tm() {
 	tm := &tmtag{}
-	tm.ww, tm.wh = 1024, 768
-	var err error
-	if tm.eng, err = vu.New("Terrain Map", 1200, 100, tm.ww, tm.wh); err != nil {
-		log.Printf("tm: error intitializing engine %s", err)
-		return
+	if err := vu.New(tm, "Terrain Map", 400, 100, 800, 600); err != nil {
+		log.Printf("tm: error starting engine %s", err)
 	}
-	tm.eng.SetDirector(tm)  // get user input through Director.Update()
-	tm.create()             // create initial assests.
-	defer tm.eng.Shutdown() // shut down the engine.
 	defer catchErrors()
-	tm.eng.Action()
 }
 
 // Encapsulate example specific data with a unique "tag".
 type tmtag struct {
-	eng     vu.Engine   // 3D engine.
+	cam     vu.Camera
 	ww, wh  int         // window size.
-	scene   vu.Scene    // overall scene with lighting.
-	ground  vu.Part     // visible surface.
-	coast   vu.Part     // shallow water plane.
-	ocean   vu.Part     // deep water plane.
+	gm      vu.Model    // visible surface model
+	ground  vu.Pov      // visible surface.
+	coast   vu.Pov      // shallow water plane.
+	ocean   vu.Pov      // deep water plane.
 	world   land.Land   // height map generation.
 	surface vu.Surface  // data structure used to create land.
 	evo     [][]float64 // used for evolution experiments.
 }
 
-// create is the startup asset creation.
-func (tm *tmtag) create() {
-	tm.scene = tm.eng.AddScene(vu.VP)
-	tm.scene.Cam().SetOrthographic(0, float64(tm.ww), 0, float64(tm.wh), 0, 200)
+// Create is the engine callback for initial asset creation.
+func (tm *tmtag) Create(eng vu.Eng, s *vu.State) {
+	tm.ww, tm.wh = s.W, s.H
+	view := eng.Root().NewView()
+	tm.cam = view.Cam()
+	tm.cam.SetOrthographic(0, float64(tm.ww), 0, float64(tm.wh), 0, 50)
+	sun := eng.Root().NewPov().SetLocation(0, 5, 0)
+	sun.NewLight().SetColour(0.4, 0.7, 0.9)
 
 	// create the world surface.
 	seed := int64(123)
@@ -79,31 +75,28 @@ func (tm *tmtag) create() {
 
 	// Add a rendering component for the surface data.
 	scale := 10.0
-	tm.ground = tm.scene.AddPart().SetScale(scale, scale, 1)
-	tm.ground.SetLocation(0, 0, -10)
-	tm.ground.SetRole("land").AddTex("land")
-	tm.ground.Role().SetMaterial("land").SetUniform("ratio", textureRatio)
-	tm.ground.Role().SetLightColour(0.1, 0, 0)
-	tm.ground.Role().SetLightLocation(5, 5, -5)
-	tm.ground.Role().NewMesh("land")
-	tm.surface.Update(tm.ground.Role().Mesh(), 0, 0)
+	tm.ground = eng.Root().NewPov().SetLocation(0, 0, -10).SetScale(scale, scale, 1)
+	tm.gm = tm.ground.NewModel("land").AddTex("land")
+	tm.gm.LoadMat("land").SetUniform("ratio", textureRatio)
+	tm.gm.NewMesh("land")
+	tm.surface.Update(tm.gm, 0, 0)
 
 	// Add water planes.
-	tm.ocean = tm.scene.AddPart()
+	tm.ocean = eng.Root().NewPov()
 	tm.ocean.SetLocation(256, 0, -10.5)
 	tm.ocean.SetScale(float64(tm.ww), float64(tm.wh), 1)
-	tm.ocean.SetRole("flat").SetMesh("plane").SetMaterial("blue2")
-	tm.coast = tm.scene.AddPart()
-	tm.coast.SetLocation(256, 0, -10)
+	tm.ocean.NewModel("alpha").LoadMesh("plane").LoadMat("blue2")
+	tm.coast = eng.Root().NewPov().SetLocation(256, 0, -10)
 	tm.coast.SetScale(float64(tm.ww), float64(tm.wh), 1)
-	tm.coast.SetRole("flat").SetMesh("plane").SetMaterial("blue")
+	tm.coast.NewModel("alpha").LoadMesh("plane").LoadMat("blue")
 	return
 }
 
 // Update is the regular engine callback.
-func (tm *tmtag) Update(in *vu.Input) {
+func (tm *tmtag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 	if in.Resized {
-		tm.resize()
+		tm.ww, tm.wh = s.W, s.H
+		tm.cam.SetOrthographic(0, float64(s.W), 0, float64(s.H), 0, 50)
 	}
 
 	// process user presses.
@@ -113,11 +106,13 @@ func (tm *tmtag) Update(in *vu.Input) {
 
 		// Change the water level.
 		case "[":
-			tm.ocean.Move(0, 0, 1*in.Dt)
-			tm.coast.Move(0, 0, 1*in.Dt)
+			dir := tm.cam.Lookat()
+			tm.ocean.Move(0, 0, 1*in.Dt, dir)
+			tm.coast.Move(0, 0, 1*in.Dt, dir)
 		case "]":
-			tm.ocean.Move(0, 0, -1*in.Dt)
-			tm.coast.Move(0, 0, -1*in.Dt)
+			dir := tm.cam.Lookat()
+			tm.ocean.Move(0, 0, -1*in.Dt, dir)
+			tm.coast.Move(0, 0, -1*in.Dt, dir)
 
 		// Demonstrate evolution using a texture atlas.
 		case "KP+":
@@ -142,13 +137,6 @@ func (tm *tmtag) Update(in *vu.Input) {
 	}
 }
 
-// resize handles user screen/window changes.
-func (tm *tmtag) resize() {
-	var x, y int
-	x, y, tm.ww, tm.wh = tm.eng.Size()
-	tm.eng.Resize(x, y, tm.ww, tm.wh)
-}
-
 // evolve slowly transitions from one texture to the next. This depends
 // on seqentially ordering the similar textures in the texture atlas.
 func (tm *tmtag) evolve(rate float64) {
@@ -169,5 +157,5 @@ func (tm *tmtag) evolve(rate float64) {
 			}
 		}
 	}
-	tm.surface.Update(tm.ground.Role().Mesh(), 0, 0)
+	tm.surface.Update(tm.gm, 0, 0)
 }

@@ -1,4 +1,4 @@
-// Copyright © 2014 Galvanized Logic Inc.
+// Copyright © 2014-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -16,55 +16,49 @@ import (
 // in trying to provide some application GUI support.
 func fm() {
 	fm := &fmtag{}
-	ww, wh := 800, 600
-	var err error
-	if fm.eng, err = vu.New("Control Panel", 1200, 100, ww, wh); err != nil {
-		log.Printf("fm: error intitializing engine %s", err)
-		return
+	if err := vu.New(fm, "Form Layout", 400, 100, 800, 600); err != nil {
+		log.Printf("fm: error starting engine %s", err)
 	}
-	fm.eng.SetDirector(fm)  // get user input through Director.Update()
-	fm.create()             // create initial assests.
-	defer fm.eng.Shutdown() // shut down the engine.
 	defer catchErrors()
-	fm.eng.Action()
 }
 
 // Encapsulate example specific data with a unique "tag".
 type fmtag struct {
-	eng     vu.Engine // 3D engine.
-	scene   vu.Scene  // visible layouts.
+	top     vu.Pov    //
+	view    vu.View   // visible layouts.
 	ww, wh  int       // window width and height.
 	example int       // current layout example.g
 	layouts []*layout // demonstrate multiple layouts.
 }
 
-// create is the startup asset creation.
-func (fm *fmtag) create() {
-	fm.scene = fm.eng.AddScene(vu.VO)
-	fm.scene.Set2D()
-	_, _, fm.ww, fm.wh = fm.eng.Size()
+// Create is the engine callback for initial asset creation.
+func (fm *fmtag) Create(eng vu.Eng, s *vu.State) {
+	fm.view = eng.Root().NewView()
+	fm.view.SetUI()
+	eng.SetColor(0.95, 0.95, 0.95, 1)
 
 	// create the panel layout examples.
-	fm.layouts = append(fm.layouts, fm.simpleLayout())
-	fm.layouts = append(fm.layouts, fm.spanLayout())
-	fm.layouts = append(fm.layouts, fm.grabLayout())
-	fm.layouts = append(fm.layouts, fm.largeLayout())
-	fm.layouts = append(fm.layouts, fm.doubleLayout())
+	fm.layouts = append(fm.layouts, fm.simpleLayout(eng, s.W, s.H))
+	fm.layouts = append(fm.layouts, fm.spanLayout(eng, s.W, s.H))
+	fm.layouts = append(fm.layouts, fm.grabLayout(eng))
+	fm.layouts = append(fm.layouts, fm.largeLayout(eng, s.W, s.H))
+	fm.layouts = append(fm.layouts, fm.doubleLayout(eng))
 	fm.layouts[fm.example].setVisible(true)
-	fm.eng.Color(0.95, 0.95, 0.95, 1)
-	fm.resize()
+
+	// set non default engine state.
+	fm.resize(s.W, s.H)
 }
 
 // Update is the regular engine callback.
-func (fm *fmtag) Update(in *vu.Input) {
+func (fm *fmtag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 	if in.Resized {
-		fm.resize()
+		fm.resize(s.W, s.H)
 	}
 	for press, down := range in.Down {
 		switch {
-		case press == "Tab" && down == 1:
 
-			// switch to the next layout example.
+		// switch to the next layout example.
+		case press == "Tab" && down == 1:
 			fm.layouts[fm.example].setVisible(false)
 			fm.example = fm.example + 1
 			if fm.example >= len(fm.layouts) {
@@ -76,31 +70,28 @@ func (fm *fmtag) Update(in *vu.Input) {
 }
 
 // resize handles user screen/window changes.
-func (fm *fmtag) resize() {
-	x, y, ww, wh := fm.eng.Size()
-	fm.eng.Resize(x, y, ww, wh)
-	fm.ww, fm.wh = ww, wh
-	fm.scene.Cam().SetOrthographic(0, float64(ww), 0, float64(wh), 0, 10)
+func (fm *fmtag) resize(ww, wh int) {
+	fm.view.Cam().SetOrthographic(0, float64(ww), 0, float64(wh), 0, 10)
 	for _, lo := range fm.layouts {
 		lo.resize(ww, wh)
 	}
 }
 
 // simpleLayout creates a 2x2 form with 10 pixel gaps.
-func (fm *fmtag) simpleLayout() *layout {
+func (fm *fmtag) simpleLayout(eng vu.Eng, ww, wh int) *layout {
 	lo := &layout{}
 	plan := []string{
 		"ab",
 		"cd",
 	}
-	lo.form = form.New(plan, fm.ww, fm.wh, "gap 5 5", "pad 5 5 5 5")
-	lo.visualize(fm.scene)
+	lo.form = form.New(plan, ww, wh, "gap 5 5", "pad 5 5 5 5")
+	lo.visualize(eng)
 	return lo
 }
 
 // spanLayout creates a form where the cell with the same label will
 // span rows and columns.
-func (fm *fmtag) spanLayout() *layout {
+func (fm *fmtag) spanLayout(eng vu.Eng, ww, wh int) *layout {
 	lo := &layout{}
 	plan := []string{
 		"axxb",
@@ -108,14 +99,14 @@ func (fm *fmtag) spanLayout() *layout {
 		"cxxd",
 		"eeef",
 	}
-	lo.form = form.New(plan, fm.ww, fm.wh, "gap 5 5", "pad 5 5 5 5")
-	lo.visualize(fm.scene)
+	lo.form = form.New(plan, ww, wh, "gap 5 5", "pad 5 5 5 5")
+	lo.visualize(eng)
 	return lo
 }
 
 // grabLayout creates a form where the base size dictates the max size
 // that non-grabby rows and columns will grow to.
-func (fm *fmtag) grabLayout() *layout {
+func (fm *fmtag) grabLayout(eng vu.Eng) *layout {
 	lo := &layout{}
 	plan := []string{
 		"abc",
@@ -123,13 +114,13 @@ func (fm *fmtag) grabLayout() *layout {
 		"ghi",
 	}
 	lo.form = form.New(plan, 200, 200, "grabx 1", "graby 1", "gap 5 5", "pad 5 5 5 5")
-	lo.visualize(fm.scene)
+	lo.visualize(eng)
 	return lo
 }
 
 // largeLayout creates a form with multiple spanning sections and
 // a single spanning section.
-func (fm *fmtag) largeLayout() *layout {
+func (fm *fmtag) largeLayout(eng vu.Eng, ww, wh int) *layout {
 	lo := &layout{}
 	plan := []string{
 		"aabbbccd",
@@ -138,13 +129,13 @@ func (fm *fmtag) largeLayout() *layout {
 		"ixxhyyyg",
 		"jklhmmnn",
 	}
-	lo.form = form.New(plan, fm.ww, fm.wh, "gap 5 5", "grabx 0", "graby 0", "pad 5 5 5 5")
-	lo.visualize(fm.scene)
+	lo.form = form.New(plan, ww, wh, "gap 5 5", "grabx 0", "graby 0", "pad 5 5 5 5")
+	lo.visualize(eng)
 	return lo
 }
 
 // doubleLayout creates a form within a form to create a more complex layout.
-func (fm *fmtag) doubleLayout() *layout {
+func (fm *fmtag) doubleLayout(eng vu.Eng) *layout {
 	lo := &layout{}
 	plan := []string{
 		"abc",
@@ -152,14 +143,14 @@ func (fm *fmtag) doubleLayout() *layout {
 		"ghi",
 	}
 	lo.form = form.New(plan, 200, 200, "grabx 1", "graby 1", "gap 5 5", "pad 5 5 5 5")
-	lo.visualize(fm.scene)
-	lo.lo = fm.interiorLayout(lo.form.Section("e"))
+	lo.visualize(eng)
+	lo.lo = fm.interiorLayout(eng, lo.form.Section("e"))
 	return lo
 }
 
 // interior layout is part of doubleLayout.
 // It creates a second form inside the middle section of the first form.
-func (fm *fmtag) interiorLayout(s form.Section) *layout {
+func (fm *fmtag) interiorLayout(eng vu.Eng, s form.Section) *layout {
 	lo := &layout{}
 	w, h := s.Size()
 	iw, ih := int(lin.Round(w, 0)), int(lin.Round(h, 0))
@@ -169,7 +160,7 @@ func (fm *fmtag) interiorLayout(s form.Section) *layout {
 		"stu",
 	}
 	lo.form = form.New(plan, iw, ih, "gap 5 5")
-	lo.visualize(fm.scene)
+	lo.visualize(eng)
 	return lo
 }
 
@@ -179,30 +170,30 @@ func (fm *fmtag) interiorLayout(s form.Section) *layout {
 type layout struct {
 	form   form.Form // cell and label position information.
 	lo     *layout   // for doubleLayout.
-	top    vu.Part   // single spot for making visible.
-	sects  []vu.Part // visual representation of a form cell.
-	labels []vu.Part // cell label.
+	top    vu.Pov    // single spot for making visible.
+	sects  []vu.Pov  // visual representation of a form cell.
+	labels []vu.Pov  // cell label.
 }
 
 // Called once to create the visual parts of a panel.
-func (lo *layout) visualize(scene vu.Scene) {
-	lo.top = scene.AddPart()
+func (lo *layout) visualize(eng vu.Eng) {
+	lo.top = eng.Root().NewPov()
 	lo.setVisible(false)
-	lo.sects = make([]vu.Part, len(lo.form.Sections()))
-	lo.labels = make([]vu.Part, len(lo.form.Sections()))
+	lo.sects = make([]vu.Pov, len(lo.form.Sections()))
+	lo.labels = make([]vu.Pov, len(lo.form.Sections()))
 	for cnt, sect := range lo.form.Sections() {
 
 		// place a box at the section location.
-		lo.sects[cnt] = lo.top.AddPart()
-		lo.sects[cnt].SetRole("uv").SetMesh("icon").AddTex("cell")
+		lo.sects[cnt] = lo.top.NewPov()
+		lo.sects[cnt].NewModel("uv").LoadMesh("icon").AddTex("cell")
 
 		// place the cell name in the middle of the cell.
-		lo.labels[cnt] = lo.top.AddPart()
-		lo.labels[cnt].SetRole("uv").AddTex("weblySleek16Black")
+		lo.labels[cnt] = lo.top.NewPov()
+		model := lo.labels[cnt].NewModel("uv").AddTex("weblySleek16Black")
 		if sect.Label() == "" {
-			lo.labels[cnt].Role().SetFont("weblySleek16").SetPhrase("-")
+			model.LoadFont("weblySleek16").SetPhrase("-")
 		} else {
-			lo.labels[cnt].Role().SetFont("weblySleek16").SetPhrase(sect.Label())
+			model.LoadFont("weblySleek16").SetPhrase(sect.Label())
 		}
 	}
 }

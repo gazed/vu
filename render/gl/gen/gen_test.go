@@ -1,4 +1,4 @@
-// Copyright © 2013-2014 Galvanized Logic Inc.
+// Copyright © 2013-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -16,7 +16,7 @@ func TestSplitLine(t *testing.T) {
 	}
 }
 
-// // GLAPI GLuint APIENTRY wrap_glCreateShader(unsigned int t_ype) { return (*pfn_glCreateShader)(t_ype); }
+// GLAPI GLuint APIENTRY wrap_glCreateShader(unsigned int t_ype) { return (*pfn_glCreateShader)(t_ype); }
 func TestCwrapper0(t *testing.T) {
 	apiLine := "GLAPI GLuint APIENTRY glCreateShader (GLenum type);"
 	_, rettype, _, pnames, ptypes := splitLine(apiLine)
@@ -26,7 +26,7 @@ func TestCwrapper0(t *testing.T) {
 	}
 }
 
-// // GLAPI const char * APIENTRY wrap_glGetString(unsigned int name) { return (char *)(*pfn_glGetString)(name); }
+// GLAPI const char * APIENTRY wrap_glGetString(unsigned int name) { return (char *)(*pfn_glGetString)(name); }
 func TestCwrapper1(t *testing.T) {
 	apiLine := "GLAPI const GLubyte * APIENTRY glGetString (GLenum name);"
 	_, rettype, _, pnames, ptypes := splitLine(apiLine)
@@ -36,8 +36,8 @@ func TestCwrapper1(t *testing.T) {
 	}
 }
 
-// // GLAPI void APIENTRY wrap_glGetVertexAttribPointerv(unsigned int index, unsigned int pname, long long* pointer)
-//	  { (*pfn_glGetVertexAttribPointerv)(index, pname, (GLvoid **)pointer); }"
+// GLAPI void APIENTRY wrap_glGetVertexAttribPointerv(unsigned int index, unsigned int pname, long long* pointer)
+// { (*pfn_glGetVertexAttribPointerv)(index, pname, (GLvoid **)pointer); }"
 func TestCwrapper2(t *testing.T) {
 	apiLine := "GLAPI void APIENTRY glGetVertexAttribPointerv (GLuint index, GLenum pname, GLvoid* *pointer);"
 	_, _, _, _, gltypes := splitLine(apiLine)
@@ -50,8 +50,8 @@ func TestCwrapper2(t *testing.T) {
 	}
 }
 
-// // GLAPI void APIENTRY wrap_glGetShaderInfoLog(unsigned int shader, int bufSize, int* length, unsigned char* infoLog)
-//	  { (*pfn_glGetShaderInfoLog)(shader, bufSize, length, (GLchar *)infoLog); }"
+// GLAPI void APIENTRY wrap_glGetShaderInfoLog(unsigned int shader, int bufSize, int* length, unsigned char* infoLog)
+// { (*pfn_glGetShaderInfoLog)(shader, bufSize, length, (GLchar *)infoLog); }"
 func TestCwrapper3(t *testing.T) {
 	apiLine := "GLAPI void APIENTRY glGetShaderInfoLog (GLuint shader, GLsizei bufSize, GLsizei *length, GLchar *infoLog);"
 	_, rettype, _, pnames, ptypes := splitLine(apiLine)

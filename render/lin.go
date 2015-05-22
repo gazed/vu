@@ -1,4 +1,4 @@
-// Copyright © 2013-2014 Galvanized Logic Inc.
+// Copyright © 2013-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package render
@@ -8,9 +8,12 @@ import (
 )
 
 // lin hides the fact that the current underlying graphics implementation
-// deals in float32 rather than float64. This may change so it is kept local
-// to this package. This file deals with conversions and pointer casts only.
-// Math operations are kept strictly in vu/math/lin.
+// deals in float32 rather than float64. These are kept package local
+// because it is expected that GPU's will transition from 32 to 64 bit
+// and then these 32 bit structres and conversions can disappear.
+//
+// These are data holders only. Please keep all math operations
+// restricted to vu/math/lin.
 
 // m3 is a 3x3 float32 matrix that is populated from the more precise
 // math/lin float64 representation.
@@ -20,7 +23,7 @@ type m3 struct {
 	zx, zy, zz float32 // indices 6, 7, 8  [20, 21, 22]  Z-Axis
 }
 
-// Pointer is used to access the matrix data as an array of floats.
+// Pointer accesses the matrix data as an array of floats.
 // Used to pass the matrix to native graphic layer.
 func (m *m3) Pointer() *float32 { return &(m.xx) }
 
@@ -42,12 +45,12 @@ func (m *m3) m3(f *m4) *m3 {
 // m34 is a 3x4 float32 column-major matrix that is populated from the more
 // precise math/lin float64 representation. It becomes row-major when Sent to
 // the GPU without transposing. It is used as an internal optimization to send
-// 4 less floats for each bone/ position matrix and the shader is expected be
+// 4 less floats for each bone transform matrix. The shader is expected be
 // aware of this space saving layout.
 type m34 struct {
-	xx, yx, zx, wx float32 // indices 0, 1, 2, 3  [00, 01, 02, 03]  X-Axis
-	xy, yy, zy, wy float32 // indices 4, 5, 6, 7  [10, 11, 12, 13]  Y-Axis
-	xz, yz, zz, wz float32 // indices 8, 9, a, b  [20, 21, 22, 23]  Z-Axis
+	xx, yx, zx, wx float32 // indices 0, 1, 2, 3  [00, 01, 02, 03]
+	xy, yy, zy, wy float32 // indices 4, 5, 6, 7  [10, 11, 12, 13]
+	xz, yz, zz, wz float32 // indices 8, 9, a, b  [20, 21, 22, 23]
 	// 0, 0, 0, 1 implicit last row.
 }
 
@@ -113,14 +116,14 @@ type v3 struct {
 
 // =============================================================================
 
-// Mvp exposes the render matrix representation. This is needed by applications
-// that are using the vu/render system, but not the vu engine.
+// Mvp exposes the render matrix representation. This is needed by
+// applications using the vu/render system, but not the vu engine.
 type Mvp interface {
 	Set(tm *lin.M4) Mvp // Converts the transform matrix tm to internal data.
 	Pointer() *float32  // A pointer to the internal transform data.
 }
 
-// NewMvp creates a new internal render transform matrix each time.
-// This is needed by applications that are using the vu/render system,
+// NewMvp creates a new internal render transform matrix.
+// This is needed by applications using the vu/render system,
 // but not the vu engine.
 func NewMvp() Mvp { return &m4{} }

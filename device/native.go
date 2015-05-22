@@ -1,9 +1,7 @@
-// Copyright © 2013-2014 Galvanized Logic Inc.
+// Copyright © 2013-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package device
-
-// native
 
 import (
 	"log"
@@ -21,7 +19,7 @@ import (
 // Each will have a unique implementation of the native interface and will
 // only be included when building on their respective platforms.
 //
-// OSX expects all window access to be done on the main thread.
+// Note that OSX expects all window access to be done on the main thread.
 type native interface {
 
 	// display initializes the OS specific graphics layer. The returned
@@ -35,16 +33,15 @@ type native interface {
 	// context.
 	displayDispose(r *nrefs)
 
-	// readDispatch fetches user events.  This must be called inside an fast loop
+	// readDispatch fetches user events. This must be called inside a fast loop
 	// so that the native window system event queue is handled in a timely fashion.
-	// The returned userInput is one of two reusable alternating input buffers.
-	// Therefore the first and third calls to readDispatch will use the same input
-	// buffer. Ensure that the userInput has been processed before the input buffer
-	// is reused.
-	readDispatch(r *nrefs) *userInput
+	// The input  userInput is filled and returned. This will return with the
+	// latest modifier keys and mouse location even if there are no user events
+	// to process.
+	readDispatch(r *nrefs, in *userInput) *userInput
 
 	// shell creates the "window" on the given display.  In some cases this is
-	// a window and in others it holds device independent attributes.  The supplied
+	// a window and in others it holds device independent attributes. The supplied
 	// Shell structure's id is set to a reference of the underlying OS structure.
 	// For example:
 	//    osx: pointer to NSWindow
@@ -115,6 +112,13 @@ type native interface {
 	// setTitle sets the desired window title. This needs to be called before the
 	// window is created.
 	setTitle(title string)
+
+	// isFullscreen returns true when application is is full screen mode.
+	isFullscreen(r *nrefs) bool
+
+	// toggleFullscreen flips between application windowed and full screen mode.
+	// Must be called after starting processing with readDispatch().
+	toggleFullscreen(r *nrefs)
 }
 
 // native
@@ -127,6 +131,12 @@ type native interface {
 type nativeOs struct {
 	nl native // native layer support
 	nr *nrefs // references to native layer objects.
+
+	// User input structures are processed by two threads.
+	// The main thread fills them with user input events.
+	// Input.processEvents turns them into pressed state.
+	in    []*userInput // Reusable input event buffers
+	index int          // Current input buffer counter.
 }
 
 // nrefs keeps and passes pointers/handles to the native layer window,
@@ -144,6 +154,13 @@ func newNativeOs() *nativeOs {
 	os := &nativeOs{}
 	os.nl = nativeLayer() // one of these in each native layer os_*.go.
 	os.nr = &nrefs{}
+
+	// create one more buffer than the number of times events will be
+	// polled for a given update. Currently decided in input.readEvents.
+	numInputs := 3
+	for cnt := 0; cnt < numInputs; cnt++ {
+		os.in = append(os.in, &userInput{})
+	}
 	return os
 }
 
@@ -203,11 +220,20 @@ func (os *nativeOs) createContext(depth, alpha int) {
 	}
 }
 
-// swapBuffers flips the drawing buffers.  Expected to be called at the end
-// of each drawwing loop.
+// isFullscreen returns true when application is is full screen mode.
+func (os *nativeOs) isFullscreen() bool { return os.nl.isFullscreen(os.nr) }
+
+// toggleFullscreen flips between application windowed and full screen mode.
+func (os *nativeOs) toggleFullscreen() { os.nl.toggleFullscreen(os.nr) }
+
+// swapBuffers flips the drawing buffers.
+// Expected to be called at the end of each drawwing loop.
 func (os *nativeOs) swapBuffers() { os.nl.swapBuffers(os.nr) }
 
-// readAndDispatch polls the next user event from the native OS.
-func (os *nativeOs) readAndDispatch(events chan *userInput) {
-	events <- os.nl.readDispatch(os.nr)
+// readDispatch polls the next user event from the native OS.
+// Reading the event must be done on the main thread, but the
+// events can be processed in a separate thread.
+func (os *nativeOs) readDispatch() *userInput {
+	os.index = (os.index + 1) % len(os.in)
+	return os.nl.readDispatch(os.nr, os.in[os.index])
 }

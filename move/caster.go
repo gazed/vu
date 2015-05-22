@@ -1,11 +1,11 @@
-// Copyright © 2014 Galvanized Logic Inc.
+// Copyright © 2014-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package move
 
 // caster contains ray casting logic. It is separate from full collision
 // tracking and often used to answer the question "what is the user
-// clicking on".
+// clicking on?".
 
 import (
 	"math"
@@ -90,6 +90,7 @@ func castRaySphere(a, b Body) (hit bool, x, y, z float64) {
 }
 
 // ============================================================================
-// FUTURE
+//
+// FUTURE:
 // https://truesculpt.googlecode.com/hg-history/Release%25200.8/Doc/ray_box_intersect.pdf
 // http://www.scratchapixel.com/lessons/3d-basic-lessons/lesson-7-intersecting-simple-shapes/ray-box-intersection/

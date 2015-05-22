@@ -1,23 +1,23 @@
-// Copyright © 2013-2014 Galvanized Logic Inc.
-// Use is governed by a BSD-style license found in the LICENSE file.
+// Copyright © 2013-2015 Galvanized Logic Inc.
+// Use is governed by a FreeBSD license found in the LICENSE file.
 //
 // Solver is a un-optimized, scaled-down, golang version of the Bullet physics
 //     bullet-2.81-rev2613/src/.../btSequentialImpulseConstraintSolver.(cpp/h)
 // which has the following license:
 //
-// Bullet Continuous Collision Detection and Physics Library
-// Copyright (c) 2003-2006 Erwin Coumans  http://continuousphysics.com/Bullet/
+//    Bullet Continuous Collision Detection and Physics Library
+//    Copyright (c) 2003-2006 Erwin Coumans  http://continuousphysics.com/Bullet/
 //
-// This software is provided 'as-is', without any express or implied warranty.
-// In no event will the authors be held liable for any damages arising from the use of this software.
-// Permission is granted to anyone to use this software for any purpose,
-// including commercial applications, and to alter it and redistribute it freely,
-// subject to the following restrictions:
+//    This software is provided 'as-is', without any express or implied warranty.
+//    In no event will the authors be held liable for any damages arising from the use of this software.
+//    Permission is granted to anyone to use this software for any purpose,
+//    including commercial applications, and to alter it and redistribute it freely,
+//    subject to the following restrictions:
 //
-// 1. The origin of this software must not be misrepresented; you must not claim that you wrote the original software.
-//    If you use this software in a product, an acknowledgment in the product documentation would be appreciated but is not required.
-// 2. Altered source versions must be plainly marked as such, and must not be misrepresented as being the original software.
-// 3. This notice may not be removed or altered from any source distribution.
+//    1. The origin of this software must not be misrepresented; you must not claim that you wrote the original software.
+//       If you use this software in a product, an acknowledgment in the product documentation would be appreciated but is not required.
+//    2. Altered source versions must be plainly marked as such, and must not be misrepresented as being the original software.
+//    3. This notice may not be removed or altered from any source distribution.
 
 package move
 
@@ -155,8 +155,8 @@ func (sol *solver) convertContacts(pair *contactPair, info *solverInfo) {
 	}
 }
 
-// setupContactConstraint initializes contact based constraints.  Expected to be called on
-// solver setup for each contact point.
+// setupContactConstraint initializes contact based constraints.
+// Expected to be called on solver setup for each contact point.
 func (sol *solver) setupContactConstraint(sc *solverConstraint, sbodA, sbodB *solverBody,
 	poc *pointOfContact, info *solverInfo, relPosA, relPosB, vel *lin.V3) (relativeVelocity float64) {
 	bodyA, bodyB := sbodA.oBody, sbodB.oBody // either may be nil if body is static.
@@ -258,8 +258,8 @@ func (sol *solver) setupContactConstraint(sc *solverConstraint, sbodA, sbodB *so
 	return relativeVelocity
 }
 
-// setupFrictionConstraint initializes contact based constraints. Expected to be called on
-// solver setup for each point of contact.
+// setupFrictionConstraint initializes contact based constraints.
+// Expected to be called on solver setup for each point of contact.
 func (sol *solver) setupFrictionConstraint(sc *solverConstraint, normalAxis *lin.V3, sbodA, sbodB *solverBody,
 	sp *solverPoint, relPosA, relPosB *lin.V3) {
 	bodyA, bodyB := sbodA.oBody, sbodB.oBody // either may be nil if body is static.
@@ -564,7 +564,7 @@ func fixedSolverBody() *solverBody {
 }
 
 // newSolverBody allocates space for body specific solver information.
-// This is expected to be called for a movable body, i.e. one that has mass
+// This is expected to be called for a movable body, ie. one that has mass
 // and can have velocity.
 func newSolverBody(bod *body) *solverBody {
 	sb := &solverBody{}
@@ -656,7 +656,7 @@ type solverPoint struct {
 	worldA              *lin.V3 // Point of contact for B in world space.
 	normalWorldB        *lin.V3 // Point of contact in world space.
 	lateralFrictionDir  *lin.V3 // Normal axis in friction constraint.
-	distance            float64 // Distance between A & B.
+	distance            float64 // Distance between A and B.
 	combinedFriction    float64 // Total friction.
 	combinedRestitution float64 // Total restitution.
 	warmImpulse         float64 // Saved warm start impulse (previous impulse).

@@ -1,4 +1,4 @@
-// Copyright © 2013-2014 Galvanized Logic Inc.
+// Copyright © 2013-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package vu
@@ -13,39 +13,45 @@ import (
 // in order to produce displayable strings.
 type font struct {
 	name  string         // Unique id for a glyph set.
+	tag   uint64         // name and type as a number.
 	w, h  int            // Width and height of the entire font bitmap image.
 	chars map[rune]*char // The "character" image information.
+
+	// scrach for creating rendered text phrases.
+	vb []float32 // verticies.
+	tb []float32 // texture mapping "uv" values.
+	fb []uint16  // triangle face indicies.
 }
 
-// newFont allocates space for a complete font.
+// newFont allocates space for font mapping data.
 func newFont(name string) *font {
-	f := &font{name: name}
+	f := &font{name: name, tag: fnt + stringHash(name)<<32}
 	f.chars = map[rune]*char{}
 	return f
 }
 
-// Name implements Font.
-func (f *font) Name() string { return f.name }
+// label, aid, and bid are used to uniquely identify assets.
+// Note: aid is the same as bid for CPU local assets.
+func (f *font) label() string { return f.name } // asset name
+func (f *font) aid() uint64   { return f.tag }  // asset type and name.
+func (f *font) bid() uint64   { return f.tag }  // not bound.
 
-// SetSize implements Font.
-func (f *font) SetSize(w, h int) { f.w, f.h = w, h }
-
-// AddChar implements Font.
-func (f *font) AddChar(r rune, x, y, w, h, xo, yo, xa int) {
+// set font mapping data.
+func (f *font) setSize(w, h int) { f.w, f.h = w, h }
+func (f *font) addChar(r rune, x, y, w, h, xo, yo, xa int) {
 	uvs := f.uvs(x, y, w, h)
 	f.chars[r] = &char{x, y, w, h, xo, yo, xa, uvs}
 }
 
-// panel creates a string image for the given string returning the
-// verticies, and texture texture (uv) mapping information as a
-// buffer slice. The buffer data is expected to be used for populating
-// a Mesh.
+// setPhrase creates a string image for the given string returning
+// the verticies, and texture texture (uv) mapping information as a
+// buffer slice.
 //
-// The width in pixels for the resulting string image is also returned.
-func (f *font) Panel(m render.Mesh, phrase string) (width int) {
-	vb := []float32{}
-	tb := []float32{}
-	fb := []uint16{}
+// The width in pixels for the resulting string image is returned.
+func (f *font) setPhrase(m *mesh, phrase string) (width int) {
+	vb := f.vb[:0]
+	tb := f.tb[:0]
+	fb := f.fb[:0]
 
 	// gather and arrange the letters for the phrase.
 	width = 0
@@ -72,9 +78,12 @@ func (f *font) Panel(m render.Mesh, phrase string) (width int) {
 			fb = append(fb, i0, i0+1, i0+3, i0+1, i0+2, i0+3)
 		}
 	}
-	m.InitData(0, 3, render.STATIC, false).SetData(0, vb)
-	m.InitData(2, 2, render.STATIC, false).SetData(2, tb)
-	m.InitFaces(render.STATIC).SetFaces(fb)
+	m.initData(0, 3, render.STATIC, false).setData(0, vb)
+	m.initData(2, 2, render.STATIC, false).setData(2, tb)
+	m.initFaces(render.STATIC).setFaces(fb)
+	f.vb = vb // reuse the allocated memory.
+	f.tb = tb //   ""
+	f.fb = fb //   ""
 	return width
 }
 

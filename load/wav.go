@@ -1,4 +1,4 @@
-// Copyright © 2013-2014 Galvanized Logic Inc.
+// Copyright © 2013-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package load
@@ -12,8 +12,7 @@ import (
 // WavHdr is used to load a .wav audio file into memory such that it is
 // easily usable by the audio library. The wave PCM soundfile format is:
 //    https://ccrma.stanford.edu/courses/422/projects/WaveFormat/
-// WavHdr is an intermediate format that is intended for populating
-// audio.Sound instances.
+// WavHdr is intended for attaching sounds to 3D locations.
 type WavHdr struct {
 	RiffId      [4]byte // "RIFF"
 	FileSize    uint32  // Total file size minus 8 bytes.

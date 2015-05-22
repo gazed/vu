@@ -1,4 +1,4 @@
-// Copyright © 2014 Galvanized Logic Inc.
+// Copyright © 2014-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package form
@@ -20,6 +20,7 @@ func TestForm(t *testing.T) {
 	}
 }
 
+// Gap between sections.
 func TestGap(t *testing.T) {
 	plan := []string{
 		"ab",
@@ -32,6 +33,7 @@ func TestGap(t *testing.T) {
 	}
 }
 
+// Padding for a section.
 func TestPad(t *testing.T) {
 	plan := []string{
 		"ab",
@@ -44,6 +46,7 @@ func TestPad(t *testing.T) {
 	}
 }
 
+// Sections spanning across total area.
 func TestSpan(t *testing.T) {
 	plan := []string{
 		"xxa",
@@ -56,6 +59,7 @@ func TestSpan(t *testing.T) {
 	}
 }
 
+// Check resizing.
 func TestGrowCorner(t *testing.T) {
 	plan := []string{
 		"ab",
@@ -73,6 +77,7 @@ func TestGrowCorner(t *testing.T) {
 	}
 }
 
+// Check resizing.
 func TestGrowCenter(t *testing.T) {
 	plan := []string{
 		"abc",

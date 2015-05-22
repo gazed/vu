@@ -1,11 +1,11 @@
-// Copyright © 2013-2014 Galvanized Logic Inc.
+// Copyright © 2013-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
-// Package device provides minimal platform/os access to a 3D rendering
-// context and user input. The onus is on the application layer to provide
-// any necessary buttons, controls, dialogs, sub-panels, text-boxes, etc.
-// Access to user keyboard and mouse input is provided through
-// the Update method and Pressed structure.
+// Package device provides minimal platform/os access to a 3D rendering context
+// and user input. Access to user keyboard and mouse input is provided through
+// the Update method and Pressed structure. The application is responsible
+// for providing any windowing constructs like buttons, controls, dialogs,
+// sub-panels, text-boxes, etc.
 //
 // Package device is provided as part of the vu (virtual universe) 3D engine.
 package device
@@ -37,6 +37,8 @@ type Device interface {
 	// specific window trim. The window x, y (0, 0) coordinates are at the bottom
 	// left of the window.
 	Size() (x, y, width, height int)
+	IsFullScreen() bool // Returns true if window is full screen.
+	ToggleFullScreen()  // Flips between full screen and windowed mode.
 
 	// SwapBuffers exchanges the graphic drawing buffers. Expected to be called
 	// after completing a render. All rendering contexts are double buffered.
@@ -55,8 +57,8 @@ type Device interface {
 // pressed (measured in update ticks).
 // A postitive duration means the key is still being held down.
 // A negative duration means that the key has been released since
-// the last poll. The duration prior to release can be determined by
-// its difference with KEY_RELEASED.
+// the last poll. The total pressed duration prior to release can be
+// determined using the difference with KEY_RELEASED.
 type Pressed struct {
 	Mx, My  int            // Current mouse location.
 	Scroll  int            // The amount of scrolling, if any.
@@ -70,8 +72,8 @@ type Pressed struct {
 // device provides default Device implementation.
 
 // New provides a newly initialized Device with an underlying window and
-// graphics context created, but not yet displayed. The only thing left to do
-// is to open the device and start polling it for user input.
+// graphics context created, but not yet displayed. The only thing left to
+// do is to open the device and start polling it for user input.
 func New(title string, x, y, width, height int) Device { return newDevice(title, x, y, width, height) }
 
 // Design note 1: the layers in this package are:
@@ -86,7 +88,7 @@ func New(title string, x, y, width, height int) Device { return newDevice(title,
 //        os_windows.c : c code wrapping windows API.
 //        os_windows.h
 //        os_windows_test.c
-//     os_linux  : Linux native layer. FUTURE: Wraps the following.
+//     os_linux  : FUTURE: Linux native layer. Wraps the following.
 //        os_linux.cpp : c++ code wrapping linux API.
 //        os_linux.h
 //        os_linux_test.c
@@ -96,11 +98,11 @@ func New(title string, x, y, width, height int) Device { return newDevice(title,
 
 // device provides a simplification layer over the more raw context layer.
 type device struct {
-	os      *nativeOs // Native layer wrapper.
-	pressed *input    // User input handler.
+	os    *nativeOs // Native layer wrapper.
+	input *input    // User input handler.
 }
 
-// newDevice initializes a OS specific window with a valid OpenGL context.
+// newDevice initializes a OS specific window with a valid render context.
 func newDevice(title string, x, y, width, height int) *device {
 	d := &device{}
 	d.os = newNativeOs()
@@ -108,7 +110,7 @@ func newDevice(title string, x, y, width, height int) *device {
 	d.os.createShell()
 	depthBufferBits, alphaBits := 24, 8 // resonable defaults
 	d.os.createContext(depthBufferBits, alphaBits)
-	d.pressed = newInput(d.os)
+	d.input = newInput()
 	return d
 }
 
@@ -119,8 +121,10 @@ func (d *device) IsAlive() bool                   { return d.os.isAlive() }
 func (d *device) Size() (x, y, width, height int) { return d.os.size() }
 func (d *device) ShowCursor(show bool)            { d.os.showCursor(show) }
 func (d *device) SwapBuffers()                    { d.os.swapBuffers() }
+func (d *device) IsFullScreen() bool              { return d.os.isFullscreen() }
+func (d *device) ToggleFullScreen()               { d.os.toggleFullscreen() }
 func (d *device) SetCursorAt(x, y int)            { d.os.setCursorAt(x, y) }
 func (d *device) Update() *Pressed {
-	d.os.readAndDispatch(d.pressed.events)
-	return d.pressed.latest()
+	d.input.readEvents(d.os)
+	return d.input.latest()
 }

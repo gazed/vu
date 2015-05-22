@@ -1,4 +1,4 @@
-// Copyright © 2013-2014 Galvanized Logic Inc.
+// Copyright © 2013-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package move
@@ -125,7 +125,7 @@ func collideSphereBox(a, b Body, c []*pointOfContact) (i, j Body, k []*pointOfCo
 	// Collision occured, figure out the collision details.
 	var distance float64
 	if dsqrd <= lin.EPSILON {
-		// Handle the sphere center being inside the box.  The contact normal is
+		// Handle the sphere center being inside the box. The contact normal is
 		// updated to be the normal for the closest box face.
 		px, py, pz, nx, ny, nz, distance = sphereBoxPenetration(box, sx, sy, sz)
 	} else {
@@ -194,7 +194,7 @@ func collideBoxSphere(a, b Body, c []*pointOfContact) (i, j Body, k []*pointOfCo
 // ============================================================================
 // box-box collision
 
-// collideBoxBox uses the Separating Axis Test to check for overlap.  If there
+// collideBoxBox uses the Separating Axis Test to check for overlap. If there
 // is overlap then the axis of least penetration is used as the contact normal.
 // For more background see:
 //    Real-Time Collision Detection by Christer Ericson. Sections 4.4.1, 5.2.1
@@ -240,9 +240,9 @@ func collideBoxBox(a, b Body, c []*pointOfContact) (i, j Body, k []*pointOfConta
 		for cnt := 0; cnt < numContacts; cnt++ {
 			cc := bbr.bbc[cnt]
 			goc := c[cnt]
-			goc.depth = float64(cc.d)                                             // depth is 0 for identical centers.
-			goc.normal.SetS(float64(cc.n[0]), float64(cc.n[1]), float64(cc.n[2])) // normal
-			goc.point.SetS(float64(cc.p[0]), float64(cc.p[1]), float64(cc.p[2]))  // point
+			goc.depth = float64(cc.d) // depth is 0 for identical centers.
+			goc.normal.SetS(float64(cc.n[0]), float64(cc.n[1]), float64(cc.n[2]))
+			goc.point.SetS(float64(cc.p[0]), float64(cc.p[1]), float64(cc.p[2]))
 		}
 		return a, b, c[0:numContacts]
 	}
@@ -251,14 +251,14 @@ func collideBoxBox(a, b Body, c []*pointOfContact) (i, j Body, k []*pointOfConta
 
 // box-box collision
 // ============================================================================
-// FUTURE: The implementation of collision detection and contact point generation
-//         for more complex types. Choose one generic algorithm for convex shapes
+// FUTURE: Implementat collision detection and contact point generation for
+//         more complex types. Choose one generic algorithm for convex shapes
 //         (anything with faces/edges) and use it for all cases.
-//
-// FUTURE: improving efficiency by running detection in parallel on the GPU.
 //
 // FUTURE look at "The Separating Axis Test between Convex Polyhedra" talk
 //        as given in the GDC3013 talk by Dirk Gregorius:
 //    https://code.google.com/p/box2d/downloads/detail?name=DGregorius_GDC2013.zip&can=2&q=
 //        This handles many shapes including tetrahedron, box, convex hull,
 //        cylinder, and cone.
+//
+// FUTURE: improving efficiency by running detection in parallel on the GPU.

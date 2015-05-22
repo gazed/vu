@@ -1,4 +1,4 @@
-// Copyright © 2013-2014 Galvanized Logic Inc.
+// Copyright © 2013-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package load
@@ -7,6 +7,7 @@ import (
 	"testing"
 )
 
+// Uses vu/eg resource directories.
 func TestInvalidLoadObj(t *testing.T) {
 	load := newLoader().setDir(mod, "../eg/models")
 	meshes, err := load.obj("xxx")
@@ -44,6 +45,20 @@ func TestLoadObj2(t *testing.T) {
 	m := meshes[0]
 	if len(m.V) != 1521 || len(m.N) != 1521 || len(m.F) != 2904 {
 		t.Error("Improper sizes in monkey.obj")
+	}
+}
+
+// A cube with uv maps needs duplicated verticies to get the proper
+// mapping for each cube face.
+func TestLoadObj3(t *testing.T) {
+	load := newLoader().setDir(mod, "../eg/models")
+	meshes, err := load.obj("block")
+	if len(meshes) != 1 || err != nil {
+		t.Fatal("Could not load block.obj")
+	}
+	m := meshes[0]
+	if len(m.V) != 60 || len(m.N) != 60 || len(m.F) != 36 {
+		t.Error("Improper sizes in block.obj", len(m.V), len(m.N), len(m.F))
 	}
 }
 

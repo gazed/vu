@@ -1,4 +1,4 @@
-// Copyright © 2014 Galvanized Logic Inc.
+// Copyright © 2014-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package grid
@@ -34,7 +34,7 @@ func TestFlowEmpty(t *testing.T) {
 	br = f.flowmap[gridSize-1][0]
 	tl = f.flowmap[0][gridSize-1]
 	tr = f.flowmap[gridSize-1][gridSize-1]
-	if bl != NE || br != NW || tl != SE || tr != SW {
+	if bl != ne || br != nw || tl != se || tr != sw {
 		t.Errorf("Invalid flowmap %d %d %d %d", bl, br, tl, tr)
 		printFlowmap(f)
 	}
@@ -61,7 +61,7 @@ func TestFlowBlock(t *testing.T) {
 	br = f.flowmap[gridSize-1][0]
 	tl = f.flowmap[0][gridSize-1]
 	tr = f.flowmap[gridSize-1][gridSize-1]
-	if bl != GOAL || br != WEST || tl != SOUTH || tr != SW {
+	if bl != goal || br != west || tl != south || tr != sw {
 		t.Errorf("Invalid flowmap %d %d %d %d", bl, br, tl, tr)
 		printFlowmap(f)
 	}
@@ -102,21 +102,21 @@ func printFlowmap(f *flow) {
 		for x := 0; x < f.xsz; x++ {
 			dir := f.flowmap[x][y]
 			switch dir {
-			case NORTH:
+			case north:
 				print("↑")
-			case NE:
+			case ne:
 				print("↗")
-			case EAST:
+			case east:
 				print("→")
-			case SE:
+			case se:
 				print("↘")
-			case SOUTH:
+			case south:
 				print("↓")
-			case SW:
+			case sw:
 				print("↙")
-			case WEST:
+			case west:
 				print("←")
-			case NW:
+			case nw:
 				print("↖")
 			case f.max:
 				print("X") // marks impassable areas:

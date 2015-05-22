@@ -1,4 +1,4 @@
-<!-- Copyright © 2013-2014 Galvanized Logic Inc.                       -->
+<!-- Copyright © 2013-2015 Galvanized Logic Inc.                       -->
 <!-- Use is governed by a BSD-style license found in the LICENSE file. -->
 
 #Vu
@@ -11,8 +11,8 @@ Sub packages
 
 * ``audio`` Positions and plays sounds in a 3D environment.
 * ``audio/al`` OpenAL bindings. Links the audio layer and the sound hardware.
-* ``load`` Asset loaders including models, textures, audio, shaders, and bitmapped fonts.
 * ``device`` Links the application to native OS specific window and user events.
+* ``load`` Asset loaders including models, textures, audio, shaders, and bitmapped fonts.
 * ``math/lin`` Vector, matrix, quaternion, and transform linear math library.
 * ``move`` Repositions bodies based on simulated physics.
 * ``render`` 3D drawing and graphics interface.

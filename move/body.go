@@ -1,4 +1,4 @@
-// Copyright © 2013-2014 Galvanized Logic Inc.
+// Copyright © 2013-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package move
@@ -29,7 +29,7 @@ type Body interface {
 	World() *lin.T         // Get the location and direction
 	SetWorld(world *lin.T) // ...or set the location and direction.
 
-	Eq(b Body) bool           // Return true if the two bodies are the same.
+	Eq(b Body) bool           // True if the two bodies are the same.
 	Speed() (x, y, z float64) // Current linear velocity.
 	Whirl() (x, y, z float64) // Current angular velocity.
 	Push(x, y, z float64)     // Add to the body's linear velocity.
@@ -40,7 +40,7 @@ type Body interface {
 	// SetMaterial associates physical properties with a body. The physical
 	// properties are combined with the body's shape to determine its behaviour
 	// during collisions. The updated Body is returned.
-	//     mass:       unmoving (static/fixed) bodies have 0 mass.
+	//     mass:       use zero mass for unmoving (static/fixed) bodies.
 	//     bounciness: total bounciness is determined by multiplying the bounciness
 	//                 of the two colliding bodies. If one of the bodies has 0
 	//                 bounciness then there is no bounce effect.
@@ -72,7 +72,7 @@ type body struct {
 	iit   *lin.V3 // Inverse inertia tensor.
 	iitw  *lin.M3 // Inverse inertia tensor world. Tracks oriented inertia amount.
 
-	// Bodys take part in collision resolution  This tracks extra information
+	// Bodys take part in collision resolution. Tracks the extra information
 	// needed by the solver. It is initialized and consumed by the solver as needed.
 	friction    float64     // Ideally non-zero.
 	restitution float64     // Bounciness. Zero to one expected.
@@ -90,7 +90,7 @@ type body struct {
 // luck takes over. FUTURE: need a body.Dispose() method to allow reuse
 // of body ids.
 var bodyUuid uint32
-var bodyUuidMutex sync.Mutex
+var bodyUuidMutex sync.Mutex // Concurrency safety.
 
 // NewBody returns a new Body structure. The body will
 // be positioned, with no rotation, at the origin.
@@ -137,7 +137,7 @@ func (b *body) Shape() Shape { return b.shape }
 func (b *body) SetWorld(world *lin.T) { b.world = world }
 func (b *body) World() *lin.T {
 	if b.world == nil {
-		b.world = lin.NewT().SetI() // lazy create world transform.
+		b.world = lin.NewT().SetI()
 	}
 	return b.world
 }
@@ -158,7 +158,9 @@ func (b *body) Turn(x, y, z float64) {
 	b.avel.Y += y
 	b.avel.Z += z
 }
-func (b *body) SetMaterial(mass, bounciness float64) Body { return b.setMaterial(mass, bounciness) }
+func (b *body) SetMaterial(mass, bounciness float64) Body {
+	return b.setMaterial(mass, bounciness)
+}
 func (b *body) setMaterial(mass, bounciness float64) *body {
 	b.imass = 0 // static unless there is mass.
 	if !lin.AeqZ(mass) {
@@ -185,7 +187,7 @@ func (b *body) setMaterial(mass, bounciness float64) *body {
 	return b
 }
 
-// pairId generates a unique id for a given pair of bodies.
+// pairId generates a unique id for bodies a and b.
 // The pair id is independent of calling order.
 func (b *body) pairId(a *body) uint64 {
 	id0, id1 := b.bid, a.bid
@@ -195,8 +197,8 @@ func (b *body) pairId(a *body) uint64 {
 	return uint64(id0)<<32 + uint64(id1)
 }
 
-// applyGravity applies the force of gravity to the total forces acting on
-// this body. Static bodies are ignored.
+// applyGravity applies the force of gravity to the total forces
+// acting on this body. Static bodies are ignored.
 func (b *body) applyGravity(gravity float64) {
 	if b.movable {
 		b.lfor.Y += gravity
@@ -213,7 +215,7 @@ func (b *body) updateInertiaTensor() {
 
 // integrateVelocities updates this bodies linear and angular velocities based
 // on the bodies current forces. Static bodies are ignored.
-// FUTURE look up symplectic Euler and see if this is the spot where it
+// FUTURE: look up symplectic Euler and see if this is the spot where it
 //        should be used (or is already being used).
 //             v(t+dt) = v(t) + a(t) * dt
 //             x(t+dt) = x(t) + v(t+dt) * dt
@@ -281,7 +283,7 @@ func (b *body) initSolverBody() *solverBody {
 }
 
 // worldAabb updates Abox ab to be the bodies axis-aligned bounding box
-// in world coordinates.  The updated Abox is returned.
+// in world coordinates. The updated Abox is returned.
 func (b *body) worldAabb(ab *Abox) *Abox { return b.shape.Aabb(b.world, ab, 0) }
 
 // predictedAabb updates Abox ab to be the bodies axis-aligned bounding box
@@ -295,7 +297,7 @@ func (b *body) updatePredictedTransform(timestep float64) {
 }
 
 // updateWorldTransform sets the world transform based on the current linear
-// and angular velocities.  Expected to be called after the solver completes.
+// and angular velocities. Expected to be called after the solver completes.
 func (b *body) updateWorldTransform(timestep float64) {
 	b.t0.Integrate(b.world, b.lvel, b.avel, timestep) // scratch t0
 	b.world.Set(b.t0)                                 // scratch t0 free

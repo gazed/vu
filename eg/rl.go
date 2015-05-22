@@ -1,72 +1,63 @@
-// Copyright © 2013-2014 Galvanized Logic Inc.
+// Copyright © 2013-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
 
 import (
+	"fmt"
 	"log"
+	"time"
 
 	"github.com/gazed/vu"
 	"github.com/gazed/vu/grid"
 )
 
 // rl tests higher level graphics functionality. This includes:
-//   • vu culling/reducing the total objects rendered based on distance. See:
-//      • plan.SetCuller()
-//   • vu 2D overlay scene, in this case a minimap.  See:
-//    	• flr.mmap = rl.eng.AddScene(vu.XZtoXY)
-//    	• flr.mmap.Set2D()
-//    	• flr.mmap.SetOrthographic()
-//   • vu grid generation. See: vu/grid.
+//   • vu culling/reducing the total objects rendered based on distance.
+//   • vu 2D overlay scene, in this case a minimap.
+//   • vu grid generation. Try numbers 0-9.
+//   • vu engine statistics.
 // rl also tests camera movement that includes holding multiple movement keys
 // at the same time. The example does not have collision detection so you can
 // literally run through the maze.
-//
-// rl also tests vu/grid by generating different types and size of grids using
-// the number keys 0-9.
 func rl() {
 	rl := &rltag{}
-	var err error
-	if rl.eng, err = vu.New("Random Levels", 400, 100, 800, 600); err != nil {
-		log.Printf("rl: error intitializing engine %s", err)
-		return
+	if err := vu.New(rl, "Random Levels", 400, 100, 800, 600); err != nil {
+		log.Printf("rl: error starting engine %s", err)
 	}
-	rl.eng.SetDirector(rl) // get user input through Director.Update()
-	rl.create()            // create initial assests.
-	if err = rl.eng.Verify(); err != nil {
-		log.Fatalf("rl: error initializing model :: %s", err)
-	}
-	defer rl.eng.Shutdown()
 	defer catchErrors()
-	rl.eng.Action()
 }
 
 // Globally unique "tag" that encapsulates example specific data.
 type rltag struct {
-	eng           vu.Engine
-	floors        map[string]*floor // The random grid
-	flr           *floor            // The current floor.
-	width, height int               // Window size
-	arrow         vu.Part           // Camera/player minimap marker.
-	run           float64           // Camera movement speed.
-	spin          float64           // Camera spin speed.
+	ww, wh int               // Window size
+	floors map[string]*floor // The random grid
+	flr    *floor            // The current floor.
+	arrow  vu.Pov            // Camera/player minimap marker.
+	run    float64           // Camera movement speed.
+	spin   float64           // Camera spin speed.
+
+	// timing values.
+	renders int           // number of renders.
+	elapsed time.Duration // time since last update.
+	update  time.Duration // time of last update.
 }
 
-// create is the startup asset creation.
-func (rl *rltag) create() {
+// Create is the engine callback for initial asset creation.
+func (rl *rltag) Create(eng vu.Eng, s *vu.State) {
 	rl.run = 5    // move so many cubes worth in one second.
 	rl.spin = 270 // spin so many degrees in one second.
-	rl.width, rl.height = 800, 600
+	rl.ww, rl.wh = 800, 600
 	rl.floors = make(map[string]*floor)
-	rl.setLevel("1")
-	rl.eng.Color(0.15, 0.15, 0.15, 1)
+	rl.setLevel(eng, "1")
+	eng.SetColor(0.15, 0.15, 0.15, 1)
 	return
 }
 
 // Update is the regular engine callback.
-func (rl *rltag) Update(in *vu.Input) {
+func (rl *rltag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 	if in.Resized {
-		rl.resize()
+		rl.resize(s.W, s.H)
 	}
 
 	// pre-process user presses.
@@ -84,38 +75,58 @@ func (rl *rltag) Update(in *vu.Input) {
 	for press, down := range in.Down {
 		switch press {
 		case "W":
-			rl.flr.cam.Move(0, 0, moveDelta*-rl.run)
+			rl.flr.cam.Move(0, 0, moveDelta*-rl.run, rl.flr.cam.Lookxz())
 			rl.arrow.SetLocation(rl.flr.cam.Location())
 		case "S":
-			rl.flr.cam.Move(0, 0, moveDelta*rl.run)
+			rl.flr.cam.Move(0, 0, moveDelta*rl.run, rl.flr.cam.Lookxz())
 			rl.arrow.SetLocation(rl.flr.cam.Location())
 		case "Q":
-			rl.flr.cam.Move(moveDelta*-rl.run, 0, 0)
+			rl.flr.cam.Move(moveDelta*-rl.run, 0, 0, rl.flr.cam.Lookxz())
 			rl.arrow.SetLocation(rl.flr.cam.Location())
 		case "E":
-			rl.flr.cam.Move(moveDelta*rl.run, 0, 0)
+			rl.flr.cam.Move(moveDelta*rl.run, 0, 0, rl.flr.cam.Lookxz())
 			rl.arrow.SetLocation(rl.flr.cam.Location())
 		case "A":
-			rl.flr.cam.Spin(0, dt*rl.spin, 0)
-			rl.arrow.SetRotation(rl.flr.cam.Rotation())
+			rl.flr.cam.AdjustYaw(dt * rl.spin)
+			rl.arrow.SetRotation(rl.flr.cam.Lookxz())
 		case "D":
-			rl.flr.cam.Spin(0, dt*-rl.spin, 0)
-			rl.arrow.SetRotation(rl.flr.cam.Rotation())
+			rl.flr.cam.AdjustYaw(dt * -rl.spin)
+			rl.arrow.SetRotation(rl.flr.cam.Lookxz())
 		case "1", "2", "3", "4", "5", "6", "7", "8", "9", "0":
 			if down == 1 {
-				rl.setLevel(press)
+				rl.setLevel(eng, press)
 			}
 		}
+	}
+
+	// show some stats to see the effectiveness of culling.
+	allModels, allVerts := eng.Modelled()
+	renModels, renVerts := eng.Rendered()
+	modelStats := fmt.Sprintf("%d  models    culled to %d", allModels, renModels)
+	vertexStats := fmt.Sprintf("%d verticies culled to %d", allVerts, renVerts)
+	rl.flr.modelStats.SetPhrase(modelStats)
+	rl.flr.vertexStats.SetPhrase(vertexStats)
+
+	// http://stackoverflow.com/questions/87304/calculating-frames-per-second-in-a-game
+	t := eng.Usage()
+	rl.elapsed += t.Elapsed
+	rl.update += t.Update
+	rl.renders += t.Renders
+	if in.Ut%50 == 0 { // average over 50 updates.
+		fps := float64(rl.renders) / rl.elapsed.Seconds()
+		update := rl.update.Seconds() / 50.0 * 1000
+		timings := fmt.Sprintf("FPS %2.2f Update %3.2fms", fps, update)
+		rl.flr.times.SetPhrase(timings)
+		rl.renders = 0
+		rl.elapsed = 0
+		rl.update = 0
 	}
 }
 
 // resize handles user screen/window changes.
-func (rl *rltag) resize() {
-	x, y, width, height := rl.eng.Size()
-	rl.eng.Resize(x, y, width, height)
-	rl.width = width
-	rl.height = height
-	ratio := float64(width) / float64(height)
+func (rl *rltag) resize(ww, wh int) {
+	rl.ww, rl.wh = ww, wh
+	ratio := float64(ww) / float64(wh)
 	for _, flr := range rl.floors {
 		flr.cam.SetPerspective(60, ratio, 0.1, 50)
 	}
@@ -123,16 +134,25 @@ func (rl *rltag) resize() {
 
 // floor tracks all the information for a given level.
 type floor struct {
-	layout  grid.Grid // the floor structure.
-	arrow   vu.Part   // cam minimap location.
-	plan    vu.Scene  // how its drawn.
-	mmap    vu.Scene  // how its drawn on the minimap.
-	cam     vu.Camera // main 3D camera.
-	mapPart vu.Part   // allows the minimap to be moved around.
+	layout grid.Grid // the floor structure.
+	top    vu.Pov    // top of floor transform hierarchy.
+
+	// 3D scene.
+	plan  vu.Pov    // how its drawn.
+	arrow vu.Pov    // cam minimap location.
+	cam   vu.Camera // main 3D camera.
+
+	// 2D user interface including timing stats.
+	ui          vu.Camera // overlay 2D camera.
+	mmap        vu.Pov    // how its drawn on the minimap.
+	mapPart     vu.Pov    // allows the minimap to be moved around.
+	modelStats  vu.Model  // Show some render statistics.
+	vertexStats vu.Model  // Show some render statistics.
+	times       vu.Model  // Show some render statistics.
 }
 
 // setLevel switches to the indicated level.
-func (rl *rltag) setLevel(id string) {
+func (rl *rltag) setLevel(eng vu.Eng, id string) {
 	if _, ok := rl.floors[id]; !ok {
 		var gridSizes = map[string]int{
 			"1": 15,
@@ -161,19 +181,29 @@ func (rl *rltag) setLevel(id string) {
 		flr := &floor{}
 
 		// create the scene
-		flr.plan = rl.eng.AddScene(vu.VP)
-		flr.plan.SetSorted(true)
-		flr.plan.SetCuller(vu.NewFacingCuller(10))
-		flr.cam = flr.plan.Cam()
+		flr.top = eng.Root().NewPov()
+		flr.plan = flr.top.NewPov()
+		view := flr.plan.NewView()
+		view.SetCull(vu.NewFrontCull(10))
+		flr.cam = view.Cam()
 		flr.cam.SetLocation(1, 0, -1)
-		flr.cam.SetPerspective(60, float64(rl.width)/float64(rl.height), 0.1, 50)
+		flr.cam.SetPerspective(60, float64(rl.ww)/float64(rl.wh), 0.1, 50)
 
 		// create the overlay
-		flr.mmap = rl.eng.AddScene(vu.XZ_XY)
-		flr.mmap.Set2D()
-		flr.mmap.Cam().SetOrthographic(-0.2, 100, -0.2, 75, 0, 10)
-		flr.mapPart = flr.mmap.AddPart()
-		flr.mapPart.SetLocation(3, 0, -3)
+		flr.mmap = flr.top.NewPov()
+		view = flr.mmap.NewView()
+		view.SetUI()
+		flr.ui = view.Cam()
+		flr.ui.SetTransform(vu.XZ_XY)
+		flr.ui.SetOrthographic(0, float64(rl.ww), 0, float64(rl.wh), 0, 20)
+		flr.mapPart = flr.mmap.NewPov()
+		flr.mapPart.SetScale(7.5, 7.5, 7.5)
+		flr.mapPart.SetLocation(20, 0, -20)
+
+		// display some rendering statistics.
+		flr.modelStats = rl.newText(flr.mmap, 0)
+		flr.vertexStats = rl.newText(flr.mmap, 1)
+		flr.times = rl.newText(flr.mmap, 2)
 
 		// populate the scenes
 		lsize := gridSizes[id]
@@ -183,21 +213,16 @@ func (rl *rltag) setLevel(id string) {
 		for x := 0; x < width; x++ {
 			for y := 0; y < height; y++ {
 				if flr.layout.IsOpen(x, y) {
-					block := flr.mapPart.AddPart()
-					block.SetLocation(float64(x), 0, float64(-y))
-					block.SetRole("flat").SetMesh("cube").SetMaterial("gray")
+					block := flr.mapPart.NewPov().SetLocation(float64(x), 0, float64(-y))
+					block.NewModel("alpha").LoadMesh("cube").LoadMat("gray")
 				} else {
-					block := flr.plan.AddPart()
-					block.SetLocation(float64(x), 0, float64(-y))
-					block.SetRole("gouraud").SetMesh("cube").SetMaterial("cube")
-					block.Role().SetLightLocation(0, 10, 0)
-					block.Role().SetLightColour(0.4, 0.7, 0.9)
+					block := flr.plan.NewPov().SetLocation(float64(x), 0, float64(-y))
+					block.NewModel("uv").LoadMesh("block").AddTex("tile")
 				}
 			}
 		}
-		flr.arrow = flr.mapPart.AddPart()
-		flr.arrow.SetRole("flat").SetMesh("arrow").SetMaterial("blue")
-		flr.arrow.SetLocation(flr.cam.Location())
+		flr.arrow = flr.mapPart.NewPov().SetLocation(flr.cam.Location())
+		flr.arrow.NewModel("solid").LoadMesh("arrow").LoadMat("blue")
 		rl.floors[id] = flr
 	}
 	if rl.flr != nil {
@@ -208,4 +233,12 @@ func (rl *rltag) setLevel(id string) {
 	rl.flr.plan.SetVisible(true)
 	rl.flr.mmap.SetVisible(true)
 	rl.arrow = rl.flr.arrow
+}
+
+func (rl *rltag) newText(parent vu.Pov, gap int) vu.Model {
+	text := parent.NewPov().SetLocation(10, 0, float64(-rl.wh+40+gap*24))
+	text.Spin(-90, 0, 0) // orient to the X-Z plane.
+	m := text.NewModel("uv").AddTex("weblySleek16White").LoadFont("weblySleek16")
+	m.SetPhrase(" ")
+	return m
 }

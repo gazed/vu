@@ -1,18 +1,18 @@
-// Copyright © 2014 Galvanized Logic Inc.
+// Copyright © 2014-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package ai
 
 // Behaviour: controls actions for a period of time. These are provided by
-// the application and are the building blocks of a behaviour tree. The status
+// the application and are the building blocks of a behaviour tree. Status
 // is maintained by the behaviour as follows:
 //     • Uninitialized behaviours should have status INVALID.
 //     • Initialized and uncompleted behaviours should have status RUNNING.
 //     • Completed behaviours should have status FAILURE or SUCCESS.
 type Behaviour interface {
-	Status() (status BehaviourState) // Returns the current behaviour status.
+	Status() (status BehaviourState) // Current behaviour status.
 	Update() (status BehaviourState) // Update behaviour status.
-	Init()                           // Called once on behaviour first update.
+	Init()                           // Called once on first behaviour update.
 	Reset()                          // Set status to INVALID.
 
 	// Observer listens for completed behaviours.

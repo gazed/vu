@@ -1,10 +1,11 @@
-// Copyright © 2014 Galvanized Logic Inc.
+// Copyright © 2014-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package grid
 
 import "testing"
 
+// Used to view level while tweaking algorithm.
 func TestCaveGenerate(t *testing.T) {
 	c := &cave{}
 	c.Generate(80, 40)

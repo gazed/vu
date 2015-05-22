@@ -1,4 +1,4 @@
-// Copyright © 2013-2014 Galvanized Logic Inc.
+// Copyright © 2013-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package lin
@@ -9,8 +9,8 @@ import "math"
 // shear information. T is used as a simplification and optimization instead
 // of keeping all transform information in a 4x4 matrix.
 //
-// T supports linear algebra operations that are similar to those supported by
-// V3, V4, M3, M4, and Q.  The main ones are:
+// T supports linear algebra operations that are similar to those supported
+// by V3, V4, M3, M4, and Q.  The main ones are:
 //      Multiply two transforms together to produce a composite transform.
 //      Apply a transform or inverse transform to a vector.
 type T struct {
@@ -164,7 +164,7 @@ func (t *T) Integrate(a *T, linv, angv *V3, dt float64) *T {
 // ============================================================================
 // convenience functions for allocating transforms. Nothing else should allocate.
 
-// NewT creates and returns a new empty (all zeros) transform.
+// NewT creates and returns a transform at the origin with no rotation.
 func NewT() *T {
-	return &T{&V3{}, &Q{}}
+	return &T{&V3{}, &Q{0, 0, 0, 1}}
 }

@@ -1,4 +1,4 @@
-// Copyright © 2013-2014 Galvanized Logic Inc.
+// Copyright © 2013-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package load
@@ -13,9 +13,10 @@ import (
 	"github.com/gazed/vu/math/lin"
 )
 
-// ObjData stores vertex data from .obj files. It is an intermediate format
-// that is intended for populating render.Mesh instances. The V,F buffers
-// are expected to have data. The N,T buffers are optional.
+// ObjData stores vertex data from .obj files.
+// It is intended for populating rendered models.
+// The V,F buffers are expected to have data.
+// The N,T buffers are optional.
 type ObjData struct {
 	Name string    // Data name from .obj file.
 	V    []float32 // Vertex positions.    Arranged as [][3]float32
@@ -173,6 +174,8 @@ func (l *loader) obj2ObjData(name string, odata *objData, faces []face) (data *O
 
 	// process each vertex of each face.  Each one represents a combination vertex,
 	// texture coordinate, and normal.
+	v0 := &lin.V3{} // scratch
+	v1 := &lin.V3{} // scratch
 	for _, face := range faces {
 		for pi := 0; pi < 3; pi++ {
 			facei := face.s[pi]
@@ -199,8 +202,8 @@ func (l *loader) obj2ObjData(name string, odata *objData, faces []face) (data *O
 				// update the normal at the vertex to be a combination of
 				// all the normals of each face that shares the vertex.
 				ni := vmap[vertexIndex] * 3
-				n1 := &lin.V3{float64(data.N[ni]), float64(data.N[ni+1]), float64(data.N[ni+2])}
-				n2 := &lin.V3{float64(odata.n[n].x), float64(odata.n[n].y), float64(odata.n[n].z)}
+				n1 := v0.SetS(float64(data.N[ni]), float64(data.N[ni+1]), float64(data.N[ni+2]))
+				n2 := v1.SetS(float64(odata.n[n].x), float64(odata.n[n].y), float64(odata.n[n].z))
 				n2.Add(n2, n1).Unit()
 				data.N[ni], data.N[ni+1], data.N[ni+2] = float32(n2.X), float32(n2.Y), float32(n2.Z)
 			}

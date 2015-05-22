@@ -1,4 +1,4 @@
-// Copyright © 2013-2014 Galvanized Logic Inc.
+// Copyright © 2013-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package grid
@@ -8,13 +8,13 @@ import (
 )
 
 // dense is a corridor only skirmish grid. It is a Prim's maze where the
-// dead-ends have been eliminated.  Additionally each side of the grid is
+// dead-ends have been eliminated. Additionally each side of the grid is
 // guaranteed to have one exit to the level exterior.
 type dense struct {
 	grid // superclass grid.
 }
 
-// Generate a maze using a Prim's maze as the basis.  Make a skirmish
+// Generate a maze using a Prim's maze as the basis. Make a skirmish
 // friendly level by knocking out a wall at any dead end and then chopping
 // some outside exits if necessary.
 func (d *dense) Generate(width, depth int) Grid {
@@ -74,8 +74,8 @@ func (d *dense) ensureExits() {
 	d.ensureExit(east, ymax-2)
 }
 
-// ensureExit chops a hole in the given side.  Sometimes the hole chopped
-// can be a dead-end.  Chopping an additional hole in the holes neighbouring
+// ensureExit chops a hole in the given side. Sometimes the hole chopped
+// can be a dead-end. Chopping an additional hole in the holes neighbouring
 // walls guarantees an exit.
 func (d *dense) ensureExit(side []*cell, max int) {
 	if len(side) == max {

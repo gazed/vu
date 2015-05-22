@@ -1,4 +1,4 @@
-// Copyright © 2013-2014 Galvanized Logic Inc.
+// Copyright © 2013-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -137,15 +137,13 @@ func (tag *trtag) initScene() {
 
 // initShader compiles shaders and links them into a shader program.
 func (tag *trtag) initShader() {
-	renderer := render.New()
-	shader := renderer.NewShader("basic")
+	shader := "basic"
 	loader := load.NewLoader()
-	vsrc, verr := loader.Vsh(shader.Name())
-	fsrc, ferr := loader.Fsh(shader.Name())
+	vsrc, verr := loader.Vsh(shader)
+	fsrc, ferr := loader.Fsh(shader)
 	if verr == nil && ferr == nil {
-		shader.SetSource(vsrc, fsrc)
 		tag.shaders = gl.CreateProgram()
-		if err := gl.BindProgram(tag.shaders, shader.Vsh(), shader.Fsh()); err != nil {
+		if err := gl.BindProgram(tag.shaders, vsrc, fsrc); err != nil {
 			fmt.Printf("Failed to create program: %s\n", err)
 		}
 		tag.mvpRef = gl.GetUniformLocation(tag.shaders, "mvpm")

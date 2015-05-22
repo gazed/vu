@@ -1,4 +1,4 @@
-// Copyright © 2013-2014 Galvanized Logic Inc.
+// Copyright © 2013-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package lin
@@ -14,7 +14,7 @@ func TestAeqmately(t *testing.T) {
 	var f2 float64 = 0.000001
 	var f3 float64 = -0.0001
 	if Aeq(f1, f2) && !Aeq(f1, f3) {
-		t.Error()
+		t.Error("Aeq")
 	}
 }
 
@@ -23,20 +23,20 @@ func TestApproimatelyZero(t *testing.T) {
 	var f2 float64 = -0.0000001
 	var f3 float64 = -0.0001
 	if !AeqZ(f1) || !AeqZ(f2) || AeqZ(f3) {
-		t.Error()
+		t.Error("Aeqz")
 	}
 }
 
 func TestLerp(t *testing.T) {
 	if !Aeq(Lerp(10, 5, 0.5), 7.5) {
-		t.Error()
+		t.Error("Lerp")
 	}
 }
 
 // Check that the results of Atan2 and Atan2F are similar.
 func TestAtan2F(t *testing.T) {
 	if !Aeq(math.Atan2(1, 0), Atan2F(1, 0)) || !Aeq(math.Atan2(-1, 0), Atan2F(-1, 0)) {
-		t.Error()
+		t.Error("Atan2F")
 	}
 }
 
@@ -44,19 +44,19 @@ func TestNang(t *testing.T) {
 	pos450, neg450 := float64(7.853981), float64(-7.853981)
 	pos90, neg90 := float64(1.570796), float64(-1.570796)
 	if !Aeq(Nang(pos450), pos90) || !Aeq(Nang(neg450), neg90) {
-		t.Error()
+		t.Error("Nang")
 	}
 }
 
 func TestClamp(t *testing.T) {
 	if Clamp(20, -30, -15) != -15 || Clamp(20, 30, 60) != 30 || Clamp(20, 10, 50) != 20 {
-		t.Error()
+		t.Error("Clamp")
 	}
 }
 
 func TestRadDeg(t *testing.T) {
 	if Deg(Rad(90)) != 90 {
-		t.Error()
+		t.Error("Rad Deg conversion")
 	}
 }
 

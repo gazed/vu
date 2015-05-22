@@ -1,4 +1,4 @@
-// Copyright © 2013-2014 Galvanized Logic Inc.
+// Copyright © 2013-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package move
@@ -36,7 +36,7 @@ func TestSphereAt(t *testing.T) {
 	for cnt := 0; cnt < 100; cnt++ {
 		mov.Step(bodies, 0.02)
 	}
-	ballAt, want := dumpV3(ball.World().Loc), dumpV3(&lin.V3{-5, 1, -3})
+	ballAt, want := dumpV3(ball.World().Loc), dumpV3(&lin.V3{X: -5, Y: 1, Z: -3})
 	if ballAt != want {
 		t.Errorf("Ball should be at %s, but its at %s", want, ballAt)
 	}

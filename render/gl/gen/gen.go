@@ -1,33 +1,30 @@
-// Copyright © 2013-2014 Galvanized Logic Inc.
+// Copyright © 2013-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
-// Package gen is used to generate the golang OpenGL bindings from the
-// latest OpenGL specification header file. The 4.3 specification header
-// file was downloaded from
+// Package gen is used to generate golang OpenGL bindings using an OpenGL
+// specification header file. The 4.3 specification header file is from:
 //     www.opengl.org/registry/api/glcorearb.h
-//
-// Running gl/gen will create a go package that can then be installed
-// and used. Usage:
+// Running gl/gen will create a go package. Usage:
 //     gen -p output-directory -s opengl-spec
-//
-// The generated gl source package is expected to be source controlled.
+// Design notes are included in the code. Generation is expected to be
+// infrequenty and the generated gl package should be source controlled.
 //
 // Package gen is provided as part of the vu (virtual universe) 3D engine.
 package main
 
-// Thanks to https://github.com/chsc/gogl for the idea of generating the bindings
-// from the specification.
+// Thanks to https://github.com/chsc/gogl for the idea of generating the
+// bindings from a specification.
 //
 // Design Notes: Essentially straight line code to get information in one
-// format, the OpenGL Specification, to another format, the Go language bindings
-// for OpenGL.
+// format, the OpenGL Specification, to another format, the Go language
+// bindings for OpenGL.
 //
 // Maintenance Notes: The code has just enough smarts to process the current
 // specification. The idea is to only generalize the code where necessary without
 // adding undo bulk or dependencies to the code. Anything that would reduce the
 // amount of code and improve readability would be appreciated and should be done.
-
-// FUTURE: Move to using the XML specification instead of the header file.
+//
+// FUTURE: Consider using the XML specification instead of the header file.
 
 import (
 	"bufio"
@@ -122,11 +119,11 @@ func genOutputFile(pkg string) (gout *os.File, pkgname string) {
 // genPreamble dumps the initial static code into the file. This includes
 // a few comments and the start of the CGo code block.
 func genPreamble(gout *os.File, pkgname string, typedefs []string) {
-	fmt.Fprintf(gout, "// Package %s provides a golang 3D graphics library\n", pkgname)
-	fmt.Fprintf(gout, "// that was auto-generated from open gl spec %s.\n", *spec)
+	fmt.Fprintf(gout, "// Package %s provides golang bindings for OpenGL\n", pkgname)
+	fmt.Fprintf(gout, "// The bindings were generated from OpenGL spec %s.\n", *spec)
 	fmt.Fprintf(gout, "// The official OpenGL documentation for any of the constants\n")
 	fmt.Fprintf(gout, "// or methods can be found online. Just prepend \"GL_\"\n")
-	fmt.Fprintf(gout, "// to the function or constants names in this package.\n//\n")
+	fmt.Fprintf(gout, "// to the function or constant names in this package.\n//\n")
 	fmt.Fprintf(gout, "// Package %s is provided as part of the vu (virtual universe) 3D engine.\n", pkgname)
 	fmt.Fprintf(gout, "package %s\n\n", pkgname)
 	// .
@@ -321,7 +318,7 @@ func genBindingReport(gout *os.File, functions []string) {
 	fmt.Fprint(gout, "   if pfn != nil {\n")
 	fmt.Fprint(gout, "      inc = \"+\"\n")
 	fmt.Fprint(gout, "   }\n")
-	fmt.Fprint(gout, "   return fmt.Sprintf(\"   [%s] %s\", inc, fn)\n")
+	fmt.Fprintf(gout, "   return fmt.Sprintf(\"   [%s] %s\", inc, fn)\n", "%s", "%s") // go vet compliant.
 	fmt.Fprint(gout, "}\n\n")
 }
 
@@ -408,7 +405,8 @@ func alterSpec(apiLine string) string {
 	// where the parameters need to be treated as pointer to bytes.
 	case "glGetShaderInfoLog", "glGetProgramInfoLog", "glGetProgramPipelineInfoLog", "glGetActiveUniform",
 		"glGetActiveUniformBlockName", "glGetActiveUniformName", "glGetDebugMessageLog", "glGetDebugMessageLogARB",
-		"glGetActiveSubroutineName", "glGetObjectLabel", "glGetObjectPtrLabel", "glGetShaderSource":
+		"glGetActiveSubroutineName", "glGetObjectLabel", "glGetObjectPtrLabel", "glGetShaderSource",
+		"glGetActiveAttrib":
 		return strings.Replace(apiLine, "GLchar *", "GLubyte *", 1)
 
 	// OpenGL functions where a pointer parameter is being used as a value (for historical reasons).

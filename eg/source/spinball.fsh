@@ -8,7 +8,7 @@ uniform sampler2D uv3;
 uniform float     time;
 out     vec4      ffc;
 
-// sping calculates rotated uv coordinates.
+// spin calculates rotated uv coordinates.
 vec2 spin(vec2 coords, float now, float rotSpeed) {
    float sa = sin(now*rotSpeed);
    float ca = cos(now*rotSpeed);

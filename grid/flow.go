@@ -1,4 +1,4 @@
-// Copyright © 2014 Galvanized Logic Inc.
+// Copyright © 2014-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package grid
@@ -53,15 +53,15 @@ type flow struct {
 
 // Direction constants.
 const (
-	GOAL  = iota // goal is 0 meaning no movement necessary or possible.
-	NORTH        // x  , y+1
-	NE           // x+1, y+1
-	EAST         // x+1, y
-	SE           // x+1, y-1
-	SOUTH        // x  , y-1
-	SW           // x-1, y-1
-	WEST         // x-1, y
-	NW           // x-1, y+1
+	goal  = iota // goal is 0 meaning no movement necessary or possible.
+	north        // x  , y+1
+	ne           // x+1, y+1
+	east         // x+1, y
+	se           // x+1, y-1
+	south        // x  , y-1
+	sw           // x-1, y-1
+	west         // x-1, y
+	nw           // x-1, y+1
 )
 
 // newFlow creates a flow map towards the given goal using the plan
@@ -94,21 +94,21 @@ func (f *flow) Next(atx, aty float64) (dx, dy float64) {
 	gridx, gridy := int(lin.Round(atx, 0)), int(lin.Round(aty, 0))
 	ir := 0.7071068 // inverse root of 2: 1/math.Sqrt(2)
 	switch f.flowmap[gridx][gridy] {
-	case NORTH:
+	case north:
 		return 0, 1
-	case NE:
+	case ne:
 		return ir, ir
-	case EAST:
+	case east:
 		return 1, 0
-	case SE:
+	case se:
 		return ir, -ir
-	case SOUTH:
+	case south:
 		return 0, -1
-	case SW:
+	case sw:
 		return -ir, -ir
-	case WEST:
+	case west:
 		return -1, 0
-	case NW:
+	case nw:
 		return -ir, ir
 	}
 	return 0, 0
@@ -145,13 +145,13 @@ func (f *flow) createGoalmap(goalx, goaly int) {
 			endNodeCost := f.goalmap[x][y]
 			nx, ny := x, y
 			switch dir {
-			case NORTH:
+			case north:
 				ny = y + 1
-			case EAST:
+			case east:
 				nx = x + 1
-			case SOUTH:
+			case south:
 				ny = y - 1
-			case WEST:
+			case west:
 				nx = x - 1
 			}
 
@@ -186,21 +186,21 @@ func (f *flow) createFlowmap(goalx, goaly int) {
 				neighbours := f.findNeighbours(x, y)
 				for _, dir := range neighbours {
 					switch dir {
-					case NORTH:
+					case north:
 						costToGoal = f.goalmap[x][y+1]
-					case NE:
+					case ne:
 						costToGoal = f.goalmap[x+1][y+1]
-					case EAST:
+					case east:
 						costToGoal = f.goalmap[x+1][y]
-					case SE:
+					case se:
 						costToGoal = f.goalmap[x+1][y-1]
-					case SOUTH:
+					case south:
 						costToGoal = f.goalmap[x][y-1]
-					case SW:
+					case sw:
 						costToGoal = f.goalmap[x-1][y-1]
-					case WEST:
+					case west:
 						costToGoal = f.goalmap[x-1][y]
-					case NW:
+					case nw:
 						costToGoal = f.goalmap[x-1][y+1]
 					}
 					if costToGoal < leastCost {
@@ -211,7 +211,7 @@ func (f *flow) createFlowmap(goalx, goaly int) {
 			}
 		}
 	}
-	f.flowmap[goalx][goaly] = GOAL
+	f.flowmap[goalx][goaly] = goal
 }
 
 // Find the all neighbours including diagonals. Relies on f.neighbours
@@ -219,27 +219,27 @@ func (f *flow) createFlowmap(goalx, goaly int) {
 func (f *flow) findNeighbours(x, y int) []int {
 	f.neighbours = f.neighbours[0:0] // reset while preserving memory.
 	if y+1 < f.ysz {
-		f.neighbours = append(f.neighbours, NORTH)
+		f.neighbours = append(f.neighbours, north)
 	}
 	if x+1 < f.xsz {
-		f.neighbours = append(f.neighbours, EAST)
+		f.neighbours = append(f.neighbours, east)
 		if y+1 < f.ysz {
-			f.neighbours = append(f.neighbours, NE)
+			f.neighbours = append(f.neighbours, ne)
 		}
 		if y-1 >= 0 {
-			f.neighbours = append(f.neighbours, SE)
+			f.neighbours = append(f.neighbours, se)
 		}
 	}
 	if y-1 >= 0 {
-		f.neighbours = append(f.neighbours, SOUTH)
+		f.neighbours = append(f.neighbours, south)
 	}
 	if x-1 >= 0 {
-		f.neighbours = append(f.neighbours, WEST)
+		f.neighbours = append(f.neighbours, west)
 		if y+1 < f.ysz {
-			f.neighbours = append(f.neighbours, NW)
+			f.neighbours = append(f.neighbours, nw)
 		}
 		if y-1 >= 0 {
-			f.neighbours = append(f.neighbours, SW)
+			f.neighbours = append(f.neighbours, sw)
 		}
 	}
 	return f.neighbours
@@ -250,16 +250,16 @@ func (f *flow) findNeighbours(x, y int) []int {
 func (f *flow) directNeighbours(x, y int) []int {
 	f.neighbours = f.neighbours[0:0] // reset while preserving memory.
 	if y+1 < f.ysz {
-		f.neighbours = append(f.neighbours, NORTH)
+		f.neighbours = append(f.neighbours, north)
 	}
 	if x+1 < f.xsz {
-		f.neighbours = append(f.neighbours, EAST)
+		f.neighbours = append(f.neighbours, east)
 	}
 	if y-1 >= 0 {
-		f.neighbours = append(f.neighbours, SOUTH)
+		f.neighbours = append(f.neighbours, south)
 	}
 	if x-1 >= 0 {
-		f.neighbours = append(f.neighbours, WEST)
+		f.neighbours = append(f.neighbours, west)
 	}
 	return f.neighbours
 }

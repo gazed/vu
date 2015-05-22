@@ -1,4 +1,4 @@
-// Copyright © 2013-2014 Galvanized Logic Inc.
+// Copyright © 2013-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package lin
@@ -191,8 +191,8 @@ func (q *Q) Aa() (ax, ay, az, angle float64) {
 	return q.X * sin, q.Y * sin, q.Z * sin, 2 * math.Acos(q.W)
 }
 
-// SetAa updates q to have the rotation of the given axis (ax, ay, az)
-// and angle (in radians). See:
+// SetAa, set axis-angle, updates q to have the rotation of the given
+// axis (ax, ay, az) and angle (in radians). See:
 //    http://web.archive.org/web/20041029003853/...
 //    ...http://www.j3d.org/matrix_faq/matrfaq_latest.html#Q56
 // The updated quaternion q is returned.

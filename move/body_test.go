@@ -1,4 +1,4 @@
-// Copyright © 2013-2014 Galvanized Logic Inc.
+// Copyright © 2013-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package move
@@ -43,9 +43,9 @@ func TestUpdateInertiaTensor(t *testing.T) {
 	b := newBody(NewSphere(1)).SetMaterial(0.5, 0.8).(*body)
 	b.updateInertiaTensor()
 	want := &lin.M3{
-		5.0, 0.0, 0.0,
-		0.0, 5.0, 0.0,
-		0.0, 0.0, 5.0}
+		Xx: 5.0, Xy: 0.0, Xz: 0.0,
+		Yx: 0.0, Yy: 5.0, Yz: 0.0,
+		Zx: 0.0, Zy: 0.0, Zz: 5.0}
 	if dumpM3(b.iitw) != dumpM3(want) {
 		t.Errorf("Expecting updated inverse inertia tensor world \n%s", dumpM3(b.iitw))
 	}

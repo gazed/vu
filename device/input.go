@@ -1,7 +1,14 @@
-// Copyright © 2013-2014 Galvanized Logic Inc.
+// Copyright © 2013-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package device
+
+// Design note: The original intent was to collect and process the OS
+// event queues concurrently. However, it turned out OSX only allows event
+// processng from the main thread, so concurrency is limited to turning
+// OS events into *userInput. While likely over designed in this case,
+// the eventual goal is to discover where concurrency can simplify the
+// overall engine architecture.
 
 // input is used to process a user event stream into the Pressed structure
 // that can be polled as needed. A goroutine and channel is used to help
@@ -16,7 +23,10 @@ type input struct {
 
 // newInput creates the memory needed to process events and communicate with
 // the main process. The goroutine listening for user input events is started.
-func newInput(os *nativeOs) *input {
+// Events for processing are dumped in the events channel. Every so often the
+// processed events are queried using the signal channel and the processed
+// results are dumped into the update channel.
+func newInput() *input {
 	i := &input{}
 	i.events = make(chan *userInput) // i.processEvents() <- i.events <- os.readAndDispatch
 	i.signal = make(chan *Pressed)   // i.processEvents() <- i.signal <- i.pressed()
@@ -25,6 +35,17 @@ func newInput(os *nativeOs) *input {
 	i.down = &Pressed{Focus: true, Down: map[string]int{}}
 	go i.processEvents()
 	return i
+}
+
+// readEvents is called from the main thread as some OS's only allow
+// event processing from the main thread. The events are placed in
+// the processing queue.
+//
+// Note that the number of reusable input buffers in nativeOS should
+// be greater than the number of events read each update.
+func (i *input) readEvents(os *nativeOs) {
+	i.events <- os.readDispatch() // sample events at twice the update rate
+	i.events <- os.readDispatch() // ...by reading 2 events each update.
 }
 
 // processEvents loops forever processing input events into current user input.
@@ -36,6 +57,7 @@ func (i *input) processEvents() {
 		case <-i.signal:
 			i.updateDurations()
 			i.clone(i.curr, i.down)
+			i.curr.Scroll = 0
 			i.update <- i.down
 		}
 	}
@@ -54,7 +76,7 @@ const KEY_RELEASED = -1000000000
 // This method is only expected to be called by i.processEvents().
 func (i *input) processEvent(event *userInput) {
 	i.curr.Mx, i.curr.My = event.mouseX, event.mouseY
-	i.curr.Scroll = event.scroll
+	i.curr.Scroll += event.scroll
 
 	// capture modifier key state.
 	if event.mods&shiftKeyMask != 0 {
@@ -157,7 +179,7 @@ func (i *input) latest() *Pressed {
 	return <-i.update  // return the updated event information.
 }
 
-// pressed
+// input
 // ===========================================================================
 // userInput
 
@@ -179,7 +201,7 @@ type userInput struct {
 
 // The possible event id's are as follows.
 const (
-	_ = iota // valid event ids start at one.
+	invalid = iota // valid event ids start at one.
 	closedShell
 	resizedShell
 	movedShell

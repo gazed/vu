@@ -1,4 +1,4 @@
-// Copyright © 2014 Galvanized Logic Inc.
+// Copyright © 2014-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package grid
@@ -139,6 +139,7 @@ var roomMap = [][]rune{ // 25x25 grid, 0, 0 is top left.
 	{W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W},
 }
 
+// Mock the Plan interface.
 func (rp *roomPlan) Size() (width, depth int) { return len(roomMap), len(roomMap[0]) }
 func (rp *roomPlan) IsOpen(x, y int) bool {   // flip x, y
 	switch {

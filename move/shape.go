@@ -1,4 +1,4 @@
-// Copyright © 2013-2014 Galvanized Logic Inc.
+// Copyright © 2013-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package move
@@ -46,13 +46,13 @@ const (
 
 // Currently the shapes are so simple they are all kept in this one file.
 // Future shapes get crazy complex. For example:
-//    FUTURE Capsule
-//    FUTURE Cylinder
-//    FUTURE Cone
-//    FUTURE Multi sphere
-//    FUTURE Compound shape of multiple primitives.
-// 	  FUTURE Convex hull shapes created from triangle meshes.
-//    FUTURE and so on to soft bodies.
+//    FUTURE: Capsule
+//    FUTURE: Cylinder
+//    FUTURE: Cone
+//    FUTURE: Multi sphere
+//    FUTURE: Compound shape of multiple primitives.
+// 	  FUTURE: Convex hull shapes created from triangle meshes.
+//    FUTURE: and so on to soft bodies.
 
 // Shape interface
 // ============================================================================
@@ -92,6 +92,7 @@ func (b *box) Aabb(t *lin.T, ab *Abox, margin float64) *Abox {
 	ey := hmx*yx + hmy*yy + hmz*yz
 	ez := hmx*zx + hmy*zy + hmz*zz
 
+	// assign the final Aabb values.
 	ab.Sx, ab.Sy, ab.Sz = t.Loc.X-ex, t.Loc.Y-ey, t.Loc.Z-ez
 	ab.Lx, ab.Ly, ab.Lz = t.Loc.X+ex, t.Loc.Y+ey, t.Loc.Z+ez
 	return ab

@@ -1,18 +1,15 @@
-// Copyright © 2013-2014 Galvanized Logic Inc.
+// Copyright © 2013-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package gl
 
-// The majority of the "bind" functionality interacts with "vu/data" objects
-// and is not suitable for this package.  However other utility methods may
-// be appropriate.
-//
-// BindProgram is a utility method and is here because it has no dependencies
-// on other packages.
+// bind contains OpenGL functions that help bind shaders.
+// There are no dependencies on anything but OpenGL itself.
 
 import (
 	"errors"
 	"fmt"
+	"strings"
 )
 
 // BindProgram combines a vertex and fragment shader into a program.
@@ -79,4 +76,49 @@ func BindProgram(program uint32, vertexSource, fragmentSource []string) error {
 	// The lack of a check allows bindProgram to work even if BindVertexArray(0)
 	// has not been called.
 	return nil
+}
+
+// Uniforms fills in the active uniform names and locations for a compiled
+// and linked program. Expected to be called with valid programs, thus
+// errors due to invalid programs are ignored.
+func Uniforms(program uint32, uniforms map[string]int32) {
+	var nUniforms, maxLen int32
+	GetProgramiv(program, ACTIVE_UNIFORM_MAX_LENGTH, &maxLen)
+	GetProgramiv(program, ACTIVE_UNIFORMS, &nUniforms)
+	var size, location, written int32
+	var kind uint32
+	for i := uint32(0); i < uint32(nUniforms); i++ {
+		name := make([]byte, maxLen, maxLen)
+		GetActiveUniform(program, i, maxLen, &written, &size, &kind, &(name[0]))
+		if written > 0 {
+			name = name[:written] // truncate to bytes written.
+			location = GetUniformLocation(program, string(name))
+			uniform := string(name)
+			if parts := strings.Split(uniform, "["); len(parts) > 1 {
+				uniform = parts[0] // string array uniforms to just the label.
+			}
+			uniforms[uniform] = location
+		}
+	}
+}
+
+// Layouts fills in the active attribute names and locations for a compiled
+// and linked program. These are the per-vertex data identfiers.
+// Expected to be called with valid programs, thus errors due to
+// invalid programs are ignored.
+func Layouts(program uint32, layouts map[string]uint32) {
+	var nAttrs, maxLen int32
+	GetProgramiv(program, ACTIVE_ATTRIBUTE_MAX_LENGTH, &maxLen)
+	GetProgramiv(program, ACTIVE_ATTRIBUTES, &nAttrs)
+	var size, location, written int32
+	var kind uint32
+	for i := uint32(0); i < uint32(nAttrs); i++ {
+		name := make([]byte, maxLen, maxLen)
+		GetActiveAttrib(program, i, maxLen, &written, &size, &kind, &(name[0]))
+		if written > 0 {
+			name = name[:written]
+			location = GetAttribLocation(program, string(name))
+			layouts[string(name)] = uint32(location)
+		}
+	}
 }

@@ -1,9 +1,9 @@
-// Copyright © 2013-2014 Galvanized Logic Inc.
+// Copyright © 2013-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 // +build ignore
 //
-// Ignored because cgo attempts to compile it during normal builds. 
+// Ignored because cgo attempts to compile it during normal builds.
 // To build a native test application :
 //     clang -framework Cocoa -framework OpenGL -o App os_darwin_test.m
 
@@ -22,10 +22,10 @@ int main(int argc, char *argv[]) {
     gs_set_attr_l(GS_ShellHeight, 600);
     long shell = gs_shell(display);
 
-    // initialize the OpenGL context 
+    // initialize the OpenGL context
     long context = gs_context(shell);
     printf("%s %s\n", glGetString(GL_RENDERER), glGetString(GL_VERSION));
-    printf("%s\n", glGetString(GL_SHADING_LANGUAGE_VERSION));   
+    printf("%s\n", glGetString(GL_SHADING_LANGUAGE_VERSION));
     GLuint vao;
     glGenVertexArrays(1, &vao);
     printf("GenVertexArrays 0x%X vao=%d\n", glGetError(), vao);
@@ -50,7 +50,7 @@ int main(int argc, char *argv[]) {
                 printf("key up   0x%.2lX - ", gsu.key);
             } else if (gsu.event == GS_KeyDown) {
                 printf("key down 0x%.2lX - ", gsu.key);
-            } else if (gsu.event == GS_ScrollWheel) { 
+            } else if (gsu.event == GS_ScrollWheel) {
                 printf("wheel %ld - ", gsu.scroll);
             }  else {
                 printf("event %ld - ", gsu.event);

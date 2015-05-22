@@ -1,4 +1,4 @@
-Copyright © 2013-2014, Galvanized Logic Inc. 
+Copyright © 2013-2015, Galvanized Logic Inc.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -42,19 +42,3 @@ from bullet physics which has the following zlib license:
       If you use this software in a product, an acknowledgment in the product documentation would be appreciated but is not required.
    2. Altered source versions must be plainly marked as such, and must not be misrepresented as being the original software.
    3. This notice may not be removed or altered from any source distribution.
-
-Additional Licensing
-================================================================================
-
-src/vu/eg/models/mrfixit.iqm
-src/vu/eg/images/mrfixit0.png
-src/vu/eg/images/mrfixit1.png
-Are from the IQM development kit and are subject to the following license:
-
-   Mr. Fixit conceptualized, modeled and animated by geartrooper
-             a.k.a. John Siar ironantknight@gmail.com
-   Mr. Fixit textures, normal maps and displacement by Acord
-             a.k.a Anthony Cord tonycord@gmail.com  mask textures by Nieb
-   Mr. Fixit is released under the CC-BY-NC (Creative Commons Attribution Non-Commercial)
-   license. See http://creativecommons.org/licenses/by-nc/3.0/legalcode for more info.
-   Please contact Geartrooper for permission for uses not within the scope of this license.

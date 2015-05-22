@@ -1,4 +1,4 @@
-// Copyright © 2013-2014 Galvanized Logic Inc.
+// Copyright © 2013-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package move
@@ -18,6 +18,7 @@ type contactPair struct {
 	bodyB *body             // (B, 1) reference body for normal and point.
 	pid   uint64            // Unique pair identifier.
 	pocs  []*pointOfContact // The current points of contact.
+	valid bool              // Broadphase check for deleted bodies.
 
 	// The following fields are used only by the solver.
 	processingLimit float64 // Bodies outside this range are ignored.
@@ -86,7 +87,7 @@ func (con *contactPair) refreshContacts(wtA, wtB *lin.T) {
 
 // mergeContacts merges the newly discovered contact points with the existing
 // contact points. This matters most with shapes that can produce multiple
-// contact points like box/box collision.
+// contact points, ie. box/box collision.
 func (con *contactPair) mergeContacts(points []*pointOfContact) {
 	if len(points) > 0 {
 		for _, poc := range points {
@@ -105,7 +106,7 @@ func (con *contactPair) mergeContacts(points []*pointOfContact) {
 				con.pocs[index].set(poc)
 				con.pocs[index].sp.warmImpulse = 0
 
-			// last resort is to replace a point giving the best contact coverage based on area.
+			// last resort: replace a point giving the best contact coverage based on area.
 			default:
 				index := con.largestArea(con.pocs, poc)
 				con.pocs[index].set(poc)
@@ -180,8 +181,8 @@ func (con *contactPair) area(p0, p1, p2, p3 *lin.V3) float64 {
 // ============================================================================
 // pointOfContact
 
-// pointOfContact describes one point of contact between two bodies. It contains
-// the point of contact, a contact normal vector, and a contact depth.
+// pointOfContact describes one point of contact between two bodies.
+// It holds the point of contact, a contact normal vector, and contact depth.
 // This is sufficient information to allow the contacting objects to be
 // separated if necessary. Additional information is added and used by
 // the solver.

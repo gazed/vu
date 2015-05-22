@@ -1,4 +1,4 @@
-// Copyright © 2014 Galvanized Logic Inc.
+// Copyright © 2014-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 // Package form is used to divide a 2D area into sections using plans.
@@ -37,6 +37,9 @@ type Form interface {
 	Sections() []Section      // All sections in this form.
 }
 
+// Note: This is an experimental package. It is the third attempt at producing
+//       a helper API for UI's. Like the first two attempts it looks like the
+//       effort and complexity is not worth the benefit gained by the App layer.
 // Design:
 //   • Focus purely on positioning, leaving other UI parts like buttons
 //     windows, and dialogs for some other package.
@@ -202,8 +205,8 @@ func (f *form) Section(l string) Section { return f.sects[l] }
 // overall form size. Work in floats so rounding errors don't creeep into
 // the sizing.
 //
-// FUTURE: Replace with a system of linear equation solver. Currently this
-//         algorithm handles simple cases and will mess up complex plans.
+// FUTURE: Replace with a linear equation solver. Currently this algorithm
+//         handles simple cases and messes up complex plans.
 func (f *form) align() {
 
 	// Set all section widths and x center locations

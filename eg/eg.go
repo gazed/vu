@@ -1,13 +1,13 @@
-// Copyright © 2013-2014 Galvanized Logic Inc.
+// Copyright © 2013-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 // Package eg is used to test and demonstrate different aspects of the
 // vu (virtual universe) engine. Examples are used both to showcase a
-// particular 3D capability and to act as high level test cases for the engine.
-// The examples are run using:
+// particular 3D capability and to act as high level test cases for
+// the engine. The examples are run using:
 //      eg [example name]
 // Invoking eg without parameters will list the examples that can be run.
-// Please look at the example source code for possible user actions.
+// Please look at each examples source code for possible user actions.
 //
 // The package subdirectories contain resource data needed by the examples.
 package main
@@ -35,11 +35,11 @@ func main() {
 		example{"da", "da: Dump OpenAL Bindings", da},
 		example{"tr", "tr: Spinning Triangle", tr},
 		example{"ld", "ld: Load .obj model", ld},
-		example{"tb", "tb: Texture - Basic", tb},
 		example{"sh", "sh: Simple Shell", sh},
 		example{"au", "au: Audio", au},
 		example{"sf", "sf: Shader Fire", sf},
 		example{"bb", "bb: Banners & Billboards", bb},
+		example{"lt", "lt: Lighting", lt},
 		example{"rl", "rl: Random Levels", rl},
 		example{"sg", "sg: Scene Graph", sg},
 		example{"cr", "cr: Collision Resolution", cr},

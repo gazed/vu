@@ -1,4 +1,4 @@
-// Copyright © 2014 Galvanized Logic Inc.
+// Copyright © 2014-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -6,7 +6,6 @@ package main
 import (
 	"log"
 	"math/rand"
-	"sort"
 	"time"
 
 	"github.com/gazed/vu"
@@ -17,109 +16,112 @@ import (
 // particle system with support provided by vu/Effect.
 func ps() {
 	ps := &pstag{}
-	var err error
-	if ps.eng, err = vu.New("Particle System", 1200, 100, 800, 600); err != nil {
-		log.Printf("ps: error intitializing engine %s", err)
-		return
+	if err := vu.New(ps, "Particle System", 400, 100, 800, 600); err != nil {
+		log.Printf("ps: error starting engine %s", err)
 	}
-	ps.eng.SetDirector(ps)  // get user input through Director.Update()
-	ps.create()             // create initial assests.
-	defer ps.eng.Shutdown() // shut down the engine.
 	defer catchErrors()
-	ps.eng.Action()
 }
 
 // Globally unique "tag" for this example.
 type pstag struct {
-	eng    vu.Engine            // 3D engine.
-	scene  vu.Scene             // scene graph.
-	cam    vu.Camera            // scene camera.
-	run    float64              // Camera movement speed.
-	spin   float64              // Camera spin speed.
-	gshd   vu.Part              // GPU particle effect.
-	cshd   vu.Part              // CPU particle effect.
-	random *rand.Rand           // Random number generator.
-	live   []*vu.EffectParticle // scratch particle list.
+	cam     vu.Camera  // scene camera.
+	run     float64    // Camera movement speed.
+	spin    float64    // Camera spin speed.
+	random  *rand.Rand // Random number generator.
+	effects []vu.Pov   // Particle effects.
+	effect  vu.Pov     // Active particle effect.
+	index   int        // Active particle effect counter.
+
+	// live particles are recalculated each update and
+	// shared between the CPU particle effects.
+	live []*vu.EffectParticle // scratch particle list.
 }
 
-// create is the startup asset creation.
-func (ps *pstag) create() {
+// Create is the engine callback for initial asset creation.
+func (ps *pstag) Create(eng vu.Eng, s *vu.State) {
 	ps.run = 10   // move so many cubes worth in one second.
 	ps.spin = 270 // spin so many degrees in one second.
 	ps.live = []*vu.EffectParticle{}
 	ps.random = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
-	ps.scene = ps.eng.AddScene(vu.VP)
-	ps.cam = ps.scene.Cam()
+	view := eng.Root().NewView()
+	view.SetDepth(false)
+	ps.cam = view.Cam()
 	ps.cam.SetPerspective(60, float64(800)/float64(600), 0.1, 50)
-	ps.cam.SetLocation(0, 10, 25)
+	ps.cam.SetLocation(0, 0, 2.5)
 
-	// background slab for context.
-	floor := ps.scene.AddPart()
-	floor.SetLocation(0, 0, 0)
-	floor.SetRole("gouraud").SetMesh("floor").SetMaterial("floor")
-	floor.Role().SetLightLocation(0, 10, 0)
-	floor.Role().SetLightColour(0.4, 0.7, 0.9)
+	// A GPU/shader based particle example using a particle shader.
+	gpu := eng.Root().NewPov()
+	gpu.SetVisible(false)
+	m := gpu.NewModel("particle").AddTex("particle")
+	m.NewMesh("gpu").SetDrawMode(vu.POINTS)
+	ps.makeParticles(m)
+	ps.effects = append(ps.effects, gpu)
 
-	// Add the GPU/shader based particle example.
-	ps.gshd = ps.scene.AddPart()
-	ps.gshd.SetLocation(0, 10, 22)
-	ps.gshd.SetVisible(false)
-	ps.gshd.SetRole("particle").AddTex("particle")
-	ps.gshd.Role().SetDrawMode(vu.POINTS)
-	ps.gshd.Role().Set2D()
-	ps.gshd.Role().SetCullOff()
-	ps.gshd.Role().NewMesh("particles")
-	ps.makeParticles(ps.gshd.Role().Mesh())
+	// A CPU/shader based particle example using an effect shader.
+	cpu := eng.Root().NewPov()
+	cpu.SetVisible(false)
+	m = cpu.NewModel("effect").AddTex("particle").SetDrawMode(vu.POINTS)
+	m.SetEffect(ps.fall, 250)
+	ps.effects = append(ps.effects, cpu)
 
-	// Add the CPU/shader based particle example.
-	ps.cshd = ps.scene.AddPart()
-	ps.cshd.SetLocation(0, 10, 22)
-	ps.cshd.SetRole("effect").AddTex("particle").SetDrawMode(vu.POINTS)
-	ps.cshd.Role().NewMesh("particles")
-	ps.cshd.Role().SetEffect(vu.NewEffect(250, 25, ps.fall))
-	ps.cshd.Role().Set2D()
+	// A jet engine exhaust attempt.
+	// FUTURE: update textures to look like engine exhaust.
+	jet := eng.Root().NewPov().SetLocation(0, -1, 0)
+	jet.SetVisible(false)
+	m = jet.NewModel("exhaust").AddTex("exhaust").SetDrawMode(vu.POINTS)
+	m.SetEffect(ps.vent, 40)
+	ps.effects = append(ps.effects, jet)
 
-	// Have a lighter default background.
-	ps.eng.Color(0.15, 0.15, 0.15, 1)
+	// Make the first particle effect visible to kick things off.
+	ps.effect = ps.effects[ps.index]
+	ps.effect.SetVisible(true)
+
+	// Non default engine state. Have a lighter default background.
+	eng.SetColor(0.15, 0.15, 0.15, 1)
 }
 
 // Update is the engine frequent user-input/state-update callback.
-func (ps *pstag) Update(in *vu.Input) {
+func (ps *pstag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 	if in.Resized {
-		ps.resize()
+		ps.cam.SetPerspective(60, float64(s.W)/float64(s.H), 0.1, 50)
 	}
+	move := 2.0
 	dt := in.Dt
 	for press, down := range in.Down {
 		switch press {
 		case "W":
-			ps.cam.Move(0, 0, dt*-ps.run)
+			ps.cam.Move(0, 0, dt*-ps.run, ps.cam.Lookxz())
 		case "S":
-			ps.cam.Move(0, 0, dt*ps.run)
+			ps.cam.Move(0, 0, dt*ps.run, ps.cam.Lookxz())
 		case "A":
-			ps.gshd.Spin(0, dt*ps.spin, 0)
-			ps.cshd.Spin(0, dt*ps.spin, 0)
+			ps.effect.Spin(0, dt*ps.spin, 0)
 		case "D":
-			ps.gshd.Spin(0, dt*-ps.spin, 0)
-			ps.cshd.Spin(0, dt*-ps.spin, 0)
+			ps.effect.Spin(0, dt*-ps.spin, 0)
 		case "Tab":
 			if down == 1 {
-				ps.gshd.SetVisible(!ps.gshd.Visible())
-				ps.cshd.SetVisible(!ps.cshd.Visible())
+				ps.effect.SetVisible(false) // switch to the next effect.
+				ps.index = ps.index + 1
+				if ps.index >= len(ps.effects) {
+					ps.index = 0
+				}
+				ps.effect = ps.effects[ps.index]
+				ps.effect.SetVisible(true)
 			}
+		case "La":
+			ps.effect.Move(-dt*move, 0, 0, ps.cam.Lookxz())
+		case "Ra":
+			ps.effect.Move(dt*move, 0, 0, ps.cam.Lookxz())
+		case "Ua":
+			ps.effect.Move(0, 0, dt*move, ps.cam.Lookxz())
+		case "Da":
+			ps.effect.Move(0, 0, -dt*move, ps.cam.Lookxz())
 		}
 	}
 }
 
-// resize sets the view port size.  User resizes are ignored.
-func (ps *pstag) resize() {
-	x, y, width, height := ps.eng.Size()
-	ps.eng.Resize(x, y, width, height)
-	ps.cam.SetPerspective(60, float64(width)/float64(height), 0.1, 50)
-}
-
 // Create GPU based particle vertex buffer data. Example from:
 //     http://antongerdelan.net/opengl/particles.html
-func (ps *pstag) makeParticles(m render.Mesh) {
+func (ps *pstag) makeParticles(m vu.Model) {
 	pcnt := 300                   // number of particles
 	vv := make([]float32, pcnt*3) // vertex location.
 	vt := make([]float32, pcnt)   // vertex time.
@@ -137,38 +139,60 @@ func (ps *pstag) makeParticles(m render.Mesh) {
 		vv[index+2] = ps.random.Float32() - 0.5 // z
 		index += 3
 	}
-	m.InitData(0, 3, render.STATIC, false).SetData(0, vv)
-	m.InitData(1, 1, render.STATIC, false).SetData(1, vt)
+	m.InitMesh(0, 3, render.STATIC, false).SetMeshData(0, vv)
+	m.InitMesh(1, 1, render.STATIC, false).SetMeshData(1, vt)
 }
 
-// fall is the CPU particle position updater. It lets particles drift downwards
+// fall is a CPU particle position updater. It lets particles drift downwards
 // at a leisurely pace. Particles are started spread out at a the same height
 // and then slowly moved down. Particles that have passed their maximum lifetime
 // are removed.
-func (ps *pstag) fall(particles []*vu.EffectParticle, dt float64) []*vu.EffectParticle {
-	ps.live = ps.live[:0]
-	for _, p := range particles {
-
-		// set the initial position for a particle.
-		if p.Life == 0 {
-			p.X += (ps.random.Float32() - 0.5) // randomly adjust X
-			p.Y = 1                            // start at same height.
-			p.Z += (ps.random.Float32() - 0.5) // randomly adjust Z
-		}
-		p.Life += dt
-		if p.Life < 4.0 {
-			p.Y -= float32(0.01)
+func (ps *pstag) fall(all []*vu.EffectParticle, dt float64) (live []*vu.EffectParticle) {
+	emit := 1                        // max particles emitted each update.
+	lifespan := float32(1.0 / 200.0) // inverse number of updates to live.
+	ps.live = ps.live[:0]            // reset keeping memory.
+	for cnt, p := range all {
+		switch {
+		case p.Alive == 0 && emit > 0: // create particles each update.
+			p.Alive, p.Index, emit = 1, float32(cnt), emit-1
+			p.X = (ps.random.Float64() - 0.5) // randomly adjust X
+			p.Y = 1                           // start at same height.
+			p.Z = (ps.random.Float64() - 0.5) // randomly adjust Z
 			ps.live = append(ps.live, p)
+		case p.Alive > 0: // adjust live particles.
+			p.Alive, p.Index = p.Alive-lifespan, float32(cnt)
+			p.Y -= 0.01
+			ps.live = append(ps.live, p)
+		case p.Alive <= 0:
+			p.Alive = 0 // reset expired particles.
 		}
 	}
-	sort.Sort(Ordered(ps.live))
 	return ps.live
 }
 
-// Ordered allows particles to be sorted.
-type Ordered []*vu.EffectParticle
-
-// Sort particles ordered by Z distance.
-func (o Ordered) Len() int           { return len(o) }
-func (o Ordered) Swap(i, j int)      { o[i], o[j] = o[j], o[i] }
-func (o Ordered) Less(i, j int) bool { return o[i].Z < o[j].Z }
+// vent is a CPU particle position updater. It uses a shader expecting a 2x2
+// texture atlas where the textures are assigned according to the particle index.
+func (ps *pstag) vent(all []*vu.EffectParticle, dt float64) (live []*vu.EffectParticle) {
+	emit := 1                       // max particles emitted each update.
+	lifespan := float32(1.0 / 40.0) // inverse number of updates to live.
+	ps.live = ps.live[:0]           // reset keeping memory.
+	for cnt, p := range all {
+		switch {
+		case p.Alive == 0 && emit > 0: // create particles each update.
+			p.Alive, p.Index, emit = 1, float32(cnt), emit-1
+			p.X = (ps.random.Float64() - 0.5) // randomly adjust X
+			p.Y = 1                           // start at same height.
+			p.Z = (ps.random.Float64() - 0.5) // randomly adjust Z
+			ps.live = append(ps.live, p)
+		case p.Alive > 0: // adjust live particles.
+			p.Alive, p.Index = p.Alive-lifespan, float32(cnt)
+			p.Y -= 0.025
+			p.X = p.X * 0.95 // move towards center 0.
+			p.Z = p.Z * 0.95 // move towards center 0.
+			ps.live = append(ps.live, p)
+		case p.Alive <= 0:
+			p.Alive = 0 // reset expired particles.
+		}
+	}
+	return ps.live
+}

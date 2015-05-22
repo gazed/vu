@@ -1,4 +1,4 @@
-// Copyright © 2013-2014 Galvanized Logic Inc.
+// Copyright © 2013-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -19,8 +19,8 @@ import (
 //       https://www.shadertoy.com/view/Xsl3zN
 // For more shader examples also check out:
 //       http://glsl.heroku.com
-// The real star of this demo though is found in ./source/fire.fsh. Kudos to @301z and
-// the other contributors to shadertoy and heroku.
+// The real star of this demo is found in ./source/fire.fsh. Kudos to @301z
+// and the other contributors to shadertoy and heroku.
 //
 // This example renders using OpenGL calls from package vu/render/gl.
 func sf() {
@@ -91,15 +91,14 @@ func (sf *sftag) initScene() {
 	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, int64(len(sf.faces)), gl.Pointer(&(sf.faces[0])), gl.STATIC_DRAW)
 
 	// create texture and shaders after all the data has been set up.
-	renderer := render.New()
-	shader := renderer.NewShader("fire")
+	// renderer := render.New()
+	shader := "fire"
 	loader := load.NewLoader()
-	vsrc, verr := loader.Vsh(shader.Name())
-	fsrc, ferr := loader.Fsh(shader.Name())
+	vsrc, verr := loader.Vsh(shader)
+	fsrc, ferr := loader.Fsh(shader)
 	if verr == nil && ferr == nil {
-		shader.SetSource(vsrc, fsrc)
 		sf.shaders = gl.CreateProgram()
-		if err := gl.BindProgram(sf.shaders, shader.Vsh(), shader.Fsh()); err != nil {
+		if err := gl.BindProgram(sf.shaders, vsrc, fsrc); err != nil {
 			fmt.Printf("Failed to create program: %s\n", err)
 		}
 		sf.mvpref = gl.GetUniformLocation(sf.shaders, "mvpm")

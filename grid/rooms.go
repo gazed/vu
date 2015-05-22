@@ -1,4 +1,4 @@
-// Copyright © 2013-2014 Galvanized Logic Inc.
+// Copyright © 2013-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package grid
@@ -30,7 +30,7 @@ const (
 // Generate a skirmish grid that has lots of interconnected rooms.
 // Each room has 3 exits.
 //
-// TODO it is possible to get a bisected maze.  It may be necessary
+// FUTURE: it is possible to get a bisected maze. It may be necessary
 // to check for a wall across the entire maze and punch a hole in it.
 func (rms *rooms) Generate(width, depth int) Grid {
 	rms.create(width, depth, allWalls)
@@ -144,7 +144,7 @@ func (rms *rooms) ensureExits(rm *room) {
 }
 
 // ensureExit chops a hole in the given side.  Sometimes the hole chopped
-// can be a dead-end.  Chopping an additional hole in the holes neighbouring
+// can be a dead-end. Chopping an additional hole in the holes neighbouring
 // walls guarantees an exit.
 func (rms *rooms) ensureExit(side []*cell, max int) {
 	if len(side) == max {

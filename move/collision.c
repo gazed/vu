@@ -1,29 +1,29 @@
-// Copyright © 2013-2014 Galvanized Logic Inc.
-// Use is governed by a BSD-style license found in the LICENSE file.
+// Copyright © 2013-2015 Galvanized Logic Inc.
+// Use is governed by a FreeBSD license found in the LICENSE file.
 //
 // ODE (bullet) box-box collision detection is adapted to work with Vu.  
 // It was wrapped (instead of ported) due to c-langs ability to inline code 
 // as well as to quickly get a working version that can be used to compare with
 // a golang implementation. To compare changes, the original source code was from 
 // bullet-2.81-rev2613/src/BulletCollision/CollisionDispatch/btBoxBoxDetector.cpp
-// which has the following license
+// which has the following license:
 //
-// * Box-Box collision detection re-distributed under the ZLib license with permission from Russell L. Smith
-// * Original version is from Open Dynamics Engine, Copyright (C) 2001,2002 Russell L. Smith.
-// * All rights reserved.  Email: russ@q12.org   Web: www.q12.org
+//    * Box-Box collision detection re-distributed under the ZLib license with permission from Russell L. Smith
+//    * Original version is from Open Dynamics Engine, Copyright (C) 2001,2002 Russell L. Smith.
+//    * All rights reserved.  Email: russ@q12.org   Web: www.q12.org
 //
-// Bullet Continuous Collision Detection and Physics Library
-// Bullet is Copyright (c) 2003-2006 Erwin Coumans  http://continuousphysics.com/Bullet/
-// This software is provided 'as-is', without any express or implied warranty.
-// In no event will the authors be held liable for any damages arising from the use of this software.
-// Permission is granted to anyone to use this software for any purpose, 
-// including commercial applications, and to alter it and redistribute it freely, 
-// subject to the following restrictions:
-// 
-// 1. The origin of this software must not be misrepresented; you must not claim that you wrote the original software. 
-//    If you use this software in a product, an acknowledgment in the product documentation would be appreciated but is not required.
-// 2. Altered source versions must be plainly marked as such, and must not be misrepresented as being the original software.
-// 3. This notice may not be removed or altered from any source distribution.
+//    Bullet Continuous Collision Detection and Physics Library
+//    Bullet is Copyright (c) 2003-2006 Erwin Coumans  http://continuousphysics.com/Bullet/
+//    This software is provided 'as-is', without any express or implied warranty.
+//    In no event will the authors be held liable for any damages arising from the use of this software.
+//    Permission is granted to anyone to use this software for any purpose, 
+//    including commercial applications, and to alter it and redistribute it freely, 
+//    subject to the following restrictions:
+//    
+//    1. The origin of this software must not be misrepresented; you must not claim that you wrote the original software. 
+//       If you use this software in a product, an acknowledgment in the product documentation would be appreciated but is not required.
+//    2. Altered source versions must be plainly marked as such, and must not be misrepresented as being the original software.
+//    3. This notice may not be removed or altered from any source distribution.
 
 #include <stdio.h>     // for debugging
 #include <float.h>     // for FLT_MAX
@@ -32,7 +32,7 @@
 #include "collision.h"
 
 // given two boxes (p1,R1,side1) and (p2,R2,side2), collide them together and
-// generate contact points. this returns 0 if there is no contact otherwise
+// generate contact points. This returns 0 if there is no contact otherwise
 // it returns the number of contacts generated.
 // `normal' returns the contact normal.
 // `depth' returns the maximum penetration depth along that normal.

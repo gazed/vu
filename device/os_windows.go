@@ -1,4 +1,4 @@
-// Copyright © 2013-2014 Galvanized Logic Inc.
+// Copyright © 2013-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package device
@@ -22,20 +22,17 @@ import (
 // OS specific structure to differentiate it from the other native layers.
 // Two input structures are continually reused each time rather than allocating
 // a new input structure on each readAndDispatch.
-type win struct {
-	in  *userInput // Used for fetching user input.
-	in1 *userInput // Alternate user input structure.
-}
+type win struct{}
 
 // OpenGL related, see: https://code.google.com/p/go-wiki/wiki/LockOSThread
 func init() { runtime.LockOSThread() }
 
 // nativeLayer gets a reference to the native operating system.  Each native
-// layer implements this factory method.  Compiling will leave only the one that
+// layer implements this factory method. Compiling will leave only the one that
 // matches the current platform.
-func nativeLayer() native { return &win{&userInput{}, &userInput{}} }
+func nativeLayer() native { return &win{} }
 
-// Implements native interface.
+// Implement native interface.
 func (w *win) context(r *nrefs) int64 {
 	return int64(C.gs_context((*C.longlong)(&(r.display)), (*C.longlong)(&(r.shell))))
 }
@@ -44,6 +41,8 @@ func (w *win) displayDispose(r *nrefs)     { C.gs_display_dispose(C.long(r.displ
 func (w *win) shell(r *nrefs) int64        { return int64(C.gs_shell(C.long(r.display))) }
 func (w *win) shellOpen(r *nrefs)          { C.gs_shell_open(C.long(r.display)) }
 func (w *win) shellAlive(r *nrefs) bool    { return uint(C.gs_shell_alive(C.long(r.shell))) == 1 }
+func (w *win) isFullscreen(r *nrefs) bool  { return uint(C.gs_fullscreen(C.long(r.display))) == 1 }
+func (w *win) toggleFullscreen(r *nrefs)   { C.gs_toggle_fullscreen(C.long(r.display)) }
 func (w *win) swapBuffers(r *nrefs)        { C.gs_swap_buffers(C.long(r.shell)) }
 func (w *win) setAlphaBufferSize(size int) { C.gs_set_attr_l(C.GS_AlphaSize, C.long(size)) }
 func (w *win) setDepthBufferSize(size int) { C.gs_set_attr_l(C.GS_DepthSize, C.long(size)) }
@@ -58,14 +57,12 @@ func (w *win) showCursor(r *nrefs, show bool) {
 	C.gs_show_cursor(C.long(r.display), C.uchar(tf1))
 }
 
-// See native interface.
-func (w *win) readDispatch(r *nrefs) *userInput {
-	gsu := &C.GSEvent{0, -1, -1, 0, 0, 0}
+// Implement native interface.
+func (w *win) readDispatch(r *nrefs, in *userInput) *userInput {
+	gsu := &C.GSEvent{event: 0, mousex: -1, mousey: -1, key: 0, mods: 0, scroll: 0}
 	C.gs_read_dispatch(C.long(r.display), gsu)
-	w.in, w.in1 = w.in1, w.in
 
 	// transfer/translate the native event into the input buffer.
-	in := w.in
 	in.id = events[int(gsu.event)]
 	if in.id != 0 {
 		in.button = mouseButtons[int(gsu.event)]
@@ -80,14 +77,14 @@ func (w *win) readDispatch(r *nrefs) *userInput {
 	return in
 }
 
-// See native interface.
+// Implement native interface.
 func (w *win) size(r *nrefs) (x int, y int, wx int, hy int) {
 	var winx, winy, width, height int32
 	C.gs_size(C.long(r.display), (*C.long)(&winx), (*C.long)(&winy), (*C.long)(&width), (*C.long)(&height))
 	return int(winx), int(winy), int(width), int(height)
 }
 
-// See native interface.
+// Implement native interface.
 func (w *win) setSize(x, y, width, height int) {
 	C.gs_set_attr_l(C.GS_ShellX, C.long(x))
 	C.gs_set_attr_l(C.GS_ShellY, C.long(y))
@@ -95,7 +92,7 @@ func (w *win) setSize(x, y, width, height int) {
 	C.gs_set_attr_l(C.GS_ShellHeight, C.long(height))
 }
 
-// See native interface.
+// Implement native interface.
 func (w *win) setTitle(title string) {
 	cstr := C.CString(title)
 	defer C.free(unsafe.Pointer(cstr))
@@ -132,7 +129,7 @@ var mouseButtons = map[int]int{
 	C.GS_OtherMouseUp:   mouse_Middle,
 }
 
-// Expose the underlying OSX key modifier masks.
+// Expose the underlying Win key modifier masks.
 // Leave the ALT and CMD keys to the OS's.
 const (
 	shiftKeyMask    = C.GS_ShiftKeyMask

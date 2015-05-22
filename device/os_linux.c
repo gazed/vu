@@ -1,4 +1,4 @@
-// Copyright © 2013-2014 Galvanized Logic Inc.
+// Copyright © 2013-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 // FUTURE The ubuntu (linux) native layer implementation.
@@ -6,8 +6,8 @@
 
 #include "os_linux.h"
 
-// Application defaults. Internal use only.  Not really state per-se these are 
-// consulted at startup for initial values. These are updated using the 
+// Application defaults. Internal use only.  Not really state per-se these are
+// consulted at startup for initial values. These are updated using the
 // gs_set_attr* functions.
 struct AppDefaults {
     long gs_ShellX;
@@ -24,12 +24,12 @@ struct AppDefaults defaults = { 100, 100, 240, 280, 8, 24, "App" };
 // application window.
 long gs_display_init()
 {
-	return 0;
-} 
+    return 0;
+}
 
 // Destroy the application window. Attempt to remove the rendering context and
 // the device context as well.
-void gs_display_dispose(long display) 
+void gs_display_dispose(long display)
 {
 }
 
@@ -37,7 +37,7 @@ void gs_display_dispose(long display)
 // before creating the rendering context.
 long gs_shell(long display)
 {
-	return 0;
+    return 0;
 }
 
 // Show the application window to the user. This is expected to be called after
@@ -47,21 +47,21 @@ void gs_shell_open(long display)
 }
 
 // Check if the application window is still active.
-unsigned char gs_shell_alive(long display) 
-{ 
-	return 0;
+unsigned char gs_shell_alive(long display)
+{
+    return 0;
 }
 
 // Get the current mouse position relative to the bottom left corner of the
 // application window.
-void gs_pos(long display, long *x, long *y) 
+void gs_pos(long display, long *x, long *y)
 {
 }
 
 // Position the cursor at the given window location.  The incoming coordinates
 // are relative to the bottom left corner - switch that to be relative to the
 // top left corner.
-void gs_set_cursor_location(long display, long x, long y) 
+void gs_set_cursor_location(long display, long x, long y)
 {
 }
 
@@ -77,7 +77,7 @@ void gs_size(long display, long *x, long *y, long *w, long *h)
 }
 
 // Show or hide cursor.  Lock it to the window if it is hidden.
-void gs_show_cursor(long display, unsigned char show) 
+void gs_show_cursor(long display, unsigned char show)
 {
 }
 
@@ -85,19 +85,19 @@ void gs_show_cursor(long display, unsigned char show)
 // The first context is used to find better functions to create the final
 // context.  Note that the pixel format is done only once for a window so
 // it must be correctly chosen.
-long gs_context(long long * display, long long * shell) 
+long gs_context(long long * display, long long * shell)
 {
-	return 0;
+    return 0;
 }
 
 // Flip the back and front buffers of the rendering context.
-void gs_swap_buffers(long shell) 
+void gs_swap_buffers(long shell)
 {
 }
 
-// Set long attributes. Attributes only take effect if they are set before 
-// they are used to create the window or rendering context. 
-void gs_set_attr_l(long attr, long value) 
+// Set long attributes. Attributes only take effect if they are set before
+// they are used to create the window or rendering context.
+void gs_set_attr_l(long attr, long value)
 {
    switch (attr) {
    case GS_ShellX:
@@ -121,14 +121,14 @@ void gs_set_attr_l(long attr, long value)
    }
 }
 
-// Set string attributes.  Attributes only take effect if they are set before 
-// they are used to create the window or rendering context. 
+// Set string attributes.  Attributes only take effect if they are set before
+// they are used to create the window or rendering context.
 void gs_set_attr_s(long attr, char * value)
 {
    switch (attr) {
    case GS_AppName:
        if (value != NULL && strlen(value) < 40) {
-           strcpy( defaults.gs_AppName, value ); 
+           strcpy( defaults.gs_AppName, value );
        }
        break;
    }

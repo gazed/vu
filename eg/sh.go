@@ -1,10 +1,11 @@
-// Copyright © 2013-2014 Galvanized Logic Inc.
+// Copyright © 2013-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/gazed/vu/device"
 	"github.com/gazed/vu/render/gl"
@@ -26,6 +27,10 @@ func sh() {
 		sh.update(dev)
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 		dev.SwapBuffers()
+
+		// slow things down so that the loop is closer
+		// to the engine update loop timing.
+		time.Sleep(10 * time.Millisecond)
 	}
 	dev.ShowCursor(true)
 	dev.Dispose()
@@ -39,6 +44,10 @@ func (sh *shtag) update(dev device.Device) {
 	pressed := dev.Update()
 	if pressed.Scroll != 0 {
 		fmt.Printf("scroll %d\n", pressed.Scroll)
+	}
+	if pressed.Resized {
+		_, _, ww, wh := dev.Size()
+		fmt.Printf("resized %d %d\n", ww, wh)
 	}
 	if len(pressed.Down) > 0 {
 		fmt.Print(pressed.Mx, ",", pressed.My, ":")
@@ -54,5 +63,10 @@ func (sh *shtag) update(dev device.Device) {
 			fmt.Print(key, ",", duration, ":")
 		}
 		fmt.Println()
+	}
+
+	// toggle windowed mode if W is pressed.
+	if down, ok := pressed.Down["W"]; ok && down == 1 {
+		dev.ToggleFullScreen()
 	}
 }

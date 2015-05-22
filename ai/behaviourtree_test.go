@@ -1,4 +1,4 @@
-// Copyright © 2014 Galvanized Logic Inc.
+// Copyright © 2014-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package ai
@@ -159,8 +159,8 @@ func (mo *mockObserver) Complete(b Behaviour) { mo.status = b.Status() }
 
 // =============================================================================
 
-// mockBehaviour is a simple behaviour that waits a few update cycles before
-// finishing.
+// mockBehaviour is a simple behaviour that waits
+// a few update cycles before finishing.
 type mockBehaviour struct {
 	BehaviourBase
 	finalStatus BehaviourState // return this status on completion.

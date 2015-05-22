@@ -1,370 +1,843 @@
-// Copyright © 2013-2014 Galvanized Logic Inc.
+// Copyright © 2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
-// Package vu, virtual universe, provides 3D application support. Vu wraps
-// subsystems like rendering, physics, data loading, audio, etc. to provide
-// higher level functionality that includes:
-//    • Scene graphs and composite objects.
-//    • Timestepped update/render loop.
-//    • Callback access to user input events.
-//    • Cameras and transform manipulation.
-//    • Linking loaded assets to render and audio systems.
-// Refer to the vu/eg examples package for working code samples that test
-// and demo engine functionality.
-//
-// Vu dependencies are:
-//    • OpenGL for graphics card access.        See package vu/render.
-//    • OpenAL for sound card access.           See package vu/audio.
-//    • Cocoa  for OSX windowing and input.     See pacakge vu/device.
-//    • WinAPI for Windows windowing and input. See package vu/device.
 package vu
 
 import (
+	"log"
+	"math"
 	"time"
 
-	"github.com/gazed/vu/audio"
-	"github.com/gazed/vu/device"
+	"github.com/gazed/vu/math/lin"
 	"github.com/gazed/vu/move"
 	"github.com/gazed/vu/render"
 )
 
-// Engine initializes and provides runtime suport for a 3D application.
-// Interaction with the application is through the Director interface.
-type Engine interface {
-	SetDirector(d Director) // Enable application callbacks.
-	Verify() error          // Check model data against shader expectations.
-	Action()                // Kick off the main update loop.
+// Eng provides support for a 3D application conforming to the App interface.
+// Eng provides the root transform hierarchy node, a point-of-view (Pov) where
+// models, physics bodies, and noises are attached and processed each update.
+// Eng is also used to set global engine state and provides top level timing
+// statistics.
+type Eng interface {
+	Shutdown()     // Stop the engine and free allocated resources.
+	Reset()        // Put the engine back to its initial state.
+	State() *State // Query engine state. State updated per tick.
+	Root() Pov     // Single root transform always exists.
 
-	// Shuddown stops the engine and the underlying graphics context while
-	// Reset removes all allocated resources while keeping the graphics context.
-	Shutdown() // Stop the engine and free allocated resources.
-	Reset()    // Put the engine back to its initial state.
+	// Timing is updated each processing loop. The returned update
+	// times can flucuate and should be averaged over multiple calls.
+	Usage() *Timing                // Per update loop performance metrics.
+	Modelled() (models, verts int) // Total render models and verticies.
+	Rendered() (models, verts int) // Rendered models and verticies.
 
-	// The application window/viewport is queried and controlled as follows:
-	Size() (x, y, width, height int)  // Get the current viewport size.
-	Resize(x, y, width, height int)   // Resize the current viewport.
-	Color(r, g, b, a float32)         // Set background clear colour.
+	// Requests to change engine state.
+	SetColor(r, g, b, a float32)      // Set background clear colour.
 	ShowCursor(show bool)             // Hide or show the cursor.
-	SetCursorAt(x, y int)             // Place cursor at the x,y window location.
-	Enable(attr uint32, enabled bool) // Enable/disable global graphic attributes.
-
-	// Scenes group visible objects with a camera. Scenes are drawn in the
-	// order they are created, unless modified using SetLastScene.
-	AddScene(transform int) Scene // Add a scene.
-	RemScene(s Scene)             // Remove and dispose a scene.
-	SetLastScene(s Scene)         // Put the given scene last in the scene list.
-
-	// PlaceSoundListener sets the 3D location of the entity that can hear sounds.
-	// Sounds that are played at other locations will be heard more faintly as
-	// the distance between the played sound and listener increases.
-	PlaceSoundListener(x, y, z float64) // Create a sound listener.
-	Mute(mute bool)                     // Toggle game sound.
+	SetCursorAt(x, y int)             // Put cursor at the window pixel x,y.
+	Enable(attr uint32, enabled bool) // Enable/disable render attributes.
+	ToggleFullScreen()                // Flips full screen and windowed mode.
+	Mute(mute bool)                   // Toggle sound volume.
+	SetVolume(zeroToOne float64)      // Set sound volume.
+	SetGravity(g float64)             // Change the gravity constant.
 }
 
-// Director is the engine callback to the application.
-// Director is expected to be implemented by the application
-// and registered with the engine as follows:
-//     eng, _ = vu.New("Title", 0,0,800,600) // App creates Engine.
-//     eng.SetDirector(app)                  // App registers as a Director.
-type Director interface {
+// App is the engine callback expected to be implemented by the application.
+// The application is registered on engine creation as follows:
+//     err := vu.New(app, "Title", 0, 0, 800, 600)
+// Note that it is safe to call Eng methods from goroutines.
+type App interface {
+	Create(eng Eng, s *State) // One time call after successfull startup.
 
 	// Update allows applications to change state prior to the next render.
-	// Update is called many times a second once the application calls eng.Action.
-	// Applications commonly create some resources prior to starting Updates.
-	Update(i *Input) // Application expected to return quickly.
+	// Update is called many times a second after the initial call to Create.
+	//      i : user input refreshed prior to each call.
+	//      s : engine state refreshed prior to each call.
+	Update(eng Eng, i *Input, s *State) // Process user input.
 }
 
-// Engine constants used as input to various methods.
+// Eng and App interfaces.
+// ===========================================================================
+// engine implements Eng.
+
+// engine runs all application communication and all state updates.
+// It is a entity manager in that it uses a unique entity id to group
+// by component functionality.
+//
+// Expected to be started as a go-routine using the runEngine method.
+type engine struct {
+	alive   bool       // True until application decides otherwise.
+	machine chan msg   // Communicate with device loop.
+	stop    chan bool  // Closed or any value means stop the engine.
+	poll    *pollInput // Reuse the same input and state instances.
+
+	// Assets are loaded concurrently.
+	loader *loader    // Asset manager.
+	loaded chan msg   // Receive models and noises ready to render/play.
+	mover  move.Mover // Physics handles forces, collisions.
+
+	// Use three render frames. One for new update state,
+	// the other two are for rendering with interpolation.
+	frames [][]render.Draw // 3 render frames.
+	vorder []uint64        // Eids for view render order.
+
+	// Sounds are heard by the sound listener at an app set pov.
+	soundListener *pov    // Current location of the sound listener.
+	sx, sy, sz    float64 // Last location of the sound listener.
+
+	// Lighting currently handles a single light.
+	l          *light  // Default light.
+	lx, ly, lz float64 // Default light position.
+
+	// Track update times, the number of draw calls, and verticies.
+	times    *Timing // Loop timing statistics.
+	renDraws int     // Last updates models rendered.
+	renVerts int     // Last updates verticies rendered.
+
+	// Group the application entities by component.
+	// All entities are Pov (location:orientation) based.
+	eid    uint64               // Next entity id.
+	povs   map[uint64]*pov      // Entity transforms.
+	views  map[uint64]*view     // Cameras components.
+	models map[uint64]*model    // Visible components.
+	lights map[uint64]*light    // Light components.
+	noises map[uint64]*noise    // Audible components.
+	bodies map[uint64]move.Body // Non-colliding physic components.
+	solids map[uint64]move.Body // Colliding physic components.
+	bods   []move.Body          // Set from solids each update.
+	mv     *lin.M4              // Scratch model-view matrix.
+	mvp    *lin.M4              // Scratch model-view-proj matrix.
+}
+
+// newEngine is expected to be called once on startup.
+func newEngine(machine chan msg) *engine {
+	eng := &engine{alive: true, machine: machine}
+	eng.mv = &lin.M4{}
+	eng.mvp = &lin.M4{}
+	eng.times = &Timing{}
+	eng.frames = make([][]render.Draw, 3)
+	for cnt, _ := range eng.frames {
+		eng.frames[cnt] = []render.Draw{}
+	}
+	eng.Reset()
+	eng.poll = newPollInput()
+	eng.l = newLight()
+
+	// helpers that create and update state.
+	eng.mover = move.NewMover()
+	eng.loaded = make(chan msg)
+	eng.loader = newLoader(eng.loaded, machine)
+	go eng.loader.runLoader()
+	return eng
+}
+
+// main application loop timing constants.
 const (
-	// Global graphic state constants. See Engine.Enable(const, bool).
-	BLEND = render.BLEND // Alpha blending. Enabled by default.
-	CULL  = render.CULL  // Backface culling. Enabled by default.
-	DEPTH = render.DEPTH // Z-buffer awareness. Enabled by default.
+	// delta time is how often the state is updated. It is fixed at
+	// 50 times a second (50/1s = 20ms) so that the game speed is
+	// constant (independent from computer speed and refresh rate).
+	dt = time.Duration(20 * time.Millisecond) // 0.02s, 50fps
 
-	// 3D Direction constants. Primarily used for panning or
-	// rotating a camera view. See Camera.Spin.
-	XAxis = iota // Affect only the X axis.
-	YAxis        // Affect only the Y axis.
-	ZAxis        // Affect only the Z axis.
+	// render time limits how often render frames are generated.
+	// Most modern flat monitors are 60fps.
+	rt = time.Duration(10 * time.Millisecond) // 0.01s, 100fps
 
-	// Camera transform choices. Used in Eng.AddScene(transform).
-	VP    = iota // Perspective view transform.
-	VO           // Orthographic view transform.
-	VF           // First person view transform with up/down angle.
-	XZ_XY        // Perspective to Ortho view transform.
-
-	// Per-part rendering constants. See Role.SetDrawMode(mode int).
-	TRIANGLES = render.TRIANGLES // Triangles are the norm.
-	POINTS    = render.POINTS    // Used for particle effects.
-	LINES     = render.LINES     // Used for drawing squares and boxes.
-
-	// Texture rendering directives. See Role.SetTexMode()
-	TEX_REPEAT = render.REPEAT // Repeat texture when UV greater than 1.
-
-	// User input key released indicator. Total time down, in update
-	// ticks, is key down ticks minus RELEASED. See Director.Update().
-	RELEASED = device.KEY_RELEASED
+	// capTime guards against slow updates and the spiral of death.
+	// Ignore any updating and rendering time that was more than 200ms.
+	capTime = time.Duration(200 * time.Millisecond) // 0.2s
 )
 
-// Engine, Director, and public API
-// ===========================================================================
-// engine implements Engine.
+// runEngine calls Create once and Update continuously and regularly.
+// The application loop generates device polling and render requests
+// for the machine.
+func runEngine(app App, wx, wy, ww, wh int, machine chan msg, stop chan bool) {
+	eng := newEngine(machine)
+	eng.stop = stop
+	eng.poll.state.setScreen(wx, wy, ww, wh)
+	app.Create(eng, eng.poll.state)
+	ut := uint64(0)         // kick off initial update...
+	eng.update(app, dt, ut) // first update queues the load asset requests.
 
-// The engine is where everything starts. Engine is top of the hierarchy
-// of the application window and provides access to the capabilities of the
-// sub-components.
+	// Initialize timers and kick off the main control loop.
+	var loopStart time.Time = time.Now()
+	var updateStart time.Time
+	var timeUsed time.Duration
+	var updateTimer time.Duration // Track when to trigger an update.
+	var renderTimer time.Duration // Track when to trigger a render.
+	var frame []render.Draw       // New render frame, nil if no updated frame.
+	for eng.alive {
+		timeUsed = time.Since(loopStart) // Count previous loop.
+		eng.times.Elapsed += timeUsed    // Track total time.
+		if timeUsed > capTime {          // Avoid slow update death.
+			timeUsed = capTime
+		}
+		loopStart = time.Now()
+
+		// Trigger update based on current elapsed time.
+		// This advances state at a constant rate (dt).
+		updateTimer += timeUsed
+		for updateTimer >= dt {
+			updateStart = time.Now() // Time the update.
+			ut += 1                  // Track the total update ticks.
+			updateTimer -= dt        // Remove delta time used.
+
+			// Perform the update.
+			eng.update(app, dt, ut)     // Update state, physics, etc.
+			frame = eng.frames[ut%3]    // Cycle between three render frames.
+			frame = eng.genFrame(frame) // ... update the render frame.
+			eng.frames[ut%3] = frame    // ... remember the updated frame.
+
+			// Reset and start counting times for the next update.
+			eng.times.Zero()
+			eng.times.Update += time.Since(updateStart)
+		}
+
+		// Interpolation is the fraction of unused delta time between 0 and 1.
+		// ie: State state = currentState*interpolation + previousState * (1.0 - interpolation);
+		interpolation := updateTimer.Seconds() / dt.Seconds()
+
+		// Redraw everything, using interpolation when there is no new frame.
+		// Extra render time is dropped.
+		renderTimer += timeUsed
+		if renderTimer >= rt {
+			eng.times.Renders += 1
+			eng.render(frame, interpolation, ut)
+			frame = nil                    // mark frame as rendered.
+			renderTimer = renderTimer % rt // drop extra render time.
+		}
+		eng.communicate() // process go-routine messages.
+	}
+	// Exiting state update.
+}
+
+// communicate proesses all go-routine channels. Must be non-blocking.
+// These are generally responses to asset loading completions
+// that were initiated by the engine.
+func (eng *engine) communicate() {
+	select {
+	case <-eng.stop: // closed channels return 0
+		eng.loader.load <- &shutdown{}
+		return // Exit immediately, The main loop has closed us down.
+	case asset := <-eng.loaded:
+		switch m := asset.(type) {
+		case *noiseLoad:
+			if m.noise == nil {
+				delete(eng.noises, m.eid) // failed load.
+			} else {
+				m.noise.loaded = true
+				m.noise.loading = false
+			}
+		case []*modelLoad:
+			for _, ml := range m {
+				if ml.model == nil {
+					delete(eng.models, ml.eid) // failed load.
+				} else {
+					ml.model.loaded = true
+					ml.model.loading = false
+				}
+			}
+		case []*texLoad:
+			for _, tl := range m {
+				if tl.tex != nil && len(tl.model.texs) > tl.index {
+					tl.model.texs[tl.index] = tl.tex
+				}
+			}
+		default:
+			log.Printf("engine: unknown msg %t", m)
+		}
+	default:
+		// no channels to process.
+	}
+}
+
+// update polls user input, runs physics, calls application update, and
+// finally refreshes all models resulting in updated transforms.
+// The transform hierarchy is now ready to generate a render frame.
+func (eng *engine) update(app App, dt time.Duration, ut uint64) {
+	// Fetch input from the device thread. Essentially a sequential call.
+	eng.machine <- eng.poll // blocks until processed by the server.
+	<-eng.poll.reply        // blocks until input is ready.
+	input := eng.poll.input // User input has been refreshed.
+	state := eng.poll.state // Engine state has been refreshed.
+	dts := dt.Seconds()     // delta time as float.
+
+	// Run physics on all the bodies; adjusting location and orientation.
+	eng.bods = eng.bods[:0] // reset keeping capacity.
+	for _, bod := range eng.solids {
+		eng.bods = append(eng.bods, bod)
+	}
+	eng.mover.Step(eng.bods, dts)
+
+	// Have the application adjust any or all state before rendering.
+	input.Dt = dts                // how long to get back to here.
+	input.Ut = ut                 // update ticks.
+	app.Update(eng, input, state) // application to updates its own state.
+
+	// update assets that the application changed or which need
+	// per tick processing. Per-ticks include animated models,
+	// particle effects, surfaces, phrases, ...
+	if eng.alive {
+		eng.updateModels(dts)
+		eng.place(eng.root(), lin.M4I) // update all transforms.
+		eng.updateSoundListener()
+	}
+}
+
+// updateModels processes any ongoing model updates like animated models
+// and CPU particle effects. Any new models are sent off for loading
+// and any updated models generate data rebind requests.
+func (eng *engine) updateModels(dts float64) {
+	for eid, m := range eng.models {
+
+		// Request loads for any texture changes.
+		if len(m.texLoads) > 0 {
+			eng.loader.queueTextureLoads(m.texLoads)
+			m.texLoads = m.texLoads[:0]
+		}
+
+		// Process visible models. New models will be requested to load.
+		if m.loaded {
+			if pv, ok := eng.povs[eid]; ok && pv.visible {
+				if m.effect != nil {
+					// udpate and rebind particle effects which can
+					// change mesh data.
+					m.effect.update(m, dt.Seconds())
+				}
+				if m.msh.rebind {
+					if m.fnt != nil && len(m.phrase) > 0 {
+						m.phraseWidth = m.fnt.setPhrase(m.msh, m.phrase)
+					}
+					go eng.rebind(m.msh)
+					m.msh.rebind = false
+				}
+				for _, tex := range m.texs {
+					if tex.rebind {
+						go eng.rebind(tex)
+						tex.rebind = false
+					}
+				}
+				if m.anm != nil {
+					// animations update the bone position matricies.
+					// These are bound as uniforms at draw time.
+					m.animate(dts)
+				}
+			}
+		} else if !m.loading {
+			eng.loader.queueModelLoad(eid, m)
+			m.loading = true
+		}
+	}
+	for eid, n := range eng.noises {
+		if !n.loaded && !n.loading {
+			go eng.loader.request(&noiseLoad{eid: eid, noise: n})
+			n.loading = true
+		}
+	}
+	eng.loader.loadQueued()
+}
+
+// genFrame creates a new render frame. All of the transforms are
+// expected to have been placed (updated) before calling this method.
+// A frame is rendered using each of the views in creation order.
 //
-// Engine initializes the underlying subsystems and, for the most part, wraps
-// access to subsystem functionality.
-type engine struct {
-	gc     render.Renderer     // Graphics card interface layer.
-	ac     audio.Audio         // Audio card interface layer.
-	dev    device.Device       // Os specific window and rendering context.
-	in     *Input              // Propogates device input to the application.
-	aud    audio.SoundListener // Audio listener.
-	assets *assets             // Data resource manager.
-	mover  move.Mover          // Physics handles forces, collisions.
-	stage  *stage              // Rendering culls and draws the scene graph.
-	app    Director            // Application callbacks.
+// The frame memory is preserved through the method calls in
+// that the Draw records are grown and reused across updates.
+func (eng *engine) genFrame(frame []render.Draw) []render.Draw {
+	frame = frame[:0] // resize keeping underlying memory.
+	eng.renDraws, eng.renVerts = 0, 0
+	light := eng.l
+	for _, eid := range eng.vorder {
+		if view, ok := eng.views[eid]; ok && view.visible {
+			if pv, ok := eng.povs[eid]; ok { // expected to be true.
+				light, frame = eng.snapshot(pv, view, light, frame)
+			}
+		}
+	}
+	render.SortDraws(frame)
+	return frame // Note len(frame) is the number of draw calls.
 }
 
-// New creates a 3D engine and application window. The expected usage is:
-//      if eng, err = vu.New("Title", 100, 100, 800, 600); err != nil {
-//          log.Printf("Failed to initialize engine %s", err)
-//          return
-//      }
-//      defer eng.Shutdown() // Close down nicely.
-//      eng.SetDirector(app) // Enable application update callbacks.
-//         ....              // application initialization.
-//      eng.Action()         // Start update callbacks (does not return).
-// A miniumum window width of 100 and height of 100 is enforced.
-func New(name string, x, y, width, height int) (e Engine, err error) {
-	if name == "" {
-		name = "Title"
-	}
-	if width < 100 {
-		width = 100
-	}
-	if height < 100 {
-		height = 100
-	}
-	eng := &engine{}
-	eng.in = &Input{Down: map[string]int{}}
+// snapshot recursively walks the transform hierarchy for the given view
+// and adds render objects for each model it finds.
+func (eng *engine) snapshot(p *pov, view *view, light *light, frame []render.Draw) (*light, []render.Draw) {
+	processChildren := true
+	if p.visible {
 
-	// initialize the os specific shell, graphics context, and
-	// user input monitor.
-	eng.dev = device.New(name, x, y, width, height)
+		// support one light at a time. It can be repositioned per object.
+		if l, ok := eng.lights[p.eid]; ok {
+			light = l
+			lx, ly, lz := p.Location()
+			vec := view.cam.v0.SetS(lx, ly, lz, 1)
+			vec.MultvM(vec, view.cam.vm)
+			eng.lx, eng.ly, eng.lz = vec.X, vec.Y, vec.Z
+		}
+		if model, ok := eng.models[p.eid]; ok { // model at this transform.
+			if model.loaded {
+				eng.mv.Mult(p.mm, view.cam.vm)    // model-view
+				eng.mvp.Mult(eng.mv, view.cam.pm) // model-view-projection
 
-	// initialize the audio layer.
-	eng.ac = audio.New()
-	eng.aud = eng.ac.NewSoundListener()
-	if err = eng.ac.Init(); err != nil {
-		eng.Shutdown()
-		return // failed to initialize audio layer
-	}
+				// Calculate distance to camera for 3D models.
+				// Needed for transparency sorting and culling.
+				distToCam := 0.0
+				var px, py, pz float64
+				if view.depth {
+					vec := view.cam.v0.SetS(0, 0, 0, 1)
+					vec.MultvM(vec, p.mm)
+					px, py, pz = vec.X, vec.Y, vec.Z
+					distToCam = view.cam.Distance(px, py, pz)
+				} else {
+					px, py, pz = p.Location() // for UI culling.
+				}
 
-	// initialize the graphics layer.
-	eng.gc = render.New()
-	if err = eng.gc.Init(); err != nil {
-		eng.Shutdown()
-		return // failed to initialize graphics layer.
+				// Create render data for anything that passes culling.
+				if view.cull != nil && view.cull.Cull(view.cam, px, py, pz) {
+					processChildren = false // don't process children of culled models.
+				} else {
+					if model.msh != nil && len(model.msh.vdata) > 0 {
+
+						// fill in render and uniform data.
+						var draw *render.Draw
+						if frame, draw = eng.getDraw(frame); draw != nil {
+							(*draw).SetMv(eng.mv)      // model-view
+							(*draw).SetMvp(eng.mvp)    // model-view-projection
+							(*draw).SetPm(view.cam.pm) // projection only.
+							(*draw).SetScale(p.Scale())
+							model.toDraw(*draw, p.eid, view.depth, view.overlay, distToCam)
+							light.toDraw(*draw, eng.lx, eng.ly, eng.lz)
+							eng.renDraws += 1                        // models rendered.
+							eng.renVerts += model.msh.vdata[0].Len() // verticies rendered.
+						}
+					} else {
+						log.Printf("Model has no mesh data...")
+					}
+				}
+			} else {
+				processChildren = false // only process children of loaded models.
+			}
+		}
+		if processChildren {
+			for _, child := range p.children {
+				light, frame = eng.snapshot(child, view, light, frame)
+			}
+		}
 	}
-	eng.Enable(BLEND, true)
-	eng.Enable(CULL, true)
-	eng.Color(0, 0, 0, 1)
-	eng.assets = newAssets(eng.ac, eng.gc)
-	eng.stage = newStage(eng.assets)
-	eng.mover = move.NewMover()
-	eng.gc.Viewport(width, height)
-	eng.dev.Open()
-	return eng, err
+	return light, frame
 }
 
-// Shutdown stops the engine and frees up any allocated resources.
+// getDraw returns a render.Draw. The frame is grown as needed and
+// forms are reused if available. Every frame value up to cap(frame) is
+// expected to have already been allocated.
+func (eng *engine) getDraw(frame []render.Draw) (f []render.Draw, d *render.Draw) {
+	size := len(frame)
+	switch {
+	case size == cap(frame):
+		frame = append(frame, render.NewDraw())
+	case size < cap(frame): // use previously allocated.
+		frame = frame[:size+1]
+		if frame[size] == nil {
+			frame[size] = render.NewDraw()
+		}
+	}
+	return frame, &frame[size]
+}
+
+// place walks the transform hierarchy updating all the model view transforms.
+// This is called before rendering snapshots are taken.
+func (eng *engine) place(p *pov, parent *lin.M4) {
+	p.mm.SetQ(p.rot.Inv(p.at.Rot)) // invert model rotation.
+	p.mm.ScaleSM(p.Scale())        // scale is applied first (on left of rotation)
+	l := p.at.Loc
+	p.mm.TranslateMT(l.X, l.Y, l.Z) // translate is applied last (on right of rotation).
+	p.mm.Mult(p.mm, parent)         // model transform + parent transform
+	for _, child := range p.children {
+		eng.place(child, p.mm)
+	}
+}
+
+// updateSoundListener checks and updates the sound listeners location.
+func (eng *engine) updateSoundListener() {
+	x, y, z := eng.soundListener.Location()
+	if x != eng.sx || y != eng.sy || z != eng.sz {
+		eng.sx, eng.sy, eng.sz = x, y, z
+		go func(x, y, z float64) {
+			eng.machine <- &placeListener{x: x, y: y, z: z}
+		}(x, y, z)
+	}
+}
+
+// render sends a render request to the machine.
+// FUTURE: consider implications to run as a goroutine.
+func (eng *engine) render(frame []render.Draw, interp float64, ut uint64) {
+	eng.machine <- &renderFrame{interp: interp, frame: frame, ut: ut}
+}
+
+// release sends a release resource request to the machine.
+// Expected to be run as a goroutine so that it can block on the
+// send until the machine is ready to process it.
+func (eng *engine) release(rd *releaseData) { eng.machine <- rd }
+
+// rebind sends a bind request to the machine.
+// Expected to be run as a goroutine so that it can block on the
+// send until the machine is ready to process it. It also blocks
+// on the reply until the rebind is finished.
+//
+// Note that rebinding mesh, texture, and sound does not change
+// any model data, it just updates the data on the graphics or audio
+// card. This way the model can continue to be rendered while the
+// data is being rebound (the binding goroutine is the same as the
+// render goroutine, so it is doing one or the other).
+func (eng *engine) rebind(data interface{}) {
+	bindReply := make(chan error)
+	eng.machine <- &bindData{data: data, reply: bindReply} // request bind.
+	if err := <-bindReply; err != nil {                    // wait for bind.
+		log.Printf("%s", err)
+	}
+}
+
+// Shutdown is a user request to close down the engine.
 func (eng *engine) Shutdown() {
-	if eng.stage != nil {
-		eng.stage.dispose()
-		eng.stage = nil
-	}
-	if eng.ac != nil {
-		eng.ac.Shutdown()
-		eng.ac = nil
-	}
-	if eng.dev != nil {
-		eng.dev.Dispose()
-		eng.dev = nil
-	}
-	eng.app = nil
+	eng.dispose(eng.root(), POV)
+	eng.loader.load <- &shutdown{}
+	eng.machine <- &shutdown{}
+	eng.alive = false
 }
 
-// Reset cleans up graphics resources and puts the engine back to its initial
-// state. All application created parts are destroyed which results in all
-// resources being removed up as nothing is left that references them.
+// Reset removes all entities and sets the engine back to
+// its initial state.
 func (eng *engine) Reset() {
-	if eng.stage != nil {
-		eng.stage.dispose()
+	eng.dispose(eng.root(), POV)
+	eng.povs = map[uint64]*pov{}
+	eng.views = map[uint64]*view{}
+	eng.models = map[uint64]*model{}
+	eng.lights = map[uint64]*light{}
+	eng.noises = map[uint64]*noise{}
+	eng.bodies = map[uint64]move.Body{}
+	eng.solids = map[uint64]move.Body{}
+	eng.eid = 1
+	eng.povs[eng.eid] = newPov(eng, eng.eid) // root
+	eng.soundListener = eng.povs[eng.eid]
+}
+
+// State provides access to current engine state.
+func (eng *engine) State() *State { return eng.poll.state }
+
+// genid returns the next unique entity id. It craps out and starts returning
+// 0 after generating all possible ids.
+func (eng *engine) genid() uint64 {
+	if eng.eid == math.MaxUint64 {
+		return 0
 	}
-	eng.stage = newStage(eng.assets)
+	eng.eid += 1 // first valid id is 1.
+	return eng.eid
 }
 
-// SetDirector establishes the application update callback receiver.
-func (eng *engine) SetDirector(director Director) {
-	eng.app = director
-}
+// Implement Eng interface. Group and track all the entity
+// types that can be associated with a Pov.
+func (eng *engine) Root() Pov { return eng.root() }
 
-// Verify can be optionally called after SetDirector to check the initial
-// resource loading and model creation.
-func (eng *engine) Verify() error { return eng.stage.verify() }
-
-// Action is the main update/render loop. This regulates game update/render frequency
-// and is based on:
-//     http://gafferongames.com/game-physics/fix-your-timestep
-//     http://www.koonsolo.com/news/dewitters-gameloop
-//     http://sacredsoftware.net/tutorials/Animation/TimeBasedAnimation.xhtml
-// The loop runs until the application closes.
-//
-// The application state is updated a variable number of times each loop in order
-// that each state update is the same fixed timestep interval.
-func (eng *engine) Action() {
-	ut := uint64(0) // update ticks counts the number of updates.
-
-	// delta time is how often the state is updated.  It is fixed at
-	// 50 times a second (50/1000ms = 0.02) so that the game speed is constant
-	// (independent from computer speed and refresh rate).
-	dt := float64(0.02)
-
-	// update time tracks the time available for updating state.  It carries
-	// any unused update time into the next loop.  At the start of each loop
-	// available time (based on rendering) is added.  Slow rendering causes
-	// more time added on for updates and fast rendering results less time
-	// for updates per loop, causing potentially no updates in a given loop.
-	updateTime := float64(0)
-
-	// elapsedTime tracks how long one frame/loop took.  This will be
-	// capped if updating and rendering took a very long time in order to
-	// avoid a spiral of death where even more updating is attempted when
-	// things are running slow.
-	elapsedTime := float64(0)
-
-	// capTime guards against unreasonably slow updates and the spiral of death.
-	// Essentially ignore any updating and rendering time that was more than 200ms.
-	const capTime = float64(0.2)
-	lastTime := time.Now() // the computer time updated every frame/game-loop
-
-	// 3D loops are forever (but really only last until the user wimps out)
-	for eng.dev != nil && eng.dev.IsAlive() {
-
-		// how long since the last time through the loop.  The more time the loop
-		// took, the more updates will need to be performed.
-		elapsedTime = time.Since(lastTime).Seconds()
-		lastTime = time.Now()
-		if elapsedTime > capTime {
-			elapsedTime = capTime
-		}
-
-		// ease up on the CPU if the render speed is over 100fps.
-		if elapsedTime < 0.01 {
-			time.Sleep(time.Duration((0.01-elapsedTime)*1000) * time.Millisecond)
-		}
-
-		// run updates based on how long the previous loop took.  This advances
-		// state at a constant rate (dt).
-		updateTime += elapsedTime
-		for updateTime >= float64(dt) {
-			eng.update(ut, dt)        // update state, physics and animations.
-			updateTime -= float64(dt) // track the used delta time.
-			ut += 1                   // track the total updates
-		}
-
-		// FUTURE interpolate the state based on the remaining delta time.  Right now
-		//        the rendering is done on un-interpolated state which may be slightly
-		//        behind where it should be.
-		// interpolatedTime := updateTime / dt;  // fraction of unused delta time between 0 and 1.
-		// State state = currentState*interpolatedTime + previousState * ( 1.0 - interpolatedTime );
-
-		// redraw everything based on the current state.
-		eng.render()
+// pov entities.
+func (eng *engine) root() *pov { return eng.povs[1] }
+func (eng *engine) newPov(p Pov) Pov {
+	if parent, ok := p.(*pov); ok && parent != nil {
+		p := newPov(eng, eng.genid())
+		eng.povs[p.eid] = p
+		p.parent = parent
+		parent.children = append(parent.children, p)
+		return p
 	}
+	return nil
 }
 
-// ===========================================================================
-// Start the real work of delegating the update and render calls down
-// to the helper classes and systems.
-
-// update delegates application state updates to the stage manager.
-// update is expected to be called from the engine Action loop.
-func (eng *engine) update(ut uint64, dt float64) {
-	eng.in.convertInput(eng.dev.Update(), dt) // get user input.
-	if eng.app != nil {
-		eng.app.Update(eng.in) // applications turn for state updates.
-		if eng.stage != nil {  // App may have shutdown engine.
-			eng.mover.Step(eng.stage.bodies, dt) // update physics state.
-			eng.stage.update(dt)                 // prepare render state.
+// view entities.
+func (eng *engine) view(p Pov) View {
+	if pv, ok := p.(*pov); ok && pv != nil {
+		if view, ok := eng.views[pv.eid]; ok {
+			return view
 		}
 	}
+	return nil
+}
+func (eng *engine) newView(p Pov) View {
+	if pv, ok := p.(*pov); ok && pv != nil {
+		v := newView()
+		eng.views[pv.eid] = v
+		eng.vorder = append(eng.vorder, pv.eid)
+		return v
+	}
+	return nil
 }
 
-// render delegates application rendering to the stage manager.
-// Render is expected to be called only from the engine Action loop.
-func (eng *engine) render() {
-	if eng.stage != nil { // App may have shutdown engine.
-		eng.stage.render(eng.gc)
-		eng.dev.SwapBuffers()
+// model entities.
+func (eng *engine) model(p Pov) Model {
+	if pv, ok := p.(*pov); ok && pv != nil {
+		if model, ok := eng.models[pv.eid]; ok {
+			return model
+		}
+	}
+	return nil
+}
+func (eng *engine) newModel(p Pov, shader string) Model {
+	if pv, ok := p.(*pov); ok && pv != nil {
+		if _, ok := eng.models[pv.eid]; !ok {
+			m := newModel(shader)
+			eng.models[pv.eid] = m
+			return m
+		}
+	}
+	return nil
+}
+
+// light entities.
+func (eng *engine) light(p Pov) Light {
+	if pv, ok := p.(*pov); ok && pv != nil {
+		if l, ok := eng.lights[pv.eid]; ok {
+			return l
+		}
+	}
+	return nil
+}
+func (eng *engine) newLight(p Pov) Light {
+	if pv, ok := p.(*pov); ok && pv != nil {
+		if _, ok := eng.lights[pv.eid]; !ok {
+			l := newLight()
+			eng.lights[pv.eid] = l
+			return l
+		}
+	}
+	return nil
+}
+
+// body: physics entities.
+func (eng *engine) body(p Pov) move.Body {
+	if pv, ok := p.(*pov); ok && pv != nil {
+		if body, ok := eng.bodies[pv.eid]; ok {
+			return body
+		}
+		if body, ok := eng.solids[pv.eid]; ok {
+			return body
+		}
+	}
+	return nil
+}
+func (eng *engine) newBody(p Pov, b move.Body) move.Body {
+	if pv, ok := p.(*pov); ok && pv != nil {
+		if _, ok := eng.bodies[pv.eid]; !ok {
+			b.SetWorld(pv.at)
+			eng.bodies[pv.eid] = b
+			return b
+		}
+	}
+	return nil
+}
+
+// solid: physics entities.
+func (eng *engine) setSolid(p Pov, mass, bounce float64) {
+	if pv, ok := p.(*pov); ok && pv != nil {
+		if b, okb := eng.bodies[pv.eid]; okb {
+			b.SetMaterial(mass, bounce)
+			eng.solids[pv.eid] = b
+			delete(eng.bodies, pv.eid)
+		}
 	}
 }
 
-// Implements Engine.
-func (eng *engine) AddScene(transform int) Scene { return eng.stage.addScene(transform) }
-func (eng *engine) RemScene(s Scene)             { eng.stage.remScene(s) }
+// noise: audio entities.
+func (eng *engine) noise(p Pov) Noise {
+	if pv, ok := p.(*pov); ok && pv != nil {
+		if noise, ok := eng.noises[pv.eid]; ok {
+			return noise
+		}
+	}
+	return nil
+}
+func (eng *engine) newNoise(p Pov) Noise {
+	if pv, ok := p.(*pov); ok && pv != nil {
+		if _, ok := eng.noises[pv.eid]; !ok {
+			n := newNoise(eng, pv.eid)
+			eng.noises[pv.eid] = n
+			return n
+		}
+	}
+	return nil
+}
 
-// SetLastScene is expected to be used for overlay scenes.
-// It moves the indicated scene to be the last scene rendered.
-func (eng *engine) SetLastScene(s Scene) { eng.stage.setLast(s) }
+// There is always only one listener. It is associated with the root pov
+// by default. This changes the listener location to the given pov.
+func (eng *engine) setListener(p Pov) {
+	if pv, ok := p.(*pov); ok && pv != nil {
+		eng.soundListener = pv
+	}
+}
 
-// ===========================================================================
-// Expose/wrap device level information.
+// dispose discards the given pov aspect or the entire pov and all
+// its components. Each call recalculates the currently loaded set
+// of assets.
+func (eng *engine) dispose(p Pov, aspect int) {
+	if pv, ok := p.(*pov); ok && pv != nil {
+		switch aspect {
+		case BODY:
+			delete(eng.bodies, pv.eid)
+			delete(eng.solids, pv.eid)
+		case VIEW:
+			eng.disposeView(pv.eid)
+		case MODEL:
+			if m, ok := eng.models[pv.eid]; ok {
+				eng.disposeModel(m)
+				delete(eng.models, pv.eid)
+			}
+		case NOISE:
+			if n, ok := eng.noises[pv.eid]; ok {
+				eng.disposeNoise(n)
+				delete(eng.noises, pv.eid)
+			}
+		case LIGHT:
+			delete(eng.lights, pv.eid)
+		case POV:
+			eng.disposePov(pv)
+		}
+	}
+}
 
-// GetSize returns the application viewport area in pixels.  This excludes any
-// OS specific window trim.  The window x, y coordinates are the bottom left of
-// the window.
-func (eng *engine) Size() (x, y, width, height int) { return eng.dev.Size() }
+// disposePov chops this transform and all of its children out
+// of the transform hierarchy. All associated objects are disposed.
+func (eng *engine) disposePov(pv *pov) {
+	delete(eng.povs, pv.eid)
+	eng.dispose(pv, VIEW)
+	eng.dispose(pv, BODY)
+	eng.dispose(pv, MODEL)
+	eng.dispose(pv, NOISE)
+	if pv.parent != nil {
+		pv.parent.remChild(pv) // remove the one back reference that matters.
+	}
+	for _, child := range pv.children {
+		child.parent = nil    // avoid unnecessary removing of back references
+		eng.disposePov(child) // ... since childs parent is being deleted.
+	}
+}
 
-// Resize needs to be called on window resize to adjust the graphics viewport.
-// The engine starts the resize by informing the application during update,
-// but leaves viewport resizing, using this method, under application control.
-func (eng *engine) Resize(x, y, width, height int) { eng.gc.Viewport(width, height) }
+// disposeModel releases any references to assets.
+func (eng *engine) disposeModel(m *model) {
+	m.msh = nil
+	m.shd = nil
+	m.anm = nil
+	m.fnt = nil
+	m.mat = nil
+	m.texs = []*texture{} // garbage collect all old textures.
+}
 
-// ShowCursor hides and locks the cursor for the current window.
-func (eng *engine) ShowCursor(show bool) { eng.dev.ShowCursor(show) }
+// disposeNoise releases references to assets.
+func (eng *engine) disposeNoise(n *noise) {
+	n.snds = []*sound{} // garbage collect the old sounds.
+}
 
-// SetCursorAt puts the cursor at the given window location. Often this is used
-// by the application when the cursor is hidden and the mouse movements are being
-// tracked. Setting the cursor to the middle of the screen ensures movement doesn't
-// get stuck at the screen edges.
+// disposeView removes the view, if any, from the given entity.
+// No complaints if there is no view at the given entity.
+func (eng *engine) disposeView(eid uint64) {
+	if _, ok := eng.views[eid]; ok {
+		delete(eng.views, eid)
+		for index, id := range eng.vorder {
+			if eid == id {
+				eng.vorder = append(eng.vorder[:index], eng.vorder[index+1:]...)
+				return
+			}
+		}
+	}
+}
+
+// FUTURE: clean assets... use countAssets to match against cached assets
+//      and release assets that are no longer used. This will be a type
+//      of garbage collecting triggered by the application.
+//      ie: go eng.release(rd)        // for bound data.
+//          go eng.loader.request(rd) // to release from cache.
+
+// countAssets walks the current models and noises and returns
+// a count of unique resources.
+func (eng *engine) countAssets() map[uint64]int {
+	assets := map[uint64]int{}
+	for _, m := range eng.models {
+		if m.msh != nil {
+			assets[m.msh.bid()] += 1
+		}
+		if m.shd != nil {
+			assets[m.shd.bid()] += 1
+		}
+		if m.mat != nil {
+			assets[m.mat.bid()] += 1
+		}
+		if m.fnt != nil {
+			assets[m.fnt.bid()] += 1
+		}
+		if m.anm != nil {
+			assets[m.anm.bid()] += 1
+		}
+		for _, t := range m.texs {
+			assets[t.bid()] += 1
+		}
+	}
+	for _, n := range eng.noises {
+		for _, s := range n.snds {
+			assets[s.bid()] += 1
+		}
+	}
+	return assets
+}
+
+// Usage returns numbers collected each time through the
+// main processing loop. This allows the application to get
+// a sense of how much and where time is being used.
+func (eng *engine) Usage() *Timing { return eng.times }
+
+// Modelled returns the number of models and the number
+// of verticies for all models.
+func (eng *engine) Modelled() (models, verts int) {
+	models = len(eng.models)
+	for _, m := range eng.models {
+		if m.msh != nil && len(m.msh.vdata) > 0 {
+			verts += m.msh.vdata[0].Len()
+		}
+	}
+	return models, verts
+}
+
+// Modelled returns the number of models and the number
+// of verticies rendered in the last rendering pass.
+func (eng *engine) Rendered() (models, verts int) {
+	return eng.renDraws, eng.renVerts
+}
+
+// Eng interface implementation to handle requests
+// for changing engine state.
+func (eng *engine) SetColor(r, g, b, a float32) {
+	go func(r, g, b, a float32) {
+		eng.machine <- &setColour{r: r, g: g, b: b, a: a}
+	}(r, g, b, a)
+}
+func (eng *engine) ShowCursor(show bool) {
+	go func(show bool) { eng.machine <- &showCursor{enable: show} }(show)
+}
 func (eng *engine) SetCursorAt(x, y int) {
-	eng.dev.SetCursorAt(x, y)
+	go func(x, y int) { eng.machine <- &setCursor{cx: x, cy: y} }(x, y)
 }
+func (eng *engine) Enable(attr uint32, enabled bool) {
+	go func(attr uint32, enabled bool) {
+		eng.machine <- &enableAttr{attr: attr, enable: enabled}
+	}(attr, enabled)
+}
+func (eng *engine) ToggleFullScreen() {
+	go func() { eng.machine <- &toggleScreen{} }()
+}
+func (eng *engine) Mute(mute bool) {
+	gain := 1.0
+	if mute {
+		gain = 0.0
+	}
+	go func(gain float64) { eng.machine <- &setVolume{gain: gain} }(gain)
+}
+func (eng *engine) SetVolume(zeroToOne float64) {
+	go func(gain float64) { eng.machine <- &setVolume{gain: zeroToOne} }(zeroToOne)
+}
+func (eng *engine) SetGravity(g float64) { eng.mover.SetGravity(g) }
 
-// ===========================================================================
-// Expose/wrap graphic and audio controls.
-
-// Color sets the default background clear color. This color will appear if nothing
-// else is drawn over it.
-func (eng *engine) Color(r, g, b, a float32) { eng.gc.Color(r, g, b, a) }
-
-// Enable or disable global graphics attributes.
-// Current valid values are: CULL, BLEND, DEPTH
-func (eng *engine) Enable(attribute uint32, enabled bool) { eng.gc.Enable(attribute, enabled) }
-
-// PlaceSoundListener sets the 3D location of the entity that can hear sounds.
-// Sounds that are played at other locations will be heard more faintly as the
-// distance between the played sound and listener increases. The location is
-// often the same as the main camera.
-func (eng *engine) PlaceSoundListener(x, y, z float64) { eng.aud.SetLocation(x, y, z) }
-
-// Mute turns the game sound on (mute == false) or off (mute == true).
-func (eng *engine) Mute(mute bool) { eng.ac.Mute(mute) }
-
+// engine
 // ===========================================================================
 // Expose/wrap physics shapes.
 

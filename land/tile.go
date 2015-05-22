@@ -1,4 +1,4 @@
-// Copyright © 2014 Galvanized Logic Inc.
+// Copyright © 2014-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package land
@@ -17,12 +17,10 @@ type Tile interface {
 	Zoom() int                 // Zoom (level of detail) for this tile.
 	XY() (tx, ty int)          // Tile X, Y index within the world.
 	Key() string               // Unique tile id using zoom and tile XY.
-	Set(zoom, tx, ty int) Tile // Repurpose this tile. Data needs to be reset.
+	Set(zoom, tx, ty int) Tile // Repurpose this tile. Data needs resetting.
 }
 
-// Tile interface
 // ============================================================================
-// tile implements Tile
 
 // tile is the default implementation of Tile.
 type tile struct {

@@ -1,4 +1,4 @@
-// Copyright © 2013-2014 Galvanized Logic Inc.
+// Copyright © 2013-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package grid
@@ -13,16 +13,16 @@ type primMaze struct {
 }
 
 // Generate a maze using  Prim's algorithm: (see wikipedia)
-//   - Start with a grid full of walls.
-//   - Pick a cell, mark it as part of the grid. Add the walls of the cell to
+//   • Start with a grid full of walls.
+//   • Pick a cell, mark it as part of the grid. Add the walls of the cell to
 //     the wall list.
-//   - While there are walls in the list:
-//     - Pick a random wall from the list. If the cell on the opposite side
+//   • While there are walls in the list:
+//     • Pick a random wall from the list. If the cell on the opposite side
 //       isn't in the maze yet:
-//       - Make the wall a floor and mark the cell on the opposite side as
+//       • Make the wall a floor and mark the cell on the opposite side as
 //         part of the grid.
-//       - Add the neighboring walls of the cell to the wall list.
-//     - If the cell on the opposite side already was in the grid, remove the
+//       • Add the neighboring walls of the cell to the wall list.
+//     • If the cell on the opposite side already was in the grid, remove the
 //       wall from the list.
 func (pm *primMaze) Generate(width, depth int) Grid {
 	pm.create(width, depth, allWalls)

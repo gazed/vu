@@ -1,8 +1,8 @@
-// Package gl provides a golang 3D graphics library
-// that was auto-generated from open gl spec src/vu/render/gl/gen/glcorearb.h-v4.3.
+// Package gl provides golang bindings for OpenGL
+// The bindings were generated from OpenGL spec src/vu/render/gl/gen/glcorearb.h-v4_3.
 // The official OpenGL documentation for any of the constants
 // or methods can be found online. Just prepend "GL_"
-// to the function or constants names in this package.
+// to the function or constant names in this package.
 //
 // Package gl is provided as part of the vu (virtual universe) 3D engine.
 package gl
@@ -783,7 +783,7 @@ package gl
 // GLAPI void APIENTRY wrap_glGetActiveAtomicCounterBufferiv(unsigned int program, unsigned int bufferIndex, unsigned int pname, int* params) {  (*pfn_glGetActiveAtomicCounterBufferiv)((GLuint)program, (GLuint)bufferIndex, (GLenum)pname, (GLint *)params); }
 //
 // void (APIENTRYP pfn_glGetActiveAttrib)(GLuint program, GLuint index, GLsizei bufSize, GLsizei *length, GLint *size, GLenum *type, GLchar *name);
-// GLAPI void APIENTRY wrap_glGetActiveAttrib(unsigned int program, unsigned int index, int bufSize, int* length, int* size, unsigned int* t_ype, char* name) {  (*pfn_glGetActiveAttrib)((GLuint)program, (GLuint)index, (GLsizei)bufSize, (GLsizei *)length, (GLint *)size, (GLenum *)t_ype, (GLchar *)name); }
+// GLAPI void APIENTRY wrap_glGetActiveAttrib(unsigned int program, unsigned int index, int bufSize, int* length, int* size, unsigned int* t_ype, unsigned char* name) {  (*pfn_glGetActiveAttrib)((GLuint)program, (GLuint)index, (GLsizei)bufSize, (GLsizei *)length, (GLint *)size, (GLenum *)t_ype, (GLchar *)name); }
 //
 // void (APIENTRYP pfn_glGetActiveSubroutineName)(GLuint program, GLenum shadertype, GLuint index, GLsizei bufsize, GLsizei *length, GLchar *name);
 // GLAPI void APIENTRY wrap_glGetActiveSubroutineName(unsigned int program, unsigned int shadertype, unsigned int index, int bufsize, int* length, unsigned char* name) {  (*pfn_glGetActiveSubroutineName)((GLuint)program, (GLenum)shadertype, (GLuint)index, (GLsizei)bufsize, (GLsizei *)length, (GLchar *)name); }
@@ -4734,10 +4734,8 @@ func GenerateMipmap(target uint32) {
 func GetActiveAtomicCounterBufferiv(program uint32, bufferIndex uint32, pname uint32, params *int32) {
 	C.wrap_glGetActiveAtomicCounterBufferiv(C.uint(program), C.uint(bufferIndex), C.uint(pname), (*C.int)(params))
 }
-func GetActiveAttrib(program uint32, index uint32, bufSize int32, length *int32, size *int32, t_ype *uint32, name string) {
-	cstr1 := C.CString(name)
-	defer C.free(unsafe.Pointer(cstr1))
-	C.wrap_glGetActiveAttrib(C.uint(program), C.uint(index), C.int(bufSize), (*C.int)(length), (*C.int)(size), (*C.uint)(t_ype), cstr1)
+func GetActiveAttrib(program uint32, index uint32, bufSize int32, length *int32, size *int32, t_ype *uint32, name *uint8) {
+	C.wrap_glGetActiveAttrib(C.uint(program), C.uint(index), C.int(bufSize), (*C.int)(length), (*C.int)(size), (*C.uint)(t_ype), (*C.uchar)(name))
 }
 func GetActiveSubroutineName(program uint32, shadertype uint32, index uint32, bufsize int32, length *int32, name *uint8) {
 	C.wrap_glGetActiveSubroutineName(C.uint(program), C.uint(shadertype), C.uint(index), C.int(bufsize), (*C.int)(length), (*C.uchar)(name))
