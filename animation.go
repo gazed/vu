@@ -25,6 +25,7 @@ type animation struct {
 	joints   []int32    // joint parent indicies.
 	moves    []movement // frames where animations start and end.
 	mnames   []string   // movement names for easy reference.
+	loaded   bool       // True if data has been set.
 
 	// Per-frame scratch value for playing animations.
 	jnt0 *lin.M4 // Reused each update to calculate joint (bone) positions.
@@ -65,6 +66,7 @@ func (a *animation) setData(frames []*lin.M4, joints []int32, movements []moveme
 	}
 	a.joints = a.joints[:0]
 	a.joints = append(a.joints, joints...)
+	a.loaded = true
 }
 
 // setRate changes the number of frames per second for the given

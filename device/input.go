@@ -57,7 +57,6 @@ func (i *input) processEvents() {
 		case <-i.signal:
 			i.updateDurations()
 			i.clone(i.curr, i.down)
-			i.curr.Scroll = 0
 			i.update <- i.down
 		}
 	}
@@ -168,7 +167,8 @@ func (i *input) clone(in, out *Pressed) {
 	out.Focus = in.Focus
 	out.Resized = in.Resized
 	out.Scroll = in.Scroll
-	in.Resized = false
+	in.Scroll = 0      // remove previous scroll info.
+	in.Resized = false // remove previous resized trigger.
 }
 
 // latest returns the most recent user input events.

@@ -165,7 +165,7 @@ void gs_display_dispose(long display) {
         [NSOpenGLContext clearCurrentContext];
         [(id) context release];
     }
-    [(id)display terminate: nil];
+    [(id)display stop: nil];
 }
 
 // Create the window.

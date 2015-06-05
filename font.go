@@ -12,10 +12,11 @@ import (
 // for a font. It has to be combined with a texture (the font bitmapped image)
 // in order to produce displayable strings.
 type font struct {
-	name  string         // Unique id for a glyph set.
-	tag   uint64         // name and type as a number.
-	w, h  int            // Width and height of the entire font bitmap image.
-	chars map[rune]*char // The "character" image information.
+	name   string         // Unique id for a glyph set.
+	tag    uint64         // name and type as a number.
+	w, h   int            // Width and height of the entire font bitmap image.
+	chars  map[rune]*char // The "character" image information.
+	loaded bool
 
 	// scrach for creating rendered text phrases.
 	vb []float32 // verticies.
@@ -49,6 +50,7 @@ func (f *font) addChar(r rune, x, y, w, h, xo, yo, xa int) {
 //
 // The width in pixels for the resulting string image is returned.
 func (f *font) setPhrase(m *mesh, phrase string) (width int) {
+	f.loaded = true
 	vb := f.vb[:0]
 	tb := f.tb[:0]
 	fb := f.fb[:0]
@@ -63,13 +65,11 @@ func (f *font) setPhrase(m *mesh, phrase string) (width int) {
 			xo, yo := float32(c.xOffset), float32(c.yOffset)
 			if c.w != 0 && c.h != 0 {
 				// calculate the x, y positions based on desired locations.
-				xys := []float32{
-					float32(width) + xo, yo, 0, // upper left
-					float32(c.w+width) + xo, yo, 0, // upper right
-					float32(c.w+width) + xo, float32(c.h) + yo, 0, // lower right
-					float32(width) + xo, float32(c.h) + yo, 0, // lower left
-				}
-				vb = append(vb, xys...)
+				vb = append(vb,
+					float32(width)+xo, yo, 0, // upper left
+					float32(c.w+width)+xo, yo, 0, // upper right
+					float32(c.w+width)+xo, float32(c.h)+yo, 0, // lower right
+					float32(width)+xo, float32(c.h)+yo, 0) // lower left
 			}
 			width += c.xAdvance
 

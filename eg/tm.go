@@ -75,7 +75,7 @@ func (tm *tmtag) Create(eng vu.Eng, s *vu.State) {
 
 	// Add a rendering component for the surface data.
 	scale := 10.0
-	tm.ground = eng.Root().NewPov().SetLocation(0, 0, -10).SetScale(scale, scale, 1)
+	tm.ground = eng.Root().NewPov().SetLocation(0, -300, -10).SetScale(scale, scale, 1)
 	tm.gm = tm.ground.NewModel("land").AddTex("land")
 	tm.gm.LoadMat("land").SetUniform("ratio", textureRatio)
 	tm.gm.NewMesh("land")
@@ -115,10 +115,10 @@ func (tm *tmtag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 			tm.coast.Move(0, 0, -1*in.Dt, dir)
 
 		// Demonstrate evolution using a texture atlas.
-		case "KP+":
-			tm.evolve(0.005)
-		case "KP-":
-			tm.evolve(-0.005)
+		case "=":
+			tm.evolve(0.01)
+		case "-":
+			tm.evolve(-0.01)
 
 		// Move the map around.
 		case "Ua":

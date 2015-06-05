@@ -10,7 +10,6 @@ import (
 	"strconv"
 
 	"github.com/gazed/vu/load"
-	"github.com/gazed/vu/math/lin"
 	"github.com/gazed/vu/render"
 )
 
@@ -21,98 +20,95 @@ import (
 // The loader is used internally by the engine to cache and reuse
 // imported data across multiple model and noise instances.
 type loader struct {
-	modLoads []*modelLoad // Collects model load requests.
-	texLoads []*texLoad   // Collects texture load requests.
+	loads []*loadReq // Collects asset load requests.
 
 	// loader goroutine communication.
-	ld     load.Loader // asset loader.
-	cache  cache       // asset cache.
-	load   chan msg    // loadModel, loadNoise, bindMesh, bindTexture
-	loaded chan msg    // loadModel, loadNoise
-	binder chan msg    // machine loop request channel.
+	ld      load.Loader     // asset loader.
+	cache   cache           // asset cache.
+	control chan msg        // shutdown requests.
+	load    chan []*loadReq // asset load requests.
+	loaded  chan []*loadReq // loaded asset replies.
+	binder  chan msg        // machine loop request channel.
 }
 
 // newLoader is expected to be called once on startup.
-func newLoader(loaded chan msg, binder chan msg) *loader {
+func newLoader(loaded chan []*loadReq, binder chan msg) *loader {
 	l := &loader{loaded: loaded, binder: binder}
 	l.ld = load.NewLoader()
 	l.cache = newCache()
-	l.load = make(chan msg)
+	l.control = make(chan msg)
+	l.load = make(chan []*loadReq)
 	return l
 }
 
-// queueModelLoad is called on the engine processing goroutine.
+// queueLoads is called on the engine processing goroutine.
 // The models are loaded and returned by calling loadQueued.
-func (l *loader) queueModelLoad(eid uint64, m *model) {
-	l.modLoads = append(l.modLoads, &modelLoad{eid: eid, model: m})
-}
-
-// queueTextureLoads is called on the engine processing goroutine.
-// The textures are loaded and returned by calling loadQueued.
-func (l *loader) queueTextureLoads(loads []*texLoad) {
-	l.texLoads = append(l.texLoads, loads...)
+func (l *loader) queueLoads(loadRequests []*loadReq) {
+	l.loads = append(l.loads, loadRequests...)
 }
 
 // loadQueued is called on the engine processing goroutine.
-// loadQueued sends the load requests off for loading.
-// The load requests are batched into small chunks so the loader
-// starts returning assets while others are being loaded.
+// to send the load requests off for loading. Load requests
+// are batched into small chunks so the loader can return
+// some assets while others are being loaded.
 func (l *loader) loadQueued() {
 	batchSize := 100
-	for len(l.modLoads) > 0 {
-		if len(l.modLoads) > batchSize {
-			go l.request(l.modLoads[:batchSize])
-			l.modLoads = l.modLoads[batchSize:]
+	for len(l.loads) > 0 {
+		if len(l.loads) > batchSize {
+			go l.processRequests(l.loads[:batchSize])
+			l.loads = l.loads[batchSize:]
 		} else {
-			go l.request(l.modLoads)
-			l.modLoads = []*modelLoad{}
-		}
-	}
-	for len(l.texLoads) > 0 {
-		if len(l.texLoads) > batchSize {
-			go l.request(l.texLoads[:batchSize])
-			l.texLoads = l.texLoads[batchSize:]
-		} else {
-			go l.request(l.texLoads)
-			l.texLoads = []*texLoad{}
+			go l.processRequests(l.loads)
+			l.loads = []*loadReq{}
 		}
 	}
 }
 
 // runLoader loops forever processing all load requests.
-// It is started once on startup as a goroutine.
+// It is started once as a goroutine on engine initialization.
 func (l *loader) runLoader() {
-	var req msg
 	for {
-		req = <-l.load
-		switch m := req.(type) {
-		case *shutdown:
-			return // exit immediately: the app loop is done.
-		case *noiseLoad:
-			m.noise = l.loadNoise(m.noise)
-			go l.returnAsset(m)
-		case *releaseData:
-			l.release(m.data)
-		case []*modelLoad: // multiple model load requests.
-			for _, ml := range m {
-				if ml.model.shd != nil {
-					ml.model = l.loadModel(ml.model)
-				} else {
-					log.Printf("vu.loader: model for %d was disposed", ml.eid)
-					ml.model = nil
+		select {
+		case req := <-l.control:
+			if req == nil {
+				return // exit immediately: channel closed.
+			}
+			switch m := req.(type) {
+			case *shutdown:
+				return // exit immediately: the app loop is done.
+			case *releaseData:
+				l.release(m.data)
+			default:
+				log.Printf("loader: unknown msg %T", m)
+			}
+		case requests := <-l.load:
+			for _, req := range requests {
+				switch a := req.a.(type) {
+				case *mesh:
+					req.a, req.err = l.loadMesh(a)
+				case *texture:
+					req.a, req.err = l.loadTexture(a)
+				case *shader:
+					req.a, req.err = l.loadShader(a)
+				case *font:
+					req.a, req.err = l.loadFont(a)
+				case *animation:
+					msh := newMesh(a.name)
+					if la, lmsh, ltexs := l.loadAnim(a, msh); la != nil && lmsh != nil {
+						req.a = la
+						req.msh = lmsh
+						req.texs = ltexs
+					} else {
+						req.a = nil   // return explicit nil for asset interface.
+						req.msh = nil // release mesh on fail.
+					}
+				case *material:
+					req.a, req.err = l.loadMaterial(a)
+				case *sound:
+					req.a, req.err = l.loadSound(a)
 				}
 			}
-			go l.returnAsset(m)
-
-		case []*texLoad: // multiple texture load requests.
-			for _, tl := range m {
-				tl.tex = l.loadTexture(tl.tex)
-			}
-			go l.returnAsset(m)
-		case nil:
-			return // exit immediately: channel closed.
-		default:
-			log.Printf("loader: unknown msg %t", m)
+			go l.returnAssets(requests)
 		}
 	}
 }
@@ -120,48 +116,34 @@ func (l *loader) runLoader() {
 // request is the entry point for all load and unload requests.
 // It is expected to be called as a go-routine whereupon it waits
 // for the asset loader to process its request.
-func (l *loader) request(m msg) { l.load <- m }
+func (l *loader) processRequests(reqs []*loadReq) { l.load <- reqs }
 
-// returnAsset funnels all completed loaded assets back to the
+// returnAssets funnels a group of loaded assets back to the
 // engine loop. The engine loop may be busy, so make this
 // method, started as a goroutine, wait instead of the loader.
-func (l *loader) returnAsset(asset msg) {
-	l.loaded <- asset
-}
-
-// loadNoise returns a loaded noise immediately if it is cached.
-// Otherwise the noise is returned after it is  loaded and bound.
-func (l *loader) loadNoise(n *noise) *noise {
-	for index, snd := range n.snds {
-		if n.snds[index] = l.loadSound(snd); n.snds[index] == nil {
-			return nil
-		}
-	}
-	n.rebind = false
-	return n
+func (l *loader) returnAssets(assets []*loadReq) {
+	l.loaded <- assets
 }
 
 // loadSound returns a loaded sound immediately if it is cached.
 // Otherwise the sound is returned after it is loaded and bound.
-func (l *loader) loadSound(s *sound) *sound {
+func (l *loader) loadSound(s *sound) (*sound, error) {
 	data := asset(s)
 	if err := l.cache.fetch(&data); err == nil {
-		return data.(*sound) // only initialized stuff is in the cache.
+		return data.(*sound), nil // only initialized stuff is in the cache.
 	}
 
 	// Otherwise the sound needs to be loaded and bound.
 	if err := l.importSound(s); err != nil {
-		log.Printf("Sound load %s: %s", s.name, err)
-		return nil // discard load failures
+		return nil, err
 	}
 	bindReply := make(chan error)
 	l.binder <- &bindData{data: s, reply: bindReply} // request bind.
 	if err := <-bindReply; err != nil {              // wait for bind.
-		log.Printf("Sound bind %s: %s", s.name, err)
-		return nil // discard bind failures
+		return nil, err
 	}
 	l.cache.store(s)
-	return s
+	return s, nil
 }
 
 // importSound transfers audio data loaded from disk to the sound object.
@@ -174,95 +156,27 @@ func (l *loader) importSound(s *sound) error {
 	return nil
 }
 
-// loadModel returns a loaded model immediately if its parts are cached.
-// Otherwise the model is returned after its parts are loaded and bound.
-// The entire model must load in order for a valid model to be returned.
-// The cache will contain any of the models parts that loaded.
-func (l *loader) loadModel(m *model) (loaded *model) {
-	if m.shd = l.loadShader(m.shd); m.shd == nil {
-		return nil
-	}
-
-	// load fonts before mesh to re-bind the mesh
-	// after setting the phrase.
-	if m.fnt != nil {
-		if m.fnt = l.loadFont(m.fnt); m.fnt == nil {
-			return nil
-		}
-		// Lazy create the backing for the phrase using a dynamic mesh.
-		// Ie: a mesh that is generated, and not stored in the cache.
-		if m.msh == nil {
-			m.msh = newMesh("phrase")
-			m.msh.generated = true
-		} else if !m.msh.generated {
-			log.Printf("loader: font on static mesh %s", m.msh.name)
-		}
-		m.phraseWidth = m.fnt.setPhrase(m.msh, m.phrase)
-	}
-
-	// Load meshes and textures for non-animated models.
-	if m.anm == nil {
-		if m.msh = l.loadMesh(m.msh); m.msh == nil {
-			return nil
-		}
-		for index, tex := range m.texs {
-			if m.texs[index] = l.loadTexture(tex); m.texs[index] == nil {
-				return nil
-			}
-		}
-	} else {
-		// animated model load textures and meshes.
-		if m.msh == nil {
-			m.msh = newMesh(m.anm.name)
-		}
-		var texs []*texture
-		if m.anm, m.msh, texs = l.loadAnim(m.anm, m.msh); m.anm != nil && m.msh != nil {
-			for _, tex := range texs {
-				m.texs = append(m.texs, tex)
-			}
-			m.nFrames = m.anm.maxFrames(0)
-			m.pose = make([]lin.M4, len(m.anm.joints))
-		} else {
-			return nil
-		}
-	}
-	if m.mat != nil {
-		if m.mat = l.loadMaterial(m.mat); m.mat == nil {
-			return nil
-		}
-		if m.resetMat {
-			m.alpha = m.mat.tr // Copy values so they can be set per model.
-			m.kd = m.mat.kd    // ditto
-		}
-		m.ks = m.mat.ks // Can't currently be overridden on model.
-		m.ka = m.mat.ka // ditto
-	}
-	return m
-}
-
 // loadShader returns a loaded shader immediately if it is cached.
 // Otherwise the shader is returned after it is  loaded and bound.
-func (l *loader) loadShader(s *shader) *shader {
+func (l *loader) loadShader(s *shader) (*shader, error) {
 	data := asset(s)
 	if err := l.cache.fetch(&data); err == nil {
 		s = data.(*shader)
-		return s // only initialized stuff is in the cache.
+		return s, nil // only initialized stuff is in the cache.
 	}
 
 	// Otherwise the shader needs to be loaded and bound.
 	if err := l.importShader(s); err != nil {
-		log.Printf("Shader load %s: %s", s.name, err)
-		return nil // discard load failures
+		return nil, err
 	}
 	bindReply := make(chan error)
 	l.binder <- &bindData{data: s, reply: bindReply} // request bind.
 	if err := <-bindReply; err != nil {              // wait for bind.
-		log.Printf("Shader bind %s: %s", s.name, err)
-		return nil // discard bind failures
+		return nil, err
 	}
-	s.rebind = false
+	s.bound = true
 	l.cache.store(s)
-	return s
+	return s, nil
 }
 
 // importShader transfers data loaded from disk to the render object.
@@ -292,31 +206,22 @@ func (l *loader) disposeShader(s *shader) { l.cache.remove(s) }
 
 // loadMesh returns a loaded noise immediately if it is cached.
 // Otherwise the mesh is returned after it is loaded and bound.
-func (l *loader) loadMesh(m *mesh) *mesh {
-	if m.generated { // data is generated/changed per update.
-		if err := l.bindMesh(m); err != nil {
-			log.Printf("Mesh bind %s: %s", m.name, err)
-			return nil // discard bind failures
-		}
-		return m
-	}
+func (l *loader) loadMesh(m *mesh) (*mesh, error) {
 	data := asset(m)
 	if err := l.cache.fetch(&data); err == nil {
-		return data.(*mesh)
+		return data.(*mesh), nil
 	}
 
 	// Otherwise the mesh needs to be loaded and bound.
 	if err := l.importMesh(m); err != nil {
-		log.Printf("Mesh load %s: %s", m.name, err)
-		return nil // discard load failures
+		return nil, err
 	}
 	if err := l.bindMesh(m); err != nil {
-		log.Printf("Mesh bind %s: %s", m.name, err)
-		return nil // discard bind failures
+		return nil, err
 	}
-	m.rebind = false
+	m.bound = true
 	l.cache.store(m)
-	return m
+	return m, nil
 }
 
 // bindMesh submits a mesh for binding or rebinding. This transfers
@@ -353,26 +258,24 @@ func (l *loader) disposeMesh(m *mesh) { l.cache.remove(m) }
 
 // loadTexture returns a loaded texture immediately if it is cached.
 // Otherwise the texture is returned after it is loaded and bound.
-func (l *loader) loadTexture(t *texture) *texture {
+func (l *loader) loadTexture(t *texture) (*texture, error) {
 	data := asset(t)
 	if err := l.cache.fetch(&data); err == nil {
-		return data.(*texture)
+		return data.(*texture), nil
 	}
 
 	// Otherwise the mesh needs to be loaded and bound.
 	if err := l.importTexture(t); err != nil {
-		log.Printf("Texture load %s: %s", t.name, err)
-		return nil // discard load failures
+		return nil, err
 	}
 	bindReply := make(chan error)
 	l.binder <- &bindData{data: t, reply: bindReply} // request bind.
 	if err := <-bindReply; err != nil {              // wait for bind.
-		log.Printf("Texture bind %s: %s", t.name, err)
-		return nil // discard bind failures
+		return nil, err
 	}
-	t.rebind = false
+	t.bound = true
 	l.cache.store(t)
-	return t
+	return t, nil
 }
 
 // importTexture transfers data loaded from disk to the render object.
@@ -391,19 +294,18 @@ func (l *loader) disposeTexture(t *texture) { l.cache.remove(t) }
 
 // loadMaterial returns a loaded material immediately if it is cached.
 // Otherwise the material is returned after it is loaded and bound.
-func (l *loader) loadMaterial(m *material) *material {
+func (l *loader) loadMaterial(m *material) (*material, error) {
 	data := asset(m)
 	if err := l.cache.fetch(&data); err == nil {
-		return data.(*material)
+		return data.(*material), nil
 	}
 
 	// Otherwise the mesh needs to be loaded (no binding necessary).
 	if err := l.importMaterial(m); err != nil {
-		log.Printf("Material load %s: %s", m.name, err)
-		return nil // discard load failures
+		return nil, err
 	}
 	l.cache.store(m)
-	return m
+	return m, nil
 }
 
 // importMaterial transfers data loaded from disk to the render object.
@@ -424,19 +326,18 @@ func (l *loader) disposeMaterial(m *material) { l.cache.remove(m) }
 
 // loadFont returns a loaded font immediately if it is cached.
 // Otherwise the font is returned after it is loaded and bound.
-func (l *loader) loadFont(f *font) *font {
+func (l *loader) loadFont(f *font) (*font, error) {
 	data := asset(f)
 	if err := l.cache.fetch(&data); err == nil {
-		return data.(*font)
+		return data.(*font), nil
 	}
 
 	// Otherwise the font needs to be loaded and stored.
 	if err := l.importFont(f); err != nil {
-		log.Printf("Font load %s: %s", f.name, err)
-		return nil // discard load failures
+		return nil, err
 	}
 	l.cache.store(f)
-	return f
+	return f, nil
 }
 
 // importFont transfers data loaded from disk to the render object.
@@ -456,9 +357,8 @@ func (l *loader) importFont(f *font) error {
 // Expected when once the resource is no longer referenced.
 func (l *loader) disposeFont(f *font) { l.cache.remove(f) }
 
-// loadAnim loads an animated model from disk. This will
-// create multiple components of a model including a mesh,
-// textures, and animation data.
+// loadAnim loads an animated model from disk. This will create
+// multiple model assets including a mesh, textures, and animation data.
 func (l *loader) loadAnim(a *animation, m *mesh) (*animation, *mesh, []*texture) {
 	data := asset(a)
 	if err := l.cache.fetch(&data); err == nil {
@@ -472,7 +372,7 @@ func (l *loader) loadAnim(a *animation, m *mesh) (*animation, *mesh, []*texture)
 			for cnt := 0; ; cnt++ {
 				tname := a.name + strconv.Itoa(cnt)
 				t := newTexture(tname)
-				data := asset(t) // now load the mesh.
+				data := asset(t) // now load any animation textures.
 				if err := l.cache.fetch(&data); err == nil {
 					texs = append(texs, data.(*texture))
 				} else {
@@ -547,7 +447,7 @@ func (l *loader) importAnim(a *animation, m *mesh) (texs []*texture, err error) 
 	for cnt, itex := range iqd.Textures {
 		tname := a.name + strconv.Itoa(cnt)
 		tex := newTexture(tname)
-		if tex = l.loadTexture(tex); tex != nil {
+		if tex, err = l.loadTexture(tex); tex != nil && err == nil {
 			tex.fn, tex.f0 = itex.Fn, itex.F0
 			texs = append(texs, tex)
 		}
@@ -574,11 +474,35 @@ func (l *loader) release(data interface{}) {
 	case *sound:
 		l.cache.remove(d)
 	default:
-		log.Printf("loader.dispose unknown %t", d)
+		log.Printf("loader.dispose unknown %T", d)
 	}
 }
 
 // loader
+// ============================================================================
+// loadReq
+
+// loadReq is a request to fetch asset data from persistent store.
+// Expected to be created by the engine goroutine and passed on a channel
+// to the loader goroutine. The loader loads the asset and passes back
+// the request.
+type loadReq struct {
+	eid uint64 // pov entity identifier.
+	a   asset  // asset to be loaded (anm, fnt, mat, msh, shd, snd, tex).
+	err error  // true if there was an error with the load.
+
+	// Extra assets generated when loading an animation file.
+	msh  *mesh      // only valid after loading an animation.
+	texs []*texture // only valid after loading an animation.
+
+	// set by the engine and passed to the loader, but not referenced or changed
+	// on the loader goroutine... Accessed by the engine after the load request.
+	index int    // texture index used after load complete.
+	model *model // model used after load complete. Used for all but snd assets.
+	noise *noise // noise used after load complete. Matches snd assets.
+}
+
+// loaderAsset
 // ============================================================================
 // cache
 

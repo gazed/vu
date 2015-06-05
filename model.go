@@ -8,7 +8,7 @@ import (
 	"log"
 	"math"
 	"time"
-    
+
 	"github.com/gazed/vu/math/lin"
 	"github.com/gazed/vu/render"
 )
@@ -100,9 +100,7 @@ type model struct {
 	msh      *mesh      // Mandatory vertex buffer data.
 	drawMode int        // TRIANGLES, POINTS, LINES.
 	effect   *effect    // Optional particle effect.
-	loading  bool       // True if the model has been sent for a load.
-	loaded   bool       // True if data is loaded and initially bound.
-	texLoads []*texLoad // SetTex's waiting to be loaded.
+	loads    []*loadReq // Assets waiting to be loaded.
 
 	// Optional animated model control information.
 	anm     *animation // Optional: bone animation info.
@@ -127,11 +125,37 @@ type model struct {
 
 // newModel
 func newModel(shaderName string) *model {
-	m := &model{loaded: false, alpha: 1}
+	m := &model{alpha: 1}
 	m.shd = newShader(shaderName)
+	m.loads = append(m.loads, &loadReq{model: m, a: newShader(shaderName)})
 	m.time = time.Now()
 	m.uniforms = map[string][]float32{}
 	return m
+}
+
+// loaded returns true if all the model parts have data.
+func (m *model) loaded() bool {
+	if m.shd == nil || !m.shd.loaded { // not optional
+		return false
+	}
+	if m.msh == nil || !m.msh.loaded { // not optional
+		return false
+	}
+	for _, tex := range m.texs { // optional
+		if !tex.loaded {
+			return false
+		}
+	}
+	if m.fnt != nil && !m.fnt.loaded { // optional
+		return false
+	}
+	if m.mat != nil && !m.mat.loaded { // optional
+		return false
+	}
+	if m.anm != nil && !m.anm.loaded { // optional
+		return false
+	}
+	return true
 }
 
 // Each model has one shader.
@@ -155,26 +179,26 @@ func (m *model) SetColour(r, g, b float64) {
 
 // Material is used to help with colouring for shaders that use lights.
 // Overrides existing values if it was the last one set.
-func (m *model) LoadMat(materialName string) Model {
+func (m *model) LoadMat(name string) Model {
 	m.resetMat = true
-	m.loaded = false
-	m.mat = newMaterial(materialName)
+	m.mat = newMaterial(name)
+	m.loads = append(m.loads, &loadReq{model: m, a: newMaterial(name)})
 	return m
 }
 
 // Each model has one mesh. The mesh is specified here and
 // will be sent for loading and binding later on.
 func (m *model) LoadMesh(meshName string) Model {
-	m.loaded = false
 	if m.msh == nil && m.anm == nil {
-		m.msh = newMesh(meshName)
+		m.msh = newMesh(meshName) // placeholder
+		req := &loadReq{model: m, a: newMesh(meshName)}
+		m.loads = append(m.loads, req)
 	}
 	return m
 }
 func (m *model) NewMesh(meshName string) Model {
 	if m.msh == nil && m.anm == nil {
 		m.msh = newMesh(meshName)
-		m.msh.generated = true
 	}
 	return m
 }
@@ -187,7 +211,7 @@ func (m *model) InitMesh(lloc, span, usage uint32, normalize bool) Model {
 func (m *model) SetMeshData(lloc uint32, data interface{}) {
 	if m.msh != nil {
 		m.msh.setData(lloc, data)
-		m.msh.rebind = true
+		m.msh.bound = false
 	}
 }
 func (m *model) InitFaces(usage uint32) Model {
@@ -199,7 +223,7 @@ func (m *model) InitFaces(usage uint32) Model {
 func (m *model) SetFaces(data []uint16) {
 	if m.msh != nil {
 		m.msh.setFaces(data)
-		m.msh.rebind = true
+		m.msh.bound = false
 	}
 }
 func (m *model) SetDrawMode(mode int) Model {
@@ -210,16 +234,17 @@ func (m *model) SetDrawMode(mode int) Model {
 // A model may have one more more textures that apply
 // to the models mesh.
 func (m *model) AddTex(name string) Model {
-	m.loaded = false
+	index := len(m.texs)
 	m.texs = append(m.texs, newTexture(name))
+	m.loads = append(m.loads, &loadReq{model: m, index: index, a: newTexture(name)})
 	return m
 }
 func (m *model) SetTex(index int, name string) {
 	if index >= 0 && index < len(m.texs) {
 		// Add the set request to a list of textures that need to be loaded.
 		// These are handled each update.
-		tl := &texLoad{model: m, index: index, tex: newTexture(name)}
-		m.texLoads = append(m.texLoads, tl)
+		req := &loadReq{model: m, index: index, a: newTexture(name)}
+		m.loads = append(m.loads, req)
 	}
 }
 func (m *model) SetImg(index int, img image.Image) {
@@ -237,6 +262,11 @@ func (m *model) SetTexMode(index int, mode int) Model {
 	m.texs[index].repeat = false
 	if index >= 0 && index < len(m.texs) && mode == TEX_REPEAT {
 		m.texs[index].repeat = true
+		for _, req := range m.loads {
+			if t, ok := req.a.(*texture); ok && req.index == index {
+				t.repeat = true
+			}
+		}
 	}
 	return m
 }
@@ -244,14 +274,14 @@ func (m *model) SetTexMode(index int, mode int) Model {
 // Wrap the font classes. Fonts are associated with a mesh
 // and a font texture.
 func (m *model) LoadFont(fontName string) Model {
-	m.loaded = false
 	m.fnt = newFont(fontName)
+	m.loads = append(m.loads, &loadReq{model: m, a: newFont(fontName)})
 	return m
 }
 func (m *model) SetPhrase(phrase string) Model {
 	m.phrase = phrase // used by loader to set mesh data.
 	if m.msh != nil {
-		m.msh.rebind = true // mark mesh as needing rebind.
+		m.msh.bound = false // mark mesh as needing rebind.
 	}
 	return m
 }
@@ -280,9 +310,9 @@ func (m *model) SetUniform(id string, floats ...interface{}) {
 
 // Animation methods wrap animation class.
 func (m *model) LoadAnim(animName string) Model {
-	m.loaded = false
 	if m.anm == nil && m.msh == nil {
 		m.anm = newAnimation(animName)
+		m.loads = append(m.loads, &loadReq{model: m, a: newAnimation(animName)})
 	}
 	return m
 }

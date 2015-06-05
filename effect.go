@@ -68,6 +68,7 @@ type effect struct {
 func newEffect(m *model, source Effect, maxParticles int) *effect {
 	if m.msh == nil {
 		m.NewMesh("cpu")
+		m.msh.loaded = true // mesh data will be set on update.
 	}
 	floatsPerVertex, floatsPerData := 3, 2
 	m.InitMesh(0, uint32(floatsPerVertex), render.DYNAMIC, false)

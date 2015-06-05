@@ -13,13 +13,13 @@ import (
 // Models can have more than one texture. In this case the f0, fn
 // fields are used to indicate which model faces apply to this texture.
 type texture struct {
-	name      string      // Unique name of the texture.
-	tag       uint64      // name and type as a number.
-	img       image.Image // Texture data. Release (set to nil) after GPU binding.
-	tid       uint32      // Graphics card texture identifier.
-	repeat    bool        // Repeat the texture when UV greater than 1.
-	rebind    bool        // True if the data needs rebinding.
-	generated bool        // Texture is generated. Do not cache.
+	name   string      // Unique name of the texture.
+	tag    uint64      // name and type as a number.
+	img    image.Image // Texture data.
+	tid    uint32      // Graphics card texture identifier.
+	repeat bool        // Repeat the texture when UV greater than 1.
+	bound  bool        // False if the data needs rebinding.
+	loaded bool        // True if data has been set.
 
 	// First face index and number of faces.
 	// Used for multiple uv textures for the same model.
@@ -28,7 +28,7 @@ type texture struct {
 
 // newTexture allocates space for a texture object.
 func newTexture(name string) *texture {
-	return &texture{name: name, tag: tex + stringHash(name)<<32, rebind: true}
+	return &texture{name: name, tag: tex + stringHash(name)<<32}
 }
 
 // label, aid, and bid are used to uniquely identify assets.
@@ -39,6 +39,7 @@ func (t *texture) bid() uint64   { return tex + uint64(t.tid)<<32 } // asset typ
 // set texture image data and render attributes.
 func (t *texture) set(img image.Image) {
 	t.img = img
-	t.rebind = true
+	t.bound = false
+	t.loaded = true
 }
 func (t *texture) setRepeat(on bool) { t.repeat = on }

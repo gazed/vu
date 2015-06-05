@@ -15,7 +15,8 @@ type shader struct {
 	vsh     []string // Vertex shader source, empty if data not loaded.
 	fsh     []string // Fragment shader source, empty if data not loaded.
 	program uint32   // Compiled program reference. Zero if not compiled.
-	rebind  bool     // True if the data needs rebinding.
+	bound   bool     // False if the data needs rebinding.
+	loaded  bool     // True if data has been set.
 
 	// Vertex layout data and uniform expectations are discovered from the
 	// shader source. This can be later verified against available data.
@@ -26,7 +27,7 @@ type shader struct {
 // newShader creates a new shader.
 // It needs to be loaded with shader source code and bound to the GPU.
 func newShader(name string) *shader {
-	sh := &shader{name: name, tag: shd + stringHash(name)<<32, rebind: true}
+	sh := &shader{name: name, tag: shd + stringHash(name)<<32}
 	sh.layouts = map[string]uint32{}
 	sh.uniforms = map[string]int32{}
 	return sh
@@ -43,6 +44,7 @@ func (s *shader) bid() uint64   { return shd + uint64(s.program)<<32 } // asset 
 func (s *shader) setSource(vsh, fsh []string) {
 	s.vsh, s.fsh = vsh, fsh
 	s.ensureNewLines()
+	s.loaded = len(s.vsh) > 0 && len(s.fsh) > 0
 }
 
 // stripId is a helper method used by SetSource.

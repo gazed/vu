@@ -65,17 +65,17 @@ type App interface {
 //
 // Expected to be started as a go-routine using the runEngine method.
 type engine struct {
-	alive   bool       // True until application decides otherwise.
-	machine chan msg   // Communicate with device loop.
-	stop    chan bool  // Closed or any value means stop the engine.
-	poll    *pollInput // Reuse the same input and state instances.
+	alive   bool      // True until application decides otherwise.
+	machine chan msg  // Communicate with device loop.
+	stop    chan bool // Closed or any value means stop the engine.
+	data    *appData  // Combination user input and application state.
 
 	// Assets are loaded concurrently.
-	loader *loader    // Asset manager.
-	loaded chan msg   // Receive models and noises ready to render/play.
-	mover  move.Mover // Physics handles forces, collisions.
+	loader *loader         // Asset manager.
+	loaded chan []*loadReq // Receive models and noises ready to render/play.
+	mover  move.Mover      // Physics handles forces, collisions.
 
-	// Use three render frames. One for new update state,
+	// Use three render frames. One for updating state,
 	// the other two are for rendering with interpolation.
 	frames [][]render.Draw // 3 render frames.
 	vorder []uint64        // Eids for view render order.
@@ -111,6 +111,7 @@ type engine struct {
 // newEngine is expected to be called once on startup.
 func newEngine(machine chan msg) *engine {
 	eng := &engine{alive: true, machine: machine}
+	eng.data = newAppData()
 	eng.mv = &lin.M4{}
 	eng.mvp = &lin.M4{}
 	eng.times = &Timing{}
@@ -119,12 +120,11 @@ func newEngine(machine chan msg) *engine {
 		eng.frames[cnt] = []render.Draw{}
 	}
 	eng.Reset()
-	eng.poll = newPollInput()
 	eng.l = newLight()
 
 	// helpers that create and update state.
 	eng.mover = move.NewMover()
-	eng.loaded = make(chan msg)
+	eng.loaded = make(chan []*loadReq)
 	eng.loader = newLoader(eng.loaded, machine)
 	go eng.loader.runLoader()
 	return eng
@@ -152,8 +152,8 @@ const (
 func runEngine(app App, wx, wy, ww, wh int, machine chan msg, stop chan bool) {
 	eng := newEngine(machine)
 	eng.stop = stop
-	eng.poll.state.setScreen(wx, wy, ww, wh)
-	app.Create(eng, eng.poll.state)
+	eng.data.state.setScreen(wx, wy, ww, wh)
+	app.Create(eng, eng.data.state)
 	ut := uint64(0)         // kick off initial update...
 	eng.update(app, dt, ut) // first update queues the load asset requests.
 
@@ -209,40 +209,61 @@ func runEngine(app App, wx, wy, ww, wh int, machine chan msg, stop chan bool) {
 	// Exiting state update.
 }
 
-// communicate proesses all go-routine channels. Must be non-blocking.
-// These are generally responses to asset loading completions
-// that were initiated by the engine.
+// communicate processes all go-routine channels. Must be non-blocking.
+// Incoming messages  are generally responses to asset loading completions
+// that were initiated by this engine.
 func (eng *engine) communicate() {
 	select {
 	case <-eng.stop: // closed channels return 0
-		eng.loader.load <- &shutdown{}
+		eng.loader.control <- &shutdown{}
 		return // Exit immediately, The main loop has closed us down.
-	case asset := <-eng.loaded:
-		switch m := asset.(type) {
-		case *noiseLoad:
-			if m.noise == nil {
-				delete(eng.noises, m.eid) // failed load.
-			} else {
-				m.noise.loaded = true
-				m.noise.loading = false
+	case loaded := <-eng.loaded:
+		for _, req := range loaded {
+			if req.err != nil {
+				log.Printf("load error: %s", req.err)
+				continue
 			}
-		case []*modelLoad:
-			for _, ml := range m {
-				if ml.model == nil {
-					delete(eng.models, ml.eid) // failed load.
+			switch a := req.a.(type) {
+			case *mesh:
+				req.model.msh = a
+			case *texture:
+				req.model.texs[req.index] = a
+			case *shader:
+				req.model.shd = a
+			case *font:
+				m := req.model
+				m.fnt = a
+
+				// Create the backing for the phrase using a dynamic mesh.
+				if m.msh == nil {
+					m.msh = newMesh("phrase")
 				} else {
-					ml.model.loaded = true
-					ml.model.loading = false
+					log.Printf("loader: font on static mesh %s", m.msh.name)
 				}
-			}
-		case []*texLoad:
-			for _, tl := range m {
-				if tl.tex != nil && len(tl.model.texs) > tl.index {
-					tl.model.texs[tl.index] = tl.tex
+				m.phraseWidth = m.fnt.setPhrase(m.msh, m.phrase)
+			case *animation:
+				m := req.model
+				m.anm = a
+				m.msh = req.msh
+				m.texs = append(req.texs)
+				m.nFrames = a.maxFrames(0)
+				m.pose = make([]lin.M4, len(a.joints))
+			case *material:
+				m := req.model
+				m.mat = a
+				if m.resetMat {
+					m.alpha = a.tr // Copy values so they can be set per model.
+					m.kd = a.kd    // ditto
 				}
+				m.ks = a.ks // Can't currently be overridden on model.
+				m.ka = a.ka // ditto
+			case *sound:
+				n := req.noise
+				n.snds[req.index] = a
+				n.loaded = true
+			default:
+				log.Printf("engine: unknown asset type %T", a)
 			}
-		default:
-			log.Printf("engine: unknown msg %t", m)
 		}
 	default:
 		// no channels to process.
@@ -253,11 +274,12 @@ func (eng *engine) communicate() {
 // finally refreshes all models resulting in updated transforms.
 // The transform hierarchy is now ready to generate a render frame.
 func (eng *engine) update(app App, dt time.Duration, ut uint64) {
+
 	// Fetch input from the device thread. Essentially a sequential call.
-	eng.machine <- eng.poll // blocks until processed by the server.
-	<-eng.poll.reply        // blocks until input is ready.
-	input := eng.poll.input // User input has been refreshed.
-	state := eng.poll.state // Engine state has been refreshed.
+	eng.machine <- eng.data // blocks until processed by the server.
+	<-eng.data.reply        // blocks until processing is finished.
+	input := eng.data.input // User input has been refreshed.
+	state := eng.data.state // Engine state has been refreshed.
 	dts := dt.Seconds()     // delta time as float.
 
 	// Run physics on all the bodies; adjusting location and orientation.
@@ -276,9 +298,9 @@ func (eng *engine) update(app App, dt time.Duration, ut uint64) {
 	// per tick processing. Per-ticks include animated models,
 	// particle effects, surfaces, phrases, ...
 	if eng.alive {
-		eng.updateModels(dts)
+		eng.updateModels(dts)          // load and bind data.
 		eng.place(eng.root(), lin.M4I) // update all transforms.
-		eng.updateSoundListener()
+		eng.updateSoundListener()      // reposition sound listener.
 	}
 }
 
@@ -287,32 +309,31 @@ func (eng *engine) update(app App, dt time.Duration, ut uint64) {
 // and any updated models generate data rebind requests.
 func (eng *engine) updateModels(dts float64) {
 	for eid, m := range eng.models {
+		if len(m.loads) > 0 { // load model assets if necessary.
+			eng.loader.queueLoads(m.loads)
+			m.loads = m.loads[:0]
+		} else if m.loaded() {
+			// Handle model data changes from either the Application or
+			// from effects and animations.
 
-		// Request loads for any texture changes.
-		if len(m.texLoads) > 0 {
-			eng.loader.queueTextureLoads(m.texLoads)
-			m.texLoads = m.texLoads[:0]
-		}
-
-		// Process visible models. New models will be requested to load.
-		if m.loaded {
+			// handle any data updates with rebind requests.
 			if pv, ok := eng.povs[eid]; ok && pv.visible {
 				if m.effect != nil {
 					// udpate and rebind particle effects which can
 					// change mesh data.
 					m.effect.update(m, dt.Seconds())
 				}
-				if m.msh.rebind {
+				if !m.msh.bound {
 					if m.fnt != nil && len(m.phrase) > 0 {
 						m.phraseWidth = m.fnt.setPhrase(m.msh, m.phrase)
 					}
-					go eng.rebind(m.msh)
-					m.msh.rebind = false
+					eng.rebind(m.msh)
+					m.msh.bound = true
 				}
 				for _, tex := range m.texs {
-					if tex.rebind {
-						go eng.rebind(tex)
-						tex.rebind = false
+					if !tex.bound {
+						eng.rebind(tex)
+						tex.bound = true
 					}
 				}
 				if m.anm != nil {
@@ -321,15 +342,12 @@ func (eng *engine) updateModels(dts float64) {
 					m.animate(dts)
 				}
 			}
-		} else if !m.loading {
-			eng.loader.queueModelLoad(eid, m)
-			m.loading = true
 		}
 	}
-	for eid, n := range eng.noises {
-		if !n.loaded && !n.loading {
-			go eng.loader.request(&noiseLoad{eid: eid, noise: n})
-			n.loading = true
+	for _, n := range eng.noises {
+		if len(n.loads) > 0 { // load noise sounds if necessary.
+			eng.loader.queueLoads(n.loads)
+			n.loads = n.loads[:0]
 		}
 	}
 	eng.loader.loadQueued()
@@ -371,7 +389,7 @@ func (eng *engine) snapshot(p *pov, view *view, light *light, frame []render.Dra
 			eng.lx, eng.ly, eng.lz = vec.X, vec.Y, vec.Z
 		}
 		if model, ok := eng.models[p.eid]; ok { // model at this transform.
-			if model.loaded {
+			if model.loaded() {
 				eng.mv.Mult(p.mm, view.cam.vm)    // model-view
 				eng.mvp.Mult(eng.mv, view.cam.pm) // model-view-projection
 
@@ -424,8 +442,8 @@ func (eng *engine) snapshot(p *pov, view *view, light *light, frame []render.Dra
 }
 
 // getDraw returns a render.Draw. The frame is grown as needed and
-// forms are reused if available. Every frame value up to cap(frame) is
-// expected to have already been allocated.
+// forms are reused if available. Every frame value up to cap(frame)
+// is expected to have already been allocated.
 func (eng *engine) getDraw(frame []render.Draw) (f []render.Draw, d *render.Draw) {
 	size := len(frame)
 	switch {
@@ -465,7 +483,6 @@ func (eng *engine) updateSoundListener() {
 }
 
 // render sends a render request to the machine.
-// FUTURE: consider implications to run as a goroutine.
 func (eng *engine) render(frame []render.Draw, interp float64, ut uint64) {
 	eng.machine <- &renderFrame{interp: interp, frame: frame, ut: ut}
 }
@@ -476,7 +493,7 @@ func (eng *engine) render(frame []render.Draw, interp float64, ut uint64) {
 func (eng *engine) release(rd *releaseData) { eng.machine <- rd }
 
 // rebind sends a bind request to the machine.
-// Expected to be run as a goroutine so that it can block on the
+// Expected to be called as a goroutine so that it can block on the
 // send until the machine is ready to process it. It also blocks
 // on the reply until the rebind is finished.
 //
@@ -496,7 +513,7 @@ func (eng *engine) rebind(data interface{}) {
 // Shutdown is a user request to close down the engine.
 func (eng *engine) Shutdown() {
 	eng.dispose(eng.root(), POV)
-	eng.loader.load <- &shutdown{}
+	eng.loader.control <- &shutdown{}
 	eng.machine <- &shutdown{}
 	eng.alive = false
 }
@@ -518,7 +535,7 @@ func (eng *engine) Reset() {
 }
 
 // State provides access to current engine state.
-func (eng *engine) State() *State { return eng.poll.state }
+func (eng *engine) State() *State { return eng.data.state }
 
 // genid returns the next unique entity id. It craps out and starts returning
 // 0 after generating all possible ids.

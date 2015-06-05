@@ -21,23 +21,23 @@ type Noise interface {
 
 // noise deals with sounds that are mapped to a location.
 type noise struct {
-	eng     *engine  // Entity manager.
-	eid     uint64   // Entity identifier related to this sound.
-	loading bool     // True if the noise has been sent for a load.
-	loaded  bool     // True if data is loaded and initially bound.
-	rebind  bool     // True if data needs rebinding.
-	snds    []*sound // one or more sounds.
+	eng    *engine    // Entity manager.
+	eid    uint64     // Entity identifier related to this sound.
+	loaded bool       // True if data has been set.
+	snds   []*sound   // one or more sounds.
+	loads  []*loadReq // Assets waiting to be loaded.
 }
 
 // newNoise allocates data structures for a noise.
 func newNoise(eng *engine, eid uint64) *noise {
-	return &noise{eng: eng, eid: eid, loaded: false, rebind: true}
+	return &noise{eng: eng, eid: eid}
 }
 
 // Add a sound to the noise and mark the noise as needing loading.
-func (n *noise) Add(sound string) {
+func (n *noise) Add(soundName string) {
 	n.loaded = false
-	n.snds = append(n.snds, newSound(sound))
+	n.loads = append(n.loads, &loadReq{noise: n, index: len(n.snds), a: newSound(soundName)})
+	n.snds = append(n.snds, newSound(soundName))
 }
 
 // Play gets the sounds location and generates a play sound request.

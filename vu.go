@@ -18,6 +18,11 @@
 //    • WinAPI for Windows windowing and input. See package vu/device.
 package vu
 
+// Design note: Concurrency based on "Share memory by communicating".
+//              http://golang.org/doc/codewalk/sharemem/
+// For structures and concurrency the key is in passing a pointer
+// to a structure passes ownership of that structure instance.
+
 import (
 	"fmt"
 	"log"
@@ -36,7 +41,6 @@ func New(app App, name string, wx, wy, ww, wh int) (err error) {
 		return fmt.Errorf("No application. Shutting down.")
 	}
 	m.counts = map[uint32]*meshCount{}
-	m.poll = newPollInput()
 
 	// initialize the os specific shell, graphics context, and input tracker.
 	name, wx, wy, ww, wh = m.vet(name, wx, wy, ww, wh)
@@ -57,6 +61,7 @@ func New(app App, name string, wx, wy, ww, wh int) (err error) {
 	}
 	m.gc.Viewport(ww, wh)
 	m.dev.Open()
+	m.input = m.dev.Update()
 
 	// Start the application facing loop for state updates and
 	// enter the device facing loop for rendering and user input polling.
@@ -113,8 +118,7 @@ const (
 
 // vu
 // =============================================================================
-// machine
-// Defn: "engine is a device that drives a machine"
+// machine  Defn: "engine is a device that drives a machine"
 // This is the machine and it is driven by the application facing engine class.
 
 // machine deals with initialization and handling of all underlying hardware;
@@ -129,7 +133,7 @@ type machine struct {
 	stop   chan bool       // Used to shutdown the application loop.
 	frame0 []render.Draw   // Previous render frame.
 	frame1 []render.Draw   // Most recent render frame.
-	poll   *pollInput      // Poll ahead, flipping polling input each call.
+	input  *device.Pressed // Latest user keyboard and mouse input.
 
 	// Counts keeps track of the number of faces and verticies for
 	// each successfully bound mesh.
@@ -151,34 +155,37 @@ func (m *machine) startup() {
 		switch t := req.(type) {
 		case *shutdown:
 			return // exit immediately. The app loop is dead.
-		case *renderFrame:
-			m.render(t)
-		case *bindData:
-			m.bind(t)
-		case *setColour:
-			m.gc.Color(t.r, t.g, t.b, t.a)
-		case *enableAttr:
-			m.gc.Enable(t.attr, t.enable)
-		case *toggleScreen:
-			m.dev.ToggleFullScreen()
-		case *setVolume:
-			m.ac.SetGain(t.gain)
-		case *setCursor:
-			m.dev.SetCursorAt(t.cx, t.cy)
-		case *showCursor:
-			m.dev.ShowCursor(t.enable)
-		case *pollInput:
-			m.pollInput(t)
-		case *placeListener:
-			m.ac.PlaceListener(t.x, t.y, t.z)
-		case *playSound:
-			m.ac.PlaySound(t.sid, t.x, t.y, t.z)
-		case *releaseData:
-			m.release(t)
-		case nil:
-			return // exit immediately: channel closed.
+		case *appData:
+			m.refreshAppData(t) // sync with engine that is blocking on reply.
 		default:
-			log.Printf("machine: unknown msg %t", t)
+			switch t := req.(type) {
+			case *renderFrame:
+				m.render(t)
+			case *bindData:
+				m.bind(t)
+			case *setColour:
+				m.gc.Color(t.r, t.g, t.b, t.a)
+			case *enableAttr:
+				m.gc.Enable(t.attr, t.enable)
+			case *toggleScreen:
+				m.dev.ToggleFullScreen()
+			case *setVolume:
+				m.ac.SetGain(t.gain)
+			case *setCursor:
+				m.dev.SetCursorAt(t.cx, t.cy)
+			case *showCursor:
+				m.dev.ShowCursor(t.enable)
+			case *placeListener:
+				m.ac.PlaceListener(t.x, t.y, t.z)
+			case *playSound:
+				m.ac.PlaySound(t.sid, t.x, t.y, t.z)
+			case *releaseData:
+				m.release(t)
+			case nil:
+				return // exit immediately: channel closed.
+			default:
+				log.Printf("machine: unknown msg %T", t)
+			}
 		}
 	}
 	close(m.stop) // The underlying device is gone, stop the app loop.
@@ -207,32 +214,36 @@ func (m *machine) render(r *renderFrame) {
 	// FUTURE: use the renderFrame interpolation and the previous frame
 	//         for rendering between frame updates.
 	for _, drawing := range m.frame1 {
-		m.setCounts(drawing)
-		m.gc.Render(drawing)
+		if drawing.Vao() > 0 {
+			m.setCounts(drawing)
+			m.gc.Render(drawing)
+		} else {
+			log.Printf("machine.render: bad mesh vao %d", drawing.Vao())
+		}
 	}
 	m.dev.SwapBuffers()
 }
 
-// pollInput gathers user input and returns it on request.
+// refreshAppData gathers user input and returns it on request.
 // Only poll input when requested so input is not dropped.
 // The underlying device layer collects input since last call.
 // Expected to be called once per update tick.
-func (m *machine) pollInput(p *pollInput) {
-	p.reply <- m.poll                          // return the last polled input
-	p.input.convertInput(m.dev.Update(), 0, 0) // ...and then fill the new one.
-	if p.input.Resized {
-		p.state.setScreen(m.dev.Size())
-		m.gc.Viewport(p.state.W, p.state.H)
+func (m *machine) refreshAppData(data *appData) {
+	data.input.convertInput(m.input, 0, 0) // refresh user data.
+	if data.input.Resized {
+		data.state.setScreen(m.dev.Size())
+		m.gc.Viewport(data.state.W, data.state.H)
 	}
-	p.state.FullScreen = m.dev.IsFullScreen()
-	m.poll = p // remember this for next poll.
+	data.state.FullScreen = m.dev.IsFullScreen()
+	data.reply <- data       // return refreshed app data.
+	m.input = m.dev.Update() // get latest user input for next refresh.
 }
 
 func (m *machine) setCounts(d render.Draw) {
 	if cnts, ok := m.counts[d.Vao()]; ok {
 		d.SetCounts(cnts.faces, cnts.verticies)
 	} else {
-		log.Printf("machine.setCounts: must have mesh counts")
+		log.Printf("machine.setCounts: must have mesh counts %d", d.Vao())
 	}
 }
 
@@ -282,7 +293,7 @@ func (m *machine) bind(bd *bindData) {
 			bd.reply <- nil
 		}
 	default:
-		bd.reply <- fmt.Errorf("No bindings for %t", d)
+		bd.reply <- fmt.Errorf("No bindings for %T", d)
 	}
 }
 
@@ -305,7 +316,7 @@ func (m *machine) release(rd *releaseData) {
 	case *sound:
 		m.ac.ReleaseSound(d.sid)
 	default:
-		log.Printf("machine.release: No bindings for %t", rd)
+		log.Printf("machine.release: No bindings for %T", rd)
 	}
 }
 
@@ -341,25 +352,26 @@ func (m *machine) vet(name string, x0, y0, width, height int) (n string, x, y, w
 // =============================================================================
 // msg
 
-// msg: each structure below is used as a msg between engine and machine.
-// Messages are sent as pointers to one of the structures below.
+// msg: each structure below is a msg between concurrent goroutines.
+//      Messages are pointers to one of the structures below.
 type msg interface{}
 
-// pollInput is updated and sent back on the reply channel.
-type pollInput struct {
-	input *Input          // Refreshed each update.
-	state *State          // Refreshed each update.
-	reply chan *pollInput // Completion trigger.
+// appData contains both user input and engine state passed to the
+// application. A single copy, owned by the engine, is created on startup.
+type appData struct {
+	input *Input        // Refreshed each update.
+	state *State        // Refreshed each update.
+	reply chan *appData // For syncing updates between machine and operator.
 }
 
-// newPollInput expects to be called twice on start to create
-// two alternating input polling buffers.
-func newPollInput() *pollInput {
-	p := &pollInput{reply: make(chan *pollInput)}
-	p.input = &Input{Down: map[string]int{}}
-	p.state = &State{CullBacks: true, Blend: true}
-	p.state.setColour(0, 0, 0, 1)
-	return p
+// newAppData expects to be called on startup for
+// updating and communicating user input and global state.
+func newAppData() *appData {
+	as := &appData{reply: make(chan *appData)}
+	as.input = &Input{Down: map[string]int{}}
+	as.state = &State{CullBacks: true, Blend: true}
+	as.state.setColour(0, 0, 0, 1)
+	return as
 }
 
 // shutdown is used to terminate a goroutine.
@@ -367,7 +379,7 @@ type shutdown struct{}
 
 // bindData is a request to send data to the graphics or sound card.
 type bindData struct {
-	data  interface{} // *mesh, *shader, *texture, *sound, *noise
+	data  interface{} // msh, shd, tex, snd
 	reply chan error
 }
 
@@ -380,25 +392,6 @@ type renderFrame struct {
 	interp float64       // Fraction between 0 and 1.
 	frame  []render.Draw // May be empty.
 	ut     uint64        // Counter for debugging.
-}
-
-// modelLoad is a request to load rendering data from persistent store.
-type modelLoad struct {
-	eid   uint64
-	model *model
-}
-
-// noiseData is a request to load sound data from persistent store.
-type noiseLoad struct {
-	eid   uint64
-	noise *noise
-}
-
-// texLoad is a request to load texture data from persistent store.
-type texLoad struct {
-	tex   *texture // the texture to load.
-	model *model   // model used after load complete.
-	index int      // texture index used after load complete.
 }
 
 // placeListener locates the sounds listener in world space.

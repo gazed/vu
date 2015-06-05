@@ -18,11 +18,11 @@ import (
 // Note each data buffer must refer to the same number of verticies where the
 // number of verticies in one mesh must be less than 65,000.
 type mesh struct {
-	name      string // Unique mesh name.
-	tag       uint64 // name and type as a number.
-	vao       uint32 // GPU reference for the mesh and all buffers.
-	rebind    bool   // True if the data needs rebinding.
-	generated bool   // Mesh is generated and updated. Do not cache.
+	name   string // Unique mesh name.
+	tag    uint64 // name and type as a number.
+	vao    uint32 // GPU reference for the mesh and all buffers.
+	bound  bool   // False if the data needs rebinding.
+	loaded bool   // True if data has been set.
 
 	// Per-vertex and vertex index data.
 	faces render.Data            // Triangle face indicies.
@@ -32,7 +32,7 @@ type mesh struct {
 // newMesh allocates space for a mesh structure,
 // including space to store buffer data.
 func newMesh(name string) *mesh {
-	m := &mesh{name: name, tag: msh + stringHash(name)<<32, rebind: true}
+	m := &mesh{name: name, tag: msh + stringHash(name)<<32}
 	m.vdata = map[uint32]render.Data{}
 	return m
 }
@@ -55,6 +55,7 @@ func (m *mesh) initData(lloc, span, usage uint32, normalize bool) *mesh {
 func (m *mesh) setData(lloc uint32, data interface{}) {
 	if _, ok := m.vdata[lloc]; ok {
 		m.vdata[lloc].Set(data)
+		m.loaded = true
 	}
 }
 

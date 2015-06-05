@@ -7,12 +7,13 @@ package vu
 // how the surface is lit. Materials are applied to a rendered model by
 // a shader.
 type material struct {
-	name string  // Unique matrial name.
-	tag  uint64  // name and type as a number.
-	kd   rgb     // Diffuse colour of the material.
-	ka   rgb     // Ambient colour of the material.
-	ks   rgb     // Specular colour of the material.
-	tr   float32 // Transparency (alpha, dissolve) for the material.
+	name   string  // Unique matrial name.
+	tag    uint64  // name and type as a number.
+	kd     rgb     // Diffuse colour of the material.
+	ka     rgb     // Ambient colour of the material.
+	ks     rgb     // Specular colour of the material.
+	tr     float32 // Transparency (alpha, dissolve) for the material.
+	loaded bool    // True if data has been set.
 }
 
 // newMaterial allocates space for material values.
@@ -36,6 +37,7 @@ func (m *material) setMaterial(kd, ka, ks *rgb, tr float32) {
 	m.ks.R, m.ks.G, m.ks.B = ks.R, ks.G, ks.B
 	m.ka.R, m.ka.G, m.ka.B = ka.R, ka.G, ka.B
 	m.tr = tr
+	m.loaded = true
 }
 
 // material
