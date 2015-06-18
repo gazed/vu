@@ -131,12 +131,6 @@ type native interface {
 type nativeOs struct {
 	nl native // native layer support
 	nr *nrefs // references to native layer objects.
-
-	// User input structures are processed by two threads.
-	// The main thread fills them with user input events.
-	// Input.processEvents turns them into pressed state.
-	in    []*userInput // Reusable input event buffers
-	index int          // Current input buffer counter.
 }
 
 // nrefs keeps and passes pointers/handles to the native layer window,
@@ -154,13 +148,6 @@ func newNativeOs() *nativeOs {
 	os := &nativeOs{}
 	os.nl = nativeLayer() // one of these in each native layer os_*.go.
 	os.nr = &nrefs{}
-
-	// create one more buffer than the number of times events will be
-	// polled for a given update. Currently decided in input.readEvents.
-	numInputs := 3
-	for cnt := 0; cnt < numInputs; cnt++ {
-		os.in = append(os.in, &userInput{})
-	}
 	return os
 }
 
@@ -233,7 +220,6 @@ func (os *nativeOs) swapBuffers() { os.nl.swapBuffers(os.nr) }
 // readDispatch polls the next user event from the native OS.
 // Reading the event must be done on the main thread, but the
 // events can be processed in a separate thread.
-func (os *nativeOs) readDispatch() *userInput {
-	os.index = (os.index + 1) % len(os.in)
-	return os.nl.readDispatch(os.nr, os.in[os.index])
+func (os *nativeOs) readDispatch(in *userInput) *userInput {
+	return os.nl.readDispatch(os.nr, in)
 }

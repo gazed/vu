@@ -24,7 +24,9 @@ import (
 // OS specific structure to differentiate it from the other native layers.
 // Two input structures are continually reused each time rather than allocating
 // a osx input structure on each readAndDispatch.
-type osx struct{}
+type osx struct {
+	gsu *C.GSEvent
+}
 
 // OSX specific. Otherwise the shell will freeze within seconds of creation.
 func init() { runtime.LockOSThread() }
@@ -32,7 +34,7 @@ func init() { runtime.LockOSThread() }
 // nativeLayer gets a reference to the native operating system. Each native
 // layer implements this factory method. Compiling will leave only the one that
 // matches the current platform.
-func nativeLayer() native { return &osx{} }
+func nativeLayer() native { return &osx{gsu: &C.GSEvent{}} }
 
 // Implement native interface.
 func (o *osx) context(r *nrefs) int64      { return int64(C.gs_context(C.long(r.shell))) }
@@ -59,21 +61,26 @@ func (o *osx) showCursor(r *nrefs, show bool) {
 
 // Implement native interface.
 func (o *osx) readDispatch(r *nrefs, in *userInput) *userInput {
-	gsu := &C.GSEvent{event: 0, mousex: -1, mousey: -1, key: 0, mods: 0, scroll: 0}
-	C.gs_read_dispatch(C.long(r.display), gsu)
+	o.gsu.event = 0
+	o.gsu.mousex = -1
+	o.gsu.mousey = -1
+	o.gsu.key = 0
+	o.gsu.scroll = 0
+	// o.gsu.mods retain the modifier key state between calls.
+	C.gs_read_dispatch(C.long(r.display), o.gsu)
 
 	// transfer/translate the native event into the input buffer.
-	in.id = events[int(gsu.event)]
+	in.id = events[int(o.gsu.event)]
 	if in.id != 0 {
-		in.button = mouseButtons[int(gsu.event)]
-		in.key = int(gsu.key)
-		in.scroll = int(gsu.scroll)
+		in.button = mouseButtons[int(o.gsu.event)]
+		in.key = int(o.gsu.key)
+		in.scroll = int(o.gsu.scroll)
 	} else {
 		in.button, in.key, in.scroll = 0, 0, 0
 	}
-	in.mods = int(gsu.mods) & (controlKeyMask | shiftKeyMask | functionKeyMask | commandKeyMask | altKeyMask)
-	in.mouseX = int(gsu.mousex)
-	in.mouseY = int(gsu.mousey)
+	in.mods = int(o.gsu.mods) & (controlKeyMask | shiftKeyMask | functionKeyMask | commandKeyMask | altKeyMask)
+	in.mouseX = int(o.gsu.mousex)
+	in.mouseY = int(o.gsu.mousey)
 	return in
 }
 

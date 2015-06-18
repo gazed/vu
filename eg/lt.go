@@ -63,17 +63,17 @@ func (lt *lttag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 	speed := lt.run * dt * 0.5
 	for press, _ := range in.Down {
 		switch press {
-		case "W":
+		case vu.K_W:
 			lt.sun.Move(0, 0, -speed, lin.QI) // forward
-		case "S":
+		case vu.K_S:
 			lt.sun.Move(0, 0, speed, lin.QI) // back
-		case "A":
+		case vu.K_A:
 			lt.sun.Move(-speed, 0, 0, lin.QI) // left
-		case "D":
+		case vu.K_D:
 			lt.sun.Move(speed, 0, 0, lin.QI) // right
-		case "Q":
+		case vu.K_Q:
 			lt.sun.Move(0, speed, 0, lin.QI) // up
-		case "E":
+		case vu.K_E:
 			lt.sun.Move(0, -speed, 0, lin.QI) // down
 		}
 	}

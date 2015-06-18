@@ -26,6 +26,8 @@ package vu
 import (
 	"fmt"
 	"log"
+	"os"
+	"runtime/debug"
 
 	"github.com/gazed/vu/audio"
 	"github.com/gazed/vu/device"
@@ -368,7 +370,7 @@ type appData struct {
 // updating and communicating user input and global state.
 func newAppData() *appData {
 	as := &appData{reply: make(chan *appData)}
-	as.input = &Input{Down: map[string]int{}}
+	as.input = &Input{Down: map[int]int{}}
 	as.state = &State{CullBacks: true, Blend: true}
 	as.state.setColour(0, 0, 0, 1)
 	return as
@@ -422,4 +424,15 @@ type toggleScreen struct{}
 //    cached only     : *material, *font, *animation
 type releaseData struct {
 	data interface{} // *mesh, *shader, *texture, *sound, *noise
+}
+
+// =============================================================================
+
+// catchErrors should be defered at the top of each goroutine so that
+// errors can be logged in production loads as required by the application.
+func catchErrors() {
+	if r := recover(); r != nil {
+		log.Printf("Panic %s: %s Shutting down.", r, debug.Stack())
+		os.Exit(-1)
+	}
 }

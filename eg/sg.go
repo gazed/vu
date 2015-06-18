@@ -35,7 +35,7 @@ type sgtag struct {
 	run    float64
 	spin   float64
 	dt     float64
-	reacts map[string]inputHandler
+	reacts map[int]inputHandler
 }
 
 // inputHandler helps link keypresses to handling functions.
@@ -52,20 +52,20 @@ func (sg *sgtag) Create(eng vu.Eng, s *vu.State) {
 	sg.tr = newTrooper(eng, 1)
 
 	// initialize the reactions
-	sg.reacts = map[string]inputHandler{
-		"W": sg.forward,
-		"A": sg.left,
-		"S": sg.back,
-		"D": sg.right,
-		"=": sg.attach,
-		"-": sg.detach,
-		"0": func(i *vu.Input, down int) { sg.setTr(down, 0) },
-		"1": func(i *vu.Input, down int) { sg.setTr(down, 1) },
-		"2": func(i *vu.Input, down int) { sg.setTr(down, 2) },
-		"3": func(i *vu.Input, down int) { sg.setTr(down, 3) },
-		"4": func(i *vu.Input, down int) { sg.setTr(down, 4) },
-		"5": func(i *vu.Input, down int) { sg.setTr(down, 5) },
-		"P": sg.stats,
+	sg.reacts = map[int]inputHandler{
+		vu.K_W:     sg.forward,
+		vu.K_A:     sg.left,
+		vu.K_S:     sg.back,
+		vu.K_D:     sg.right,
+		vu.K_Equal: sg.attach,
+		vu.K_Minus: sg.detach,
+		vu.K_0:     func(i *vu.Input, down int) { sg.setTr(down, 0) },
+		vu.K_1:     func(i *vu.Input, down int) { sg.setTr(down, 1) },
+		vu.K_2:     func(i *vu.Input, down int) { sg.setTr(down, 2) },
+		vu.K_3:     func(i *vu.Input, down int) { sg.setTr(down, 3) },
+		vu.K_4:     func(i *vu.Input, down int) { sg.setTr(down, 4) },
+		vu.K_5:     func(i *vu.Input, down int) { sg.setTr(down, 5) },
+		vu.K_P:     sg.stats,
 	}
 	eng.SetColor(0.1, 0.1, 0.1, 1.0)
 }

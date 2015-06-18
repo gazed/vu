@@ -31,17 +31,33 @@ struct AppDefaults defaults = { 100, 100, 240, 280, 8, 24, TEXT("App") };
 // check if an object pointer is valid once that object has been released.
 long gs_win_alive = -1;
 
-// User event (urge) structure used to pass back events of interest.
-static GSEvent gs_eve = {-1, -1, -1, 0, 0, 0};
+// Fifo queue of event (urge) structure used to pass back events of interest.
+// Needed because read_dispatch only handles a single event, but one user action
+// can produce multiple events. Only ever seen 2 events produced from one.
+static GSEvent gs_events[] = {
+    {0, -1, -1, 0, 0, 0},
+    {0, -1, -1, 0, 0, 0},
+    {0, -1, -1, 0, 0, 0},
+    {0, -1, -1, 0, 0, 0},
+    {0, -1, -1, 0, 0, 0},
+};
+static int gs_event_front = 0;
+static int gs_event_rear = 0;
+static int gs_event_size = sizeof(gs_events) / sizeof(gs_events[0]);
 
 // Full screen toggle structure.
 static GSScreen gs_screen = {0, 0, 0, 0, {0, 0, 0, 0}};
 
 void gs_write_urge(long eid, long key, long scroll)
 {
-    gs_eve.event = eid;
-    gs_eve.key = key;
-    gs_eve.scroll = scroll;
+    GSEvent *eve = &(gs_events[gs_event_rear]);
+    eve->event = eid;
+    eve->key = key;
+    eve->scroll = scroll;
+    eve->mousex = -1;
+    eve->mousey = -1;
+    eve->mods = 0;
+    gs_event_rear = (gs_event_rear + 1) % gs_event_size;
 }
 
 // Windows callback procedure. Handle a few events often returning 0 to mark
@@ -125,6 +141,75 @@ LRESULT CALLBACK gs_wnd_proc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
     // Pass all unhandled messages to DefWindowProc
     return DefWindowProc( hwnd, msg, wParam, lParam );
+}
+
+// Get the current mouse position relative to the bottom left corner of the
+// application window.
+void gs_pos(long display, long *x, long *y)
+{
+    HWND hwnd = LongToHandle(display);
+    POINT point;
+    GetCursorPos(&point);
+    ScreenToClient(hwnd, &point);
+    RECT rect;
+    GetClientRect(hwnd, &rect);
+    *x = point.x;
+    *y = rect.bottom - point.y;
+}
+
+// Process all queued up user events and send one of the processed events
+// back to the application. Prefer PeekMessage (non-blocking) over
+// GetMessage (blocking).
+void gs_read_dispatch(long display, GSEvent *gs_urge)
+{
+    MSG msg;
+    if ( PeekMessage( &msg, NULL, 0, 0, PM_REMOVE ) != 0 )
+    {
+        // handle quit immediately
+        if (msg.message == WM_QUIT)
+        {
+            gs_win_alive = -2;
+            return;
+        }
+        DispatchMessage( &msg ); // goes to wnd_proc
+
+        // message queue has been processed, return interesting stuff.
+        if ( gs_event_front != gs_event_rear )
+        {
+			GSEvent *eve = &(gs_events[gs_event_front]);
+            gs_urge->event = eve->event;
+            gs_urge->key = eve->key;
+            gs_urge->scroll = eve->scroll;
+	        gs_event_front = (gs_event_front + 1) % gs_event_size;
+        }
+    }
+
+    // always send back the modifier keys.
+    long mods = 0;
+    if ( GetKeyState(VK_SHIFT) & 0x8000 )
+    {
+        mods |= GS_ShiftKeyMask;
+    }
+    if ( GetKeyState(VK_CONTROL) & 0x8000 )
+    {
+        mods |= GS_ControlKeyMask;
+    }
+    if ( GetKeyState(VK_MENU) & 0x8000 )
+    {
+        mods |= GS_AlternateKeyMask;
+    }
+    if ( GetKeyState(VK_LWIN) & 0x8000 )
+    {
+        mods |= GS_CommandKeyMask;
+    }
+    if ( GetKeyState(VK_RWIN) & 0x8000 )
+    {
+        mods |= GS_CommandKeyMask;
+    }
+    gs_urge->mods = mods;
+
+    // update the mouse each time rather than dealing with mouse move events.
+    gs_pos(display, &(gs_urge->mousex), &(gs_urge->mousey));
 }
 
 // Needed because the window will be destroyed and recreated in order
@@ -291,20 +376,6 @@ void gs_toggle_fullscreen(long display)
     PostMessage(hwnd, WM_EXITSIZEMOVE, 0, 0); // Trigger window resize.
 }
 
-// Get the current mouse position relative to the bottom left corner of the
-// application window.
-void gs_pos(long display, long *x, long *y)
-{
-    HWND hwnd = LongToHandle(display);
-    POINT point;
-    GetCursorPos(&point);
-    ScreenToClient(hwnd, &point);
-    RECT rect;
-    GetClientRect(hwnd, &rect);
-    *x = point.x;
-    *y = rect.bottom - point.y;
-}
-
 // Position the cursor at the given window location. The incoming coordinates
 // are relative to the bottom left corner - switch that to be relative to the
 // top left corner expected by windows.
@@ -322,65 +393,6 @@ void gs_set_cursor_location(long display, long x, long y)
             SetCursorPos(loc.x, loc.y);
         }
     }
-}
-
-// Process all queued up user events and send one of the processed events
-// back to the application. Prefer PeekMessage (non-blocking) over
-// GetMessage (blocking).
-void gs_read_dispatch(long display, GSEvent *gs_urge)
-{
-    MSG msg;
-    gs_eve.event = gs_urge->event;
-    gs_eve.mousex = gs_urge->mousex;
-    gs_eve.mousey = gs_urge->mousey;
-    gs_eve.key = gs_urge->key;
-    gs_eve.mods = gs_urge->mods;
-    gs_eve.scroll = gs_urge->scroll;
-    if ( PeekMessage( &msg, NULL, 0, 0, PM_REMOVE ) != 0 )
-    {
-        // handle quit immediately
-        if (msg.message == WM_QUIT)
-        {
-            gs_win_alive = -2;
-            return;
-        }
-        DispatchMessage( &msg ); // goes to wnd_proc
-
-        // message queue has been processed, return interesting stuff.
-        if ( gs_eve.event >= 0 )
-        {
-            gs_urge->event = gs_eve.event;
-            gs_urge->key = gs_eve.key;
-            gs_urge->scroll = gs_eve.scroll;
-        }
-    }
-
-    // always send back the modifier keys.
-    long mods = 0;
-    if ( GetKeyState(VK_SHIFT) & 0x8000 )
-    {
-        mods |= GS_ShiftKeyMask;
-    }
-    if ( GetKeyState(VK_CONTROL) & 0x8000 )
-    {
-        mods |= GS_ControlKeyMask;
-    }
-    if ( GetKeyState(VK_MENU) & 0x8000 )
-    {
-        mods |= GS_AlternateKeyMask;
-    }
-    if ( GetKeyState(VK_LWIN) & 0x8000 )
-    {
-        mods |= GS_CommandKeyMask;
-    }
-    if ( GetKeyState(VK_RWIN) & 0x8000 )
-    {
-        mods |= GS_CommandKeyMask;
-    }
-    gs_urge->mods = mods;
-
-    // update the mouse each time rather than dealing with mouse move events.
-    gs_pos(display, &(gs_urge->mousex), &(gs_urge->mousey));
 }
 
 // Get the current application windows client area location and size.

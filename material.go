@@ -54,3 +54,8 @@ type rgb struct {
 	G float32 // Green.
 	B float32 // Blue.
 }
+
+// isUnset returns true if all of the colours are zero.
+func (c *rgb) isUnset() bool {
+	return c.R == 0 && c.G == 0 && c.B == 0
+}

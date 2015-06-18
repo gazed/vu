@@ -36,6 +36,7 @@ func main() {
 		example{"tr", "tr: Spinning Triangle", tr},
 		example{"ld", "ld: Load .obj model", ld},
 		example{"sh", "sh: Simple Shell", sh},
+		example{"kc", "kc: Keyboard Controller", kc},
 		example{"au", "au: Audio", au},
 		example{"sf", "sf: Shader Fire", sf},
 		example{"bb", "bb: Banners & Billboards", bb},

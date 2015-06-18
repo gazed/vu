@@ -66,7 +66,7 @@ func (sh *shtag) update(dev device.Device) {
 	}
 
 	// toggle windowed mode if W is pressed.
-	if down, ok := pressed.Down["W"]; ok && down == 1 {
+	if down, ok := pressed.Down[device.K_W]; ok && down == 1 {
 		dev.ToggleFullScreen()
 	}
 }

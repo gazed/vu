@@ -58,7 +58,7 @@ func (fm *fmtag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 		switch {
 
 		// switch to the next layout example.
-		case press == "Tab" && down == 1:
+		case press == vu.K_Tab && down == 1:
 			fm.layouts[fm.example].setVisible(false)
 			fm.example = fm.example + 1
 			if fm.example >= len(fm.layouts) {
@@ -189,11 +189,11 @@ func (lo *layout) visualize(eng vu.Eng) {
 
 		// place the cell name in the middle of the cell.
 		lo.labels[cnt] = lo.top.NewPov()
-		model := lo.labels[cnt].NewModel("uv").AddTex("weblySleek16Black")
+		model := lo.labels[cnt].NewModel("uv").AddTex("lucidiaSu16Black")
 		if sect.Label() == "" {
-			model.LoadFont("weblySleek16").SetPhrase("-")
+			model.LoadFont("lucidiaSu16").SetPhrase("-")
 		} else {
-			model.LoadFont("weblySleek16").SetPhrase(sect.Label())
+			model.LoadFont("lucidiaSu16").SetPhrase(sect.Label())
 		}
 	}
 }

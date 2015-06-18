@@ -1,5 +1,5 @@
 // Copyright © 2013-2015 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 //
 // Solver is a un-optimized, scaled-down, golang version of the Bullet physics
 //     bullet-2.81-rev2613/src/.../btSequentialImpulseConstraintSolver.(cpp/h)

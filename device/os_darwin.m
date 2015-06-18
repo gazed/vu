@@ -44,20 +44,8 @@ void gs_set_cursor_location(long display, long x, long y) {
     CGAssociateMouseAndMouseCursorPosition(true);
 }
 
-// Get any key modifiers independent of the current event.
-void gs_mod(long display, long *key_mod) {
-    *key_mod = (long) [NSEvent modifierFlags];
-}
-
-// Get the key code associated with the current event. This will be 0 if the
-// last event was not a key event.
-void gs_key(long display, long *key_code) {
-    *key_code = 0;
-    NSEvent *event = [(id)display currentEvent];
-    NSEventType etype = [event type];
-    if ( NSKeyDown == etype || NSKeyUp == etype) {
-        *key_code = [event keyCode];
-    }
+// Get the key code associated with the given event.
+void gs_key(NSEvent *event, long *key_code) {
 }
 
 // Get the current scroll wheel value. This will be 0 if the last event was
@@ -251,22 +239,21 @@ void gs_read_dispatch(long display, GSEvent *urge) {
                            inMode:NSDefaultRunLoopMode
                           dequeue:YES];
         if (nil != event && GS_MouseMoved != [event type]) {
-            [(id)display sendEvent:event]; // could create a new winEvent.
             urge->event = (long) [event type];
+            [(id)display sendEvent:event]; // could create a new winEvent.
 
             // put key event information into the form expected by the application.
             if (urge->event == GS_KeyDown || urge->event == GS_KeyUp) {
-                gs_key(display, &(urge->key));
+                urge->key = [event keyCode];
             } else if (urge->event == GS_ScrollWheel) {
                 float dx, dy;
                 gs_scroll(display, &dx, &dy);
                 urge->scroll = (long)dy;
+            } else if (urge->event == GS_ModKeysChanged) {
+                urge->mods = (long) ([event modifierFlags] & NSDeviceIndependentModifierFlagsMask);
             }
         }
     }
-
-    // always update the modifier keys
-    gs_mod(display, &(urge->mods));
 
     // always update the mouse.
     float mx, my;

@@ -67,6 +67,7 @@ func (l *loader) loadQueued() {
 // runLoader loops forever processing all load requests.
 // It is started once as a goroutine on engine initialization.
 func (l *loader) runLoader() {
+	defer catchErrors()
 	for {
 		select {
 		case req := <-l.control:
@@ -264,7 +265,7 @@ func (l *loader) loadTexture(t *texture) (*texture, error) {
 		return data.(*texture), nil
 	}
 
-	// Otherwise the mesh needs to be loaded and bound.
+	// Otherwise the texture needs to be loaded and bound.
 	if err := l.importTexture(t); err != nil {
 		return nil, err
 	}

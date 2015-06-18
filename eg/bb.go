@@ -50,7 +50,7 @@ func (bb *bbtag) Create(eng vu.Eng, s *vu.State) {
 	model.SetAlpha(0.4)
 
 	// Try banner text with the 3D scene perspective camera.
-	font := "weblySleek22"
+	font := "lucidiaSu22"
 	banner := top.NewPov().SetScale(0.1, 0.1, 0.1).SetLocation(-10, 3, -15)
 	banner.NewModel("uv").AddTex(font + "White").LoadFont(font).SetPhrase("Floating Text")
 
@@ -82,19 +82,19 @@ func (bb *bbtag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 	dt := in.Dt
 	for press, _ := range in.Down {
 		switch press {
-		case "W":
+		case vu.K_W:
 			bb.cam.Move(0, 0, dt*-bb.run, bb.cam.Lookxz())
-		case "S":
+		case vu.K_S:
 			bb.cam.Move(0, 0, dt*bb.run, bb.cam.Lookxz())
-		case "Q":
+		case vu.K_Q:
 			bb.cam.Move(dt*-bb.run, 0, 0, bb.cam.Lookxz())
-		case "E":
+		case vu.K_E:
 			bb.cam.Move(dt*bb.run, 0, 0, bb.cam.Lookxz())
-		case "A":
+		case vu.K_A:
 			bb.cam.AdjustYaw(dt * bb.spin)
-		case "D":
+		case vu.K_D:
 			bb.cam.AdjustYaw(dt * -bb.spin)
-		case "T":
+		case vu.K_T:
 			eng.Shutdown()
 		}
 	}

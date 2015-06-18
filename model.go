@@ -115,7 +115,6 @@ type model struct {
 	phraseWidth int    // Rendered phrase width in pixels, 0 otherwise.
 
 	// Uniform data needed by shaders.
-	resetMat bool                 // True if the material was loaded last.
 	alpha    float32              // Transparency between 0 and 1.
 	kd       rgb                  // Diffuse colour.
 	ka       rgb                  // Ambient colour.
@@ -164,7 +163,6 @@ func (m *model) Shader() string { return m.shd.name }
 // Alpha is model transparency. This value overrides any material values.
 func (m *model) Alpha() (a float64) { return float64(m.alpha) }
 func (m *model) SetAlpha(a float64) {
-	m.resetMat = false
 	m.alpha = float32(a)
 }
 
@@ -173,14 +171,12 @@ func (m *model) Colour() (r, g, b float64) {
 	return float64(m.kd.R), float64(m.kd.G), float64(m.kd.B)
 }
 func (m *model) SetColour(r, g, b float64) {
-	m.resetMat = false
 	m.kd.R, m.kd.G, m.kd.B = float32(r), float32(g), float32(b)
 }
 
 // Material is used to help with colouring for shaders that use lights.
 // Overrides existing values if it was the last one set.
 func (m *model) LoadMat(name string) Model {
-	m.resetMat = true
 	m.mat = newMaterial(name)
 	m.loads = append(m.loads, &loadReq{model: m, a: newMaterial(name)})
 	return m
@@ -279,9 +275,16 @@ func (m *model) LoadFont(fontName string) Model {
 	return m
 }
 func (m *model) SetPhrase(phrase string) Model {
-	m.phrase = phrase // used by loader to set mesh data.
-	if m.msh != nil {
-		m.msh.bound = false // mark mesh as needing rebind.
+	if m.msh == nil {
+		m.msh = newMesh("phrase") // dynamic mesh for phrase backing.
+		m.msh.loaded = true       // trigger a rebind in updateModels.
+	}
+	if len(phrase) > 0 && m.phrase != phrase {
+		m.phrase = phrase   // used by loader to set mesh data.
+		m.msh.bound = false // mesh will need rebind.
+		if m.fnt != nil && m.fnt.loaded {
+			m.phraseWidth = m.fnt.setPhrase(m.msh, m.phrase)
+		}
 	}
 	return m
 }
@@ -309,10 +312,14 @@ func (m *model) SetUniform(id string, floats ...interface{}) {
 }
 
 // Animation methods wrap animation class.
+// FUTURE: handle animation models with multiple textures. Animation models are
+//         currently limited to one texture or they have to be processed after
+//         other textures to account for the texture index.
 func (m *model) LoadAnim(animName string) Model {
 	if m.anm == nil && m.msh == nil {
 		m.anm = newAnimation(animName)
-		m.loads = append(m.loads, &loadReq{model: m, a: newAnimation(animName)})
+		m.loads = append(m.loads, &loadReq{model: m, index: len(m.texs), a: newAnimation(animName)})
+		m.texs = append(m.texs, newTexture(animName+"0")) // reserve a texture spot.
 	}
 	return m
 }

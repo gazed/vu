@@ -89,15 +89,15 @@ func (ps *pstag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 	dt := in.Dt
 	for press, down := range in.Down {
 		switch press {
-		case "W":
+		case vu.K_W:
 			ps.cam.Move(0, 0, dt*-ps.run, ps.cam.Lookxz())
-		case "S":
+		case vu.K_S:
 			ps.cam.Move(0, 0, dt*ps.run, ps.cam.Lookxz())
-		case "A":
+		case vu.K_A:
 			ps.effect.Spin(0, dt*ps.spin, 0)
-		case "D":
+		case vu.K_D:
 			ps.effect.Spin(0, dt*-ps.spin, 0)
-		case "Tab":
+		case vu.K_Tab:
 			if down == 1 {
 				ps.effect.SetVisible(false) // switch to the next effect.
 				ps.index = ps.index + 1
@@ -107,13 +107,13 @@ func (ps *pstag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 				ps.effect = ps.effects[ps.index]
 				ps.effect.SetVisible(true)
 			}
-		case "La":
+		case vu.K_La:
 			ps.effect.Move(-dt*move, 0, 0, ps.cam.Lookxz())
-		case "Ra":
+		case vu.K_Ra:
 			ps.effect.Move(dt*move, 0, 0, ps.cam.Lookxz())
-		case "Ua":
+		case vu.K_Ua:
 			ps.effect.Move(0, 0, dt*move, ps.cam.Lookxz())
-		case "Da":
+		case vu.K_Da:
 			ps.effect.Move(0, 0, -dt*move, ps.cam.Lookxz())
 		}
 	}

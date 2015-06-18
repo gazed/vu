@@ -1,4 +1,4 @@
-// Copyright © 2014-2015 Galvanized Logic.
+// Copyright © 2014-2015 Galvanized Logic. All rights reserved.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -70,8 +70,8 @@ func (rc *rctag) Create(eng vu.Eng, s *vu.State) {
 	rc.banner = top2D.NewPov()
 	rc.banner.SetLocation(100, 100, 0)
 	rc.banner.SetVisible(false)
-	m = rc.banner.NewModel("uv").AddTex("weblySleek22White")
-	m.LoadFont("weblySleek22").SetPhrase("Overlay Text")
+	m = rc.banner.NewModel("uv").AddTex("lucidiaSu22White")
+	m.LoadFont("lucidiaSu22").SetPhrase("Overlay Text")
 
 	// set non default engine state.
 	eng.SetColor(0.2, 0.2, 0.2, 1.0)
@@ -98,15 +98,15 @@ func (rc *rctag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 	}
 	for press, down := range in.Down {
 		switch press {
-		case "Lm":
+		case vu.K_Lm:
 			if down == 1 {
 				rc.raycast(in.Mx, in.My)
 			}
-		case "Q":
+		case vu.K_Q:
 			rc.floor.Spin(-1, 0, 0)
 			rc.hilite.Spin(-1, 0, 0)
 			rc.hilite.SetVisible(false)
-		case "E":
+		case vu.K_E:
 			rc.floor.Spin(1, 0, 0)
 			rc.hilite.Spin(1, 0, 0)
 			rc.hilite.SetVisible(false)

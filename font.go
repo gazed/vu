@@ -50,7 +50,6 @@ func (f *font) addChar(r rune, x, y, w, h, xo, yo, xa int) {
 //
 // The width in pixels for the resulting string image is returned.
 func (f *font) setPhrase(m *mesh, phrase string) (width int) {
-	f.loaded = true
 	vb := f.vb[:0]
 	tb := f.tb[:0]
 	fb := f.fb[:0]

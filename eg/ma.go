@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"strconv"
 	"strings"
 
 	"github.com/gazed/vu"
@@ -80,7 +79,7 @@ func (ma *matag) Create(eng vu.Eng, s *vu.State) {
 	ma.ui.SetOrthographic(0, float64(s.W), 0, float64(s.H), 0, 10)
 	title := top2D.NewPov()
 	title.SetLocation(10, 5, 0)
-	ma.title = title.NewModel("uv").AddTex("weblySleek22White").LoadFont("weblySleek22")
+	ma.title = title.NewModel("uv").AddTex("lucidiaSu22White").LoadFont("lucidiaSu22")
 	ma.title.SetPhrase(" ")
 }
 
@@ -93,15 +92,15 @@ func (ma *matag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 	dt := in.Dt
 	for press, down := range in.Down {
 		switch press {
-		case "W":
+		case vu.K_W:
 			ma.cam.Move(0, 0, dt*ma.run, ma.cam.Lookxz())
-		case "S":
+		case vu.K_S:
 			ma.cam.Move(0, 0, dt*-ma.run, ma.cam.Lookxz())
-		case "A":
+		case vu.K_A:
 			ma.model.Spin(0, 0, 5)
-		case "D":
+		case vu.K_D:
 			ma.model.Spin(0, 0, -5)
-		case "Tab":
+		case vu.K_Tab:
 			if down == 1 {
 
 				// switch to the next loaded model.
@@ -113,7 +112,7 @@ func (ma *matag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 				ma.model = ma.models[ma.index]
 				ma.model.SetVisible(true)
 			}
-		case "0", "1", "2", "3", "4", "5", "6", "7", "8", "9":
+		case vu.K_0, vu.K_1, vu.K_2, vu.K_3, vu.K_4, vu.K_5, vu.K_6, vu.K_7, vu.K_8, vu.K_9:
 			if down == 1 {
 				ma.playAnimation(press)
 			}
@@ -124,9 +123,20 @@ func (ma *matag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 
 // playAnimation chooses an available animation.
 // Animations that are not available are ignored.
-func (ma *matag) playAnimation(d09 string) {
-	action, _ := strconv.Atoi(d09)
-	if len(ma.model.Model().Actions()) > action {
+func (ma *matag) playAnimation(keyCode int) {
+	var actions = map[int]int{
+		vu.K_0: 0,
+		vu.K_1: 1,
+		vu.K_2: 2,
+		vu.K_3: 3,
+		vu.K_4: 4,
+		vu.K_5: 5,
+		vu.K_6: 6,
+		vu.K_7: 7,
+		vu.K_8: 8,
+		vu.K_9: 9,
+	}
+	if action, ok := actions[keyCode]; ok {
 		ma.model.Model().Animate(action, 0)
 	}
 }

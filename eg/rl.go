@@ -30,12 +30,12 @@ func rl() {
 
 // Globally unique "tag" that encapsulates example specific data.
 type rltag struct {
-	ww, wh int               // Window size
-	floors map[string]*floor // The random grid
-	flr    *floor            // The current floor.
-	arrow  vu.Pov            // Camera/player minimap marker.
-	run    float64           // Camera movement speed.
-	spin   float64           // Camera spin speed.
+	ww, wh int            // Window size
+	floors map[int]*floor // The random grid
+	flr    *floor         // The current floor.
+	arrow  vu.Pov         // Camera/player minimap marker.
+	run    float64        // Camera movement speed.
+	spin   float64        // Camera spin speed.
 
 	// timing values.
 	renders int           // number of renders.
@@ -48,8 +48,8 @@ func (rl *rltag) Create(eng vu.Eng, s *vu.State) {
 	rl.run = 5    // move so many cubes worth in one second.
 	rl.spin = 270 // spin so many degrees in one second.
 	rl.ww, rl.wh = 800, 600
-	rl.floors = make(map[string]*floor)
-	rl.setLevel(eng, "1")
+	rl.floors = make(map[int]*floor)
+	rl.setLevel(eng, vu.K_1)
 	eng.SetColor(0.15, 0.15, 0.15, 1)
 	return
 }
@@ -66,7 +66,7 @@ func (rl *rltag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 	moveDelta := dt * 2
 	for press, _ := range in.Down {
 		switch press {
-		case "W", "S", "Q", "E":
+		case vu.K_W, vu.K_S, vu.K_Q, vu.K_E:
 			moveDelta *= 0.5
 		}
 	}
@@ -74,25 +74,25 @@ func (rl *rltag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 	// process user presses.
 	for press, down := range in.Down {
 		switch press {
-		case "W":
+		case vu.K_W:
 			rl.flr.cam.Move(0, 0, moveDelta*-rl.run, rl.flr.cam.Lookxz())
 			rl.arrow.SetLocation(rl.flr.cam.Location())
-		case "S":
+		case vu.K_S:
 			rl.flr.cam.Move(0, 0, moveDelta*rl.run, rl.flr.cam.Lookxz())
 			rl.arrow.SetLocation(rl.flr.cam.Location())
-		case "Q":
+		case vu.K_Q:
 			rl.flr.cam.Move(moveDelta*-rl.run, 0, 0, rl.flr.cam.Lookxz())
 			rl.arrow.SetLocation(rl.flr.cam.Location())
-		case "E":
+		case vu.K_E:
 			rl.flr.cam.Move(moveDelta*rl.run, 0, 0, rl.flr.cam.Lookxz())
 			rl.arrow.SetLocation(rl.flr.cam.Location())
-		case "A":
+		case vu.K_A:
 			rl.flr.cam.AdjustYaw(dt * rl.spin)
 			rl.arrow.SetRotation(rl.flr.cam.Lookxz())
-		case "D":
+		case vu.K_D:
 			rl.flr.cam.AdjustYaw(dt * -rl.spin)
 			rl.arrow.SetRotation(rl.flr.cam.Lookxz())
-		case "1", "2", "3", "4", "5", "6", "7", "8", "9", "0":
+		case vu.K_1, vu.K_2, vu.K_3, vu.K_4, vu.K_5, vu.K_6, vu.K_7, vu.K_8, vu.K_9, vu.K_0:
 			if down == 1 {
 				rl.setLevel(eng, press)
 			}
@@ -152,31 +152,31 @@ type floor struct {
 }
 
 // setLevel switches to the indicated level.
-func (rl *rltag) setLevel(eng vu.Eng, id string) {
-	if _, ok := rl.floors[id]; !ok {
-		var gridSizes = map[string]int{
-			"1": 15,
-			"2": 21,
-			"3": 27,
-			"4": 33,
-			"5": 39,
-			"6": 45,
-			"7": 51,
-			"8": 57,
-			"9": 63,
-			"0": 69,
+func (rl *rltag) setLevel(eng vu.Eng, keyCode int) {
+	if _, ok := rl.floors[keyCode]; !ok {
+		var gridSizes = map[int]int{
+			vu.K_1: 15,
+			vu.K_2: 21,
+			vu.K_3: 27,
+			vu.K_4: 33,
+			vu.K_5: 39,
+			vu.K_6: 45,
+			vu.K_7: 51,
+			vu.K_8: 57,
+			vu.K_9: 63,
+			vu.K_0: 69,
 		}
-		var gridType = map[string]grid.Grid{
-			"1": grid.New(grid.DENSE_SKIRMISH),
-			"2": grid.New(grid.DENSE_SKIRMISH),
-			"3": grid.New(grid.SPARSE_SKIRMISH),
-			"4": grid.New(grid.SPARSE_SKIRMISH),
-			"5": grid.New(grid.ROOMS_SKIRMISH),
-			"6": grid.New(grid.ROOMS_SKIRMISH),
-			"7": grid.New(grid.CAVE),
-			"8": grid.New(grid.CAVE),
-			"9": grid.New(grid.DUNGEON),
-			"0": grid.New(grid.DUNGEON),
+		var gridType = map[int]grid.Grid{
+			vu.K_1: grid.New(grid.DENSE_SKIRMISH),
+			vu.K_2: grid.New(grid.DENSE_SKIRMISH),
+			vu.K_3: grid.New(grid.SPARSE_SKIRMISH),
+			vu.K_4: grid.New(grid.SPARSE_SKIRMISH),
+			vu.K_5: grid.New(grid.ROOMS_SKIRMISH),
+			vu.K_6: grid.New(grid.ROOMS_SKIRMISH),
+			vu.K_7: grid.New(grid.CAVE),
+			vu.K_8: grid.New(grid.CAVE),
+			vu.K_9: grid.New(grid.DUNGEON),
+			vu.K_0: grid.New(grid.DUNGEON),
 		}
 		flr := &floor{}
 
@@ -206,8 +206,8 @@ func (rl *rltag) setLevel(eng vu.Eng, id string) {
 		flr.times = rl.newText(flr.mmap, 2)
 
 		// populate the scenes
-		lsize := gridSizes[id]
-		flr.layout = gridType[id]
+		lsize := gridSizes[keyCode]
+		flr.layout = gridType[keyCode]
 		flr.layout.Generate(lsize, lsize)
 		width, height := flr.layout.Size()
 		for x := 0; x < width; x++ {
@@ -223,13 +223,13 @@ func (rl *rltag) setLevel(eng vu.Eng, id string) {
 		}
 		flr.arrow = flr.mapPart.NewPov().SetLocation(flr.cam.Location())
 		flr.arrow.NewModel("solid").LoadMesh("arrow").LoadMat("blue")
-		rl.floors[id] = flr
+		rl.floors[keyCode] = flr
 	}
 	if rl.flr != nil {
 		rl.flr.plan.SetVisible(false)
 		rl.flr.mmap.SetVisible(false)
 	}
-	rl.flr = rl.floors[id]
+	rl.flr = rl.floors[keyCode]
 	rl.flr.plan.SetVisible(true)
 	rl.flr.mmap.SetVisible(true)
 	rl.arrow = rl.flr.arrow
@@ -238,7 +238,7 @@ func (rl *rltag) setLevel(eng vu.Eng, id string) {
 func (rl *rltag) newText(parent vu.Pov, gap int) vu.Model {
 	text := parent.NewPov().SetLocation(10, 0, float64(-rl.wh+40+gap*24))
 	text.Spin(-90, 0, 0) // orient to the X-Z plane.
-	m := text.NewModel("uv").AddTex("weblySleek16White").LoadFont("weblySleek16")
+	m := text.NewModel("uv").AddTex("lucidiaSu16White").LoadFont("lucidiaSu16")
 	m.SetPhrase(" ")
 	return m
 }

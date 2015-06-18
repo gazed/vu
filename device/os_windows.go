@@ -22,7 +22,9 @@ import (
 // OS specific structure to differentiate it from the other native layers.
 // Two input structures are continually reused each time rather than allocating
 // a new input structure on each readAndDispatch.
-type win struct{}
+type win struct {
+	gsu *C.GSEvent
+}
 
 // OpenGL related, see: https://code.google.com/p/go-wiki/wiki/LockOSThread
 func init() { runtime.LockOSThread() }
@@ -30,7 +32,7 @@ func init() { runtime.LockOSThread() }
 // nativeLayer gets a reference to the native operating system.  Each native
 // layer implements this factory method. Compiling will leave only the one that
 // matches the current platform.
-func nativeLayer() native { return &win{} }
+func nativeLayer() native { return &win{gsu: &C.GSEvent{}} }
 
 // Implement native interface.
 func (w *win) context(r *nrefs) int64 {
@@ -59,21 +61,26 @@ func (w *win) showCursor(r *nrefs, show bool) {
 
 // Implement native interface.
 func (w *win) readDispatch(r *nrefs, in *userInput) *userInput {
-	gsu := &C.GSEvent{event: 0, mousex: -1, mousey: -1, key: 0, mods: 0, scroll: 0}
-	C.gs_read_dispatch(C.long(r.display), gsu)
+	w.gsu.event = 0
+	w.gsu.mousex = -1
+	w.gsu.mousey = -1
+	w.gsu.key = 0
+	w.gsu.mods = 0
+	w.gsu.scroll = 0
+	C.gs_read_dispatch(C.long(r.display), w.gsu)
 
 	// transfer/translate the native event into the input buffer.
-	in.id = events[int(gsu.event)]
+	in.id = events[int(w.gsu.event)]
 	if in.id != 0 {
-		in.button = mouseButtons[int(gsu.event)]
-		in.key = int(gsu.key)
-		in.scroll = int(gsu.scroll)
+		in.button = mouseButtons[int(w.gsu.event)]
+		in.key = int(w.gsu.key)
+		in.scroll = int(w.gsu.scroll)
 	} else {
 		in.button, in.key, in.scroll = 0, 0, 0
 	}
-	in.mods = int(gsu.mods)
-	in.mouseX = int(gsu.mousex)
-	in.mouseY = int(gsu.mousey)
+	in.mods = int(w.gsu.mods)
+	in.mouseX = int(w.gsu.mousex)
+	in.mouseY = int(w.gsu.mousey)
 	return in
 }
 
@@ -218,15 +225,15 @@ const (
 	key_KeypadDivide   = 0x6F // VK_DIVIDE        Divide key
 	key_KeypadEnter    = 0x2B // VK_EXECUTE                            :: VK_ENTER on osx-kb
 	key_KeypadMinus    = 0x6D // VK_SUBTRACT      Subtract key
-	key_KeypadEquals   = 0x0C //
+	key_KeypadEquals   = 0xE2 //
 	key_Equal          = 0xBB //
 	key_Minus          = 0xBD // VK_OEM_MINUS     For any country/region, the '-' key // VK_SEPARATOR 0x6C Separator key
 	key_LeftBracket    = 0xDB // VK_OEM_4         misc characters; varys: US standard keyboard, the '[{' key
 	key_RightBracket   = 0xDD // VK_OEM_6         misc characters; varys: US standard keyboard, the ']}' key
-	key_Quote          = 0xDE // VK_OEM_7         misc characters; varys: US standard keyboard, the 'single/double-quote' key
+	key_Quote          = 0xC0 // VK_OEM_7         misc characters; varys: US standard keyboard, the 'single/double-quote' key
 	key_Semicolon      = 0xBA // VK_OEM_1         misc characters; varys: US standard keyboard, the ';:' key
-	key_Backslash      = 0xDC // VK_OEM_5         misc characters; varys: US standard keyboard, the '/?' key
-	key_Grave          = 0xC0 // VK_OEM_3         misc characters; varys: US standard keyboard, the '`~' key
+	key_Backslash      = 0xDE // VK_OEM_5         misc characters; varys: US standard keyboard, the '/?' key
+	key_Grave          = 0xDF // VK_OEM_3         misc characters; varys: US standard keyboard, the '`~' key
 	key_Slash          = 0xBF //
 	key_Comma          = 0xBC // VK_OEM_COMMA     For any country/region, the ',' key
 	key_Period         = 0xBE // VK_OEM_PERIOD    For any country/region, the '.' key

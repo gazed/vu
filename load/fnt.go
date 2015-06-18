@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"strings"
-	"unicode/utf8"
 )
 
 // FntData holds UV texture mapping information for a font.
@@ -64,8 +63,7 @@ func (l *loader) fnt(name string) (data *FntData, err error) {
 
 		// only process lines that match the expected format.
 		if _, err := fmt.Sscanf(line, dfmt, &gid, &x, &y, &w, &h, &xo, &yo, &xa, &p, &c); err == nil {
-			char, _ := utf8.DecodeRune([]byte{byte(gid)})
-			data.Chars = append(data.Chars, ChrData{char, x, y, w, h, xo, yo, xa})
+			data.Chars = append(data.Chars, ChrData{rune(gid), x, y, w, h, xo, yo, xa})
 		}
 	}
 	return data, nil

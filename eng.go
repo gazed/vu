@@ -150,6 +150,7 @@ const (
 // The application loop generates device polling and render requests
 // for the machine.
 func runEngine(app App, wx, wy, ww, wh int, machine chan msg, stop chan bool) {
+	defer catchErrors()
 	eng := newEngine(machine)
 	eng.stop = stop
 	eng.data.state.setScreen(wx, wy, ww, wh)
@@ -227,33 +228,35 @@ func (eng *engine) communicate() {
 			case *mesh:
 				req.model.msh = a
 			case *texture:
-				req.model.texs[req.index] = a
+				if req.index < len(req.model.texs) {
+					req.model.texs[req.index] = a
+				}
 			case *shader:
 				req.model.shd = a
 			case *font:
 				m := req.model
 				m.fnt = a
-
-				// Create the backing for the phrase using a dynamic mesh.
-				if m.msh == nil {
-					m.msh = newMesh("phrase")
-				} else {
-					log.Printf("loader: font on static mesh %s", m.msh.name)
+				m.fnt.loaded = true
+				if len(m.phrase) > 0 {
+					m.phraseWidth = m.fnt.setPhrase(m.msh, m.phrase)
 				}
-				m.phraseWidth = m.fnt.setPhrase(m.msh, m.phrase)
 			case *animation:
 				m := req.model
 				m.anm = a
 				m.msh = req.msh
-				m.texs = append(req.texs)
+				if req.index < len(m.texs) && len(req.texs) > 0 {
+					m.texs[req.index] = req.texs[0]
+				}
 				m.nFrames = a.maxFrames(0)
 				m.pose = make([]lin.M4, len(a.joints))
 			case *material:
 				m := req.model
 				m.mat = a
-				if m.resetMat {
+				if m.alpha == 1.0 {
 					m.alpha = a.tr // Copy values so they can be set per model.
-					m.kd = a.kd    // ditto
+				}
+				if m.kd.isUnset() {
+					m.kd = a.kd // Copy values so they can be set per model.
 				}
 				m.ks = a.ks // Can't currently be overridden on model.
 				m.ka = a.ka // ditto
@@ -314,7 +317,7 @@ func (eng *engine) updateModels(dts float64) {
 			m.loads = m.loads[:0]
 		} else if m.loaded() {
 			// Handle model data changes from either the Application or
-			// from effects and animations.
+			// from effects, phrase updates, and animations.
 
 			// handle any data updates with rebind requests.
 			if pv, ok := eng.povs[eid]; ok && pv.visible {
@@ -324,9 +327,6 @@ func (eng *engine) updateModels(dts float64) {
 					m.effect.update(m, dt.Seconds())
 				}
 				if !m.msh.bound {
-					if m.fnt != nil && len(m.phrase) > 0 {
-						m.phraseWidth = m.fnt.setPhrase(m.msh, m.phrase)
-					}
 					eng.rebind(m.msh)
 					m.msh.bound = true
 				}

@@ -5,61 +5,34 @@ package device
 
 // Design note: The original intent was to collect and process the OS
 // event queues concurrently. However, it turned out OSX only allows event
-// processng from the main thread, so concurrency is limited to turning
-// OS events into *userInput. While likely over designed in this case,
-// the eventual goal is to discover where concurrency can simplify the
-// overall engine architecture.
+// processng from the main thread.
 
 // input is used to process a user event stream into the Pressed structure
-// that can be polled as needed. A goroutine and channel is used to help
-// drain the OS event queue each time device.Update is called.
+// that can be polled as needed.
 type input struct {
-	events chan *userInput // Events processes the readDispatch user events.
-	signal chan *Pressed   // Signal triggers the pass back.
-	update chan *Pressed   // Passes back the latest pressed information.
-	curr   *Pressed        // Consolidates the stream events.
-	down   *Pressed        // Used to share with the main process.
+	in   *userInput // Input is processed in a map of pressed keys.
+	curr *Pressed   // Consolidates user events into state.
+	down *Pressed   // Clone of curr that is shared with the application.
 }
 
-// newInput creates the memory needed to process events and communicate with
-// the main process. The goroutine listening for user input events is started.
-// Events for processing are dumped in the events channel. Every so often the
-// processed events are queried using the signal channel and the processed
-// results are dumped into the update channel.
+// newInput creates the memory needed to process user input events.
 func newInput() *input {
 	i := &input{}
-	i.events = make(chan *userInput) // i.processEvents() <- i.events <- os.readAndDispatch
-	i.signal = make(chan *Pressed)   // i.processEvents() <- i.signal <- i.pressed()
-	i.update = make(chan *Pressed)   // i.pressed()       <- i.update <- i.processEvents()
-	i.curr = &Pressed{Focus: true, Down: map[string]int{}}
-	i.down = &Pressed{Focus: true, Down: map[string]int{}}
-	go i.processEvents()
+	i.in = &userInput{}
+	i.curr = &Pressed{Focus: true, Down: map[int]int{}}
+	i.down = &Pressed{Focus: true, Down: map[int]int{}}
 	return i
 }
 
-// readEvents is called from the main thread as some OS's only allow
+// pollEvents is called from the main thread as some OS's only allow
 // event processing from the main thread. The events are placed in
 // the processing queue.
-//
-// Note that the number of reusable input buffers in nativeOS should
-// be greater than the number of events read each update.
-func (i *input) readEvents(os *nativeOs) {
-	i.events <- os.readDispatch() // sample events at twice the update rate
-	i.events <- os.readDispatch() // ...by reading 2 events each update.
-}
-
-// processEvents loops forever processing input events into current user input.
-func (i *input) processEvents() {
-	for {
-		select {
-		case event := <-i.events:
-			i.processEvent(event)
-		case <-i.signal:
-			i.updateDurations()
-			i.clone(i.curr, i.down)
-			i.update <- i.down
-		}
-	}
+func (i *input) pollEvents(os *nativeOs) *Pressed {
+	i.processEvent(os.readDispatch(i.in)) // sample events at twice the update rate
+	i.processEvent(os.readDispatch(i.in)) // ...by reading 2 events each update.
+	i.updateDurations()
+	i.clone(i.curr, i.down)
+	return i.down
 }
 
 // KEY_RELEASED is used to indicate a key up event has occurred.
@@ -72,37 +45,10 @@ const KEY_RELEASED = -1000000000
 // processEvents updates the current input event buffer essentially turning
 // the user input stream into a map of what is currently pressed. A duration
 // of how long each key has been pressed is recorded in update ticks.
-// This method is only expected to be called by i.processEvents().
+// This method is only expected to be called by i.pollEvents().
 func (i *input) processEvent(event *userInput) {
 	i.curr.Mx, i.curr.My = event.mouseX, event.mouseY
 	i.curr.Scroll += event.scroll
-
-	// capture modifier key state.
-	if event.mods&shiftKeyMask != 0 {
-		i.recordPress(shiftKey)
-	} else {
-		i.recordRelease(shiftKey)
-	}
-	if event.mods&controlKeyMask != 0 {
-		i.recordPress(controlKey)
-	} else {
-		i.recordRelease(controlKey)
-	}
-	if event.mods&functionKeyMask != 0 {
-		i.recordPress(functionKey)
-	} else {
-		i.recordRelease(functionKey)
-	}
-	if event.mods&commandKeyMask != 0 {
-		i.recordPress(commandKey)
-	} else {
-		i.recordRelease(commandKey)
-	}
-	if event.mods&altKeyMask != 0 {
-		i.recordPress(altKey)
-	} else {
-		i.recordRelease(altKey)
-	}
 
 	// turn key and mouse events into state
 	switch event.id {
@@ -112,6 +58,7 @@ func (i *input) processEvent(event *userInput) {
 		i.curr.Focus = true
 	case deactivatedShell, iconifiedShell:
 		i.curr.Focus = false
+		i.releaseAll()
 	case clickedMouse:
 		i.recordPress(event.button)
 	case releasedMouse:
@@ -120,22 +67,58 @@ func (i *input) processEvent(event *userInput) {
 		i.recordPress(event.key)
 	case releasedKey:
 		i.recordRelease(event.key)
+	default:
+		// capture modifier key state.
+		if event.mods&shiftKeyMask != 0 {
+			i.recordPress(shiftKey)
+		} else {
+			i.recordRelease(shiftKey)
+		}
+		if event.mods&controlKeyMask != 0 {
+			i.recordPress(controlKey)
+		} else {
+			i.recordRelease(controlKey)
+		}
+		if event.mods&functionKeyMask != 0 {
+			i.recordPress(functionKey)
+		} else {
+			i.recordRelease(functionKey)
+		}
+		if event.mods&commandKeyMask != 0 {
+			i.recordPress(commandKey)
+		} else {
+			i.recordRelease(commandKey)
+		}
+		if event.mods&altKeyMask != 0 {
+			i.recordPress(altKey)
+		} else {
+			i.recordRelease(altKey)
+		}
 	}
 }
 
 // recordPress tracks new key or mouse down user input events.
+// Ignore any key presses unless the window has focus.
 func (i *input) recordPress(code int) {
-	pressed := keyNames[code]
-	if _, ok := i.curr.Down[pressed]; !ok {
-		i.curr.Down[pressed] = 0
+	if code >= 0 && i.curr.Focus {
+		if _, ok := i.curr.Down[code]; !ok {
+			i.curr.Down[code] = 0
+		}
 	}
 }
 
 // recordRelease tracks key or mouse up user input events.
 func (i *input) recordRelease(code int) {
-	released := keyNames[code]
-	if _, ok := i.curr.Down[released]; ok {
-		i.curr.Down[released] = i.curr.Down[released] + KEY_RELEASED
+	if _, ok := i.curr.Down[code]; ok {
+		i.curr.Down[code] = i.curr.Down[code] + KEY_RELEASED
+	}
+}
+
+// releaseAll clears the pressed map when the window loses focus
+// or other things happen that invalidate the pressed map.
+func (i *input) releaseAll() {
+	for code, down := range i.curr.Down {
+		i.curr.Down[code] = down + KEY_RELEASED
 	}
 }
 
@@ -151,8 +134,7 @@ func (i *input) updateDurations() {
 
 // clone the current user input information into the structure that is
 // shared with the outside process. Remove any released keys from the map.
-// This method is expected to be called by i.processEvents() on a signal
-// from the outside process.
+// This method is expected to be called by i.pollEvents().
 func (i *input) clone(in, out *Pressed) {
 	for key, _ := range out.Down {
 		delete(out.Down, key)
@@ -169,14 +151,6 @@ func (i *input) clone(in, out *Pressed) {
 	out.Scroll = in.Scroll
 	in.Scroll = 0      // remove previous scroll info.
 	in.Resized = false // remove previous resized trigger.
-}
-
-// latest returns the most recent user input events.
-// It is used by the outside process to communicate with the i.processEvents()
-// goroutine that is collecting the events.
-func (i *input) latest() *Pressed {
-	i.signal <- i.down // signal the goroutine to populate with the latest events.
-	return <-i.update  // return the updated event information.
 }
 
 // input
@@ -227,112 +201,115 @@ const (
 	altKey      = altKeyMask + 0xFF
 )
 
-// keyNames holds the names of the individual key presses.
-var keyNames map[int]string = map[int]string{
-	key_0:              "0",
-	key_1:              "1",
-	key_2:              "2",
-	key_3:              "3",
-	key_4:              "4",
-	key_5:              "5",
-	key_6:              "6",
-	key_7:              "7",
-	key_8:              "8",
-	key_9:              "9",
-	key_A:              "A",
-	key_B:              "B",
-	key_C:              "C",
-	key_D:              "D",
-	key_E:              "E",
-	key_F:              "F",
-	key_H:              "H",
-	key_G:              "G",
-	key_I:              "I",
-	key_K:              "K",
-	key_J:              "J",
-	key_L:              "L",
-	key_M:              "M",
-	key_N:              "N",
-	key_O:              "O",
-	key_P:              "P",
-	key_Q:              "Q",
-	key_R:              "R",
-	key_S:              "S",
-	key_T:              "T",
-	key_U:              "U",
-	key_V:              "V",
-	key_W:              "W",
-	key_X:              "X",
-	key_Y:              "Y",
-	key_Z:              "Z",
-	key_KeypadDecimal:  "KP.",
-	key_KeypadMultiply: "KP*",
-	key_KeypadPlus:     "KP+",
-	key_KeypadClear:    "KPCl",
-	key_KeypadDivide:   "KP/",
-	key_KeypadEnter:    "KPEnt",
-	key_KeypadMinus:    "KP-",
-	key_KeypadEquals:   "KP=",
-	key_Keypad0:        "KP0",
-	key_Keypad1:        "KP1",
-	key_Keypad2:        "KP2",
-	key_Keypad3:        "KP3",
-	key_Keypad4:        "KP4",
-	key_Keypad5:        "KP5",
-	key_Keypad6:        "KP6",
-	key_Keypad7:        "KP7",
-	key_Keypad8:        "KP8",
-	key_Keypad9:        "KP9",
-	key_LeftArrow:      "La",
-	key_RightArrow:     "Ra",
-	key_DownArrow:      "Da",
-	key_UpArrow:        "Ua",
-	key_F1:             "F1",
-	key_F2:             "F2",
-	key_F3:             "F3",
-	key_F4:             "F4",
-	key_F5:             "F5",
-	key_F6:             "F6",
-	key_F7:             "F7",
-	key_F8:             "F8",
-	key_F9:             "F9",
-	key_F10:            "F10",
-	key_F11:            "F11",
-	key_F12:            "F12",
-	key_F13:            "F13",
-	key_F14:            "F14",
-	key_F15:            "F15",
-	key_F16:            "F16",
-	key_F17:            "F17",
-	key_F18:            "F18",
-	key_F19:            "F19",
-	key_Equal:          "=",
-	key_Minus:          "-",
-	key_RightBracket:   "]",
-	key_LeftBracket:    "[",
-	key_Quote:          "Qt",
-	key_Semicolon:      ";",
-	key_Backslash:      "Bs",
-	key_Comma:          ",",
-	key_Slash:          "Sl",
-	key_Period:         ".",
-	key_Grave:          "~",
-	key_Return:         "Ret",
-	key_Tab:            "Tab",
-	key_Space:          "Sp",
-	key_Delete:         "Del",
-	key_Escape:         "Esc",
-	key_Home:           "Home",
-	key_PageUp:         "Pup",
-	key_ForwardDelete:  "FDel",
-	key_End:            "End",
-	key_PageDown:       "Pdn",
-	mouse_Left:         "Lm", // Treat pressing a mouse button like pressing a key.
-	mouse_Right:        "Rm",
-	mouse_Middle:       "Mm",
-	controlKey:         "Ctl",
-	functionKey:        "Fn",
-	shiftKey:           "Sh",
-	commandKey:         "Cmd",
-	altKey:             "Alt",
-}
+// Based on the keys on a Mac OSX extended keyboard excluding
+// OS specific keys like eject. Most keyboards will support
+// some subset of the following keys. Currently pressed keys are
+// returned in the Pressed.Down map.
+const (
+	K_0     = key_0              // Standard keyboard numbers.
+	K_1     = key_1              //   "
+	K_2     = key_2              //   "
+	K_3     = key_3              //   "
+	K_4     = key_4              //   "
+	K_5     = key_5              //   "
+	K_6     = key_6              //   "
+	K_7     = key_7              //   "
+	K_8     = key_8              //   "
+	K_9     = key_9              //   "
+	K_A     = key_A              // Standard keyboard letters.
+	K_B     = key_B              //   "
+	K_C     = key_C              //   "
+	K_D     = key_D              //   "
+	K_E     = key_E              //   "
+	K_F     = key_F              //   "
+	K_G     = key_G              //   "
+	K_H     = key_H              //   "
+	K_I     = key_I              //   "
+	K_J     = key_J              //   "
+	K_K     = key_K              //   "
+	K_L     = key_L              //   "
+	K_M     = key_M              //   "
+	K_N     = key_N              //   "
+	K_O     = key_O              //   "
+	K_P     = key_P              //   "
+	K_Q     = key_Q              //   "
+	K_R     = key_R              //   "
+	K_S     = key_S              //   "
+	K_T     = key_T              //   "
+	K_U     = key_U              //   "
+	K_V     = key_V              //   "
+	K_W     = key_W              //   "
+	K_X     = key_X              //   "
+	K_Y     = key_Y              //   "
+	K_Z     = key_Z              //   "
+	K_Equal = key_Equal          // Standard keyboard punctuation keys.
+	K_Minus = key_Minus          //   "
+	K_RBkt  = key_RightBracket   //   "
+	K_LBkt  = key_LeftBracket    //   "
+	K_Qt    = key_Quote          //   "
+	K_Semi  = key_Semicolon      //   "
+	K_BSl   = key_Backslash      //   "
+	K_Comma = key_Comma          //   "
+	K_Slash = key_Slash          //   "
+	K_Dot   = key_Period         //   "
+	K_Grave = key_Grave          //   "
+	K_Ret   = key_Return         //   "
+	K_Tab   = key_Tab            //   "
+	K_Space = key_Space          //   "
+	K_Del   = key_Delete         //   "
+	K_Esc   = key_Escape         //   "
+	K_F1    = key_F1             // General Function keys.
+	K_F2    = key_F2             //   "
+	K_F3    = key_F3             //   "
+	K_F4    = key_F4             //   "
+	K_F5    = key_F5             //   "
+	K_F6    = key_F6             //   "
+	K_F7    = key_F7             //   "
+	K_F8    = key_F8             //   "
+	K_F9    = key_F9             //   "
+	K_F10   = key_F10            //   "
+	K_F11   = key_F11            //   "
+	K_F12   = key_F12            //   "
+	K_F13   = key_F13            //   "
+	K_F14   = key_F14            //   "
+	K_F15   = key_F15            //   "
+	K_F16   = key_F16            //   "
+	K_F17   = key_F17            //   "
+	K_F18   = key_F18            //   "
+	K_F19   = key_F19            //   "
+	K_Home  = key_Home           // Specific function keys.
+	K_PgUp  = key_PageUp         //   "
+	K_FDel  = key_ForwardDelete  //   "
+	K_End   = key_End            //   "
+	K_PgDn  = key_PageDown       //   "
+	K_La    = key_LeftArrow      // Arrow keys
+	K_Ra    = key_RightArrow     //   "
+	K_Da    = key_DownArrow      //   "
+	K_Ua    = key_UpArrow        //   "
+	K_KpDot = key_KeypadDecimal  // Extended keyboard keypad keys
+	K_KpMlt = key_KeypadMultiply //   "
+	K_KpAdd = key_KeypadPlus     //   "
+	K_KpClr = key_KeypadClear    //   "
+	K_KpDiv = key_KeypadDivide   //   "
+	K_KpEnt = key_KeypadEnter    //   "
+	K_KpSub = key_KeypadMinus    //   "
+	K_KpEql = key_KeypadEquals   //   "
+	K_Kp0   = key_Keypad0        //   "
+	K_Kp1   = key_Keypad1        //   "
+	K_Kp2   = key_Keypad2        //   "
+	K_Kp3   = key_Keypad3        //   "
+	K_Kp4   = key_Keypad4        //   "
+	K_Kp5   = key_Keypad5        //   "
+	K_Kp6   = key_Keypad6        //   "
+	K_Kp7   = key_Keypad7        //   "
+	K_Kp8   = key_Keypad8        //   "
+	K_Kp9   = key_Keypad9        //   "
+	K_Lm    = mouse_Left         // Mouse buttons treated like keys.
+	K_Mm    = mouse_Middle       //   "
+	K_Rm    = mouse_Right        //   "
+	K_Ctl   = controlKey         // Modifier keys.
+	K_Fn    = functionKey        //   "
+	K_Shift = shiftKey           //   "
+	K_Cmd   = commandKey         //   "
+	K_Alt   = altKey             //   "
+)

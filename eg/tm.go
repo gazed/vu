@@ -105,32 +105,32 @@ func (tm *tmtag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 		switch press {
 
 		// Change the water level.
-		case "[":
+		case vu.K_LBkt:
 			dir := tm.cam.Lookat()
 			tm.ocean.Move(0, 0, 1*in.Dt, dir)
 			tm.coast.Move(0, 0, 1*in.Dt, dir)
-		case "]":
+		case vu.K_RBkt:
 			dir := tm.cam.Lookat()
 			tm.ocean.Move(0, 0, -1*in.Dt, dir)
 			tm.coast.Move(0, 0, -1*in.Dt, dir)
 
-		// Demonstrate evolution using a texture atlas.
-		case "=":
+			// Demonstrate evolution using a texture atlas.
+		case vu.K_Equal:
 			tm.evolve(0.01)
-		case "-":
+		case vu.K_Minus:
 			tm.evolve(-0.01)
 
 		// Move the map around.
-		case "Ua":
+		case vu.K_Ua:
 			x, y, z := tm.ground.Location()
 			tm.ground.SetLocation(x, y+rate, z)
-		case "Da":
+		case vu.K_Da:
 			x, y, z := tm.ground.Location()
 			tm.ground.SetLocation(x, y-rate, z)
-		case "La":
+		case vu.K_La:
 			x, y, z := tm.ground.Location()
 			tm.ground.SetLocation(x-rate, y, z)
-		case "Ra":
+		case vu.K_Ra:
 			x, y, z := tm.ground.Location()
 			tm.ground.SetLocation(x+rate, y, z)
 		}

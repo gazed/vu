@@ -42,6 +42,7 @@ func (l *loader) wav(filename string) (wh *WavHdr, data []byte, err error) {
 
 // loadWav reads a valid wave file into a header and a bunch audio data into bytes.
 // Invalid files return a nil header and an empty data slice.
+// FUTURE: Handle the info block.
 func (l *loader) loadWav(file io.ReadCloser) (wh *WavHdr, bytes []byte, err error) {
 	wh = &WavHdr{}
 	if err = binary.Read(file, binary.LittleEndian, wh); err != nil {
@@ -56,20 +57,18 @@ func (l *loader) loadWav(file io.ReadCloser) (wh *WavHdr, bytes []byte, err erro
 
 	// read the audio data.
 	bytesRead := uint32(0)
-	data := make([]byte, wh.DataSize)
+	data := []byte{}
 	inbuff := make([]byte, wh.DataSize)
 	for bytesRead < wh.DataSize {
 		inbytes, readErr := file.Read(inbuff)
 		if readErr != nil {
 			return nil, []byte{}, fmt.Errorf("Corrupt .wav audio file")
 		}
-		for cnt := 0; cnt < inbytes; cnt++ {
-			data[bytesRead] = inbuff[cnt]
-			bytesRead += 1
-		}
+		data = append(data, inbuff...)
+		bytesRead += uint32(inbytes)
 	}
 	if bytesRead != wh.DataSize {
-		return nil, []byte{}, fmt.Errorf("Invalid .wav audio file")
+		return nil, []byte{}, fmt.Errorf("Invalid .wav audio file %d %d", bytesRead, wh.DataSize)
 	}
 	return wh, data, nil
 }

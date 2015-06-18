@@ -60,11 +60,11 @@ type Device interface {
 // the last poll. The total pressed duration prior to release can be
 // determined using the difference with KEY_RELEASED.
 type Pressed struct {
-	Mx, My  int            // Current mouse location.
-	Scroll  int            // The amount of scrolling, if any.
-	Down    map[string]int // Pressed keys and pressed duration.
-	Focus   bool           // True if window has focus.
-	Resized bool           // True if window was resized or moved.
+	Mx, My  int         // Current mouse location.
+	Scroll  int         // The amount of scrolling, if any.
+	Down    map[int]int // Pressed keys and pressed duration.
+	Focus   bool        // True if window has focus.
+	Resized bool        // True if window was resized or moved.
 }
 
 // Device interfaces
@@ -125,6 +125,5 @@ func (d *device) IsFullScreen() bool              { return d.os.isFullscreen() }
 func (d *device) ToggleFullScreen()               { d.os.toggleFullscreen() }
 func (d *device) SetCursorAt(x, y int)            { d.os.setCursorAt(x, y) }
 func (d *device) Update() *Pressed {
-	d.input.readEvents(d.os)
-	return d.input.latest()
+	return d.input.pollEvents(d.os)
 }

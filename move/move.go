@@ -1,5 +1,5 @@
 // Copyright © 2013-2015 Galvanized Logic Inc.
-// Use is governed by a FreeBSD license found in the LICENSE file.
+// Use is governed by a BSD-style license found in the LICENSE file.
 //
 // Huge thanks to bullet physics for showing what a physics engine is all about
 // in cool-hard-code reality rather than theory. Methods and files that were
