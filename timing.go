@@ -16,7 +16,7 @@ import (
 
 // Timing is used to collect main processing loop numbers while the
 // the application loop is active. The numbers are reset each update.
-// Applications are expected to track and smooth these per/update
+// Applications are expected to track and smooth these per-update
 // values over a number of updates.
 //
 // Timing gives a rough idea. Expect things to go slower the more

@@ -78,6 +78,7 @@ type Model interface {
 	// Particle effects are either CPU:application or GPU:shader based.
 	// SetEffect sets a CPU controlled particle effect.
 	SetEffect(mover Effect, maxParticles int) Model
+	SetDepth(enabled bool) Model // Effects work better ignoring depth.
 
 	// Set or get custom shader uniform values.
 	// The id is the uniform name from the shader.
@@ -101,6 +102,7 @@ type model struct {
 	drawMode int        // TRIANGLES, POINTS, LINES.
 	effect   *effect    // Optional particle effect.
 	loads    []*loadReq // Assets waiting to be loaded.
+	depth    bool       // Depth buffer on by default.
 
 	// Optional animated model control information.
 	anm     *animation // Optional: bone animation info.
@@ -124,7 +126,7 @@ type model struct {
 
 // newModel
 func newModel(shaderName string) *model {
-	m := &model{alpha: 1}
+	m := &model{alpha: 1, depth: true}
 	m.shd = newShader(shaderName)
 	m.loads = append(m.loads, &loadReq{model: m, a: newShader(shaderName)})
 	m.time = time.Now()
@@ -357,7 +359,12 @@ func (m *model) Pose(index int) *lin.M4 {
 func (m *model) SetEffect(mover Effect, maxParticles int) Model {
 	if mover != nil {
 		m.effect = newEffect(m, mover, maxParticles)
+		m.depth = false // only time model depth is set to false.
 	}
+	return m
+}
+func (m *model) SetDepth(enabled bool) Model {
+	m.depth = enabled
 	return m
 }
 
@@ -385,6 +392,7 @@ func (m *model) toDraw(d render.Draw, eid uint64, depth bool, overlay int, distT
 	case m.alpha < 1:
 		bucket = TRANSPARENT // sort and draw after opaque.
 	}
+	depth = depth && m.depth // both must be true for depth rendering.
 	tocam := 0.0
 	if depth {
 		tocam = distToCam

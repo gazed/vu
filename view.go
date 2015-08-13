@@ -5,7 +5,7 @@ package vu
 
 // View dictates how models are rendered. A view is attached to a Pov
 // where it renders all models in that Pov's hierarchy. It is possible
-// to attache multiple views, even to the same point. All the models
+// to attach multiple views, even to the same point. All the models
 // in each visible view are rendered each update.
 type View interface {
 	Cam() Camera             // A single camera for a group of Models.

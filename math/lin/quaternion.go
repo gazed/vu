@@ -132,7 +132,6 @@ func (q *Q) Unit() *Q {
 // Quaternion q may be used as the input parameter.
 // For example (Dot=), the length squared, is
 //     q.Dot(q)
-// The updated calling quaternion q is returned.
 func (q *Q) Dot(r *Q) float64 { return q.X*r.X + q.Y*r.Y + q.Z*r.Z + q.W*r.W }
 
 // Len returns the length of the quaternion q.

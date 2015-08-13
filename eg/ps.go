@@ -44,7 +44,6 @@ func (ps *pstag) Create(eng vu.Eng, s *vu.State) {
 	ps.live = []*vu.EffectParticle{}
 	ps.random = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
 	view := eng.Root().NewView()
-	view.SetDepth(false)
 	ps.cam = view.Cam()
 	ps.cam.SetPerspective(60, float64(800)/float64(600), 0.1, 50)
 	ps.cam.SetLocation(0, 0, 2.5)
@@ -53,7 +52,7 @@ func (ps *pstag) Create(eng vu.Eng, s *vu.State) {
 	gpu := eng.Root().NewPov()
 	gpu.SetVisible(false)
 	m := gpu.NewModel("particle").AddTex("particle")
-	m.NewMesh("gpu").SetDrawMode(vu.POINTS)
+	m.NewMesh("gpu").SetDrawMode(vu.POINTS).SetDepth(false)
 	ps.makeParticles(m)
 	ps.effects = append(ps.effects, gpu)
 

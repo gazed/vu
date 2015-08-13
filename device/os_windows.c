@@ -90,6 +90,7 @@ LRESULT CALLBACK gs_wnd_proc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         }
         case WM_KEYDOWN:
         case WM_KEYUP:
+        case WM_SYSKEYUP: // needed for releases of system messages like keyup for V in ALT-V.
         {
             long key = wParam;
 
@@ -212,10 +213,6 @@ void gs_read_dispatch(long display, GSEvent *gs_urge)
     gs_pos(display, &(gs_urge->mousex), &(gs_urge->mousey));
 }
 
-// Needed because the window will be destroyed and recreated in order
-// to create the proper opengl context.
-LPSTR gs_className = TEXT("GS_WIN");
-
 // Create the window, but don't open it.
 long gs_create_window(HMODULE hInstance, LPSTR className)
 {
@@ -255,6 +252,7 @@ long gs_display_init()
 {
     // Get the application instance.
     HMODULE hInstance = GetModuleHandle(NULL);
+    LPSTR gs_className = TEXT("GS_WIN");
 
     // Register the window class - once.
     WNDCLASSEX wc;
@@ -275,19 +273,6 @@ long gs_display_init()
         return 0;
     }
     return gs_create_window(hInstance, gs_className);
-}
-
-// Destroy the application window. Attempt to remove the rendering context and
-// the device context as well.
-void gs_display_dispose(long display)
-{
-    HWND hwnd = LongToHandle(display);
-    HDC shell = GetDC(hwnd);
-    HGLRC context = wglGetCurrentContext();
-    wglMakeCurrent(NULL, NULL);
-    wglDeleteContext(context);
-    ReleaseDC(hwnd, shell);
-    DestroyWindow(hwnd);
 }
 
 // Get the device context. This must be called after creating the window and
@@ -423,164 +408,6 @@ void gs_show_cursor(long display, unsigned char show)
         SetCapture(hwnd);
     }
     ShowCursor( show );
-}
-
-// The initial pixel format is used to get an initial rendering context so
-// that more rendering functions can be loaded. These new rendering functions
-// allow a better, final, rendering context to be created.
-int gs_get_initial_pixelformat(long shell)
-{
-    HDC hdc = LongToHandle(shell);
-    int flags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
-    PIXELFORMATDESCRIPTOR pfd =
-    {
-        sizeof(PIXELFORMATDESCRIPTOR),
-        1,                 // version
-        flags,             // see above
-        PFD_TYPE_RGBA,     // type of framebuffer
-        32,                // colour depth
-        0,0,0,0,0,0,0,0,   // red, green, blue, alpha bits
-        0,0,0,0,0,         // accum bits
-        24,                // depth buffer bits.
-        0,                 // stencil buffer bits.
-        PFD_MAIN_PLANE,    // layer
-        0,0,0,0,0          // unused
-    };
-
-    // create the temporary context using the proper pixel format.
-    int pixelFormat = ChoosePixelFormat(hdc, &pfd);
-    if (pixelFormat != 0)
-    {
-        SetPixelFormat(hdc, pixelFormat, &pfd);
-        return pixelFormat;
-    }
-    return 0;
-}
-
-// OpenGL extensions that are bound after the first context is created.
-PFNWGLGETEXTENSIONSSTRINGEXTPROC gs_wglGetExtensionsStringEXT = NULL;
-PFNWGLSWAPINTERVALEXTPROC gs_wglSwapIntervalARB =  NULL;
-PFNWGLGETEXTENSIONSSTRINGARBPROC gs_wglGetExtensionsStringARB =  NULL;
-PFNWGLCREATECONTEXTATTRIBSARBPROC gs_wglCreateContextAttribsARB =  NULL;
-PFNWGLGETPIXELFORMATATTRIBIVARBPROC gs_wglGetPixelFormatAttribivARB =  NULL;
-PFNWGLCHOOSEPIXELFORMATARBPROC gs_wglChoosePixelFormatARB =  NULL;
-
-// The final pixel format created using the bound rendering functions.
-int gs_get_pixelformat(long shell)
-{
-    const int attribList[] =
-    {
-        WGL_DRAW_TO_WINDOW_ARB, 1,
-        WGL_SUPPORT_OPENGL_ARB, 1,
-        WGL_DOUBLE_BUFFER_ARB, 1,
-        WGL_PIXEL_TYPE_ARB, WGL_TYPE_RGBA_ARB,
-        WGL_ACCELERATION_ARB, WGL_FULL_ACCELERATION_ARB,
-        WGL_COLOR_BITS_ARB, 32,
-        WGL_DEPTH_BITS_ARB, 24,
-        WGL_STENCIL_BITS_ARB, 8,
-        0, // end
-    };
-    int pixelFormat;
-    UINT numFormats;
-    HDC hdc = LongToHandle(shell);
-    gs_wglChoosePixelFormatARB(hdc, attribList, NULL, 1, &pixelFormat, &numFormats);
-    if (pixelFormat != 0)
-    {
-        PIXELFORMATDESCRIPTOR pfd;
-        DescribePixelFormat(hdc, pixelFormat, sizeof(PIXELFORMATDESCRIPTOR), &pfd);
-        SetPixelFormat(hdc, pixelFormat, &pfd);
-        return pixelFormat;
-    }
-    return 0;
-}
-
-// gs_context creates an opengl context. Actually it creates two of them.
-// The first context is used to find better functions to create the final
-// context.  Note that the pixel format is done only once for a window so
-// it must be correctly chosen.
-long gs_context(long long * display, long long * shell)
-{
-    // create the initial context.
-    HDC hdc = LongToHandle(*shell);
-    HGLRC initialContext;
-    int initial_pixelFormat = gs_get_initial_pixelformat(*shell);
-    if (initial_pixelFormat != 0)
-    {
-        initialContext = wglCreateContext(hdc);
-        if (initialContext != NULL)
-        {
-            if (!wglMakeCurrent(hdc, initialContext))
-            {
-                wglDeleteContext(initialContext);
-                initialContext = NULL;
-            }
-        }
-    }
-    if (initialContext == NULL)
-    {
-        return 0; // failed to get even a simple context.
-    }
-
-    // now that there is a context, bind the opengl extensions and fail
-    // if the supported extensions are too old or if they are not there.
-    gs_wglGetExtensionsStringEXT = (PFNWGLGETEXTENSIONSSTRINGEXTPROC) wglGetProcAddress( "wglGetExtensionsStringEXT" );
-    gs_wglSwapIntervalARB = (PFNWGLSWAPINTERVALEXTPROC) wglGetProcAddress( "wglSwapIntervalEXT" );
-    gs_wglGetExtensionsStringARB = (PFNWGLGETEXTENSIONSSTRINGARBPROC) wglGetProcAddress( "wglGetExtensionsStringARB" );
-    gs_wglCreateContextAttribsARB = (PFNWGLCREATECONTEXTATTRIBSARBPROC) wglGetProcAddress( "wglCreateContextAttribsARB" );
-    gs_wglGetPixelFormatAttribivARB = (PFNWGLGETPIXELFORMATATTRIBIVARBPROC) wglGetProcAddress( "wglGetPixelFormatAttribivARB" );
-    gs_wglChoosePixelFormatARB = (PFNWGLCHOOSEPIXELFORMATARBPROC) wglGetProcAddress( "wglChoosePixelFormatARB" );
-    if (gs_wglGetExtensionsStringEXT == NULL ||
-        gs_wglSwapIntervalARB ==  NULL ||
-        gs_wglGetExtensionsStringARB ==  NULL ||
-        gs_wglCreateContextAttribsARB ==  NULL ||
-        gs_wglGetPixelFormatAttribivARB ==  NULL ||
-        gs_wglChoosePixelFormatARB ==  NULL)
-    {
-        return 0;
-    }
-
-    // destroy and recreate the window and shell
-    gs_display_dispose(*display);
-    HMODULE hInstance = GetModuleHandle(NULL);
-    *display = gs_create_window(hInstance, gs_className);
-    *shell = gs_shell(*display);
-    int pixelformat = gs_get_pixelformat(*shell);
-    if (pixelformat == 0)
-    {
-        return 0;
-    }
-
-    // now create the context on the fresh window.
-    int cnt = 0;
-    int attribs[40];
-    hdc = LongToHandle(*shell);
-
-    // Use the expected baseline opengl 3.2
-    attribs[cnt++] = WGL_CONTEXT_MAJOR_VERSION_ARB;
-    attribs[cnt++] = 3;
-    attribs[cnt++] = WGL_CONTEXT_MINOR_VERSION_ARB;
-    attribs[cnt++] = 2;
-    attribs[cnt++] = WGL_CONTEXT_FLAGS_ARB;
-    attribs[cnt++] = WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB;
-    attribs[cnt++] = WGL_CONTEXT_PROFILE_MASK_ARB;
-    attribs[cnt++] = WGL_CONTEXT_CORE_PROFILE_BIT_ARB;
-    attribs[cnt++] = 0;
-    HGLRC context = gs_wglCreateContextAttribsARB( hdc, NULL, attribs );
-    if (context != NULL)
-    {
-        if (wglMakeCurrent(hdc, context))
-        {
-            return HandleToLong(context);
-        }
-    }
-    return 0; // failed to get rendering context
-}
-
-// Flip the back and front buffers of the rendering context.
-void gs_swap_buffers(long shell)
-{
-    HDC hdc = LongToHandle(shell);
-    SwapBuffers(hdc);
 }
 
 // Set long attributes. Attributes only take effect if they are set before

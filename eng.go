@@ -182,10 +182,10 @@ func runEngine(app App, wx, wy, ww, wh int, machine chan msg, stop chan bool) {
 			updateTimer -= dt        // Remove delta time used.
 
 			// Perform the update.
-			eng.update(app, dt, ut)     // Update state, physics, etc.
-			frame = eng.frames[ut%3]    // Cycle between three render frames.
-			frame = eng.genFrame(frame) // ... update the render frame.
-			eng.frames[ut%3] = frame    // ... remember the updated frame.
+			eng.update(app, dt, ut)   // Update state, physics, etc.
+			frame = eng.frames[ut%3]  // Cycle between three render frames.
+			frame = eng.render(frame) // ... update the render frame.
+			eng.frames[ut%3] = frame  // ... remember the updated frame.
 
 			// Reset and start counting times for the next update.
 			eng.times.Zero()
@@ -196,12 +196,12 @@ func runEngine(app App, wx, wy, ww, wh int, machine chan msg, stop chan bool) {
 		// ie: State state = currentState*interpolation + previousState * (1.0 - interpolation);
 		interpolation := updateTimer.Seconds() / dt.Seconds()
 
-		// Redraw everything, using interpolation when there is no new frame.
-		// Extra render time is dropped.
+		// A render frame request is sent to the machine. Redraw everything, using
+		// interpolation when there is no new frame. Ignore excess render time.
 		renderTimer += timeUsed
 		if renderTimer >= rt {
 			eng.times.Renders += 1
-			eng.render(frame, interpolation, ut)
+			eng.machine <- &renderFrame{frame: frame, interp: interpolation, ut: ut}
 			frame = nil                    // mark frame as rendered.
 			renderTimer = renderTimer % rt // drop extra render time.
 		}
@@ -211,7 +211,7 @@ func runEngine(app App, wx, wy, ww, wh int, machine chan msg, stop chan bool) {
 }
 
 // communicate processes all go-routine channels. Must be non-blocking.
-// Incoming messages  are generally responses to asset loading completions
+// Incoming messages are generally responses to asset loading completions
 // that were initiated by this engine.
 func (eng *engine) communicate() {
 	select {
@@ -301,9 +301,9 @@ func (eng *engine) update(app App, dt time.Duration, ut uint64) {
 	// per tick processing. Per-ticks include animated models,
 	// particle effects, surfaces, phrases, ...
 	if eng.alive {
-		eng.updateModels(dts)          // load and bind data.
-		eng.place(eng.root(), lin.M4I) // update all transforms.
-		eng.updateSoundListener()      // reposition sound listener.
+		eng.updateModels(dts)                // load and bind data.
+		eng.placeModels(eng.root(), lin.M4I) // update all transforms.
+		eng.updateSoundListener()            // reposition sound listener.
 	}
 }
 
@@ -353,13 +353,37 @@ func (eng *engine) updateModels(dts float64) {
 	eng.loader.loadQueued()
 }
 
-// genFrame creates a new render frame. All of the transforms are
+// placeModels walks the transform hierarchy updating all the model view
+// transforms. This is called before rendering snapshots are taken.
+func (eng *engine) placeModels(p *pov, parent *lin.M4) {
+	p.mm.SetQ(p.rot.Inv(p.at.Rot)) // invert model rotation.
+	p.mm.ScaleSM(p.Scale())        // scale is applied first (on left of rotation)
+	l := p.at.Loc
+	p.mm.TranslateMT(l.X, l.Y, l.Z) // translate is applied last (on right of rotation).
+	p.mm.Mult(p.mm, parent)         // model transform + parent transform
+	for _, child := range p.children {
+		eng.placeModels(child, p.mm)
+	}
+}
+
+// updateSoundListener checks and updates the sound listeners location.
+func (eng *engine) updateSoundListener() {
+	x, y, z := eng.soundListener.Location()
+	if x != eng.sx || y != eng.sy || z != eng.sz {
+		eng.sx, eng.sy, eng.sz = x, y, z
+		go func(x, y, z float64) {
+			eng.machine <- &placeListener{x: x, y: y, z: z}
+		}(x, y, z)
+	}
+}
+
+// render creates a new render frame. All of the transforms are
 // expected to have been placed (updated) before calling this method.
 // A frame is rendered using each of the views in creation order.
 //
 // The frame memory is preserved through the method calls in
 // that the Draw records are grown and reused across updates.
-func (eng *engine) genFrame(frame []render.Draw) []render.Draw {
+func (eng *engine) render(frame []render.Draw) []render.Draw {
 	frame = frame[:0] // resize keeping underlying memory.
 	eng.renDraws, eng.renVerts = 0, 0
 	light := eng.l
@@ -456,35 +480,6 @@ func (eng *engine) getDraw(frame []render.Draw) (f []render.Draw, d *render.Draw
 		}
 	}
 	return frame, &frame[size]
-}
-
-// place walks the transform hierarchy updating all the model view transforms.
-// This is called before rendering snapshots are taken.
-func (eng *engine) place(p *pov, parent *lin.M4) {
-	p.mm.SetQ(p.rot.Inv(p.at.Rot)) // invert model rotation.
-	p.mm.ScaleSM(p.Scale())        // scale is applied first (on left of rotation)
-	l := p.at.Loc
-	p.mm.TranslateMT(l.X, l.Y, l.Z) // translate is applied last (on right of rotation).
-	p.mm.Mult(p.mm, parent)         // model transform + parent transform
-	for _, child := range p.children {
-		eng.place(child, p.mm)
-	}
-}
-
-// updateSoundListener checks and updates the sound listeners location.
-func (eng *engine) updateSoundListener() {
-	x, y, z := eng.soundListener.Location()
-	if x != eng.sx || y != eng.sy || z != eng.sz {
-		eng.sx, eng.sy, eng.sz = x, y, z
-		go func(x, y, z float64) {
-			eng.machine <- &placeListener{x: x, y: y, z: z}
-		}(x, y, z)
-	}
-}
-
-// render sends a render request to the machine.
-func (eng *engine) render(frame []render.Draw, interp float64, ut uint64) {
-	eng.machine <- &renderFrame{interp: interp, frame: frame, ut: ut}
 }
 
 // release sends a release resource request to the machine.
@@ -859,19 +854,19 @@ func (eng *engine) SetGravity(g float64) { eng.mover.SetGravity(g) }
 // Expose/wrap physics shapes.
 
 // NewBox creates a box shaped physics body located at the origin.
-// The box size is w=2*hx, h=2*hy, d=2*hz. Used in Part.SetBody()
+// The box size is w=2*hx, h=2*hy, d=2*hz.
 func NewBox(hx, hy, hz float64) move.Body {
 	return move.NewBody(move.NewBox(hx, hy, hz))
 }
 
 // NewSphere creates a ball shaped physics body located at the origin.
-// The sphere size is defined by the radius. Used in Part.SetBody()
+// The sphere size is defined by the radius.
 func NewSphere(radius float64) move.Body {
 	return move.NewBody(move.NewSphere(radius))
 }
 
 // NewRay creates a ray located at the origin and pointing in the
-// direction dx, dy, dz. Used in Part.SetForm()
+// direction dx, dy, dz.
 func NewRay(dx, dy, dz float64) move.Body {
 	return move.NewBody(move.NewRay(dx, dy, dz))
 }
@@ -881,8 +876,13 @@ func SetRay(ray move.Body, x, y, z float64) {
 	move.SetRay(ray, x, y, z)
 }
 
+// SetPlane updates the plane normal .
+func SetPlane(plane move.Body, x, y, z float64) {
+	move.SetPlane(plane, x, y, z)
+}
+
 // NewPlane creates a plane located on the origin and oriented by the
-// plane normal nx, ny, nz. Used in Part.SetForm()
+// plane normal nx, ny, nz.
 func NewPlane(nx, ny, nz float64) move.Body {
 	return move.NewBody(move.NewPlane(nx, ny, nz))
 }

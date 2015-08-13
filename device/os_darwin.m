@@ -44,10 +44,6 @@ void gs_set_cursor_location(long display, long x, long y) {
     CGAssociateMouseAndMouseCursorPosition(true);
 }
 
-// Get the key code associated with the given event.
-void gs_key(NSEvent *event, long *key_code) {
-}
-
 // Get the current scroll wheel value. This will be 0 if the last event was
 // not a scroll event.
 void gs_scroll(long display, float *x_delta, float *y_delta) {

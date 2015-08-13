@@ -20,8 +20,8 @@ package vu
 
 // Design note: Concurrency based on "Share memory by communicating".
 //              http://golang.org/doc/codewalk/sharemem/
-// For structures and concurrency the key is in passing a pointer
-// to a structure passes ownership of that structure instance.
+// For structures and concurrency passing a pointer to a structure passes
+// ownership of that structure instance.
 
 import (
 	"fmt"
@@ -120,8 +120,8 @@ const (
 
 // vu
 // =============================================================================
-// machine  Defn: "engine is a device that drives a machine"
 // This is the machine and it is driven by the application facing engine class.
+// machine  Defn: "engine is a device that drives a machine"
 
 // machine deals with initialization and handling of all underlying hardware;
 // generally through the OS, GPU, and audio API's. Machine is expected to be
@@ -213,6 +213,13 @@ func (m *machine) render(r *renderFrame) {
 		m.frame1 = r.frame
 	}
 
+	// FUTURE:
+	// For each light...
+	//    For each occluder...
+	//       RenderOccluder(light, occluder) // render occluders from lights point of view.
+	// SetMainRenderTarget
+	// ... now render objects..., need to use shadow map.
+
 	// FUTURE: use the renderFrame interpolation and the previous frame
 	//         for rendering between frame updates.
 	for _, drawing := range m.frame1 {
@@ -241,6 +248,9 @@ func (m *machine) refreshAppData(data *appData) {
 	m.input = m.dev.Update() // get latest user input for next refresh.
 }
 
+// setCounts ensures the draw frame has the most recent number of
+// verticies and faces. The objects may have been updated after the
+// draw object was created by the engine.
 func (m *machine) setCounts(d render.Draw) {
 	if cnts, ok := m.counts[d.Vao()]; ok {
 		d.SetCounts(cnts.faces, cnts.verticies)
@@ -403,7 +413,7 @@ type placeListener struct {
 
 // playSound plays the given sound at the given world location.
 type playSound struct {
-	sid     uint32
+	sid     uint64
 	x, y, z float64
 }
 

@@ -733,7 +733,6 @@ func BindingReport() (report []string) {
 	// AL/al.h
 	report = append(report, "AL")
 	report = append(report, isBound(unsafe.Pointer(C.pfn_alEnable), "alEnable"))
-	report = append(report, isBound(unsafe.Pointer(C.pfn_alEnable), "alEnable"))
 	report = append(report, isBound(unsafe.Pointer(C.pfn_alDisable), "alDisable"))
 	report = append(report, isBound(unsafe.Pointer(C.pfn_alIsEnabled), "alIsEnabled"))
 	report = append(report, isBound(unsafe.Pointer(C.pfn_alGetString), "alGetString"))

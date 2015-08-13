@@ -6,10 +6,12 @@ package device
 // The microsoft (windows) native layer.  This wraps the c functions that
 // wrap the microsoft API's (where the real work is done).
 
-// // The following block is C code and cgo directvies.
+// // This is C code and cgo directvies.
 //
 // #cgo windows CFLAGS: -m64
-// #cgo windows LDFLAGS: -lopengl32 -lgdi32
+// #cgo windows,!dx LDFLAGS: -lopengl32 -lgdi32
+// #cgo windows,dx LDFLAGS: -ld3d11
+// #cgo windows,dx CXXFLAGS: -std=c++11
 //
 // #include "os_windows.h"
 import "C" // must be located here.
@@ -117,6 +119,7 @@ var events = map[int]int{
 	C.GS_MouseMoved:        movedMouse,
 	C.GS_KeyDown:           pressedKey,
 	C.GS_KeyUp:             releasedKey,
+	C.GS_SysKeyUp:          releasedKey,
 	C.GS_ScrollWheel:       scrolled,
 	C.GS_WindowResized:     resizedShell,
 	C.GS_WindowMoved:       movedShell,

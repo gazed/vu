@@ -98,14 +98,21 @@ type loader struct {
 // file that is either included within the production binary or in a asset
 // directory relative to the executable. Development builds have a nil
 // loader.reader and will look locally on disk.
+//
+// The zip creator must call loader.dispose()
 func newLoader() *loader {
 	var resources *zip.ReadCloser // packaged resources.
 	programName := os.Args[0]     // qualified path to executable
 	resourceZip := path.Join(path.Dir(programName), "../Resources/resources.zip")
 	if reader, err := zip.OpenReader(resourceZip); err == nil {
-		resources = reader // the creator must call loader.dispose()
-	} else if reader, err := zip.OpenReader(programName); err == nil {
-		resources = reader // the creator must call loader.dispose()
+		resources = reader // OSX
+	} else {
+		resourceZip = path.Join(path.Dir(programName), "Resources/resources.zip")
+		if reader, err := zip.OpenReader(resourceZip); err == nil {
+			resources = reader // Windows
+		} else if reader, err := zip.OpenReader(programName); err == nil {
+			resources = reader // Zip appened to executable.
+		}
 	}
 	l := &loader{reader: resources}
 	l.dir = map[int]string{

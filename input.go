@@ -51,112 +51,112 @@ func (in *Input) convertInput(pressed *device.Pressed, ut uint64, dt float64) {
 // device package does not always need including.
 // The current Keysym symbols are included.
 const (
-	K_0     = device.K_0     // '0' 48   Standard keyboard numbers.
-	K_1     = device.K_1     // '1' 49     "
-	K_2     = device.K_2     // '2' 50     "
-	K_3     = device.K_3     // '3' 51     "
-	K_4     = device.K_4     // '4' 52     "
-	K_5     = device.K_5     // '5' 53     "
-	K_6     = device.K_6     // '6' 54     "
-	K_7     = device.K_7     // '7' 55     "
-	K_8     = device.K_8     // '8' 56     "
-	K_9     = device.K_9     // '9' 57     "
-	K_A     = device.K_A     // 'A' 65   Standard keyboard letters.
-	K_B     = device.K_B     // 'B' 66     "
-	K_C     = device.K_C     // 'C' 67     "
-	K_D     = device.K_D     // 'D' 68     "
-	K_E     = device.K_E     // 'E' 69     "
-	K_F     = device.K_F     // 'F' 70     "
-	K_G     = device.K_G     // 'G' 71     "
-	K_H     = device.K_H     // 'H' 72     "
-	K_I     = device.K_I     // 'I' 73     "
-	K_J     = device.K_J     // 'J' 74     "
-	K_K     = device.K_K     // 'K' 75     "
-	K_L     = device.K_L     // 'L' 76     "
-	K_M     = device.K_M     // 'M' 77     "
-	K_N     = device.K_N     // 'N' 78     "
-	K_O     = device.K_O     // 'O' 79     "
-	K_P     = device.K_P     // 'P' 80     "
-	K_Q     = device.K_Q     // 'Q' 81     "
-	K_R     = device.K_R     // 'R' 82     "
-	K_S     = device.K_S     // 'S' 83     "
-	K_T     = device.K_T     // 'T' 84     "
-	K_U     = device.K_U     // 'U' 85     "
-	K_V     = device.K_V     // 'V' 86     "
-	K_W     = device.K_W     // 'W' 87     "
-	K_X     = device.K_X     // 'X' 88     "
-	K_Y     = device.K_Y     // 'Y' 89     "
-	K_Z     = device.K_Z     // 'Z' 90     "
-	K_Equal = device.K_Equal // '⊙' 8857 Standard keyboard punctuation keys.
-	K_Minus = device.K_Minus // '⊗' 8855   "
-	K_RBkt  = device.K_RBkt  // '⊕' 8853   "
-	K_LBkt  = device.K_LBkt  // '⊠' 8864   "
-	K_Qt    = device.K_Qt    // '⊘' 8856   "
-	K_Semi  = device.K_Semi  // '⇐' 8656   "
-	K_BSl   = device.K_BSl   // '⊖' 8854   "
-	K_Comma = device.K_Comma // '⊜' 8860   "
-	K_Slash = device.K_Slash // '₀' 8320   "
-	K_Dot   = device.K_Dot   // '₁' 8321   "
-	K_Grave = device.K_Grave // '₂' 8322   "
-	K_Ret   = device.K_Ret   // '₃' 8323   "
-	K_Tab   = device.K_Tab   // '₄' 8324   "
-	K_Space = device.K_Space // '₅' 8325   "
-	K_Del   = device.K_Del   // '₆' 8326   "
-	K_Esc   = device.K_Esc   // '₇' 8327   "
-	K_F1    = device.K_F1    // '₈' 8328 General Function keys.
-	K_F2    = device.K_F2    // '₉' 8329   "
-	K_F3    = device.K_F3    // '←' 8592   "
-	K_F4    = device.K_F4    // '→' 8594   "
-	K_F5    = device.K_F5    // '↓' 8595   "
-	K_F6    = device.K_F6    // '↑' 8593   "
-	K_F7    = device.K_F7    // 'α' 945    "
-	K_F8    = device.K_F8    // 'β' 946    "
-	K_F9    = device.K_F9    // 'γ' 947    "
-	K_F10   = device.K_F10   // 'δ' 948    "
-	K_F11   = device.K_F11   // 'ε' 949    "
-	K_F12   = device.K_F12   // 'ζ' 950    "
-	K_F13   = device.K_F13   // 'η' 951    "
-	K_F14   = device.K_F14   // 'θ' 952    "
-	K_F15   = device.K_F15   // 'ι' 953    "
-	K_F16   = device.K_F16   // 'κ' 954    "
-	K_F17   = device.K_F17   // 'λ' 955    "
-	K_F18   = device.K_F18   // 'μ' 956    "
-	K_F19   = device.K_F19   // 'ν' 957    "
-	K_Home  = device.K_Home  // 'ξ' 958  Specific function keys.
-	K_PgUp  = device.K_PgUp  // 'ο' 959    "
-	K_FDel  = device.K_FDel  // 'π' 960    "
-	K_End   = device.K_End   // 'ρ' 961    "
-	K_PgDn  = device.K_PgDn  // 'ς' 962    "
-	K_La    = device.K_La    // 'σ' 963  Arrow keys
-	K_Ra    = device.K_Ra    // '=' 61     "
-	K_Da    = device.K_Da    // '-' 45     "
-	K_Ua    = device.K_Ua    // ']' 93     "
-	K_KpDot = device.K_KpDot // '[' 91   Extended keyboard keypad keys
-	K_KpMlt = device.K_KpMlt // '"' 34     "
-	K_KpAdd = device.K_KpAdd // ';' 59     "
-	K_KpClr = device.K_KpClr // '\' 92     "
-	K_KpDiv = device.K_KpDiv // ',' 44     "
-	K_KpEnt = device.K_KpEnt // '/' 47     "
-	K_KpSub = device.K_KpSub // '.' 46     "
-	K_KpEql = device.K_KpEql // '~' 126    "
-	K_Kp0   = device.K_Kp0   // '⇦' 8678   "
-	K_Kp1   = device.K_Kp1   // '⇨' 8680   "
-	K_Kp2   = device.K_Kp2   // '␣' 9251   "
-	K_Kp3   = device.K_Kp3   // '⇍' 8653   "
-	K_Kp4   = device.K_Kp4   // '⊶' 8886   "
-	K_Kp5   = device.K_Kp5   // '◈' 9672   "
-	K_Kp6   = device.K_Kp6   // '⇑' 8657   "
-	K_Kp7   = device.K_Kp7   // '⇏' 8655   "
-	K_Kp8   = device.K_Kp8   // '▣' 9635   "
-	K_Kp9   = device.K_Kp9   // '⇓' 8659   "
-	K_Lm    = device.K_Lm    // '◐' 9680 Mouse buttons treated like keys.
-	K_Mm    = device.K_Mm    // '◓' 9683   "
-	K_Rm    = device.K_Rm    // '◑' 9681   "
-	K_Ctl   = device.K_Ctl   // '⇧' 8679 Modifier keys.
-	K_Fn    = device.K_Fn    // '◍' 9677   "
-	K_Shift = device.K_Shift // '●' 9679   "
-	K_Cmd   = device.K_Cmd   // '◇' 9671   "
-	K_Alt   = device.K_Alt   // '◆' 9670   "
+	K_0     = device.K_0     // '0' 48     Standard keyboard numbers.
+	K_1     = device.K_1     // '1' 49       "
+	K_2     = device.K_2     // '2' 50       "
+	K_3     = device.K_3     // '3' 51       "
+	K_4     = device.K_4     // '4' 52       "
+	K_5     = device.K_5     // '5' 53       "
+	K_6     = device.K_6     // '6' 54       "
+	K_7     = device.K_7     // '7' 55       "
+	K_8     = device.K_8     // '8' 56       "
+	K_9     = device.K_9     // '9' 57       "
+	K_A     = device.K_A     // 'A' 65     Standard keyboard letters.
+	K_B     = device.K_B     // 'B' 66       "
+	K_C     = device.K_C     // 'C' 67       "
+	K_D     = device.K_D     // 'D' 68       "
+	K_E     = device.K_E     // 'E' 69       "
+	K_F     = device.K_F     // 'F' 70       "
+	K_G     = device.K_G     // 'G' 71       "
+	K_H     = device.K_H     // 'H' 72       "
+	K_I     = device.K_I     // 'I' 73       "
+	K_J     = device.K_J     // 'J' 74       "
+	K_K     = device.K_K     // 'K' 75       "
+	K_L     = device.K_L     // 'L' 76       "
+	K_M     = device.K_M     // 'M' 77       "
+	K_N     = device.K_N     // 'N' 78       "
+	K_O     = device.K_O     // 'O' 79       "
+	K_P     = device.K_P     // 'P' 80       "
+	K_Q     = device.K_Q     // 'Q' 81       "
+	K_R     = device.K_R     // 'R' 82       "
+	K_S     = device.K_S     // 'S' 83       "
+	K_T     = device.K_T     // 'T' 84       "
+	K_U     = device.K_U     // 'U' 85       "
+	K_V     = device.K_V     // 'V' 86       "
+	K_W     = device.K_W     // 'W' 87       "
+	K_X     = device.K_X     // 'X' 88       "
+	K_Y     = device.K_Y     // 'Y' 89       "
+	K_Z     = device.K_Z     // 'Z' 90       "
+	K_Equal = device.K_Equal // '=' 61     Standard keyboard punctuation keys.
+	K_Minus = device.K_Minus // '-' 45       "
+	K_RBkt  = device.K_RBkt  // ']' 93       "
+	K_LBkt  = device.K_LBkt  // '[' 91       "
+	K_Qt    = device.K_Qt    // '"' 34       "
+	K_Semi  = device.K_Semi  // ';' 59       "
+	K_BSl   = device.K_BSl   // '\' 92       "
+	K_Comma = device.K_Comma // ',' 44       "
+	K_Slash = device.K_Slash // '/' 47       "
+	K_Dot   = device.K_Dot   // '.' 46       "
+	K_Grave = device.K_Grave // '~' 126      "
+	K_Ret   = device.K_Ret   // '⇦' 8678     "
+	K_Tab   = device.K_Tab   // '⇨' 8680     "
+	K_Space = device.K_Space // '▭' 9645     "
+	K_Del   = device.K_Del   // '⇍' 8653     "
+	K_Esc   = device.K_Esc   // '⊶' 8886     "
+	K_F1    = device.K_F1    // 'α' 945    General Function keys.
+	K_F2    = device.K_F2    // 'β' 946      "
+	K_F3    = device.K_F3    // 'γ' 947      "
+	K_F4    = device.K_F4    // 'δ' 948      "
+	K_F5    = device.K_F5    // 'ε' 949      "
+	K_F6    = device.K_F6    // 'ζ' 950      "
+	K_F7    = device.K_F7    // 'η' 951      "
+	K_F8    = device.K_F8    // 'θ' 952      "
+	K_F9    = device.K_F9    // 'ι' 953      "
+	K_F10   = device.K_F10   // 'κ' 954      "
+	K_F11   = device.K_F11   // 'λ' 955      "
+	K_F12   = device.K_F12   // 'μ' 956      "
+	K_F13   = device.K_F13   // 'ν' 957      "
+	K_F14   = device.K_F14   // 'ξ' 958      "
+	K_F15   = device.K_F15   // 'ο' 959      "
+	K_F16   = device.K_F16   // 'π' 960      "
+	K_F17   = device.K_F17   // 'ρ' 961      "
+	K_F18   = device.K_F18   // 'ς' 962      "
+	K_F19   = device.K_F19   // 'σ' 963      "
+	K_Home  = device.K_Home  // '◈' 9672   Specific function keys.
+	K_PgUp  = device.K_PgUp  // '⇑' 8657     "
+	K_FDel  = device.K_FDel  // '⇏' 8655     "
+	K_End   = device.K_End   // '▣' 9635     "
+	K_PgDn  = device.K_PgDn  // '⇓' 8659     "
+	K_La    = device.K_La    // '◀' 9664   Arrow keys
+	K_Ra    = device.K_Ra    // '▶' 9654     "
+	K_Da    = device.K_Da    // '▼' 9660     "
+	K_Ua    = device.K_Ua    // '▲' 9650     "
+	K_KpDot = device.K_KpDot // '⊙' 8857   Extended keyboard keypad keys
+	K_KpMlt = device.K_KpMlt // '⊗' 8855     "
+	K_KpAdd = device.K_KpAdd // '⊕' 8853     "
+	K_KpClr = device.K_KpClr // '⊠' 8864     "
+	K_KpDiv = device.K_KpDiv // '⊘' 8856     "
+	K_KpEnt = device.K_KpEnt // '⇐' 8656     "
+	K_KpSub = device.K_KpSub // '⊖' 8854     "
+	K_KpEql = device.K_KpEql // '⊜' 8860     "
+	K_Kp0   = device.K_Kp0   // '₀' 8320     "
+	K_Kp1   = device.K_Kp1   // '₁' 8321     "
+	K_Kp2   = device.K_Kp2   // '₂' 8322     "
+	K_Kp3   = device.K_Kp3   // '₃' 8323     "
+	K_Kp4   = device.K_Kp4   // '₄' 8324     "
+	K_Kp5   = device.K_Kp5   // '₅' 8325     "
+	K_Kp6   = device.K_Kp6   // '₆' 8326     "
+	K_Kp7   = device.K_Kp7   // '₇' 8327     "
+	K_Kp8   = device.K_Kp8   // '₈' 8328     "
+	K_Kp9   = device.K_Kp9   // '₉' 8329     "
+	K_Lm    = device.K_Lm    // '◐' 9680   Mouse buttons treated like keys.
+	K_Mm    = device.K_Mm    // '◓' 9683     "
+	K_Rm    = device.K_Rm    // '◑' 9681     "
+	K_Ctl   = device.K_Ctl   // '●' 9679   Modifier keys.
+	K_Fn    = device.K_Fn    // '◍' 9677     "
+	K_Shift = device.K_Shift // '⇧' 8679     "
+	K_Cmd   = device.K_Cmd   // '◆' 9670     "
+	K_Alt   = device.K_Alt   // '◇' 9671     "
 )
 
 // Keysym returns a single rune representing the given key.
@@ -210,28 +210,22 @@ var keysym map[int]int = map[int]int{
 	K_X:     0x0058, // 'X' 88
 	K_Y:     0x0059, // 'Y' 89
 	K_Z:     0x005A, // 'Z' 90
-	K_KpDot: 0x2299, // '⊙' 8857
-	K_KpMlt: 0x2297, // '⊗' 8855
-	K_KpAdd: 0x2295, // '⊕' 8853
-	K_KpClr: 0x22A0, // '⊠' 8864
-	K_KpDiv: 0x2298, // '⊘' 8856
-	K_KpEnt: 0x21D0, // '⇐' 8656
-	K_KpSub: 0x2296, // '⊖' 8854
-	K_KpEql: 0x229C, // '⊜' 8860
-	K_Kp0:   0x2080, // '₀' 8320
-	K_Kp1:   0x2081, // '₁' 8321
-	K_Kp2:   0x2082, // '₂' 8322
-	K_Kp3:   0x2083, // '₃' 8323
-	K_Kp4:   0x2084, // '₄' 8324
-	K_Kp5:   0x2085, // '₅' 8325
-	K_Kp6:   0x2086, // '₆' 8326
-	K_Kp7:   0x2087, // '₇' 8327
-	K_Kp8:   0x2088, // '₈' 8328
-	K_Kp9:   0x2089, // '₉' 8329
-	K_La:    0x25C0, // '◀' 9664
-	K_Ra:    0x25B6, // '▶' 9654
-	K_Da:    0x25BC, // '▼' 9660
-	K_Ua:    0x25B2, // '▲' 9650
+	K_Equal: 0x003D, // '=' 61
+	K_Minus: 0x002D, // '-' 45
+	K_RBkt:  0x005D, // ']' 93
+	K_LBkt:  0x005B, // '[' 91
+	K_Qt:    0x0022, // '"' 34
+	K_Semi:  0x003B, // ';' 59
+	K_BSl:   0x005C, // '\' 92
+	K_Comma: 0x002C, // ',' 44
+	K_Slash: 0x002F, // '/' 47
+	K_Dot:   0x002E, // '.' 46
+	K_Grave: 0x007E, // '~' 126
+	K_Ret:   0x21E6, // '⇦' 8678
+	K_Tab:   0x21E8, // '⇨' 8680
+	K_Space: 0x25AD, // '▭' 9645
+	K_Del:   0x21CD, // '⇍' 8653
+	K_Esc:   0x22B6, // '⊶' 8886
 	K_F1:    0x03B1, // 'α' 945
 	K_F2:    0x03B2, // 'β' 946
 	K_F3:    0x03B3, // 'γ' 947
@@ -251,35 +245,42 @@ var keysym map[int]int = map[int]int{
 	K_F17:   0x03C1, // 'ρ' 961
 	K_F18:   0x03C2, // 'ς' 962
 	K_F19:   0x03C3, // 'σ' 963
-	K_Equal: 0x003D, // '=' 61
-	K_Minus: 0x002D, // '-' 45
-	K_RBkt:  0x005D, // ']' 93
-	K_LBkt:  0x005B, // '[' 91
-	K_Qt:    0x0022, // '"' 34
-	K_Semi:  0x003B, // ';' 59
-	K_BSl:   0x005C, // '\' 92
-	K_Comma: 0x002C, // ',' 44
-	K_Slash: 0x002F, // '/' 47
-	K_Dot:   0x002E, // '.' 46
-	K_Grave: 0x007E, // '~' 126
-	K_Ret:   0x21E6, // '⇦' 8678
-	K_Tab:   0x21E8, // '⇨' 8680
-	K_Space: 0x2423, // '␣' 9251
-	K_Del:   0x21CD, // '⇍' 8653
-	K_Esc:   0x22B6, // '⊶' 8886
 	K_Home:  0x25C8, // '◈' 9672
 	K_PgUp:  0x21D1, // '⇑' 8657
 	K_FDel:  0x21CF, // '⇏' 8655
 	K_End:   0x25A3, // '▣' 9635
 	K_PgDn:  0x21D3, // '⇓' 8659
+	K_La:    0x25C0, // '◀' 9664
+	K_Ra:    0x25B6, // '▶' 9654
+	K_Da:    0x25BC, // '▼' 9660
+	K_Ua:    0x25B2, // '▲' 9650
+	K_KpDot: 0x2299, // '⊙' 8857
+	K_KpMlt: 0x2297, // '⊗' 8855
+	K_KpAdd: 0x2295, // '⊕' 8853
+	K_KpClr: 0x22A0, // '⊠' 8864
+	K_KpDiv: 0x2298, // '⊘' 8856
+	K_KpEnt: 0x21D0, // '⇐' 8656
+	K_KpSub: 0x2296, // '⊖' 8854
+	K_KpEql: 0x229C, // '⊜' 8860
+	K_Kp0:   0x2080, // '₀' 8320
+	K_Kp1:   0x2081, // '₁' 8321
+	K_Kp2:   0x2082, // '₂' 8322
+	K_Kp3:   0x2083, // '₃' 8323
+	K_Kp4:   0x2084, // '₄' 8324
+	K_Kp5:   0x2085, // '₅' 8325
+	K_Kp6:   0x2086, // '₆' 8326
+	K_Kp7:   0x2087, // '₇' 8327
+	K_Kp8:   0x2088, // '₈' 8328
+	K_Kp9:   0x2089, // '₉' 8329
 	K_Lm:    0x25D0, // '◐' 9680
 	K_Mm:    0x25D3, // '◓' 9683
 	K_Rm:    0x25D1, // '◑' 9681
-	K_Shift: 0x21E7, // '⇧' 8679
-	K_Fn:    0x25CD, // '◍' 9677
 	K_Ctl:   0x25CF, // '●' 9679
-	K_Alt:   0x25C7, // '◇' 9671
+	K_Fn:    0x25CD, // '◍' 9677
+	K_Shift: 0x21E7, // '⇧' 8679
 	K_Cmd:   0x25C6, // '◆' 9670
+	K_Alt:   0x25C7, // '◇' 9671
+
 }
 
 // Runes available in lucidiaSu.

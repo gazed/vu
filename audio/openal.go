@@ -1,6 +1,9 @@
 // Copyright © 2013-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
+// +build !dx
+// Use OpenAL by default.
+
 package audio
 
 import (
@@ -22,6 +25,10 @@ type openal struct {
 	dev al.Device  // created on initialization.
 	ctx al.Context // created on initialization.
 }
+
+// audioWrapper gets a reference to the underlying audio wrapper.
+// Compiling ensures there will only be one that matches.
+func audioWrapper() Audio { return &openal{} }
 
 // Init runs the one time openal library initialization. It is expected to
 // be called once by the engine on startup.
@@ -78,21 +85,24 @@ func (a *openal) SetGain(zeroToOne float64) {
 // BindSound copies sound data to the sound card. If successfull then the
 // sound reference, snd, and sound data buffer reference, buff are updated
 // with valid references.
-func (a *openal) BindSound(snd, buff *uint32, d *Data) (err error) {
+func (a *openal) BindSound(snd, buff *uint64, d *Data) (err error) {
 	if alerr := al.GetError(); alerr != al.NO_ERROR {
 		log.Printf("openal.BindSound need to find and fix prior error %X", alerr)
 	}
 
 	// create the sound buffer and copy the audio data into the buffer
+	var buff32, snd32 uint32
 	var format int32
 	if format, err = a.format(d); err == nil {
-		al.GenBuffers(1, buff)
-		al.BufferData(*buff, format, al.Pointer(&(d.AudioData[0])), int32(d.DataSize), int32(d.Frequency))
+		al.GenBuffers(1, &buff32)
+		al.BufferData(buff32, format, al.Pointer(&(d.AudioData[0])), int32(d.DataSize), int32(d.Frequency))
+		*buff = uint64(buff32)
 		if alerr := al.GetError(); alerr != al.NO_ERROR {
 			err = fmt.Errorf("Failed binding sound %s", d.Name)
 		} else {
-			al.GenSources(1, snd)
-			al.Sourcei(*snd, al.BUFFER, int32(*buff))
+			al.GenSources(1, &snd32)
+			al.Sourcei(snd32, al.BUFFER, int32(*buff))
+			*snd = uint64(snd32)
 		}
 	}
 	return err
@@ -104,13 +114,16 @@ func (a *openal) PlaceListener(x, y, z float64) {
 }
 
 // Implement Audio.
-func (a *openal) PlaySound(snd uint32, x, y, z float64) {
-	al.Source3f(snd, al.POSITION, float32(x), float32(y), float32(z))
-	al.SourcePlay(snd)
+func (a *openal) PlaySound(snd uint64, x, y, z float64) {
+	al.Source3f(uint32(snd), al.POSITION, float32(x), float32(y), float32(z))
+	al.SourcePlay(uint32(snd))
 }
 
 // Implement Audio.
-func (a *openal) ReleaseSound(sound uint32) { al.DeleteSources(1, &sound) }
+func (a *openal) ReleaseSound(snd uint64) {
+	snd32 := uint32(snd)
+	al.DeleteSources(1, &snd32)
+}
 
 // format figures out which of the OpenAL formats to use based on the
 // WAVE file information. A -1 value, and error, is returned if the format

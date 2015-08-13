@@ -21,22 +21,20 @@ type Audio interface {
 	//     sound : updated reference to the bound sound.
 	//     buff  : updated reference to the sound data buffer.
 	//     d     : sound data bytes and settings to be bound.
-	BindSound(sound, buff *uint32, d *Data) error
-	ReleaseSound(sound uint32)
+	BindSound(sound, buff *uint64, d *Data) error
+	ReleaseSound(sound uint64)
 
 	// Control sounds by setting the x,y,z locations for a listener
 	// and the played sounds. While there is only ever one listener,
 	// there can be many sounds.
 	PlaceListener(x, y, z float64)           // Only ever one listener.
-	PlaySound(sound uint32, x, y, z float64) // Play the bound sound.
+	PlaySound(sound uint64, x, y, z float64) // Play the bound sound.
 }
 
 // Audio
 // ===========================================================================
-// Provide default implementation.
+// Provide native implementation.
 
 // New provides a default audio implementation.
-func New() Audio { return &openal{} }
-
-// FUTURE: Provide a different implementation than OpenAL.
-//         Likely start with DirectSound.
+// There will be only one available implementation
+func New() Audio { return audioWrapper() }

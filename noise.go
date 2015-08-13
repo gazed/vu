@@ -48,7 +48,7 @@ func (n *noise) Play(index int) {
 		snd := n.snds[index]
 		if p, ok := n.eng.povs[n.eid]; ok {
 			x, y, z := p.Location()
-			go func(sid uint32, x, y, z float64) {
+			go func(sid uint64, x, y, z float64) {
 				n.eng.machine <- &playSound{sid: sid, x: x, y: y, z: z}
 			}(snd.sid, x, y, z)
 		}
@@ -63,8 +63,8 @@ func (n *noise) Play(index int) {
 type sound struct {
 	name       string      // Unique name of the sound.
 	tag        uint64      // name and type as a number.
-	sid        uint32      // Audio card identifier related to sound location.
-	did        uint32      // Audio data reference identifier.
+	sid        uint64      // Audio card identifier related to sound location.
+	did        uint64      // Audio data reference identifier.
 	data       *audio.Data // noise data.
 	lx, ly, lz float64     // noise location.
 }

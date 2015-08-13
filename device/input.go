@@ -192,13 +192,13 @@ const (
 	scrolled
 )
 
-// Map the modifier key mask values so they don't conflict with regular keys.
+// Modifier key values don't conflict with regular keys.
 const (
-	controlKey  = controlKeyMask + 0xFF
-	shiftKey    = shiftKeyMask + 0xFF
-	functionKey = functionKeyMask + 0xFF
-	commandKey  = commandKeyMask + 0xFF
-	altKey      = altKeyMask + 0xFF
+	controlKey  = controlKeyMask
+	shiftKey    = shiftKeyMask
+	functionKey = functionKeyMask
+	commandKey  = commandKeyMask
+	altKey      = altKeyMask
 )
 
 // Based on the keys on a Mac OSX extended keyboard excluding
