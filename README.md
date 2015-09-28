@@ -56,7 +56,7 @@ go build .
 
 **Building on Windows**
 
-* Bampf has been built and tested on Windows using gcc from mingw64-bit.
+* Vu has been built and tested on Windows using gcc from mingw64-bit.
   Mingw64 was installed to c:/mingw64.
   * Put OpenAL on the gcc library path by copying
     ``openal-soft-1.15.1-bin/Win64/soft_oal.dll`` to
