@@ -14,7 +14,7 @@ import (
 
 // cr, collision resolution, demonstrates simulated physics by having balls bounce
 // on a floor. The neat thing is that after the initial locations have been set
-// the physics simulation (vu/move) handles all subsequent position updates.
+// the physics simulation handles all subsequent position updates.
 func cr() {
 	cr := &crtag{}
 	if err := vu.New(cr, "Collision Resolution", 400, 100, 800, 600); err != nil {
@@ -26,22 +26,16 @@ func cr() {
 // Globally unique "tag" that encapsulates example specific data.
 type crtag struct {
 	top     vu.Pov
-	view    vu.View
 	cam     vu.Camera
-	striker vu.Pov  // Move to hit other items.
-	run     float64 // Camera movement speed.
-	spin    float64 // Camera spin speed.
+	striker vu.Pov // Move to hit other items.
 }
 
 // Create is the engine callback for initial asset creation.
 func (cr *crtag) Create(eng vu.Eng, s *vu.State) {
-	cr.run = 10   // move so many cubes worth in one second.
-	cr.spin = 270 // spin so many degrees in one second.
 	cr.top = eng.Root().NewPov()
 	sun := cr.top.NewPov().SetLocation(0, 10, 10)
 	sun.NewLight().SetColour(0.8, 0.8, 0.8)
-	cr.view = cr.top.NewView()
-	cr.cam = cr.view.Cam()
+	cr.cam = cr.top.NewCam()
 	cr.cam.SetPerspective(60, float64(800)/float64(600), 0.1, 500)
 	cr.cam.SetLocation(0, 10, 25)
 
@@ -49,12 +43,12 @@ func (cr *crtag) Create(eng vu.Eng, s *vu.State) {
 	slab := cr.top.NewPov().SetScale(50, 50, 50).SetLocation(0, -25, 0)
 	slab.NewBody(vu.NewBox(25, 25, 25))
 	slab.SetSolid(0, 0.4)
-	slab.NewModel("gouraud").LoadMesh("cube").LoadMat("floor")
+	slab.NewModel("diffuse").LoadMesh("box").LoadMat("gray")
 
 	// create a single moving body.
-	useBalls := true // Flip to use boxes instead of spheres.
 	cr.striker = cr.top.NewPov()
 	cr.striker.SetLocation(15, 15, 0) // -5, 15, -3
+	useBalls := true                  // Flip to use boxes instead of spheres.
 	if useBalls {
 		cr.getBall(cr.striker)
 	} else {
@@ -92,6 +86,8 @@ func (cr *crtag) Create(eng vu.Eng, s *vu.State) {
 
 // Update is the regular engine callback.
 func (cr *crtag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
+	run := 10.0   // move so many cubes worth in one second.
+	spin := 270.0 // spin so many degrees in one second.
 	if in.Resized {
 		cr.cam.SetPerspective(60, float64(s.W)/float64(s.H), 0.1, 50)
 	}
@@ -99,19 +95,19 @@ func (cr *crtag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 	for press, _ := range in.Down {
 		switch press {
 		case vu.K_W:
-			cr.cam.Move(0, 0, dt*-cr.run, cr.cam.Lookxz())
+			cr.cam.Move(0, 0, dt*-run, cr.cam.Lookxz())
 		case vu.K_S:
-			cr.cam.Move(0, 0, dt*cr.run, cr.cam.Lookxz())
+			cr.cam.Move(0, 0, dt*run, cr.cam.Lookxz())
 		case vu.K_A:
-			cr.cam.AdjustYaw(dt * cr.spin)
+			cr.cam.AdjustYaw(dt * spin)
 		case vu.K_D:
-			cr.cam.AdjustYaw(dt * -cr.spin)
+			cr.cam.AdjustYaw(dt * -spin)
 		case vu.K_B:
 			ball := cr.top.NewPov()
 			ball.SetLocation(-2.5+rand.Float64(), 15, -1.5-rand.Float64())
 			ball.NewBody(vu.NewSphere(1))
 			ball.SetSolid(1, 0.9)
-			m := ball.NewModel("gouraud").LoadMesh("sphere").LoadMat("sphere")
+			m := ball.NewModel("gouraud").LoadMesh("sphere").LoadMat("red")
 			m.SetColour(rand.Float64(), rand.Float64(), rand.Float64())
 		case vu.K_Space:
 			body := cr.striker.Body()
@@ -124,7 +120,7 @@ func (cr *crtag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 func (cr *crtag) getBall(p vu.Pov) {
 	p.NewBody(vu.NewSphere(1))
 	p.SetSolid(1, 0.5)
-	p.NewModel("gouraud").LoadMesh("sphere").LoadMat("sphere")
+	p.NewModel("gouraud").LoadMesh("sphere").LoadMat("red")
 }
 
 // getBox creates a visible box physics body.
@@ -132,5 +128,5 @@ func (cr *crtag) getBox(p vu.Pov) {
 	p.SetScale(2, 2, 2)
 	p.NewBody(vu.NewBox(1, 1, 1))
 	p.SetSolid(1, 0)
-	p.NewModel("gouraud").LoadMesh("cube").LoadMat("sphere")
+	p.NewModel("gouraud").LoadMesh("box").LoadMat("red")
 }

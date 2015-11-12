@@ -4,8 +4,9 @@
 package vu
 
 // FUTURE : lots can be done here, but needs to be balanced with cluttering
-//          up the engine code. Variations in timing come from different devices
-//          being able to handle different numbers of models and verticies.
+//          up the engine code. Variations in timing are expected to be mostly
+//          influenced by device capability, ie: mobile devices are less capable
+//          than consoles or desktops.
 //      o Rendering times are not currently captured from the machine goroutine.
 //      o Loading times are not currently captured from the loader goroutine.
 
@@ -24,7 +25,7 @@ import (
 //
 // FPS = Renders/Elapsed. This is how many render requests were sent.
 // Actual number of renders is likely at the monitor refresh rate
-// which is 60 for most flat screen monitors.
+// which is 60/sec for most flat screen monitors.
 type Timing struct {
 	Elapsed time.Duration // Total loop time since last update.
 	Update  time.Duration // Time used for previous state update.
@@ -39,7 +40,7 @@ func (t *Timing) Zero() {
 }
 
 // Dump current amount of update loop time tracked in milliseconds.
-// Times is expected to be reset each update.
+// Times are expected to be reset each update.
 func (t *Timing) Dump() {
 	milliseconds := 1000.0
 	e := t.Elapsed.Seconds() * milliseconds

@@ -26,7 +26,7 @@ type WavHdr struct {
 	BlockAlign  uint16  // NumChannels * BitsPerSample/8.
 	SampleBits  uint16  // 8 bits = 8, 16 bits = 16, etc.
 	DataId      [4]byte // "data"
-	DataSize    uint32  // Size of audio data (total file size minus 44 bytes).
+	DataSize    uint32  // Size of audio data: total file size minus 44 bytes.
 }
 
 // wav attempts to load audio data into a slice of bytes. A successful load

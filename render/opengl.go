@@ -15,11 +15,13 @@ import (
 	"github.com/gazed/vu/render/gl"
 )
 
-// opengl is the OpenGL implemntation of Renderer.  See the Renderer interface
+// opengl is the OpenGL implemntation of Renderer. See the Renderer interface
 // for comments. See the OpenGL documentation for OpenGL methods and constants.
 type opengl struct {
 	depthTest bool   // Track current depth setting to reduce state switching.
 	shader    uint32 // Track the current shader to reduce shader switching.
+	fbo       uint32 // Track current framebuffer object to reduce switching.
+	vw, vh    int32  // Remember the viewport size for framebuffer switching.
 }
 
 // newRenderer returns an OpenGL implementation of Renderer.
@@ -48,9 +50,12 @@ func (gc *opengl) Init() error {
 }
 
 // Renderer implementation.
-func (gc *opengl) Color(r, g, b, a float32)       { gl.ClearColor(r, g, b, a) }
-func (gc *opengl) Clear()                         { gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT) }
-func (gc *opengl) Viewport(width int, height int) { gl.Viewport(0, 0, int32(width), int32(height)) }
+func (gc *opengl) Color(r, g, b, a float32) { gl.ClearColor(r, g, b, a) }
+func (gc *opengl) Clear()                   { gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT) }
+func (gc *opengl) Viewport(width int, height int) {
+	gc.vw, gc.vh = int32(width), int32(height)
+	gl.Viewport(0, 0, int32(width), int32(height))
+}
 
 // Renderer implementation.
 func (gc *opengl) Enable(attribute uint32, enabled bool) {
@@ -95,6 +100,19 @@ func (gc *opengl) Render(dr Draw) {
 			gl.Disable(gl.DEPTH_TEST)
 		}
 		gc.depthTest = d.depth
+	}
+
+	// switch render framebuffer only if necessary. The framebuffer
+	// is used to render to a texture associated with a framebuffer.
+	if gc.fbo != d.fbo {
+		gl.BindFramebuffer(gl.FRAMEBUFFER, d.fbo)
+		if d.fbo == 0 {
+			gl.Viewport(0, 0, gc.vw, gc.vh)
+		} else {
+			gl.Clear(gl.DEPTH_BUFFER_BIT)
+			gl.Viewport(0, 0, 1024, 1024) // size convention for framebuffer texture.
+		}
+		gc.fbo = d.fbo
 	}
 
 	// switch shaders only if necessary.
@@ -146,11 +164,14 @@ func (gc *opengl) bindUniforms(d *draw) {
 			gc.bindUniform(ref, x4, 1, d.mvp.Pointer())
 		case "mvm":
 			gc.bindUniform(ref, x4, 1, d.mv.Pointer())
+		case "dbm":
+			gc.bindUniform(ref, x4, 1, d.dbm.Pointer())
 		case "pm":
 			gc.bindUniform(ref, x4, 1, d.pm.Pointer())
 		case "nm":
-			nm := (&m3{}).m3(d.mv) // normal matrix as subset of model-view.
-			gc.bindUniform(ref, x3, 1, nm.Pointer())
+			// normal matrix as subset of model-view.
+			d.nm.m3(d.mv) // Only valid for uniform scaling.
+			gc.bindUniform(ref, x3, 1, d.nm.Pointer())
 		case "uv":
 			gc.useTexture(ref, 0, d.texs[0].tid)
 		case "uv0":
@@ -183,8 +204,8 @@ func (gc *opengl) bindUniforms(d *draw) {
 			gc.useTexture(ref, 13, d.texs[13].tid)
 		case "uv14":
 			gc.useTexture(ref, 14, d.texs[14].tid)
-		case "uv15":
-			gc.useTexture(ref, 15, d.texs[15].tid)
+		case "sm":
+			gc.useTexture(ref, 15, d.shtex) // always use 15 for shadow maps.
 		case "scale":
 			gc.bindUniform(ref, f3, 1, d.scale.x, d.scale.y, d.scale.z)
 		case "alpha":
@@ -383,7 +404,7 @@ func (gc *opengl) BindTexture(tid *uint32, img image.Image, repeat bool) (err er
 	if glerr := gl.GetError(); glerr != gl.NO_ERROR {
 		err = fmt.Errorf("Failed binding texture %d\n", glerr)
 	}
-	return
+	return err
 }
 
 // setTextureMode is used to switch to a repeating
@@ -400,6 +421,63 @@ func (gc *opengl) setTextureMode(tid uint32, repeat bool) {
 	}
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST_MIPMAP_LINEAR)
+}
+
+// BindFrame creates a framebuffer object with an associated texture.
+//    http://www.opengl-tutorial.org/intermediate-tutorials/tutorial-14-render-to-texture/
+//    http://www.opengl-tutorial.org/intermediate-tutorials/tutorial-16-shadow-mapping/
+func (gc *opengl) BindFrame(buf int, fbo, tid, db *uint32) (err error) {
+	size := int32(1024)
+	gl.GenFramebuffers(1, fbo)
+	gl.BindFramebuffer(gl.FRAMEBUFFER, *fbo)
+
+	// Create a texture specifically for the framebuffer.
+	gl.GenTextures(1, tid)
+	gl.BindTexture(gl.TEXTURE_2D, *tid)
+	switch buf {
+	case IMAGE_BUFF:
+		gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, size, size,
+			0, gl.RGBA, gl.UNSIGNED_BYTE, gl.Pointer(nil))
+		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
+		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
+
+		// Add a depth buffer to mimic the normal framebuffer behaviour for 3D objects.
+		gl.GenRenderbuffers(1, db)
+		gl.BindRenderbuffer(gl.RENDERBUFFER, *db)
+		gl.RenderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT, size, size)
+		gl.FramebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, *db)
+
+		// Associate the texture with the framebuffer.
+		gl.FramebufferTexture(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, *tid, 0)
+		buffType := uint32(gl.COLOR_ATTACHMENT0)
+		gl.DrawBuffers(1, &buffType)
+	case DEPTH_BUFF:
+		gl.TexImage2D(gl.TEXTURE_2D, 0, gl.DEPTH_COMPONENT16, size, size,
+			0, gl.DEPTH_COMPONENT, gl.FLOAT, gl.Pointer(nil))
+		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_COMPARE_FUNC, gl.LEQUAL)
+		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_COMPARE_MODE, gl.COMPARE_REF_TO_TEXTURE)
+
+		// Associate the texture with the framebuffer.
+		gl.FramebufferTexture(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, *tid, 0)
+		gl.DrawBuffer(gl.NONE)
+	default:
+		return fmt.Errorf("BindFrame unrecognized buffer type.")
+	}
+
+	// Report any problems.
+	glerr := gl.CheckFramebufferStatus(gl.FRAMEBUFFER)
+	if glerr != gl.FRAMEBUFFER_COMPLETE {
+		return fmt.Errorf("BindFrame error %X", glerr)
+	}
+	if glerr := gl.GetError(); glerr != gl.NO_ERROR {
+		err = fmt.Errorf("Failed binding framebuffer %X", glerr)
+	}
+	gl.BindFramebuffer(gl.FRAMEBUFFER, 0) // clean up by resetting to default framebuffer.
+	return err
 }
 
 // bindUniform links data to uniforms expected by shaders.
@@ -462,3 +540,8 @@ func (gc *opengl) useTexture(sampler, texUnit int32, tid uint32) {
 func (gc *opengl) ReleaseMesh(vao uint32)    { gl.DeleteVertexArrays(1, &vao) }
 func (gc *opengl) ReleaseShader(sid uint32)  { gl.DeleteProgram(sid) }
 func (gc *opengl) ReleaseTexture(tid uint32) { gl.DeleteTextures(1, &tid) }
+func (gc *opengl) ReleaseFrame(fbo, tid, db uint32) {
+	gl.DeleteFramebuffers(1, &fbo)
+	gl.DeleteTextures(1, &tid)
+	gl.DeleteRenderbuffers(1, &db)
+}

@@ -177,8 +177,8 @@ long createShell(long display) {
     return (long) window;
 }
 
-// Create the window. Note that the "run" loop is driven externally by calling
-// (and it must be called) the gs_read_dispatch function.
+// Create the window. Note that the "run" loop is driven externally by calling,
+// and it must be called, the gs_read_dispatch function.
 long gs_shell(long display) {
     NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
     long shell = createShell(display);
@@ -260,7 +260,7 @@ void gs_read_dispatch(long display, GSEvent *urge) {
 }
 
 // The window is hidden in the windowWillClose event and the main loop is expected
-// to call this method to check if the shell should be terminated.  This allows the
+// to call this method to check if the shell should be terminated. This allows the
 // application a chance to do any final cleanup before everything stops.
 //
 // While this does not kill an iconified window, it should be replaced if a
@@ -306,10 +306,9 @@ long gs_context(long shell) {
         }
 
         // https://developer.apple.com/library/mac/qa/qa1521/_index.html
-        // Disable vertical sync. The default is NSOpenGLCPSwapInterval set to 1
-        // meaning that flushBuffer swaps only at the vertical refresh rate,
-        // automatically adding sleep time to make this true.
-        GLint swapInterval = 0; // disable vsync
+        // The default is NSOpenGLCPSwapInterval 1 meaning that flushBuffer swaps
+        // only at the vertical refresh rate, auto-adding sleep time to make this true.
+        GLint swapInterval = 1;
         [context setValues:&swapInterval forParameter:NSOpenGLCPSwapInterval];
     }
     return (long) context;

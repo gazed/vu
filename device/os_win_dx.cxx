@@ -2,10 +2,11 @@
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 // The microsoft (windows) native layer directx implementation.
-// This wraps the microsoft API's to create a directx context.
+// FUTURE This wraps the microsoft API's to create a directx context.
+//        Wait for DirectX12 and Vulkan to settle down. 
 
 // +build windows,dx
-// Use directx only when specifically asked for on windows.
+// FUTURE Use directx only when specifically asked for on windows.
 
 #include "os_windows.h"
 #include <d3d11_1.h>     // TDM-GCC-64/x86_64-w64-mingw32/include/d3d11_1.h
@@ -33,7 +34,6 @@ long gs_context(long long * display, long long * shell)
         &device,                  // device filled in.
         nullptr,                  // ignore feature levels.
         &context);                // device context filled in.
-
     IDXGIDevice2* dxgiDevice;
     device->QueryInterface(__uuidof(IDXGIDevice2), (void **)&dxgiDevice);
     dxgiDevice->SetMaximumFrameLatency(1);
@@ -44,27 +44,24 @@ long gs_context(long long * display, long long * shell)
 
     // set up the swap chain description
     DXGI_SWAP_CHAIN_DESC1 scd = {0};
-    scd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;    // how the swap chain should be used
-    scd.BufferCount = 2;                                  // a front buffer and a back buffer
-    scd.Format = DXGI_FORMAT_B8G8R8A8_UNORM;              // the most common swap chain format
-    scd.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;    // the recommended flip mode
-    scd.SampleDesc.Count = 1;                             // disable anti-aliasing
+    scd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT; // how the swap chain should be used
+    scd.BufferCount = 2;                               // a front buffer and a back buffer
+    scd.Format = DXGI_FORMAT_B8G8R8A8_UNORM;           // the most common swap chain format
+    scd.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL; // the recommended flip mode
+    scd.SampleDesc.Count = 1;                          // disable anti-aliasing
 
     // create the swap chain.
     HWND hwnd = HWND(LongToHandle(*display)); // window.
-    // IDXGISwapChain1 *swapchain;               // swap chain interface
     dxgiFactory->CreateSwapChainForHwnd(
-       device,                          // address of the device
-       hwnd,                            // address of the window
-       &scd,                            // address of the swap chain description
-       nullptr,                         // ignore full screen mode.
-       nullptr,                         // advanced
-       &swapchain);                     // address of the new swap chain pointer
+       device,                   // address of the device
+       hwnd,                     // address of the window
+       &scd,                     // address of the swap chain description
+       nullptr,                  // ignore full screen mode.
+       nullptr,                  // advanced
+       &swapchain);              // address of the new swap chain pointer
     dxgiFactory->Release();
 
 	// create a render target pointing to the back buffer
-	// ID3D11RenderTargetView *renderTarget;
-	// ID3D11Texture2D *backbuffer;
 	swapchain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)(&backbuffer));
 	device->CreateRenderTargetView(backbuffer, nullptr, &renderTarget);
     return 1;
@@ -72,12 +69,9 @@ long gs_context(long long * display, long long * shell)
 
 void gs_swap_buffers(long shell)
 {
-   // TODO move to render/dx
    context->OMSetRenderTargets(1, &renderTarget, nullptr);
    float color[4] = {0.0f, 0.2f, 0.4f, 1.0f};
    context->ClearRenderTargetView(renderTarget, color);
-
-   // TODO how to pass in swapchain?
    swapchain->Present(1, 0);
 }
 
@@ -85,13 +79,10 @@ void gs_display_dispose(long display)
 {
    HWND hwnd = HWND(LongToHandle(display));
    HDC shell = GetDC(hwnd);
-
-   // TODO delete swap chain and device context.
    renderTarget->Release();
    swapchain->Release();
    context->Release();
    device->Release();
-
    ReleaseDC(hwnd, shell);
    DestroyWindow(hwnd);
 }

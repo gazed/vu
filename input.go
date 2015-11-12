@@ -10,12 +10,12 @@ import (
 // Input is used to communicate current user input to the application.
 // This gives the current cursor location, current pressed keys,
 // mouse buttons, and modifiers. These are sent to the application
-// using the App.Update() callback.
+// each App.Update() callback.
 //
 // The map of keys and mouse buttons that are currently pressed also
 // include how long they have been pressed in update ticks. A negative
-// value indicates a release. The total down duration can then be
-// calculated by down duration less RELEASED timestamp.
+// value indicates a release. The total down duration can be calculated
+// on release using down duration less RELEASED timestamp.
 type Input struct {
 	Mx, My  int         // Current mouse location.
 	Down    map[int]int // Keys, buttons with down duration ticks.
@@ -49,7 +49,7 @@ func (in *Input) convertInput(pressed *device.Pressed, ut uint64, dt float64) {
 
 // Expose the device package keys as a convenience so the
 // device package does not always need including.
-// The current Keysym symbols are included.
+// The symbol associated to each key is shown in the comments.
 const (
 	K_0     = device.K_0     // '0' 48     Standard keyboard numbers.
 	K_1     = device.K_1     // '1' 49       "

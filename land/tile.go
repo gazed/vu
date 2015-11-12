@@ -1,5 +1,4 @@
 // Copyright © 2014-2015 Galvanized Logic Inc.
-// Use is governed by a BSD-style license found in the LICENSE file.
 
 package land
 
@@ -68,7 +67,7 @@ func (t *tile) image(landSplit float64) *image.NRGBA {
 	return img
 }
 
-// Tile & tile
+// tile
 // ============================================================================
 // Utility methods. See:
 //   http://msdn.microsoft.com/en-us/library/bb259689.aspx

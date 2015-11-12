@@ -3,22 +3,22 @@
 
 package vu
 
+// Design notes:
 // See the following for a first person camera example using quaternions:
 // http://content.gpwiki.org/index.php/OpenGL:Tutorials:Using_Quaternions_to_represent_rotation
-//
 // One way to implement cameras:
 // http://udn.epicgames.com/Three/CameraTechnicalGuide.html
 
 import (
 	"github.com/gazed/vu/math/lin"
+	"github.com/gazed/vu/render"
 )
 
-// Camera tracks the location and orientation of a camera as well as
-// an associated projection transform. It is ultimately used to set
-// the view portion of the transform matricies for models.
-// While cameras are associated with a Pov in the transform hierarchy,
-// they keep their own location and orientation which allows them to be
-// positioned independently from the transform hierarchy models.
+// Camera dictates how models are rendered. A camera is attached to a Pov where
+// it renders all models in that Pov's hierarchy. Camera tracks the location
+// and orientation of a camera as well as an associated projection transform.
+// Keeping their own location and orientation allows cameras to be positioned
+// independently from the transform hierarchy models.
 type Camera interface {
 	Location() (x, y, z float64)    // Get, or
 	SetLocation(x, y, z float64)    // ...Set the camera location.
@@ -28,18 +28,28 @@ type Camera interface {
 	Lookat() *lin.Q          // Get the XYZ view orientation.
 	Lookxz() *lin.Q          // Get quaternion Y rotation.
 	Pitch() (deg float64)    // Get or...
-	SetPitch(deg float64)    // ...Set the X rotation in degrees.
+	SetPitch(deg float64)    // ...Set the X rotation in degrees,
 	AdjustPitch(deg float64) // ...adjust rotation around X axis.
 	Yaw() (deg float64)      // Get or...
-	SetYaw(deg float64)      // ...Set the Y rotation in degrees.
+	SetYaw(deg float64)      // ...Set the Y rotation in degrees,
 	AdjustYaw(deg float64)   // ...adjust rotation around Y axis.
 
+	// SetCull sets a method that reduces the number of Models rendered
+	// each update. It can be engine supplied ie: NewFacingCuller,
+	// or application supplied.
+	SetCull(c Cull)        // Set to nil to turn off culling.
+	SetDepth(enabled bool) // True for 3D camera. 2D cams ignore depth.
+	SetLast(index int)     // For sequencing UI cameras. Higher is later.
+	SetUI()                // UI camera: 2D, no depth, drawn last.
+
+	// Set one of the possible view transfrom algorithms. This affects
+	// the view portion of model-view-projection.
+	SetView(vt ViewTransform) // Update the view and inverse view.
+
 	// Use one of the following to create a projection transform.
+	// This is the projection part of model-view-projection.
 	SetPerspective(fov, ratio, near, far float64)                // 3D.
 	SetOrthographic(left, right, bottom, top, near, far float64) // 2D.
-
-	// Set the algorithim to create the view matrix.
-	SetTransform(vt ViewTransform) // Update the view and inverse view.
 
 	// Ray applies inverse transforms to derive world space coordinates for
 	// a ray projected from the camera through the mouse's mx, my screen
@@ -54,18 +64,24 @@ type Camera interface {
 	Distance(px, py, pz float64) float64
 }
 
+// Camera
 // ===========================================================================
+// camera implements Camera
 
 // camera combines a location+direction (Pov) with a separate up/down angle
 // tracking. This allows use as a FPS camera which can limit up/down to
 // a given range (often 180).
 type camera struct {
-	at   *lin.T        // Location/direction and Y spin.
-	xdeg float64       // X-axis rotation in degrees.
-	ydeg float64       // Y-axis rotation in degrees.
-	xrot *lin.Q        // X-axis rotation: pitch.
-	yrot *lin.Q        // Y-axis rotation: yaw.
-	vt   ViewTransform // Assigned view transform matrix generator.
+	at      *lin.T        // Location/direction and Y spin.
+	xdeg    float64       // X-axis rotation in degrees.
+	ydeg    float64       // Y-axis rotation in degrees.
+	xrot    *lin.Q        // X-axis rotation: pitch.
+	yrot    *lin.Q        // Y-axis rotation: yaw.
+	vt      ViewTransform // Assigned view transform matrix generator.
+	depth   bool          // True for 3D depth processing.
+	cull    Cull          // Set by application.
+	overlay int           // Set render bucket with OVERLAY or greater.
+	target  uint32        // render layer target. Default 0.
 
 	// Track the view, projection matricies and their inverses.
 	vm  *lin.M4 // View part of MVP matrix.
@@ -83,7 +99,7 @@ type camera struct {
 // newCamera creates a default point of view that is looking down
 // the positive Z axis.
 func newCamera() *camera {
-	c := &camera{}
+	c := &camera{depth: true}
 	c.vt = VP
 	c.at = lin.NewT()
 	c.vm = &lin.M4{}
@@ -98,12 +114,20 @@ func newCamera() *camera {
 	return c
 }
 
-// SetViewTransform accepts the given camera ViewTransform.
-func (c *camera) SetTransform(vt ViewTransform) { c.vt = vt }
+// SetView accepts the given camera ViewTransform.
+func (c *camera) SetView(vt ViewTransform) { c.vt = vt }
 
-// transform applies the view transform to the scene camera and returns
-// the result in the supplied matrix.
+// transform applies the view transform to the scene camera
+// and returns the result. The input matrix is not changed.
 func (c *camera) transform(vm *lin.M4) *lin.M4 { return c.vt(c.at, c.q0, vm) }
+
+// isCulled applies the camera cull algorithm to the given location.
+func (c *camera) isCulled(px, py, pz float64) bool {
+	if c.cull != nil {
+		return c.cull.Culled(c, px, py, pz)
+	}
+	return false
+}
 
 // updateTransform ensures that the view and inverse-view transform are
 // kept in sync each time the camera moves. Calculating once per move should
@@ -170,14 +194,24 @@ func (c *camera) Distance(px, py, pz float64) float64 {
 	return float64(dx*dx + dy*dy + dz*dz)
 }
 
-// SetPerspective makes the camera use a 3D perspective
+// Implement Camera interface.
+func (c *camera) SetDepth(enabled bool) { c.depth = enabled }
+func (c *camera) SetCull(cull Cull)     { c.cull = cull }
+func (c *camera) SetLast(index int)     { c.overlay = render.OVERLAY + index }
+func (c *camera) SetUI() {
+	c.overlay = render.OVERLAY // Draw last.
+	c.depth = false            // 2D rendering.
+	c.SetView(VO)              // orthographic view transform.
+}
+
+// SetPerspective makes the camera use a 3D projection.
 func (c *camera) SetPerspective(fov, ratio, near, far float64) {
 	c.pm.Persp(fov, ratio, near, far)
 	c.ipm.PerspInv(fov, ratio, near, far)
 	c.updateTransform()
 }
 
-// SetOrthographic makes the camera use a 2D orthographic perspective.
+// SetOrthographic makes the camera use a 2D projection.
 func (c *camera) SetOrthographic(left, right, bottom, top, near, far float64) {
 	c.pm.Ortho(left, right, bottom, top, near, far)
 	c.transform(c.vm)
@@ -234,7 +268,7 @@ func (c *camera) Screen(wx, wy, wz float64, ww, wh int) (sx, sy int) {
 	return sx, sy
 }
 
-// view
+// camera
 // ===========================================================================
 // view transforms
 
@@ -245,13 +279,13 @@ func (c *camera) Screen(wx, wy, wz float64, ww, wh int) (sx, sy int) {
 // rotating the camera by x:degrees really means rotating the world by -x.
 type ViewTransform func(*lin.T, *lin.Q, *lin.M4) *lin.M4
 
-// VP perspective view transform.
+// VP perspective projection transform.
 func VP(at *lin.T, scr *lin.Q, vm *lin.M4) *lin.M4 {
 	vm.SetQ(at.Rot)
 	return vm.TranslateTM(-at.Loc.X, -at.Loc.Y, -at.Loc.Z)
 }
 
-// VO orthographic view transform.
+// VO orthographic projection transform.
 func VO(pov *lin.T, scr *lin.Q, vm *lin.M4) *lin.M4 {
 	return vm.Set(lin.M4I).ScaleMS(1, 1, 0)
 }
@@ -264,8 +298,8 @@ func XZ_XY(at *lin.T, scr *lin.Q, vm *lin.M4) *lin.M4 {
 	return vm.SetQ(rot).ScaleMS(1, 1, 0).TranslateTM(-l.X, -l.Y, -l.Z)
 }
 
-// inverse vp view transform. Experimental for ray casting... only one view
-// inverse for now, need better design to incorporate more if needed.
+// inverse vp view transform. For ray casting... only one view
+// inverse for now. Need better design if more are needed.
 func ivp(at *lin.T, xrot, scr *lin.Q, vm *lin.M4) *lin.M4 {
 	rot := scr.Inv(at.Rot)
 	vm.SetQ(rot)

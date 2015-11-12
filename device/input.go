@@ -11,7 +11,7 @@ package device
 // that can be polled as needed.
 type input struct {
 	in   *userInput // Input is processed in a map of pressed keys.
-	curr *Pressed   // Consolidates user events into state.
+	curr *Pressed   // Consolidates current user events into state.
 	down *Pressed   // Clone of curr that is shared with the application.
 }
 

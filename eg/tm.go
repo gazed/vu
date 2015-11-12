@@ -36,8 +36,7 @@ type tmtag struct {
 // Create is the engine callback for initial asset creation.
 func (tm *tmtag) Create(eng vu.Eng, s *vu.State) {
 	tm.ww, tm.wh = s.W, s.H
-	view := eng.Root().NewView()
-	tm.cam = view.Cam()
+	tm.cam = eng.Root().NewCam()
 	tm.cam.SetOrthographic(0, float64(tm.ww), 0, float64(tm.wh), 0, 50)
 	sun := eng.Root().NewPov().SetLocation(0, 5, 0)
 	sun.NewLight().SetColour(0.4, 0.7, 0.9)
@@ -77,7 +76,7 @@ func (tm *tmtag) Create(eng vu.Eng, s *vu.State) {
 	scale := 10.0
 	tm.ground = eng.Root().NewPov().SetLocation(0, -300, -10).SetScale(scale, scale, 1)
 	tm.gm = tm.ground.NewModel("land").AddTex("land")
-	tm.gm.LoadMat("land").SetUniform("ratio", textureRatio)
+	tm.gm.LoadMat("tint").SetUniform("ratio", textureRatio)
 	tm.gm.NewMesh("land")
 	tm.surface.Update(tm.gm, 0, 0)
 
@@ -85,10 +84,10 @@ func (tm *tmtag) Create(eng vu.Eng, s *vu.State) {
 	tm.ocean = eng.Root().NewPov()
 	tm.ocean.SetLocation(256, 0, -10.5)
 	tm.ocean.SetScale(float64(tm.ww), float64(tm.wh), 1)
-	tm.ocean.NewModel("alpha").LoadMesh("plane").LoadMat("blue2")
+	tm.ocean.NewModel("alpha").LoadMesh("plane").LoadMat("blue")
 	tm.coast = eng.Root().NewPov().SetLocation(256, 0, -10)
 	tm.coast.SetScale(float64(tm.ww), float64(tm.wh), 1)
-	tm.coast.NewModel("alpha").LoadMesh("plane").LoadMat("blue")
+	tm.coast.NewModel("alpha").LoadMesh("plane").LoadMat("transparent_blue")
 	return
 }
 
@@ -100,7 +99,6 @@ func (tm *tmtag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 	}
 
 	// process user presses.
-	rate := 4.0
 	for press, _ := range in.Down {
 		switch press {
 
@@ -114,25 +112,11 @@ func (tm *tmtag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 			tm.ocean.Move(0, 0, -1*in.Dt, dir)
 			tm.coast.Move(0, 0, -1*in.Dt, dir)
 
-			// Demonstrate evolution using a texture atlas.
+		// Demonstrate texture evolution using a texture atlas.
 		case vu.K_Equal:
 			tm.evolve(0.01)
 		case vu.K_Minus:
 			tm.evolve(-0.01)
-
-		// Move the map around.
-		case vu.K_Ua:
-			x, y, z := tm.ground.Location()
-			tm.ground.SetLocation(x, y+rate, z)
-		case vu.K_Da:
-			x, y, z := tm.ground.Location()
-			tm.ground.SetLocation(x, y-rate, z)
-		case vu.K_La:
-			x, y, z := tm.ground.Location()
-			tm.ground.SetLocation(x-rate, y, z)
-		case vu.K_Ra:
-			x, y, z := tm.ground.Location()
-			tm.ground.SetLocation(x+rate, y, z)
 		}
 	}
 }

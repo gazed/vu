@@ -115,40 +115,40 @@ enum AppAttributes
     GS_ShellY,      // 100
     GS_ShellWidth,  // 640
     GS_ShellHeight, // 480
-    GS_AlphaSize,   //  8
-    GS_DepthSize    // 24
+    GS_AlphaSize,   //   8
+    GS_DepthSize    //  24
 };
 
 // Possible return values from gs_read_dispatch.
 enum {
-    GS_LeftMouseDown         = 0x0201, // WM_LBUTTONDOWN
-    GS_LeftMouseUp           = 0x0202, // WM_LBUTTONUP
-    GS_RightMouseDown        = 0x0204, // WM_RBUTTONDOWN
-    GS_RightMouseUp          = 0x0205, // WM_RBUTTONUP
-    GS_MouseMoved            = 0x0200, // WM_MOUSEMOVE
-    GS_MouseExited           = 0x02a3, // WM_MOUSELEAVE
-    GS_KeyDown               = 0x0100, // WM_KEYDOWN
-    GS_KeyUp                 = 0x0101, // WM_KEYUP
-    GS_SysKeyUp              = 0x0105, // WM_SYSKEYUP
-    GS_ScrollWheel           = 0x020a, // WM_MOUSEWHEEL
-    GS_OtherMouseDown        = 0x0207, // WM_MBUTTONDOWN
-    GS_OtherMouseUp          = 0x0208, // WM_MBUTTONUP
-    GS_WindowResized         = 0x0232, // WM_EXITSIZEMOVE
-    GS_WindowMoved           = 0x0003, // WM_MOVE
-    GS_WindowIconified       = 0x0019, // WM_SHOWWINDOW + true  (1)
-    GS_WindowUniconified     = 0x0018, // WM_SHOWWINDOW + false (0)
-    GS_WindowActive          = 0x0007, // WM_ACTIVATE + WA_ACTIVE (1)
-    GS_WindowInactive        = 0x0006  // WM_ACTIVATE + WM_INACTIVE (0)
+    GS_LeftMouseDown     = 0x0201, // WM_LBUTTONDOWN
+    GS_LeftMouseUp       = 0x0202, // WM_LBUTTONUP
+    GS_RightMouseDown    = 0x0204, // WM_RBUTTONDOWN
+    GS_RightMouseUp      = 0x0205, // WM_RBUTTONUP
+    GS_MouseMoved        = 0x0200, // WM_MOUSEMOVE
+    GS_MouseExited       = 0x02a3, // WM_MOUSELEAVE
+    GS_KeyDown           = 0x0100, // WM_KEYDOWN
+    GS_KeyUp             = 0x0101, // WM_KEYUP
+    GS_SysKeyUp          = 0x0105, // WM_SYSKEYUP
+    GS_ScrollWheel       = 0x020a, // WM_MOUSEWHEEL
+    GS_OtherMouseDown    = 0x0207, // WM_MBUTTONDOWN
+    GS_OtherMouseUp      = 0x0208, // WM_MBUTTONUP
+    GS_WindowResized     = 0x0232, // WM_EXITSIZEMOVE
+    GS_WindowMoved       = 0x0003, // WM_MOVE
+    GS_WindowIconified   = 0x0019, // WM_SHOWWINDOW + true  (1)
+    GS_WindowUniconified = 0x0018, // WM_SHOWWINDOW + false (0)
+    GS_WindowActive      = 0x0007, // WM_ACTIVATE + WA_ACTIVE (1)
+    GS_WindowInactive    = 0x0006  // WM_ACTIVATE + WM_INACTIVE (0)
 };
 
 // Provide key modifier bit masks. All currently pressed modifier
 // keys come back combined into one bitmask value.
 enum {
-   GS_ShiftKeyMask      = 1 << 17,
-   GS_ControlKeyMask    = 1 << 18,
-   GS_CommandKeyMask    = 1 << 19,
-   GS_FunctionKeyMask   = 1 << 20,
-   GS_AlternateKeyMask  = 1 << 21,
+   GS_ShiftKeyMask     = 1 << 17,
+   GS_ControlKeyMask   = 1 << 18,
+   GS_CommandKeyMask   = 1 << 19,
+   GS_FunctionKeyMask  = 1 << 20,
+   GS_AlternateKeyMask = 1 << 21,
 };
 
 #endif

@@ -29,26 +29,26 @@ type Device interface {
 	SetCursorAt(x, y int) // Places the cursor at the given window location.
 	Dispose()             // Release OS specific resources.
 
-	// IsAlive returns true as long as the window is able to process user input.
+	// IsAlive returns true as long as the window is processing user input.
 	// Quitting the application window will cause IsAlive to return false.
 	IsAlive() bool
 
-	// Size returns the usable graphics context location and size excluding any OS
-	// specific window trim. The window x, y (0, 0) coordinates are at the bottom
-	// left of the window.
+	// Size returns the usable graphics context location and size excluding
+	// any OS specific window trim. The window x, y (0, 0) coordinates are
+	// at the bottom left of the window.
 	Size() (x, y, width, height int)
 	IsFullScreen() bool // Returns true if window is full screen.
 	ToggleFullScreen()  // Flips between full screen and windowed mode.
 
-	// SwapBuffers exchanges the graphic drawing buffers. Expected to be called
-	// after completing a render. All rendering contexts are double buffered.
+	// SwapBuffers exchanges the graphic drawing buffers. Expected to be
+	// called after a render. All rendering contexts are double buffered.
 	SwapBuffers()
 
-	// Update returns the current (key/mouse) pressed state. The calling application
-	// is expected to:
-	//    1. Treat the pressed information as read only.
-	//    2. Call this method every update loop. This method is responsible
-	//       for regular processing of the native OS window events.
+	// Update returns the current (key/mouse) pressed state.
+	// The calling application is expected to:
+	//   1. Treat the pressed information as read only.
+	//   2. Call this method every update loop for regular processing
+	//      of the native OS window events.
 	Update() *Pressed
 }
 

@@ -452,7 +452,7 @@ func (v *V3) MultMv(m *M3, cv *V3) *V3 {
 }
 
 // MultMv updates vector v to be the multiplication of matrix m and
-// column vector cv.  Same behaviour as V3.MultMv().
+// column vector cv. Same behaviour as V3.MultMv().
 //    [ Xx Xy Xz Xw ]   [ vx ]   [ vx' ]
 //    [ Yx Yy Yz Yw ] x [ vy ] = [ vy' ]
 //    [ Zx Zy Zz Zw ]   [ vz ]   [ vz' ]

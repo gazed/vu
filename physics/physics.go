@@ -20,38 +20,38 @@
 //   2. Altered source versions must be plainly marked as such, and must not be misrepresented as being the original software.
 //   3. This notice may not be removed or altered from any source distribution.
 
-// Move is a real-time simulation of real-world physics. Move automatically
-// applies simulated forces to virtual 3D objects known as bodies. Move
-// updates bodies locations and directions based on forces and collisions
-// with other bodies.
+// Physics is a real-time simulation of real-world physics. Physics applies
+// simulated forces to virtual 3D objects known as bodies. Physics updates
+// bodies locations and directions based on forces and collisions with
+// other bodies.
 //
 // Bodies are created using NewBody(shape). For example:
 //    box    := NewBody(NewBox(hx, hy, hz))
 //    sphere := NewBody(NewSphere(radius))
 //
 // Creating and storing bodies is the responsibility of the calling application.
-// Bodies are moved with frequent and regular calls to Mover.Step(). Regulating
-// the calls to Step() is also the responsibility of the calling application.
-// Once Step() has completed, the bodies updated location and direction are
-// available in Body.World().
+// Bodies are moved with frequent and regular calls to Physics.Step().
+// Regulating the calls to Step() is also the responsibility of the calling
+// application. Once Step() has completed, the bodies updated location and
+// direction are available in Body.World().
 //
-// Package move is provided as part of the vu (virtual universe) 3D engine.
-package move
+// Package physics is provided as part of the vu (virtual universe) 3D engine.
+package physics
 
 // See the open source physics engines:
 //     www.bulletphysics.com
 //     www.ode.org
 // There is a 2D engine physics engine architecture overview at
 //     http://gamedev.tutsplus.com/series/custom-game-physics-engine
-// For regulating physics timesteps see:
+// For regulating physics timesteps in the application see:
 //     http://gafferongames.com/game-physics/fix-your-timestep
 // Other physics references:
 //     http://www.geometrictools.com/Source/Physics.html
 
-// Mover simulates forces acting on moving bodies. Expected usage
+// Physics simulates forces acting on moving bodies. Expected usage
 // is to simulate real-life conditions like air resistance and gravity,
 // or the lack thereof.
-type Mover interface {
+type Physics interface {
 	SetGravity(gravity float64) // Default is 10m/s.
 	SetMargin(margin float64)   // Default is 0.04.
 
@@ -68,14 +68,14 @@ type Mover interface {
 	Collide(a, b Body) bool
 }
 
-// Mover interface
+// Physics interface
 // ===========================================================================
-// mover: default Mover implementation.
+// physics: default Physics implementation.
 
-// mover is the default implementation of the Mover interface.
-// It coordinates the physics pipeline by calling broadphase, narrowphase
-// and solver.
-type mover struct {
+// physics is the default implementation of the Physics interface.
+// It coordinates the physics pipeline by calling broadphase,
+// narrowphase, and solver.
+type physics struct {
 	gravity    float64                 // Force in m/s. Default is 10m/s.
 	col        *collider               // Checks for collisions, updates collision contacts.
 	sol        *solver                 // Resolves collisions, updates bodies locations.
@@ -87,63 +87,63 @@ type mover struct {
 	mf0      []*pointOfContact // Scratch narrowphase manifold.
 }
 
-// NewMover creates and returns a mover instance. Generally expected
+// NewPhysics creates and returns a mover instance. Generally expected
 // to be called once per application that needs a physics simulation.
-func NewMover() Mover { return newMover() }
-func newMover() *mover {
-	mov := &mover{}
-	mov.gravity = -10
-	mov.col = newCollider()
-	mov.sol = newSolver()
-	mov.overlapped = map[uint64]*contactPair{}
-	mov.mf0 = newManifold()
-	mov.abA = &Abox{}
-	mov.abB = &Abox{}
-	return mov
+func NewPhysics() Physics { return newPhysics() }
+func newPhysics() *physics {
+	px := &physics{}
+	px.gravity = -10
+	px.col = newCollider()
+	px.sol = newSolver()
+	px.overlapped = map[uint64]*contactPair{}
+	px.mf0 = newManifold()
+	px.abA = &Abox{}
+	px.abB = &Abox{}
+	return px
 }
 
-// margin is a gap to smooth out collision detection.
+// margin is a gap for smoothing collision detections.
 var margin float64 = 0.04
 
 // maxFriction is used to limit the amount of friction that
 // can be applied to the combined friction of colliding bodies.
 var maxFriction float64 = 10.0
 
-// Mover interface implementation.
+// Physics interface implementation.
 // Step the physics simulation forward by delta time (timestep).
 // Note that the body.iitw is initialized once the first pass completes.
-func (mov *mover) Step(bodies []Body, timestep float64) {
+func (px *physics) Step(bodies []Body, timestep float64) {
 
 	// apply forces (e.g. gravity) to bodies and predict body locations
-	mov.predictBodyLocations(bodies, timestep)
+	px.predictBodyLocations(bodies, timestep)
 
 	// update overlapped pairs
-	mov.broadphase(bodies, mov.overlapped)
-	if len(mov.overlapped) > 0 {
+	px.broadphase(bodies, px.overlapped)
+	if len(px.overlapped) > 0 {
 
 		// collide overlapped pairs
-		if colliding := mov.narrowphase(mov.overlapped); len(colliding) > 0 {
-			mov.sol.info.timestep = timestep
+		if colliding := px.narrowphase(px.overlapped); len(colliding) > 0 {
+			px.sol.info.timestep = timestep
 
 			// resolve all colliding pairs
-			mov.sol.solve(colliding, mov.overlapped)
+			px.sol.solve(colliding, px.overlapped)
 		}
 	}
 
 	// adjust body locations based on velocities
-	mov.updateBodyLocations(bodies, timestep)
-	mov.clearForces(bodies)
+	px.updateBodyLocations(bodies, timestep)
+	px.clearForces(bodies)
 }
 
-// Mover interface implementation.
-func (mov *mover) SetGravity(gravity float64)        { mov.gravity = gravity }
-func (mov *mover) SetMargin(collisionMargin float64) { margin = collisionMargin }
+// Physics interface implementation.
+func (px *physics) SetGravity(gravity float64)        { px.gravity = gravity }
+func (px *physics) SetMargin(collisionMargin float64) { margin = collisionMargin }
 
 // predictBodyLocations applies motion to moving/awake bodies as if there
 // was nothing else around.
 //
 // Based on bullet btSimpleDynamicsWorld::predictUnconstraintMotion
-func (mov *mover) predictBodyLocations(bodies []Body, dt float64) {
+func (px *physics) predictBodyLocations(bodies []Body, dt float64) {
 	var b *body
 	for _, bb := range bodies {
 		b = bb.(*body)
@@ -152,7 +152,7 @@ func (mov *mover) predictBodyLocations(bodies []Body, dt float64) {
 
 			// Fg = m*a. Apply gravity as if mass was 1.
 			// FUTURE: use bodies mass when applying gravity.
-			b.applyGravity(mov.gravity)    // updates forces.
+			b.applyGravity(px.gravity)     // updates forces.
 			b.integrateVelocities(dt)      // applies forces to velocities.
 			b.applyDamping(dt)             // damps velocities.
 			b.updatePredictedTransform(dt) // applies velocities to prediction transform.
@@ -165,7 +165,7 @@ func (mov *mover) predictBodyLocations(bodies []Body, dt float64) {
 //
 // FUTURE: create a broadphase bounding volume hierarchy to help with dealing
 //         with a much larger number of bodies. Especially non-colliding bodies.
-func (mov *mover) broadphase(bodies []Body, pairs map[uint64]*contactPair) {
+func (px *physics) broadphase(bodies []Body, pairs map[uint64]*contactPair) {
 	for _, pair := range pairs {
 		pair.valid = false // validate checks for deleted bodies.
 	}
@@ -187,8 +187,8 @@ func (mov *mover) broadphase(bodies []Body, pairs map[uint64]*contactPair) {
 				pair, existing := pairs[pairId]
 				if existing {
 					pair.valid = true
-					abA := bodyA.predictedAabb(mov.abA, margin)
-					abB := bodyB.predictedAabb(mov.abB, margin)
+					abA := bodyA.predictedAabb(px.abA, margin)
+					abB := bodyB.predictedAabb(px.abB, margin)
 					overlaps := abA.Overlaps(abB)
 					if !overlaps {
 						// Remove existing
@@ -196,8 +196,8 @@ func (mov *mover) broadphase(bodies []Body, pairs map[uint64]*contactPair) {
 					}
 					// Otherwise hold existing
 				} else {
-					abA := bodyA.worldAabb(mov.abA)
-					abB := bodyB.worldAabb(mov.abB)
+					abA := bodyA.worldAabb(px.abA)
+					abB := bodyB.worldAabb(px.abB)
 					overlaps := abA.Overlaps(abB)
 					if overlaps {
 						// Add new
@@ -223,12 +223,12 @@ func (mov *mover) broadphase(bodies []Body, pairs map[uint64]*contactPair) {
 // then the persistent collision information for the bodies is updated.
 // This includes the contact, normal, and depth information.
 // Return all colliding bodies.
-func (mov *mover) narrowphase(pairs map[uint64]*contactPair) (colliding map[uint32]*body) {
+func (px *physics) narrowphase(pairs map[uint64]*contactPair) (colliding map[uint32]*body) {
 	colliding = map[uint32]*body{}
-	scrManifold := mov.mf0 // scatch mf0
+	scrManifold := px.mf0 // scatch mf0
 	for _, cpair := range pairs {
 		bodyA, bodyB := cpair.bodyA, cpair.bodyB
-		algorithm := mov.col.algorithms[bodyA.shape.Type()][bodyB.shape.Type()]
+		algorithm := px.col.algorithms[bodyA.shape.Type()][bodyB.shape.Type()]
 		bA, bB, manifold := algorithm(bodyA, bodyB, scrManifold)
 		cpair.bodyA, cpair.bodyB = bA.(*body), bB.(*body) // handle potential body swaps.
 
@@ -246,7 +246,7 @@ func (mov *mover) narrowphase(pairs map[uint64]*contactPair) (colliding map[uint
 
 // updateBodyLocations applies the updated linear and angular velocities to the
 // the bodies current position.
-func (mov *mover) updateBodyLocations(bodies []Body, timestep float64) {
+func (px *physics) updateBodyLocations(bodies []Body, timestep float64) {
 	var b *body
 	for _, bb := range bodies {
 		b = bb.(*body)
@@ -259,7 +259,7 @@ func (mov *mover) updateBodyLocations(bodies []Body, timestep float64) {
 
 // clearFoces removes any forces acting on bodies. This allows for the forces
 // to be changed each simulation step.
-func (mov *mover) clearForces(bodies []Body) {
+func (px *physics) clearForces(bodies []Body) {
 	var b *body
 	for _, bb := range bodies {
 		b = bb.(*body)
@@ -268,10 +268,10 @@ func (mov *mover) clearForces(bodies []Body) {
 }
 
 // Collide returns true if the two shapes, a, b are touching or overlapping.
-func (mov *mover) Collide(a, b Body) (hit bool) {
+func (px *physics) Collide(a, b Body) (hit bool) {
 	aa, bb := a.(*body), b.(*body)
-	algorithm := mov.col.algorithms[aa.shape.Type()][bb.shape.Type()]
-	_, _, manifold := algorithm(aa, bb, mov.mf0)
+	algorithm := px.col.algorithms[aa.shape.Type()][bb.shape.Type()]
+	_, _, manifold := algorithm(aa, bb, px.mf0)
 	return len(manifold) > 0
 }
 

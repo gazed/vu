@@ -13,8 +13,6 @@ package grid
 
 import (
 	"math"
-
-	"github.com/gazed/vu/math/lin"
 )
 
 // Flow creates a map to help units move towards their goal. The flow is
@@ -26,10 +24,11 @@ type Flow interface {
 	// This can be called to update maps as the goal changes.
 	Create(goalx, goaly int) // Call once before calling Next.
 
-	// Next, based on the current grid location atx, aty, returns the
-	// desired direction as a unit vector dx,dy. Next returns 0,0 if the
-	// current location is at the goal, or if there is no valid direction.
-	Next(atx, aty float64) (dx, dy float64)
+	// Next, based on the current grid location gx, gy, returns the
+	// next grid location nx, ny. 0, 0 is returned if the current
+	// location is the goal. 9, 9 is returned if the given location
+	// is invalid.
+	Next(gx, gy int) (nx, ny int)
 }
 
 // NewFlow creates a flow based on a plan.
@@ -43,7 +42,7 @@ func NewFlow(p Plan) Flow { return newFlow(p) }
 // for the given plan.
 type flow struct {
 	xsz, ysz   int     // floor plan x,y dimensions.
-	costmap    Plan    // base map with impassable and avoidance areas..
+	costmap    Plan    // base map with impassable and avoidance areas.
 	goalmap    [][]int // holds the cost to the goal for each cell.
 	flowmap    [][]int // direction to goal for each cell.
 	neighbours []int   // scratch for calculating valid neighbours.
@@ -88,28 +87,27 @@ func (f *flow) Create(goalx, goaly int) {
 	f.createFlowmap(goalx, goaly) // create flow map from goal map.
 }
 
-// Next implements Flow. Look up the direction for the given location
-// and return it as a unit vector.
-func (f *flow) Next(atx, aty float64) (dx, dy float64) {
-	gridx, gridy := int(lin.Round(atx, 0)), int(lin.Round(aty, 0))
-	ir := 0.7071068 // inverse root of 2: 1/math.Sqrt(2)
-	switch f.flowmap[gridx][gridy] {
+// Next implements Flow.
+func (f *flow) Next(gx, gy int) (nx, ny int) {
+	switch f.flowmap[gx][gy] {
 	case north:
 		return 0, 1
 	case ne:
-		return ir, ir
+		return 1, 1
 	case east:
 		return 1, 0
 	case se:
-		return ir, -ir
+		return 1, -1
 	case south:
 		return 0, -1
 	case sw:
-		return -ir, -ir
+		return -1, -1
 	case west:
 		return -1, 0
 	case nw:
-		return -ir, ir
+		return -1, 1
+	case f.max:
+		return 9, 9 // Invalid.
 	}
 	return 0, 0
 }
@@ -217,7 +215,7 @@ func (f *flow) createFlowmap(goalx, goaly int) {
 // Find the all neighbours including diagonals. Relies on f.neighbours
 // scratch variable. Returns the direction of the valid neighbour.
 func (f *flow) findNeighbours(x, y int) []int {
-	f.neighbours = f.neighbours[0:0] // reset while preserving memory.
+	f.neighbours = f.neighbours[:0] // reset while preserving memory.
 	if y+1 < f.ysz {
 		f.neighbours = append(f.neighbours, north)
 	}
@@ -248,7 +246,7 @@ func (f *flow) findNeighbours(x, y int) []int {
 // Find the N,S,E,W neighbours. Relies on f.neighbours scratch variable.
 // Returns the direction of the valid neighbour.
 func (f *flow) directNeighbours(x, y int) []int {
-	f.neighbours = f.neighbours[0:0] // reset while preserving memory.
+	f.neighbours = f.neighbours[:0] // reset while preserving memory.
 	if y+1 < f.ysz {
 		f.neighbours = append(f.neighbours, north)
 	}

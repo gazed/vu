@@ -23,65 +23,33 @@ type loader struct {
 	loads []*loadReq // Collects asset load requests.
 
 	// loader goroutine communication.
-	ld      load.Loader     // asset loader.
-	cache   cache           // asset cache.
-	control chan msg        // shutdown requests.
-	load    chan []*loadReq // asset load requests.
-	loaded  chan []*loadReq // loaded asset replies.
-	binder  chan msg        // machine loop request channel.
+	ld     load.Loader     // asset loader.
+	cache  cache           // asset cache.
+	stop   chan bool       // shutdown requests.
+	load   chan []*loadReq // asset load requests.
+	loaded chan []*loadReq // loaded asset replies.
+	binder chan msg        // machine loop request channel.
 }
 
-// newLoader is expected to be called once on startup.
+// newLoader is expected to be called once on startup by the engine.
 func newLoader(loaded chan []*loadReq, binder chan msg) *loader {
 	l := &loader{loaded: loaded, binder: binder}
 	l.ld = load.NewLoader()
 	l.cache = newCache()
-	l.control = make(chan msg)
+	l.stop = make(chan bool)
 	l.load = make(chan []*loadReq)
 	return l
 }
 
-// queueLoads is called on the engine processing goroutine.
-// The models are loaded and returned by calling loadQueued.
-func (l *loader) queueLoads(loadRequests []*loadReq) {
-	l.loads = append(l.loads, loadRequests...)
-}
-
-// loadQueued is called on the engine processing goroutine.
-// to send the load requests off for loading. Load requests
-// are batched into small chunks so the loader can return
-// some assets while others are being loaded.
-func (l *loader) loadQueued() {
-	batchSize := 100
-	for len(l.loads) > 0 {
-		if len(l.loads) > batchSize {
-			go l.processRequests(l.loads[:batchSize])
-			l.loads = l.loads[batchSize:]
-		} else {
-			go l.processRequests(l.loads)
-			l.loads = []*loadReq{}
-		}
-	}
-}
-
 // runLoader loops forever processing all load requests.
-// It is started once as a goroutine on engine initialization.
+// It is started once as a goroutine on engine initialization
+// and is stopped when the engine shuts down.
 func (l *loader) runLoader() {
 	defer catchErrors()
 	for {
 		select {
-		case req := <-l.control:
-			if req == nil {
-				return // exit immediately: channel closed.
-			}
-			switch m := req.(type) {
-			case *shutdown:
-				return // exit immediately: the app loop is done.
-			case *releaseData:
-				l.release(m.data)
-			default:
-				log.Printf("loader: unknown msg %T", m)
-			}
+		case <-l.stop: // closed channels return 0
+			return // exit immediately: channel closed.
 		case requests := <-l.load:
 			for _, req := range requests {
 				switch a := req.a.(type) {
@@ -107,6 +75,11 @@ func (l *loader) runLoader() {
 					req.a, req.err = l.loadMaterial(a)
 				case *sound:
 					req.a, req.err = l.loadSound(a)
+
+				// FUTURE handle releaseData requests. See eng.dispose design note.
+				default:
+					log.Printf("loader: unknown request %T", a)
+
 				}
 			}
 			go l.returnAssets(requests)
@@ -114,10 +87,10 @@ func (l *loader) runLoader() {
 	}
 }
 
-// request is the entry point for all load and unload requests.
+// loadAssets is the entry point for all load and unload requests.
 // It is expected to be called as a go-routine whereupon it waits
 // for the asset loader to process its request.
-func (l *loader) processRequests(reqs []*loadReq) { l.load <- reqs }
+func (l *loader) loadAssets(reqs []*loadReq) { l.load <- reqs }
 
 // returnAssets funnels a group of loaded assets back to the
 // engine loop. The engine loop may be busy, so make this
@@ -125,6 +98,33 @@ func (l *loader) processRequests(reqs []*loadReq) { l.load <- reqs }
 func (l *loader) returnAssets(assets []*loadReq) {
 	l.loaded <- assets
 }
+
+// queueLoads is called on the engine processing goroutine.
+// The models are loaded and returned by calling loadQueued.
+func (l *loader) queueLoads(loadRequests []*loadReq) {
+	l.loads = append(l.loads, loadRequests...)
+}
+
+// loadQueued is called on the engine processing goroutine
+// to send the load requests off for loading. Load requests
+// are batched into small chunks so the loader can return
+// some assets while others are being loaded.
+func (l *loader) loadQueued() {
+	batchSize := 100
+	for len(l.loads) > 0 {
+		if len(l.loads) > batchSize {
+			go l.loadAssets(l.loads[:batchSize])
+			l.loads = l.loads[batchSize:]
+		} else {
+			go l.loadAssets(l.loads)
+			l.loads = []*loadReq{}
+		}
+	}
+}
+
+// shutdown is called on the engine processing goroutine
+// to shutdown the loader.
+func (l *loader) shutdown() { l.stop <- true }
 
 // loadSound returns a loaded sound immediately if it is cached.
 // Otherwise the sound is returned after it is loaded and bound.
@@ -158,7 +158,7 @@ func (l *loader) importSound(s *sound) error {
 }
 
 // loadShader returns a loaded shader immediately if it is cached.
-// Otherwise the shader is returned after it is  loaded and bound.
+// Otherwise the shader is returned after it is loaded and bound.
 func (l *loader) loadShader(s *shader) (*shader, error) {
 	data := asset(s)
 	if err := l.cache.fetch(&data); err == nil {
@@ -200,10 +200,6 @@ func (l *loader) importShader(s *shader) error {
 	}
 	return fmt.Errorf("Could not find shader %s", s.name)
 }
-
-// disposeShader clears the given shader from the cache.
-// Expected when once the resource is no longer referenced.
-func (l *loader) disposeShader(s *shader) { l.cache.remove(s) }
 
 // loadMesh returns a loaded noise immediately if it is cached.
 // Otherwise the mesh is returned after it is loaded and bound.
@@ -248,14 +244,10 @@ func (l *loader) importMesh(m *mesh) error {
 		}
 		m.initFaces(render.STATIC).setFaces(data[0].F)
 	} else {
-		return fmt.Errorf("assets.loadMesh: could not load %s %s", m.name, err)
+		return fmt.Errorf("loader.loadMesh: could not load %s %s", m.name, err)
 	}
 	return nil
 }
-
-// disposeMesh clears the given mesh from the cache.
-// Expected when once the resource is no longer referenced.
-func (l *loader) disposeMesh(m *mesh) { l.cache.remove(m) }
 
 // loadTexture returns a loaded texture immediately if it is cached.
 // Otherwise the texture is returned after it is loaded and bound.
@@ -289,10 +281,6 @@ func (l *loader) importTexture(t *texture) error {
 	}
 }
 
-// disposeTexture clears the given texture from the cache.
-// Expected when once the resource is no longer referenced.
-func (l *loader) disposeTexture(t *texture) { l.cache.remove(t) }
-
 // loadMaterial returns a loaded material immediately if it is cached.
 // Otherwise the material is returned after it is loaded and bound.
 func (l *loader) loadMaterial(m *material) (*material, error) {
@@ -321,10 +309,6 @@ func (l *loader) importMaterial(m *material) error {
 	return fmt.Errorf("loader.loadMaterial: could not load %s", m.name)
 }
 
-// disposeMaterial clears the given material from the cache.
-// Expected when once the resource is no longer referenced.
-func (l *loader) disposeMaterial(m *material) { l.cache.remove(m) }
-
 // loadFont returns a loaded font immediately if it is cached.
 // Otherwise the font is returned after it is loaded and bound.
 func (l *loader) loadFont(f *font) (*font, error) {
@@ -349,14 +333,10 @@ func (l *loader) importFont(f *font) error {
 			f.addChar(ch.Char, ch.X, ch.Y, ch.W, ch.H, ch.Xo, ch.Yo, ch.Xa)
 		}
 	} else {
-		return fmt.Errorf("assets.loadFont: could not load %s %s", f.label(), err)
+		return fmt.Errorf("loader.loadFont: could not load %s %s", f.label(), err)
 	}
 	return nil
 }
-
-// disposeFont clears the given font from the cache.
-// Expected when once the resource is no longer referenced.
-func (l *loader) disposeFont(f *font) { l.cache.remove(f) }
 
 // loadAnim loads an animated model from disk. This will create
 // multiple model assets including a mesh, textures, and animation data.
@@ -384,7 +364,7 @@ func (l *loader) loadAnim(a *animation, m *mesh) (*animation, *mesh, []*texture)
 		}
 	}
 
-	// Otherwise the animation, and mesh, need to be loaded.
+	// Otherwise the animation and mesh need to be loaded.
 	// Textures are loaded, bound, and cached within importAnim.
 	var texs []*texture
 	var err error
@@ -456,6 +436,13 @@ func (l *loader) importAnim(a *animation, m *mesh) (texs []*texture, err error) 
 	return texs, nil
 }
 
+// bindLayer requests a new framebuffer based texture for a view.
+func (l *loader) bindLayer(layer *layer) error {
+	bindReply := make(chan error)
+	l.binder <- &bindData{data: layer, reply: bindReply} // request bind.
+	return <-bindReply                                   // wait for bind.
+}
+
 // release is called when the cached data is no
 // longer needed and can be discarded entirely.
 func (l *loader) release(data interface{}) {
@@ -489,24 +476,25 @@ func (l *loader) release(data interface{}) {
 // the request.
 type loadReq struct {
 	eid uint64 // pov entity identifier.
-	a   asset  // asset to be loaded (anm, fnt, mat, msh, shd, snd, tex).
+	a   asset  // asset to be loaded (anm, fnt, mat, msh, shd, snd, tex, fbo).
 	err error  // true if there was an error with the load.
 
 	// Extra assets generated when loading an animation file.
 	msh  *mesh      // only valid after loading an animation.
 	texs []*texture // only valid after loading an animation.
 
-	// set by the engine and passed to the loader, but not referenced or changed
-	// on the loader goroutine... Accessed by the engine after the load request.
-	index int    // texture index used after load complete.
-	model *model // model used after load complete. Used for all but snd assets.
-	noise *noise // noise used after load complete. Matches snd assets.
+	// engine specific data used to quickly access the model or noise instance
+	// to store the loaded asset. Not to be used by the loader goroutine.
+	// Accessed by the engine after the load request.
+	index int         // texture index used after load complete.
+	data  interface{} // model or noise. Needed by engine after load complete.
 }
 
-// loaderAsset
-// ============================================================================
+// loadReq
+// =============================================================================
 // cache
 
+// cache reuses loaded assets.
 type cache map[uint64]interface{}
 
 // newCache creates a new in-memory cache for loaded items. Expected to be

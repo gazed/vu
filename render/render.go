@@ -31,10 +31,18 @@ type Renderer interface {
 	BindTexture(tid *uint32, img image.Image, repeat bool) (err error)
 	Render(d Draw) // Render bound data and textures with bound shaders.
 
+	// BindFrame creates a framebuffer object with an associated texture.
+	//   buf : DEPTH_BUFF, for depth, or IMAGE_BUFF, for colour and depth.
+	//   fbo : returned frame buffer object identifier.
+	//   tid : returned texture identifier.
+	//   db  : returned depth buffer render buffer.
+	BindFrame(buf int, fbo, tid, db *uint32) (err error)
+
 	// Releasing frees up previous bound graphics card data.
-	ReleaseMesh(vao uint32)    // Free bound vao reference.
-	ReleaseShader(sid uint32)  // Free bound shader reference.
-	ReleaseTexture(tid uint32) // Free bound texture reference.
+	ReleaseMesh(vao uint32)           // Free bound vao reference.
+	ReleaseShader(sid uint32)         // Free bound shader reference.
+	ReleaseTexture(tid uint32)        // Free bound texture reference.
+	ReleaseFrame(fbo, tid, db uint32) // Free framebuffer and texture.
 }
 
 // New provides the graphics implementation determined by the
@@ -50,9 +58,14 @@ const (
 	LINES            // Lines are used for drawing wireframe shapes.
 
 	// Render buckets. Lower values drawn first. Used in Draw.SetHints.
-	OPAQUE      // draw first
+	DEPTH_PASS  // draw first
+	OPAQUE      // draw after shadow
 	TRANSPARENT // draw after opaque
 	OVERLAY     // draw last.
+
+	// BindFrame buffer types.
+	DEPTH_BUFF // For depth only.
+	IMAGE_BUFF // For colour and depth.
 )
 
 // FUTURE: directx.go implementation to test the Render API and the

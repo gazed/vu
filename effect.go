@@ -29,11 +29,9 @@ import (
 // the list of potential particles and returns the active particle set.
 // Delta-time, dt, is the elapsed time in seconds since the last update.
 // This is used for CPU particle effects where the application does the
-// majority of the work controlling particle lifespans and positions in
-// the provided Effect method.
+// work of controlling particle lifespans and positions.
 //
-// An effect is expected to be attached to a Model to it can be positioned
-// and rendered.
+// An effect, once attached to a Model, positions and updates the model.
 type Effect func(all []*EffectParticle, dt float64) (live []*EffectParticle)
 
 // EffectParticle is one of the particles updated by an Effect.
@@ -49,7 +47,6 @@ type EffectParticle struct {
 // =============================================================================
 // effect
 
-//
 // effect turns an application defined particle Effect into points that
 // can be rendered. Expected to be used with a relatively small number
 // of particles.

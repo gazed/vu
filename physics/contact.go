@@ -1,7 +1,7 @@
 // Copyright © 2013-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
-package move
+package physics
 
 import (
 	"math"
@@ -14,7 +14,7 @@ import (
 // (post-solver). Contacts are created, if necessary, during broad phase,
 // checked by narrow phase, and updated by the solver.
 type contactPair struct {
-	bodyA *body             // (A, 0) partener body.
+	bodyA *body             // (A, 0) partner body.
 	bodyB *body             // (B, 1) reference body for normal and point.
 	pid   uint64            // Unique pair identifier.
 	pocs  []*pointOfContact // The current points of contact.
@@ -29,9 +29,8 @@ type contactPair struct {
 	v0, v1, v2 *lin.V3 // Scratch vectors.
 }
 
-// newContactPair creates a contact between two bodies. This is expected to be
-// used only for contacting bodies that are not already being tracked by the
-// mover.
+// newContactPair creates a contact between two bodies. Expected to be
+// used for contacting bodies not already being tracked by physics.
 func newContactPair(bodyA, bodyB *body) *contactPair {
 	con := &contactPair{}
 	con.bodyA, con.bodyB = bodyA, bodyB

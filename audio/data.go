@@ -11,7 +11,7 @@ type Data struct {
 	Channels   uint16 // Number of audio channels.
 	SampleBits uint16 // 8 bits = 8, 16 bits = 16, etc.
 	Frequency  uint32 // 8000, 44100, etc.
-	DataSize   uint32 // Size of audio data (total file size minus header size).
+	DataSize   uint32 // Size of audio data: total file size minus header size.
 }
 
 // Set is a convenience method that populates sound data with the

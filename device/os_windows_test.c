@@ -6,7 +6,7 @@
 // Ignored because cgo attempts to compile it during normal builds.
 // To build a native test application, compile this on git bash (mingw) using:
 //     gcc -o App os_windows*.c os_win_gl.c -lopengl32 -lgdi32 -Wall -m64
-//     gcc -o App os_windows*.c os_win_dx.cxx -ld3d11 -std=c++11 -Wall -m64
+//     FUTURE gcc -o App os_windows*.c os_win_dx.cxx -ld3d11 -std=c++11 -Wall -m64
 
 #include "os_windows.h"
 

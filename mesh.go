@@ -15,8 +15,8 @@ import (
 // often created by the asset pipeline from disk based files that were in turn
 // created by tools like Blender.
 //
-// Note each data buffer must refer to the same number of verticies where the
-// number of verticies in one mesh must be less than 65,000.
+// Note each data buffer must refer to the same number of verticies,
+// and the number of verticies in one mesh must be less than 65,000.
 type mesh struct {
 	name   string // Unique mesh name.
 	tag    uint64 // name and type as a number.

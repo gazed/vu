@@ -20,6 +20,7 @@ type Draw interface {
 	SetMv(mv *lin.M4)            // Model-View transform.
 	SetMvp(mvp *lin.M4)          // Model-View-Projection transform.
 	SetPm(pm *lin.M4)            // Projection matrix only.
+	SetDbm(dbm *lin.M4)          // Depth bias matrix for shadow maps.
 	SetScale(sx, sy, sz float64) // Scaling, per axis.
 	SetPose(pose []lin.M4)       // Animation joint/bone transforms.
 
@@ -27,12 +28,14 @@ type Draw interface {
 	//   bucket : Sort order OPAQUE, TRANSPARENT, OVERLAY.
 	//   toCam : Distance to Camera.
 	//   depth : True to render with depth.
-	SetHints(bucket int, tocam float64, depth bool)
+	//   asTex : True to render to texture.
+	SetHints(bucket int, tocam float64, depth bool, fbo uint32)
 
 	// SetCounts for bound references
 	//   faces  : Number of triangles to be rendered.
 	//   verts  : Number of verticies to be rendered.
 	SetCounts(faces, verts int)
+
 	// SetRefs of bound references
 	//   shader : Program reference
 	//   vao    : Vao ref for the mesh vertex buffers.
@@ -46,6 +49,7 @@ type Draw interface {
 	//   tid    : Bound texture reference.
 	//   fn, f0 : Used when there are multiple textures for one mesh.
 	SetTex(count, index int, tid, fn, f0 uint32)
+	SetShadowmap(tid uint32) // Shadow depth map texture id.
 
 	// Shader uniform data. String keys match the variables expected
 	// by the shader source. Each shader variable is expected to have
@@ -70,6 +74,7 @@ func NewDraw() Draw {
 	d.mvp = &m4{}
 	d.pm = &m4{}
 	d.nm = &m3{}
+	d.dbm = &m4{}
 	d.scale = &v3{1, 1, 1}
 	d.floats = map[string][]float32{} // Float uniform values.
 	return d
@@ -87,12 +92,14 @@ type draw struct {
 	mode     int    // POINTS, LINES, TRIANGLES
 	numFaces int32  // Number of triangles to be rendered.
 	numVerts int32  // Number of verticies to be rendered.
+	shtex    uint32 // GPU bound texture shadow depth map.
 	texs     []tex  // GPU bound texture references.
 
 	// Rendering hints.
 	bucket int     // Render order hint.
 	tocam  float64 // Distance to Camera.
 	depth  bool    // True to render with depth.
+	fbo    uint32  // Framebuffer id. 0 for default.
 
 	// Shader uniform data.
 	uniforms map[string]int32     // Expected uniforms and shader references.
@@ -105,6 +112,7 @@ type draw struct {
 	mvp   *m4    // Model View projection.
 	pm    *m4    // Projection only.
 	nm    *m3    // Normal matrix
+	dbm   *m4    // Depth bias matrix for shadow maps.
 	scale *v3    // Scale X, Y, Z
 	pose  []m34  // Per render frame of animation bone data.
 	tag   uint64 // Tag for application debugging.
@@ -114,6 +122,7 @@ type draw struct {
 func (d *draw) SetMv(mv *lin.M4)   { d.mv.tom4(mv) }
 func (d *draw) SetMvp(mvp *lin.M4) { d.mvp.tom4(mvp) }
 func (d *draw) SetPm(pm *lin.M4)   { d.pm.tom4(pm) }
+func (d *draw) SetDbm(dbm *lin.M4) { d.dbm.tom4(dbm) }
 func (d *draw) SetScale(sx, sy, sz float64) {
 	d.scale.x, d.scale.y, d.scale.z = float32(sx), float32(sy), float32(sz)
 }
@@ -138,8 +147,8 @@ func (d *draw) SetPose(pose []lin.M4) {
 //   bucket: Render order, smallest first.
 //   toCam : Distance of object to camera.
 //   depth : True to use Z-buffer.
-func (d *draw) SetHints(bucket int, toCam float64, depth bool) {
-	d.bucket, d.tocam, d.depth = bucket, toCam, depth
+func (d *draw) SetHints(bucket int, toCam float64, depth bool, fbo uint32) {
+	d.bucket, d.tocam, d.depth, d.fbo = bucket, toCam, depth, fbo
 }
 
 // SetRefs
@@ -175,6 +184,7 @@ func (d *draw) SetTex(count, index int, tid, f0, fn uint32) {
 	d.texs[index].f0 = int32(f0)
 	d.texs[index].fn = int32(fn)
 }
+func (d *draw) SetShadowmap(tid uint32) { d.shtex = tid }
 
 // Set values for the shader uniforms.
 func (d *draw) SetUniforms(u map[string]int32) { d.uniforms = u }

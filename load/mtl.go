@@ -24,7 +24,7 @@ type MtlData struct {
 // or more material descriptions.  See the file format specification at:
 //    https://en.wikipedia.org/wiki/Wavefront_.obj_file#File_format
 //    http://web.archive.org/web/20080813073052/
-//    http://local.wasp.uwa.edu.au/~pbourke/dataformats/mtl/
+//    http://paulbourke.net/dataformats/mtl/
 func (l *loader) mtl(name string) (data *MtlData, err error) {
 	mtl := &MtlData{}
 	var file io.ReadCloser

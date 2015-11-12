@@ -27,13 +27,13 @@ struct AppDefaults defaults = { 100, 100, 240, 280, 8, 24, TEXT("App") };
 #define IDI_APPICON 101
 
 // State used to track window closure. Needed to avoid accessing the
-// external shell pointer after a window has closed. There is no sure way to
-// check if an object pointer is valid once that object has been released.
+// external shell pointer after a window has closed. There is no sure way
+// to check if an object pointer is valid once that object has been released.
 long gs_win_alive = -1;
 
-// Fifo queue of event (urge) structure used to pass back events of interest.
+// Fifo queue of event structure used to pass back events of interest.
 // Needed because read_dispatch only handles a single event, but one user action
-// can produce multiple events. Only ever seen 2 events produced from one.
+// can produce multiple events. Only ever seen max 2 events produced from one.
 static GSEvent gs_events[] = {
     {0, -1, -1, 0, 0, 0},
     {0, -1, -1, 0, 0, 0},

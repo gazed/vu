@@ -12,7 +12,8 @@ import (
 	"github.com/gazed/vu/grid"
 )
 
-// rl tests higher level graphics functionality. This includes:
+// rl, random levels, tests higher level graphics functionality.
+// This includes:
 //   • vu culling/reducing the total objects rendered based on distance.
 //   • vu 2D overlay scene, in this case a minimap.
 //   • vu grid generation. Try numbers 0-9.
@@ -34,8 +35,6 @@ type rltag struct {
 	floors map[int]*floor // The random grid
 	flr    *floor         // The current floor.
 	arrow  vu.Pov         // Camera/player minimap marker.
-	run    float64        // Camera movement speed.
-	spin   float64        // Camera spin speed.
 
 	// timing values.
 	renders int           // number of renders.
@@ -45,8 +44,6 @@ type rltag struct {
 
 // Create is the engine callback for initial asset creation.
 func (rl *rltag) Create(eng vu.Eng, s *vu.State) {
-	rl.run = 5    // move so many cubes worth in one second.
-	rl.spin = 270 // spin so many degrees in one second.
 	rl.ww, rl.wh = 800, 600
 	rl.floors = make(map[int]*floor)
 	rl.setLevel(eng, vu.K_1)
@@ -56,6 +53,8 @@ func (rl *rltag) Create(eng vu.Eng, s *vu.State) {
 
 // Update is the regular engine callback.
 func (rl *rltag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
+	run := 5.0    // move so many cubes worth in one second.
+	spin := 270.0 // spin so many degrees in one second.
 	if in.Resized {
 		rl.resize(s.W, s.H)
 	}
@@ -75,22 +74,22 @@ func (rl *rltag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 	for press, down := range in.Down {
 		switch press {
 		case vu.K_W:
-			rl.flr.cam.Move(0, 0, moveDelta*-rl.run, rl.flr.cam.Lookxz())
+			rl.flr.cam.Move(0, 0, moveDelta*-run, rl.flr.cam.Lookxz())
 			rl.arrow.SetLocation(rl.flr.cam.Location())
 		case vu.K_S:
-			rl.flr.cam.Move(0, 0, moveDelta*rl.run, rl.flr.cam.Lookxz())
+			rl.flr.cam.Move(0, 0, moveDelta*run, rl.flr.cam.Lookxz())
 			rl.arrow.SetLocation(rl.flr.cam.Location())
 		case vu.K_Q:
-			rl.flr.cam.Move(moveDelta*-rl.run, 0, 0, rl.flr.cam.Lookxz())
+			rl.flr.cam.Move(moveDelta*-run, 0, 0, rl.flr.cam.Lookxz())
 			rl.arrow.SetLocation(rl.flr.cam.Location())
 		case vu.K_E:
-			rl.flr.cam.Move(moveDelta*rl.run, 0, 0, rl.flr.cam.Lookxz())
+			rl.flr.cam.Move(moveDelta*run, 0, 0, rl.flr.cam.Lookxz())
 			rl.arrow.SetLocation(rl.flr.cam.Location())
 		case vu.K_A:
-			rl.flr.cam.AdjustYaw(dt * rl.spin)
+			rl.flr.cam.AdjustYaw(dt * spin)
 			rl.arrow.SetRotation(rl.flr.cam.Lookxz())
 		case vu.K_D:
-			rl.flr.cam.AdjustYaw(dt * -rl.spin)
+			rl.flr.cam.AdjustYaw(dt * -spin)
 			rl.arrow.SetRotation(rl.flr.cam.Lookxz())
 		case vu.K_1, vu.K_2, vu.K_3, vu.K_4, vu.K_5, vu.K_6, vu.K_7, vu.K_8, vu.K_9, vu.K_0:
 			if down == 1 {
@@ -183,18 +182,16 @@ func (rl *rltag) setLevel(eng vu.Eng, keyCode int) {
 		// create the scene
 		flr.top = eng.Root().NewPov()
 		flr.plan = flr.top.NewPov()
-		view := flr.plan.NewView()
-		view.SetCull(vu.NewFrontCull(10))
-		flr.cam = view.Cam()
+		flr.cam = flr.plan.NewCam()
 		flr.cam.SetLocation(1, 0, -1)
 		flr.cam.SetPerspective(60, float64(rl.ww)/float64(rl.wh), 0.1, 50)
+		flr.cam.SetCull(vu.NewFrontCull(10))
 
 		// create the overlay
 		flr.mmap = flr.top.NewPov()
-		view = flr.mmap.NewView()
-		view.SetUI()
-		flr.ui = view.Cam()
-		flr.ui.SetTransform(vu.XZ_XY)
+		flr.ui = flr.mmap.NewCam()
+		flr.ui.SetUI()
+		flr.ui.SetView(vu.XZ_XY)
 		flr.ui.SetOrthographic(0, float64(rl.ww), 0, float64(rl.wh), 0, 20)
 		flr.mapPart = flr.mmap.NewPov()
 		flr.mapPart.SetScale(7.5, 7.5, 7.5)
@@ -214,15 +211,15 @@ func (rl *rltag) setLevel(eng vu.Eng, keyCode int) {
 			for y := 0; y < height; y++ {
 				if flr.layout.IsOpen(x, y) {
 					block := flr.mapPart.NewPov().SetLocation(float64(x), 0, float64(-y))
-					block.NewModel("alpha").LoadMesh("cube").LoadMat("gray")
+					block.NewModel("alpha").LoadMesh("cube").LoadMat("transparent_gray")
 				} else {
 					block := flr.plan.NewPov().SetLocation(float64(x), 0, float64(-y))
-					block.NewModel("uv").LoadMesh("block").AddTex("tile")
+					block.NewModel("uv").LoadMesh("box").AddTex("tile")
 				}
 			}
 		}
 		flr.arrow = flr.mapPart.NewPov().SetLocation(flr.cam.Location())
-		flr.arrow.NewModel("solid").LoadMesh("arrow").LoadMat("blue")
+		flr.arrow.NewModel("solid").LoadMesh("arrow").LoadMat("transparent_blue")
 		rl.floors[keyCode] = flr
 	}
 	if rl.flr != nil {

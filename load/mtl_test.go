@@ -11,7 +11,7 @@ import (
 // Uses vu/eg resource directories.
 func TestLoadMtl(t *testing.T) {
 	load := newLoader().setDir(mod, "../eg/models")
-	m, err := load.mtl("sphere")
+	m, err := load.mtl("red")
 	if m == nil || err != nil {
 		t.Fatalf("Should be able to load a valid material file %s", err)
 	}

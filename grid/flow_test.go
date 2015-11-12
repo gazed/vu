@@ -74,9 +74,9 @@ func TestFlowBlock(t *testing.T) {
 func TestFlowNext(t *testing.T) {
 	f := newFlow(&blockedPlan{})
 	f.Create(0, 0)
-	dx, dy := f.Next(float64(gridSize-1), float64(gridSize-1))
-	if dx != -0.7071068 || dy != -0.7071068 {
-		t.Errorf("Invalid next direction %f %f", dx, dy)
+	dx, dy := f.Next(gridSize-1, gridSize-1)
+	if dx != -1 || dy != -1 {
+		t.Errorf("Invalid next direction %d %d", dx, dy)
 	}
 }
 

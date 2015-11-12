@@ -1,4 +1,4 @@
-// Copyright © 2015 Galvanized Logic Inc.
+// Copyright © 2013-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 // +build dx
@@ -11,7 +11,7 @@ import (
 )
 
 // FUTURE link this up to directX bindings. Need a directX context from
-//        vu/device. Wait for directX 12 out near end of 2015.
+//        vu/device. Wait for directX 12 to mature a bit.
 
 // directx is the Direct3D implemntation of Renderer. See the Renderer interface
 // for comments. See the Direct3D documentation for methods and constants.

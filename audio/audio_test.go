@@ -10,8 +10,8 @@ import (
 	"github.com/gazed/vu/load"
 )
 
-// test that an audio resource can be loaded. Mimics the
-// steps taken by the engine.
+// test that an audio resource can be loaded. Mimics the steps taken
+// by the engine. Depends on sound resources from the examples directory.
 func TestAudio(t *testing.T) {
 	a := audioWrapper()
 	a.Init()
@@ -30,5 +30,5 @@ func TestAudio(t *testing.T) {
 	// ... then uncomment and "import time" (need to sleep for the sound to happen).
 	// 	a.PlaySound(snd, 0, 0, 0)
 	// 	time.Sleep(500 * time.Millisecond)
-	a.Shutdown()
+	a.Dispose()
 }

@@ -1,7 +1,7 @@
 // Copyright © 2013-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
-package move
+package physics
 
 // // The following block is C code and cgo directvies.
 // // It is used to include collision.h definitions.

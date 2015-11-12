@@ -13,7 +13,7 @@ package grid
 //     http://grail.cs.washington.edu/projects/crowd-flows/ (flowfield algorithm)
 
 // Design Notes:
-//   c This A* implementation has been lightly optimized for short routes
+//   • This A* implementation has been lightly optimized for short routes
 //     on small grids.
 //   • Scratch variables avoid reallocating memory for sequential path lookups,
 //     but may not be the way to go if concurrent access is needed.
@@ -77,7 +77,7 @@ func (p *path) id(x, y int) int { return x*p.xsz + y }
 // to be valid spots within the path's initialized floor plan.
 func (p *path) Find(fx, fy, tx, ty int) (path []int) {
 	if !p.fp.IsOpen(fx, fy) || !p.fp.IsOpen(tx, ty) {
-		return p.route[0:0] // no path found, return empty list.
+		return p.route[:0] // no path found, return empty list.
 	}
 
 	// reset any previous path data.

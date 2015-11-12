@@ -91,7 +91,6 @@ func (sf *sftag) initScene() {
 	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, int64(len(sf.faces)), gl.Pointer(&(sf.faces[0])), gl.STATIC_DRAW)
 
 	// create texture and shaders after all the data has been set up.
-	// renderer := render.New()
 	shader := "fire"
 	loader := load.NewLoader()
 	vsrc, verr := loader.Vsh(shader)

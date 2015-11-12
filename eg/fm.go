@@ -25,7 +25,7 @@ func fm() {
 // Encapsulate example specific data with a unique "tag".
 type fmtag struct {
 	top     vu.Pov    //
-	view    vu.View   // visible layouts.
+	cam     vu.Camera // visible layouts.
 	ww, wh  int       // window width and height.
 	example int       // current layout example.g
 	layouts []*layout // demonstrate multiple layouts.
@@ -33,8 +33,8 @@ type fmtag struct {
 
 // Create is the engine callback for initial asset creation.
 func (fm *fmtag) Create(eng vu.Eng, s *vu.State) {
-	fm.view = eng.Root().NewView()
-	fm.view.SetUI()
+	fm.cam = eng.Root().NewCam()
+	fm.cam.SetUI()
 	eng.SetColor(0.95, 0.95, 0.95, 1)
 
 	// create the panel layout examples.
@@ -71,7 +71,7 @@ func (fm *fmtag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 
 // resize handles user screen/window changes.
 func (fm *fmtag) resize(ww, wh int) {
-	fm.view.Cam().SetOrthographic(0, float64(ww), 0, float64(wh), 0, 10)
+	fm.cam.SetOrthographic(0, float64(ww), 0, float64(wh), 0, 10)
 	for _, lo := range fm.layouts {
 		lo.resize(ww, wh)
 	}

@@ -15,7 +15,7 @@ import (
 // Supported platforms are osx (darwin), win (windows) , and lin (linux).
 //      osx: os_darwin.go  wraps: os_darwin.h, os_darwin.m
 //      win: os_windows.go wraps: os_windows.h, os_windows.c
-//      lin: os_linux.go   wraps: os_linux.h, os_linux.c
+//      FUTURE lin: os_linux.go   wraps: os_linux.h, os_linux.c
 // Each will have a unique implementation of the native interface and will
 // only be included when building on their respective platforms.
 //
@@ -35,12 +35,12 @@ type native interface {
 
 	// readDispatch fetches user events. This must be called inside a fast loop
 	// so that the native window system event queue is handled in a timely fashion.
-	// The input  userInput is filled and returned. This will return with the
+	// The input userInput is filled and returned. This will return with the
 	// latest modifier keys and mouse location even if there are no user events
 	// to process.
 	readDispatch(r *nrefs, in *userInput) *userInput
 
-	// shell creates the "window" on the given display.  In some cases this is
+	// shell creates the "window" on the given display. In some cases this is
 	// a window and in others it holds device independent attributes. The supplied
 	// Shell structure's id is set to a reference of the underlying OS structure.
 	// For example:
@@ -65,8 +65,8 @@ type native interface {
 	//    lin: FUTURE
 	size(r *nrefs) (x, y, w, h int)
 
-	// showCursor hides or shows the cursor.  The cursor is locked to the application
-	// window when it is hidden.
+	// showCursor hides or shows the cursor. The cursor is locked to the
+	// application window when it is hidden.
 	//    osx: [NSCursor unhide]; [NSCursor hide];
 	//    win: ReleaseCapture(); SetCapture(hwnd);
 	//    lin: FUTURE
@@ -78,8 +78,8 @@ type native interface {
 	//    lin: FUTURE
 	setCursorAt(r *nrefs, x, y int)
 
-	// context creates an OpenGL context and fills in the context field of the nrefs
-	// structure. For example the context field is:
+	// context creates an OpenGL context and fills in the context field of the
+	// nrefs structure. For example the context field is:
 	//    osx: pointer to NSOpenGLContext
 	//    win: HGLRC (handle) from wglCreateContext(hdc);
 	//    lin: FUTURE
@@ -109,8 +109,8 @@ type native interface {
 	// window is created.
 	setSize(x, y, width, height int)
 
-	// setTitle sets the desired window title. This needs to be called before the
-	// window is created.
+	// setTitle sets the desired window title. This needs to be called before
+	// the window is created.
 	setTitle(title string)
 
 	// isFullscreen returns true when application is is full screen mode.
@@ -178,7 +178,7 @@ func (os *nativeOs) createShell() {
 	}
 }
 
-// openShell shows the application window to the user.  Event processing
+// openShell shows the application window to the user. Event processing
 // (see readAndDispatch) must begin before the window will appear.
 func (os *nativeOs) openShell() { os.nl.shellOpen(os.nr) }
 

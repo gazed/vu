@@ -1,7 +1,7 @@
 // Copyright © 2013-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
-package move
+package physics
 
 import (
 	"fmt"
@@ -13,28 +13,28 @@ import (
 // Check that broadphase doesn't duplicate comparisons.
 // Each compare should cause an overlap.
 func TestBroadphaseUniqueCompare(t *testing.T) {
-	mov, sp := newMover(), NewSphere(1)
+	px, sp := newPhysics(), NewSphere(1)
 	bodies := []Body{newBody(sp), newBody(sp), newBody(sp), newBody(sp), newBody(sp)}
 	for _, bod := range bodies {
 		bod.SetMaterial(1, 0)
 	}
-	mov.broadphase(bodies, mov.overlapped)
-	if len(mov.overlapped) != 10 {
-		t.Errorf("Should be 10 unique comparisons for a list of 5. Got %d", len(mov.overlapped))
+	px.broadphase(bodies, px.overlapped)
+	if len(px.overlapped) != 10 {
+		t.Errorf("Should be 10 unique comparisons for a list of 5. Got %d", len(px.overlapped))
 	}
 }
 
 // Basic test to check that a sphere will end up above a slab.
 // The test uses no restitution (bounciness).
 func TestSphereAt(t *testing.T) {
-	mov := newMover()
+	px := newPhysics()
 	slab := newBody(NewBox(100, 25, 100)).SetMaterial(0, 0)
 	slab.World().Loc.SetS(0, -25, 0)                // slab below ball at world y==0.
 	ball := newBody(NewSphere(1)).SetMaterial(1, 0) //
 	ball.World().Loc.SetS(-5, 15, -3)               // ball above slab.
 	bodies := []Body{slab, ball}
 	for cnt := 0; cnt < 100; cnt++ {
-		mov.Step(bodies, 0.02)
+		px.Step(bodies, 0.02)
 	}
 	ballAt, want := dumpV3(ball.World().Loc), dumpV3(&lin.V3{X: -5, Y: 1, Z: -3})
 	if ballAt != want {
@@ -44,16 +44,16 @@ func TestSphereAt(t *testing.T) {
 
 // Check that basic collision works independent of general collision resolution.
 func TestCollide(t *testing.T) {
-	mov := newMover()
+	px := newPhysics()
 	s0 := newBody(NewSphere(1)).SetMaterial(1, 0)
 	s1 := newBody(NewSphere(1)).SetMaterial(1, 0)
 	s0.World().Loc.SetS(0, 0, 0)
 	s1.World().Loc.SetS(1, 1, 1)
-	if !mov.Collide(s0, s1) {
+	if !px.Collide(s0, s1) {
 		t.Errorf("Expected collision did not happen")
 	}
 	s0.World().Loc.SetS(-1, -1, -1)
-	if mov.Collide(s0, s1) {
+	if px.Collide(s0, s1) {
 		t.Errorf("Unexpected collision")
 	}
 }

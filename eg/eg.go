@@ -1,6 +1,7 @@
 // Copyright © 2013-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
+
 // Package eg is used to test and demonstrate different aspects of the
 // vu (virtual universe) engine. Examples are used both to showcase a
 // particular 3D capability and to act as high level test cases for
@@ -50,6 +51,9 @@ func main() {
 		example{"rc", "rc: Ray Cast", rc},
 		example{"ma", "ma: Model Animation", ma},
 		example{"ff", "ff: Flow Field", ff},
+		example{"rt", "rt: Ray Trace", rt},
+		example{"tt", "tt: Render to Texture", tt},
+		example{"sm", "sm: Shadow Map", sm},
 	}
 
 	// run the first matching example.

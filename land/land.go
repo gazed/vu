@@ -1,5 +1,4 @@
 // Copyright © 2014-2015 Galvanized Logic Inc.
-// Use is governed by a BSD-style license found in the LICENSE file.
 
 // Package land is used to procedurally generate world terrain height maps.
 // Generated lands are unique to a supplied random seed so they can be

@@ -153,8 +153,8 @@ func (g *grid) IsOpen(x, y int) bool {
 	return false
 }
 
-// Band returns the concentrix square number where the outermost square is
-// the zeroth band. Un-generated grids and/or invalid input coordinates
+// Band returns the concentrix square number where the outermost square
+// is the zeroth band. Un-generated grids and/or invalid input coordinates
 // always return 0.
 func (g *grid) Band(x, y int) int {
 	w, h := g.Size()
@@ -192,7 +192,7 @@ const (
 	allWalls  = true  // Indicates the initial grid is all walls.
 )
 
-// create the space needed by the grid.  This is the same for all grid
+// create the space needed by the grid. This is the same for all grid
 // implementations. The cellType is expected to be allFloors or allWalls.
 func (g *grid) create(width, height int, cellType bool) {
 	gridWidth, gridHeight := g.validateSize(width), g.validateSize(height)
@@ -264,8 +264,8 @@ func (g *grid) neighbours(u *cell, isWall bool) []*cell {
 	return wp // walls or floors depending on isWall.
 }
 
-// dump prints a grid for debugging purposes.  This expects a fixed font
-// and looks better with some fixed fonts than others.
+// dump prints a grid for debugging purposes.  This expects a fixed width
+// font and looks better with some fixed fonts than others.
 // The grid is dumped such that the 0,0 is at the bottom left and on
 // a console 0,0 will be the first character of the last line dumped.
 func (g *grid) dump() {

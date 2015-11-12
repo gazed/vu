@@ -11,7 +11,7 @@ import (
 )
 
 // Initialize enough of the opengl context that some OpenGL information
-// can be dumped to screen along with the bindings.  This is a basic graphics
+// can be dumped to screen along with the bindings. This is a basic graphics
 // package test that checks if the underlying OpenGL functions are available.
 // Columns of function names marked [+]:available or [ ]:missing will
 // be written the the console.

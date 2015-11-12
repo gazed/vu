@@ -4,7 +4,8 @@
 #Vu
 
 Vu (Virtual Universe) is a minimalist 3D engine written primarily in Go (Golang).
-Vu is composed of packages, detailed in [GoDoc](http://godoc.org/github.com/gazed/vu), and briefly summarized below.
+Vu is composed of packages, detailed in [GoDoc](http://godoc.org/github.com/gazed/vu),
+and briefly summarized below.
 
 Sub packages
 --------
@@ -14,7 +15,7 @@ Sub packages
 * ``device`` Links the application to native OS specific window and user events.
 * ``load`` Asset loaders including models, textures, audio, shaders, and bitmapped fonts.
 * ``math/lin`` Vector, matrix, quaternion, and transform linear math library.
-* ``move`` Repositions bodies based on simulated physics.
+* ``physics`` Repositions bodies based on simulated physics.
 * ``render`` 3D drawing and graphics interface.
 * ``render/gl`` Generated OpenGL bindings. Links rendering system to graphics hardware.
 * ``render/gl/gen`` OpenGL binding generator.
@@ -30,7 +31,7 @@ Less essential, but potentially more fun packages are:
 Installation
 -----
 
-Ensure you have installed [Go](http://golang.org) > 1.3:
+Ensure you have installed [Go](http://golang.org) > 1.5:
 
 ```bash
 go get -u github.com/gazed/vu
@@ -75,7 +76,7 @@ The engine and its packages include the essentials by design. In particular:
 * There is no networking package.
 * Physics only handles boxes and spheres.
 * The device layer interface provides only the absolute minimum from the underlying
-  windowing system. Only OSX, Windows 7 and 8 are currently supported.
+  windowing system. Only OSX, Windows 7+ are currently supported.
 * Rendering supports standard OpenGL 3.3 and later. OpenGL extensions are not used.
 * Windows is limited by the availability of OpenGL and OpenAL. Generally
   OpenGL issues are fixed by downloading manufacturer's graphic card drivers.

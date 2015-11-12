@@ -8,13 +8,13 @@
 // Package audio is provided as part of the vu (virtual universe) 3D engine.
 package audio
 
-// Audio interacts with the underlying audio layer which in turn interfaces to
-// the sound drivers and hardware. Audio must be initialized once before
+// Audio interacts with the underlying audio layer which in turn interfaces
+// to the sound drivers and hardware. Audio must be initialized once before
 // sounds can be bound and played.
 type Audio interface {
 	Init() error          // Get the audio layer up and running.
-	Shutdown()            // Closes and cleans up the audio layer.
-	SetGain(gain float64) // Volume control: valid values are 0.0->1.0.
+	Dispose()             // Closes and cleans up the audio layer.
+	SetGain(gain float64) // Volume control: valid values are 0->1.
 
 	// BindSound copies the sound data to the sound card and returns
 	// references that can be used to dispose of the sound with ReleaseSound.
@@ -36,5 +36,4 @@ type Audio interface {
 // Provide native implementation.
 
 // New provides a default audio implementation.
-// There will be only one available implementation
 func New() Audio { return audioWrapper() }

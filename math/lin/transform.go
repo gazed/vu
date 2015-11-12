@@ -58,14 +58,14 @@ func (t *T) SetAa(ax, ay, az, ang float64) *T {
 	return t
 }
 
-// SetLoc updates transform t to have the location speccified  by lx, ly, lz.
+// SetLoc updates transform t to have the location speccified by lx, ly, lz.
 // The updated transform t is returned.
 func (t *T) SetLoc(lx, ly, lz float64) *T {
 	t.Loc.X, t.Loc.Y, t.Loc.Z = lx, ly, lz
 	return t
 }
 
-// SetRot updates transform t to have the rotation speccified  by x, y, z, w.
+// SetRot updates transform t to have the rotation specified by x, y, z, w.
 // The updated transform t is returned.
 func (t *T) SetRot(x, y, z, w float64) *T {
 	t.Rot.X, t.Rot.Y, t.Rot.Z, t.Rot.W = x, y, z, w
@@ -104,7 +104,7 @@ func (t *T) AppR(x, y, z float64) (vx, vy, vz float64) {
 }
 
 // Inv updates vector v to be the inverse transform t applied
-// to vector a.  The updated vector v is returned.
+// to vector a. The updated vector v is returned.
 func (t *T) Inv(v *V3) *V3 {
 	v.Sub(v, t.Loc)                            // apply inverse translation.
 	ix, iy, iz := -t.Rot.X, -t.Rot.Y, -t.Rot.Z // apply inverse rotation.

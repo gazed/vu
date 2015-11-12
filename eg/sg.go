@@ -29,7 +29,6 @@ func sg() {
 
 // Globally unique "tag" that encapsulates example specific data.
 type sgtag struct {
-	view   vu.View
 	cam    vu.Camera
 	tr     *trooper
 	run    float64
@@ -45,8 +44,7 @@ type inputHandler func(in *vu.Input, down int)
 func (sg *sgtag) Create(eng vu.Eng, s *vu.State) {
 	sg.run = 10   // move so many cubes worth in one second.
 	sg.spin = 270 // spin so many degrees in one second.
-	sg.view = eng.Root().NewView()
-	sg.cam = sg.view.Cam()
+	sg.cam = eng.Root().NewCam()
 	sg.cam.SetPerspective(60, float64(800)/float64(600), 0.1, 50)
 	sg.cam.SetLocation(0, 0, 6)
 	sg.tr = newTrooper(eng, 1)
@@ -214,7 +212,7 @@ func (tr *trooper) addCenter() {
 		scale := float64(tr.lvl-1) * cubeSize * 0.9 // leave a gap.
 		tr.center = tr.top.NewPov()
 		tr.center.SetScale(scale, scale, scale)
-		tr.center.NewModel("alpha").LoadMesh("cube").LoadMat("red")
+		tr.center.NewModel("alpha").LoadMesh("box").LoadMat("transparent_red")
 	}
 }
 
@@ -254,7 +252,7 @@ func (tr *trooper) detach() {
 func (tr *trooper) merge() {
 	tr.trash()
 	tr.neo = tr.top.NewPov()
-	tr.neo.NewModel("alpha").LoadMesh("cube").LoadMat("blue")
+	tr.neo.NewModel("alpha").LoadMesh("box").LoadMat("blue")
 	tr.addCenter()
 }
 
@@ -432,7 +430,7 @@ func (b *block) merge() {
 	b.trash()
 	b.slab = b.part.NewPov()
 	b.slab.SetLocation(b.cx, b.cy, b.cz)
-	b.slab.NewModel("alpha").LoadMesh("cube").LoadMat("blue")
+	b.slab.NewModel("alpha").LoadMesh("box").LoadMat("blue")
 	scale := float64(b.lvl-1) * b.csize
 	if (b.cx > b.cy && b.cx > b.cz) || (b.cx < b.cy && b.cx < b.cz) {
 		b.slab.SetScale(b.csize, scale, scale)
@@ -511,7 +509,7 @@ func (c *cube) addCell() {
 	center := c.centers[c.ccnt-1]
 	cell := c.part.NewPov()
 	cell.SetLocation(center.X, center.Y, center.Z)
-	cell.NewModel("alpha").LoadMesh("cube").LoadMat("green")
+	cell.NewModel("alpha").LoadMesh("box").LoadMat("green")
 	scale := c.csize * 0.40 // leave a gap (0.5 for no gap).
 	cell.SetScale(scale, scale, scale)
 	c.cells = append(c.cells, cell)
@@ -531,7 +529,7 @@ func (c *cube) merge() {
 	c.trash()
 	cell := c.part.NewPov()
 	cell.SetLocation(c.cx, c.cy, c.cz)
-	cell.NewModel("alpha").LoadMesh("cube").LoadMat("green")
+	cell.NewModel("alpha").LoadMesh("box").LoadMat("green")
 	scale := c.csize - (c.csize * 0.15) // leave a gap (just c.csize for no gap)
 	cell.SetScale(scale, scale, scale)
 	c.cells = append(c.cells, cell)
