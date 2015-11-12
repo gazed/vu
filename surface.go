@@ -50,11 +50,12 @@ type surface struct {
 	spread int              // Smear texture across tiles. 1, 2, 4, 8, ...
 	pts    [][]SurfacePoint // Per vertex information.
 
-	// scratch rendering data. Reused each time Model is called.
-	vb []float32 // Scratch vertex buffer
-	nb []float32 // Scratch normal buffer
-	tb []float32 // Scratch texture uv buffer
-	fb []uint16  // Scratch face buffer
+	// scratch rendering data. Reused each time Update is called.
+	vb  []float32 // Scratch vertex buffer
+	nb  []float32 // Scratch normal buffer
+	tb  []float32 // Scratch texture uv buffer
+	fb  []uint16  // Scratch face buffer
+	nms [][]xyz   // Scratch for normal calculations.
 }
 
 // newSurface allocates and initializes surface.
@@ -71,6 +72,12 @@ func newSurface(sx, sy, spread int, textureRatio, scale float32) *surface {
 	s.nb = []float32{}
 	s.tb = []float32{}
 	s.fb = []uint16{}
+
+	// scratch for normal generation.
+	s.nms = make([][]xyz, len(s.pts))
+	for x := range s.nms {
+		s.nms[x] = make([]xyz, len(s.pts[0]))
+	}
 	return s
 }
 
@@ -85,9 +92,6 @@ func (s *surface) Resize(w, h int) {
 
 // Update recalculates the vertex data needed to render the given land patch.
 // It also uses the texture index to assign a textures from a texture atlas
-//    scale multiplies the -1<->1 generated height.
-//    textureRatio is the size of one texture divided by the atlas size.
-// Generates rendering data.
 func (s *surface) Update(m Model, xoff, yoff int) {
 	vb := s.vb[:0] // keep any allocated memory.
 	nb := s.nb[:0] //   "
@@ -98,10 +102,7 @@ func (s *surface) Update(m Model, xoff, yoff int) {
 	// http://www.flipcode.com/archives/Calculating_Vertex_Normals_for_Height_Maps.shtml
 	// http://www.gamedev.net/topic/163625-fast-way-to-calculate-heightmap-normals/
 	sx, sy := len(s.pts), len(s.pts[0])
-	norms := make([][]xyz, sx)
-	for x := range norms {
-		norms[x] = make([]xyz, sy)
-	}
+	norms := s.nms
 	yScale, xzScale := float32(1), float32(1)
 	for x := 0; x < sx; x++ {
 		for y := 0; y < sy; y++ {
@@ -119,7 +120,7 @@ func (s *surface) Update(m Model, xoff, yoff int) {
 				xslope *= 2
 			}
 
-			// average xslope
+			// average yslope
 			ymax, ymin := y, y
 			if ymax < sy-1 {
 				ymax += 1
@@ -209,4 +210,4 @@ func (s *surface) Update(m Model, xoff, yoff int) {
 	m.InitFaces(render.DYNAMIC).SetFaces(fb)
 }
 
-type xyz struct{ x, y, z float32 } // temporary structure for creating normals.
+type xyz struct{ x, y, z float32 } // temporary structure for generating normals.

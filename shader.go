@@ -9,6 +9,7 @@ import (
 
 // shader is the opengl Shader implementation. It encapsulates all the OpenGL
 // and GLSL specific knowledge while conforming to the generic Shader interface.
+// FUTURE: improve design by applying to HLSL and upcoming Vulkan shaders.
 type shader struct {
 	name    string   // Unique shader identifier.
 	tag     uint64   // name and type as a number.
@@ -19,7 +20,7 @@ type shader struct {
 	loaded  bool     // True if data has been set.
 
 	// Vertex layout data and uniform expectations are discovered from the
-	// shader source. This can be later verified against available data.
+	// shader source. This can be verified later against available data.
 	layouts  map[string]uint32 // Expected buffer data locations.
 	uniforms map[string]int32  // Expected uniform data.
 }
@@ -39,7 +40,7 @@ func (s *shader) aid() uint64   { return s.tag }                       // asset 
 func (s *shader) bid() uint64   { return shd + uint64(s.program)<<32 } // asset type and bind ref.
 
 // Shader source is scanned for uniforms and vertex buffer information.
-// The uniform references are set on binding and later used by model.go
+// The uniform references are set on binding and later used by Model
 // to set the uniform values during rendering.
 func (s *shader) setSource(vsh, fsh []string) {
 	s.vsh, s.fsh = vsh, fsh
@@ -47,7 +48,8 @@ func (s *shader) setSource(vsh, fsh []string) {
 	s.loaded = len(s.vsh) > 0 && len(s.fsh) > 0
 }
 
-// stripId is a helper method used by SetSource.
+// stripId is a helper method used by SetSource to parse GLSL
+// shader code.
 func (s *shader) stripId(id string) string {
 	id = strings.Replace(id, ";", "", -1)
 	if strings.Contains(id, "[") {
@@ -68,9 +70,6 @@ func (s *shader) ensureNewLines() {
 	}
 }
 
-// FUTURE: figure out how to better package the opengl specfic shader
-//         stuff once there is also directX shader stuff.
-
 // shader
 // =============================================================================
 // shaderLibrary - glsl
@@ -88,11 +87,10 @@ var shaderLibrary = map[string]func() (vsh, fsh []string){
 	"bb":      bbShader,
 	"bbr":     bbrShader,
 	"anim":    animShader,
+	"depth":   depthShader,
+	"shadow":  shadowShader,
 }
 
-// FUTURE: Incorporate some (all?) of the blend algorithms from
-//         http://devmaster.net/posts/3040/shader-effects-blend-modes
-//         How do other engines handle/blend multiple textures?
 // FUTURE: Add edge-detect and emboss shaders, see:
 //         http://www.processing.org/tutorials/pshader/
 
@@ -156,8 +154,8 @@ func alphaShader() (vsh, fsh []string) {
 //      http://devmaster.net/posts/2974/the-basics-of-3d-lighting
 //
 // Diffuse: The algorithm is used to calculate the colour for the polygon.
-//                   The polygon has only one normal and the only part of the above
-//                   algorithm used is: diffuse*(normal . light-direction)
+//          The polygon has only one normal and the only part of the above
+//          algorithm used is: diffuse*(normal . light-direction)
 func diffuseShader() (vsh, fsh []string) {
 	vsh = []string{
 		"#version 330",
@@ -239,8 +237,8 @@ func gouraudShader() (vsh, fsh []string) {
 	}
 	fsh = []string{
 		"#version 330",
-		"in      vec4      v_c;", // interpolated vertex colour
-		"out     vec4      ffc;", // final fragment colour
+		"                   in      vec4      v_c;", // interpolated vertex colour
+		"layout(location=0) out     vec4      ffc;", // final fragment colour
 		"void main() {",
 		"   ffc = v_c;",
 		"}",
@@ -432,6 +430,72 @@ func animShader() (vsh, fsh []string) {
 		"void main() {",
 		"   ffc = texture(uv, t_uv);",
 		"   ffc.a = ffc.a*alpha;",
+		"}",
+	}
+	return vsh, fsh
+}
+
+// =============================================================================
+
+// depthShader is used to create shadow maps by writing objects depths.
+// Expected to be used during the shadow map render pass to render to
+// a texture. See:
+// http://www.opengl-tutorial.org/intermediate-tutorials/tutorial-16-shadow-mapping
+func depthShader() (vsh, fsh []string) {
+	vsh = []string{
+		"#version 330",
+		"layout (location = 0) in vec3 in_v;",
+		"uniform mat4          mvpm;",
+		"void main() {",
+		"    gl_Position = mvpm * vec4(in_v, 1.0);",
+		"}",
+	}
+	fsh = []string{
+		"#version 330",
+		"layout(location = 0) out float fragdepth;",
+		"void main() {",
+		"    fragdepth = gl_FragCoord.z;",
+		"}",
+	}
+	return vsh, fsh
+}
+
+// =============================================================================
+
+// shadowShader incorporates a shadow depth map into lighting calculations. See:
+// http://www.opengl-tutorial.org/intermediate-tutorials/tutorial-16-shadow-mapping
+func shadowShader() (vsh, fsh []string) {
+	vsh = []string{
+		"#version 330 core",
+		"layout(location=0) in vec3 in_v;", // verticies
+		"layout(location=2) in vec2 in_t;", // texture coordinates
+		"uniform mat4       mvpm;",         // model view projection matrix
+		"uniform mat4       dbm;",          // depth bias matrix
+		"out     vec2       t_uv;",         // pass uv coordinates through
+		"out     vec4       s_uv;",         // create shadow uv coordinates
+		"void main(){",
+		"    gl_Position = mvpm * vec4(in_v, 1.0);",
+		"    s_uv = dbm * vec4(in_v, 1.0);",
+		"    t_uv = in_t;",
+		"}",
+	}
+	fsh = []string{
+		"#version 330 core",
+		"in      vec2            t_uv;",      // interpolated uv coordinates
+		"in      vec4            s_uv;",      // interpolated shadow uv coordinates
+		"uniform sampler2D       uv;",        // object material texture sampler
+		"uniform sampler2DShadow sm;",        // shadow map depth texture sampler
+		"layout(location = 0) out vec4 ffc;", // final fragment colour
+		"void main(){",
+		"    vec4 lightColor = vec4(1,1,1,1);",        // white light
+		"    vec4 diffuseColor = texture(uv, t_uv); ", // object colour from texture
+		"",
+		"", // compare the depth found in the texture at xy
+		"", // with the depth at z.
+		"    vec2 suv = vec2((s_uv.xy)/s_uv.w);",
+		"    float visibility = texture(sm, vec3(suv, (s_uv.z)/s_uv.w));",
+		"    visibility = visibility + (1.0-visibility)*0.75;", // map 1-0 to 1-0.75
+		"    ffc = visibility * diffuseColor * lightColor;",
 		"}",
 	}
 	return vsh, fsh

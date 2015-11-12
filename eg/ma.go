@@ -25,7 +25,6 @@ func ma() {
 
 // Globally unique "tag" that encapsulates example specific data.
 type matag struct {
-	view   vu.View
 	top    vu.Pov
 	cam    vu.Camera // 3D model
 	ui     vu.Camera // 2D user interface.
@@ -40,11 +39,8 @@ type matag struct {
 
 // Create is the engine callback for initial asset creation.
 func (ma *matag) Create(eng vu.Eng, s *vu.State) {
-	ma.run = 10   // move so many cubes worth in one second.
-	ma.spin = 270 // spin so many degrees in one second.
 	ma.top = eng.Root().NewPov()
-	ma.view = ma.top.NewView()
-	ma.cam = ma.view.Cam()
+	ma.cam = ma.top.NewCam()
 	ma.cam.SetPerspective(60, float64(800)/float64(600), 0.1, 50)
 	ma.cam.SetLocation(0, 3, 10)
 
@@ -73,9 +69,8 @@ func (ma *matag) Create(eng vu.Eng, s *vu.State) {
 
 	// Create a banner to show the model name.
 	top2D := eng.Root().NewPov()
-	view2D := top2D.NewView()
-	view2D.SetUI()
-	ma.ui = view2D.Cam()
+	ma.ui = top2D.NewCam()
+	ma.ui.SetUI()
 	ma.ui.SetOrthographic(0, float64(s.W), 0, float64(s.H), 0, 10)
 	title := top2D.NewPov()
 	title.SetLocation(10, 5, 0)
@@ -85,6 +80,7 @@ func (ma *matag) Create(eng vu.Eng, s *vu.State) {
 
 // Update is the recurring callback to update state based on user actions.
 func (ma *matag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
+	run := 10.0 // move so many units worth in one second.
 	if in.Resized {
 		ma.cam.SetPerspective(60, float64(s.W)/float64(s.H), 0.1, 50)
 		ma.ui.SetOrthographic(0, float64(s.W), 0, float64(s.H), 0, 10)
@@ -93,9 +89,9 @@ func (ma *matag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 	for press, down := range in.Down {
 		switch press {
 		case vu.K_W:
-			ma.cam.Move(0, 0, dt*ma.run, ma.cam.Lookxz())
+			ma.cam.Move(0, 0, dt*run, ma.cam.Lookxz())
 		case vu.K_S:
-			ma.cam.Move(0, 0, dt*-ma.run, ma.cam.Lookxz())
+			ma.cam.Move(0, 0, dt*-run, ma.cam.Lookxz())
 		case vu.K_A:
 			ma.model.Spin(0, 0, 5)
 		case vu.K_D:

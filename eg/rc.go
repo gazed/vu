@@ -38,8 +38,7 @@ type rctag struct {
 // Create is the engine callback for initial asset creation.
 func (rc *rctag) Create(eng vu.Eng, s *vu.State) {
 	top := eng.Root().NewPov()
-	view := top.NewView()
-	rc.cam = view.Cam()
+	rc.cam = top.NewCam()
 	rc.cam.SetPitch(45)            // Tilt the camera and
 	rc.cam.SetLocation(0, -14, 14) // ...point directly at 0, 0, 0
 	rc.gsize = 32                  // 4x8 ie. image is 4x4 grid, tile.obj is oversampled by 8.
@@ -64,9 +63,8 @@ func (rc *rctag) Create(eng vu.Eng, s *vu.State) {
 
 	// Add a banner to show the currently selected grid location.
 	top2D := eng.Root().NewPov()
-	view2D := top2D.NewView()
-	view2D.SetUI()
-	rc.ui = view2D.Cam()
+	rc.ui = top2D.NewCam()
+	rc.ui.SetUI()
 	rc.banner = top2D.NewPov()
 	rc.banner.SetLocation(100, 100, 0)
 	rc.banner.SetVisible(false)

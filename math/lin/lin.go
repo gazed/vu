@@ -53,9 +53,6 @@ func Rad(deg float64) float64 { return deg * DEG_RAD }
 // Deg converts radians to degrees.
 func Deg(rad float64) float64 { return rad * RAD_DEG }
 
-// IsNeg returns true if x is less than zero.
-func IsNeg(x float64) bool { return x < 0 }
-
 // AeqZ (~=) almost-equals returns true if the difference between x and zero
 // is so small that it doesn't matter.
 func AeqZ(x float64) bool { return math.Abs(x) < EPSILON }

@@ -12,7 +12,7 @@
 //    - keep in/out parameter types to the basic C types.
 //    - minimize the number of calls.
 //    - use reasonable defaults where possible.
-//    - duplicate enums were necessary so that no extra includes are needed.
+//    - duplicate enums where necessary so that no extra includes are needed.
 
 // Used to pass back user input each polling call.
 typedef struct {
@@ -35,7 +35,7 @@ void gs_display_dispose(long display);
 // Returns a reference to the shell.
 long gs_shell(long display);
 
-// Creates the window (shell) on the given display.
+// Opens the window (shell) on the given display.
 // Returns a reference to a NSWindow instance.
 void gs_shell_open(long display);
 
@@ -43,7 +43,7 @@ void gs_shell_open(long display);
 // Return 1 as long as the user hasn't closed the window.
 unsigned char gs_shell_alive(long shell);
 
-// Used to check if the application is is full screen mode.
+// Used to check if the application is full screen mode.
 // Return 1 if the application is full screen, 0 otherwise.
 unsigned char gs_fullscreen(long display);
 

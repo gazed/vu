@@ -27,8 +27,8 @@ type ObjData struct {
 
 // obj loads a Wavefront .obj file containing one or more mesh descriptions.
 // A Wavefront obj file is a text representation of one or more 3D models.
-// This loader is specifically looking for triangle meshes with normals.
-// See the specification at:
+// This loader is specifically looking for triangle meshes with normals
+// and supports a limited subset of the full specification:
 //    https://en.wikipedia.org/wiki/Wavefront_.obj_file#File_format
 //    http://www.martinreddy.net/gfx/3d/OBJ.spec
 //
@@ -90,8 +90,8 @@ type face struct {
 	s []string // each point is a "x/y/z" value.
 }
 
-// obj2Strings reads in all the file data grouped by object name.  This is needed
-// because a single wavefront file can hold many objects.  Separating the objects
+// obj2Strings reads in all the file data grouped by object name. This is needed
+// because a single wavefront file can hold many objects. Separating the objects
 // makes parsing easier.
 func (l *loader) obj2Strings(file io.ReadCloser) (objs []*objStrings) {
 	objs = []*objStrings{}
@@ -145,7 +145,7 @@ func (l *loader) obj2Data(lines []string, odata *objData) (faces []face, err err
 			}
 			faces = append(faces, face{[]string{s1, s2, s3}})
 		case "o": // mesh name is processed before this method is called.
-		case "s": // smoothing group - ignored for now.
+		case "s": // FUTURE: smoothing group - ignored for now.
 		case "mtllib": // materials loaded separately and explicitly.
 		case "usemtl": // material name - ignored, see above.
 		}

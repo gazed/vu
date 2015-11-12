@@ -68,7 +68,7 @@ func (t *tile) image(landSplit float64) *image.NRGBA {
 	return img
 }
 
-// Tile & tile
+// tile
 // ============================================================================
 // Utility methods. See:
 //   http://msdn.microsoft.com/en-us/library/bb259689.aspx

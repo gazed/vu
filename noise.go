@@ -36,12 +36,12 @@ func newNoise(eng *engine, eid uint64) *noise {
 // Add a sound to the noise and mark the noise as needing loading.
 func (n *noise) Add(soundName string) {
 	n.loaded = false
-	n.loads = append(n.loads, &loadReq{noise: n, index: len(n.snds), a: newSound(soundName)})
+	n.loads = append(n.loads, &loadReq{data: n, index: len(n.snds), a: newSound(soundName)})
 	n.snds = append(n.snds, newSound(soundName))
 }
 
 // Play gets the sounds location and generates a play sound request.
-// The play request is sent as a goroutine so the goroutine can block
+// The play request is sent as a goroutine allowing the goroutine to block
 // until the machine can service the request.
 func (n *noise) Play(index int) {
 	if n.loaded && index >= 0 && index < len(n.snds) {

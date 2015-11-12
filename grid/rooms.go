@@ -89,7 +89,7 @@ func (rms *rooms) split(rm *room, lr, tb bool) (rm1, rm2 *room) {
 }
 
 // splitSpots returns how many choices there are for splitting the indicated
-// side in the room.  This is based on the minimum size for the level.
+// side in the room. This is based on the minimum size for the level.
 // A return of 0 indicates 1 choice.
 func (rms *rooms) splitSpots(rm *room, lr bool) int {
 	sideSize := rm.h
@@ -143,7 +143,7 @@ func (rms *rooms) ensureExits(rm *room) {
 	}
 }
 
-// ensureExit chops a hole in the given side.  Sometimes the hole chopped
+// ensureExit chops a hole in the given side. Sometimes the hole chopped
 // can be a dead-end. Chopping an additional hole in the holes neighbouring
 // walls guarantees an exit.
 func (rms *rooms) ensureExit(side []*cell, max int) {

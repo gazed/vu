@@ -10,7 +10,7 @@ import (
 // lin hides the fact that the current underlying graphics implementation
 // deals in float32 rather than float64. These are kept package local
 // because it is expected that GPU's will transition from 32 to 64 bit
-// and then these 32 bit structres and conversions can disappear.
+// and then these 32 bit structures and conversions can disappear.
 //
 // These are data holders only. Please keep all math operations
 // restricted to vu/math/lin.

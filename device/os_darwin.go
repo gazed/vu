@@ -4,13 +4,13 @@
 package device
 
 // The OSX (darwin) native layer. This wraps the c functions that wrap the
-// objective-c code that calls the Osx windowing library (where the real
+// objective-c code that calls the OSX windowing library (where the real
 // work is done).
 
 // // The following block is C code and cgo directvies.
 //
 // #cgo darwin CFLAGS: -x objective-c -fno-common
-// #cgo darwin LDFLAGS: -framework Cocoa -framework OpenGL -framework IOKit
+// #cgo darwin LDFLAGS: -framework Cocoa -framework OpenGL
 //
 // #include <stdlib.h>
 // #include "os_darwin.h"

@@ -46,7 +46,7 @@ func (m *material) setMaterial(kd, ka, ks *rgb, tr float32) {
 
 // rgb holds colour information where each field is expected to contain
 // a value from 0.0 to 1.0. A value of 0 means none of that colour while a value
-// of 1.0 means as much as possible of that colour. For example:
+// of 1 means as much as possible of that colour. For example:
 //     black := &rgb{0, 0, 0}     white := &rgb{1, 1, 1}
 //     red   := &rgb{1, 0, 0}     gray  := &rgb{0.5, 0.5, 0.5}
 type rgb struct {
@@ -55,7 +55,8 @@ type rgb struct {
 	B float32 // Blue.
 }
 
-// isUnset returns true if all of the colours are zero.
-func (c *rgb) isUnset() bool {
+// isBlack returns true if all of the colours are zero.
+// This may indicate the material has not be set.
+func (c *rgb) isBlack() bool {
 	return c.R == 0 && c.G == 0 && c.B == 0
 }

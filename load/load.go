@@ -3,22 +3,22 @@
 
 // Package load fetches disk based data that will be used for 3D assets.
 // Data is loaded directly from disk for development builds and from a zip
-// file attached to the binary for production builds.
+// file for production builds.
 //
 // Data that can be loaded from disk is listed in the Loader interface.
 // Data is returned in an intermediate format that is close to how the
 // data was stored on disk. The intermediate format is expected to be
 // be used to populate render or audio based assets:
-//      Data                      File            Likely Used For
-//     ------                    ------          ------------------
-//    bitmapped fonts          : txtfile.fnt --> rendered font
-//    colour and surface data  : txtfile.mtl --> rendered model material
-//    vertex data              : txtfile.obj --> rendered model mesh
-//    vertex shader program    : txtfile.vsh -┐
-//    fragment shader program  : txtfile.fsh --> rendered model shader
-//    animated models          : txtfile.iqm --> rendered model animation
-//    images                   : binfile.png --> rendered model texture
-//    audio                    : binfile.wav --> sound played in 3D world
+//     Data                    File            Likely Used For
+//    ------                  ------          ------------------
+//   bitmapped fonts        : txtfile.fnt --> rendered font
+//   colour and surface data: txtfile.mtl --> rendered model material
+//   vertex data            : txtfile.obj --> rendered model mesh
+//   vertex shader program  : txtfile.vsh -┐
+//   fragment shader program: txtfile.fsh --> rendered model shader
+//   animated models        : binfile.iqm --> rendered model animation
+//   images                 : binfile.png --> rendered model texture
+//   audio                  : binfile.wav --> sound played in 3D world
 //
 // Package load is currently intended for smaller 3D applications where data
 // is loaded directly from files to memory, i.e. no database involved.
@@ -27,6 +27,7 @@
 package load
 
 // Design Notes:
+// FUTURE: Add full support for specs like obj and iqm.
 // FUTURE: Load data into formats that can be immediately transferred
 //         to the GPU or audio card without further processing.
 //         Which standardized formats help with this?
@@ -94,9 +95,9 @@ type loader struct {
 	dir    map[int]string  // Data directory locations.
 }
 
-// newLoader creates the appropriate asset loader. Assets are in a zip
-// file that is either included within the production binary or in a asset
-// directory relative to the executable. Development builds have a nil
+// newLoader creates the appropriate asset loader. Production assets are
+// in a zip file that is either included within the production binary or
+// in a directory relative to the executable. Development builds have a nil
 // loader.reader and will look locally on disk.
 //
 // The zip creator must call loader.dispose()
@@ -136,7 +137,8 @@ func (l *loader) Iqm(name string) (iqd *IqData, err error)             { return 
 func (l *loader) SetDir(dataType int, dir string) Loader               { return l.setDir(dataType, dir) }
 func (l *loader) Dispose()                                             { l.dispose() }
 
-// Expose the resource location ability in the Loader interface.
+// GetResource exposes the resource location ability
+// in the Loader interface.
 func (l *loader) GetResource(directory, name string) (file io.ReadCloser, err error) {
 	return l.getResource(directory, name)
 }

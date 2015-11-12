@@ -1,7 +1,7 @@
 // Copyright © 2013-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
-package move
+package physics
 
 import (
 	"math"
@@ -37,8 +37,8 @@ type Shape interface {
 // and the non-volume shapes are used in ray-casting.
 const (
 	SphereShape  = iota // Considered convex (curving outwards).
-	BoxShape            // Polyhedral (flat faces, straight edges). Considered convex.
-	VolumeShapes        // Separates shapes that have volume from those that don't
+	BoxShape            // Polyhedral (flat faces, straight edges). Convex.
+	VolumeShapes        // Separates shapes with volume from those without.
 	PlaneShape          // Area, no volume or mass.
 	RayShape            // Points on a line, no area, volume or mass.
 	NumShapes           // Keep this last.
@@ -150,7 +150,7 @@ func (s *sphere) Inertia(mass float64, inertia *lin.V3) *lin.V3 {
 // Abox is an axis aligned bounding box used with the Shape interface.
 // Its primary purpose is to surround arbitrary shapes during broad phase
 // collision detection. Abox is not a primitive shape for collision - use Box
-// instead.  The vertices for the full axis aligned box are:
+// instead. Vertices for the full axis aligned box are:
 //    Sx, Sy, Sz -- smallest vertex (left, bottom, back = minimum point)
 //    Sx, Sy, Lz |
 //    Sx, Ly, Sz |

@@ -4,7 +4,7 @@
 // +build ignore
 //
 // Ignored because cgo attempts to compile it during normal builds.
-// To build a native test application :
+// Here is the command line to build a native test application:
 //     clang -framework Cocoa -framework OpenGL -o App os_darwin_test.m
 
 #import <stdio.h>

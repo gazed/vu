@@ -12,7 +12,7 @@ package ai
 type Behaviour interface {
 	Status() (status BehaviourState) // Current behaviour status.
 	Update() (status BehaviourState) // Update behaviour status.
-	Init()                           // Called once on first behaviour update.
+	Init()                           // Called on first behaviour update.
 	Reset()                          // Set status to INVALID.
 
 	// Observer listens for completed behaviours.

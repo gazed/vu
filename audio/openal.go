@@ -14,7 +14,8 @@ import (
 	"github.com/gazed/vu/audio/al"
 )
 
-// 64-bit OpenAL may be difficult to locate for Windows machines. Try
+// 64-bit OpenAL may be difficult to locate for Windows machines.
+// Try openal.org and their installer. Alternatively try
 //    http://kcat.strangesoft.net/openal.html/openal-soft-1.15.1-bin.zip.
 // Extract Win64/soft_oal.dll from the zip to c:/Windows/System32/OpenAL32.dll
 
@@ -62,9 +63,9 @@ func (a *openal) validate() error {
 	return nil
 }
 
-// Shutdown closes down the openal library.  This is only expected to be called
-// once by the engine when it is shutting down.
-func (a *openal) Shutdown() {
+// Dispose closes down the openal library. This is expected
+// to be called once by the engine when it is shutting down.
+func (a *openal) Dispose() {
 	al.MakeContextCurrent(0)
 	if a.ctx != 0 {
 		al.DestroyContext(a.ctx)

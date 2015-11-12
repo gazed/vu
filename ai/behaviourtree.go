@@ -56,7 +56,7 @@ func (bt *behaviourTree) Start(b Behaviour, bo BehaviourObserver) {
 }
 
 // Stop immediately propogrates completion status to the parent behaviour
-// observer.  Completed behaviours will be removed from the tree next tick.
+// observer. Completed behaviours will be removed from the tree next tick.
 func (bt *behaviourTree) Stop(b Behaviour) {
 	status := b.Status()
 	if status != FAILURE && status != SUCCESS {

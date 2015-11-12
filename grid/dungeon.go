@@ -7,7 +7,7 @@ import (
 	"math/rand"
 )
 
-// dungeon is a level comprised of square room connected by corridors.
+// dungeon is a level comprised of square rooms connected by corridors.
 type dungeon struct {
 	grid // superclass grid
 }

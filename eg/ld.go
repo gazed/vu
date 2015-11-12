@@ -93,12 +93,11 @@ func (ld *ldtag) initScene() {
 	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, fbuff)
 	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, int64(len(mesh.F)*2), gl.Pointer(&(mesh.F[0])), gl.STATIC_DRAW)
 
+	// final state setup before launch.
 	ld.initShader()
 	gl.ClearColor(0.2, 0.2, 0.2, 1.0)
 	gl.Enable(gl.DEPTH_TEST)
 	gl.Enable(gl.CULL_FACE)
-
-	// set the initial perspetive matrix.
 	ld.resize(0, 0, 800, 600)
 }
 
@@ -113,7 +112,7 @@ func (ld *ldtag) initShader() {
 		if err := gl.BindProgram(ld.shaders, vsrc, fsrc); err != nil {
 			fmt.Printf("Failed to create program: %s\n", err)
 		}
-		ld.mvpref = gl.GetUniformLocation(ld.shaders, "modelViewProjectionMatrix")
+		ld.mvpref = gl.GetUniformLocation(ld.shaders, "mvpm")
 		if ld.mvpref < 0 {
 			fmt.Printf("No modelViewProjectionMatrix in vertex shader\n")
 		}

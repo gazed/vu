@@ -30,9 +30,8 @@ type kctag struct {
 // Create is the startup asset creation.
 func (kc *kctag) Create(eng vu.Eng, s *vu.State) {
 	top := eng.Root().NewPov()
-	view := top.NewView()
-	view.SetUI()
-	kc.ui = view.Cam()
+	kc.ui = top.NewCam()
+	kc.ui.SetUI()
 	kc.positions = kc.keyPositions()
 
 	// Create the keyboard image.
@@ -80,6 +79,7 @@ func (kc *kctag) resize(ww, wh int) {
 	kc.ui.SetOrthographic(0, float64(ww), 0, float64(wh), 0, 10)
 }
 
+// Position the keys on the keyboard image.
 func (kc *kctag) keyPositions() map[int]pos {
 	return map[int]pos{
 		vu.K_0:     pos{col: 9, row: 4, xoff: 0.8, yoff: 0.0},
@@ -199,6 +199,7 @@ type pos struct {
 	yoff float64 // row offustment.
 }
 
+// location gives a positions x, y location in screen pixels.
 func (p *pos) location() (x, y float64) {
 	xspan := 41.0
 	yspan := 38.0

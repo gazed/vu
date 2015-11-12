@@ -1,11 +1,10 @@
 # Blender MTL File: 'None'
 # Material Count: 1
-newmtl blue2
+newmtl gray
 Ns 96.078431
 Ka 0.2 0.2 0.2
-Kd 0.15 0.45 0.92
+Kd 0.4 0.4 0.4
 Ks 0.5 0.5 0.5
 Ni 1.0
-d 1.0
+d 0.5
 illum 2
-

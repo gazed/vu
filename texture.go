@@ -14,7 +14,7 @@ import (
 // fields are used to indicate which model faces apply to this texture.
 type texture struct {
 	name   string      // Unique name of the texture.
-	tag    uint64      // name and type as a number.
+	tag    uint64      // Name and type as a number.
 	img    image.Image // Texture data.
 	tid    uint32      // Graphics card texture identifier.
 	repeat bool        // Repeat the texture when UV greater than 1.

@@ -16,8 +16,8 @@ import (
 // Model manages rendered 3D objects. Model is the link between loaded
 // assets and the data needed by the rendering system. Assets, such as
 // shaders, mesh, textures, etc. are specified as unique strings in the
-// Load* methods. Assets are loaded and converted to render data before
-// the model is sent for rendering.
+// Load* methods. Assets are loaded and converted to intermediate data
+// which is later converted to render draws in order to render the model.
 //
 // A Model is expected to be attached to a point-of-view (Pov) to give
 // it a 3D location and orientation in the render transform hierarchy.
@@ -53,12 +53,13 @@ type Model interface {
 	SetDrawMode(mode int) Model                // TRIANGLES, LINES, POINTS.
 
 	// Models can have one or more textures applied to a single mesh.
-	// Textures are initialized from assets and can be altered using images.
+	// Textures are initialized from assets and can be updated with images.
 	AddTex(texture string) Model          // Loads and adds a texture.
-	SetTex(index int, name string)        // Replace texture.
+	SetTex(index int, name string)        // Replace/reload texture.
 	SetImg(index int, img image.Image)    // Replace image, ignore nil.
 	TexImg(index int) image.Image         // Get image, nil if invalid index.
 	SetTexMode(index int, mode int) Model // TEX_CLAMP, TEX_REPEAT.
+	UseLayer(l Layer) Model               // Use render pass texture.
 
 	// Animated models can have multiple animated sequences,
 	// ie. "moves", that are indexed from 0. Bones can also
@@ -80,10 +81,15 @@ type Model interface {
 	SetEffect(mover Effect, maxParticles int) Model
 	SetDepth(enabled bool) Model // Effects work better ignoring depth.
 
-	// Set or get custom shader uniform values.
-	// The id is the uniform name from the shader.
+	// Set/get shader uniform values where id is the shader uniform name.
 	Uniform(id string) (value []float32)         // Uniform name/values.
 	SetUniform(id string, floats ...interface{}) // Individual values.
+
+	// Models can optionally cast shadows or reveal shadows. Casting
+	// shadows implies a scene with a light. Showing shadows implies
+	// a shadow map capable shader.
+	CastShadow() Model // Toggle casting a shadow. Default false.
+	HasShadows() Model // Toggle showing shadows. Default false.
 }
 
 // Model
@@ -97,12 +103,12 @@ type model struct {
 	shd      *shader    // Mandatory GPU render program.
 	texs     []*texture // Optional: one or more texture images.
 	mat      *material  // Optional: material lighting info.
-	time     time.Time  // Time for setting shader uniform value.
 	msh      *mesh      // Mandatory vertex buffer data.
 	drawMode int        // TRIANGLES, POINTS, LINES.
 	effect   *effect    // Optional particle effect.
 	loads    []*loadReq // Assets waiting to be loaded.
 	depth    bool       // Depth buffer on by default.
+	layer    *layer     // Optional previous render pass.
 
 	// Optional animated model control information.
 	anm     *animation // Optional: bone animation info.
@@ -116,21 +122,28 @@ type model struct {
 	phrase      string // Initial pre-load phrase.
 	phraseWidth int    // Rendered phrase width in pixels, 0 otherwise.
 
-	// Uniform data needed by shaders.
+	// Optional model shadow information.
+	castShadow bool // Model to cast a shadow. Default false.
+	hasShadows bool // Model to reveal a shadow. Default false.
+
+	// Shader dependent uniform data.
+	time     time.Time            // Time needed by some shaders.
 	alpha    float32              // Transparency between 0 and 1.
 	kd       rgb                  // Diffuse colour.
 	ka       rgb                  // Ambient colour.
 	ks       rgb                  // Specular colour.
 	uniforms map[string][]float32 // Uniform values.
+	sm       *lin.M4              // scratch matrix.
 }
 
-// newModel
+// newModel allocates a new model instance setting some common defaults.
 func newModel(shaderName string) *model {
 	m := &model{alpha: 1, depth: true}
 	m.shd = newShader(shaderName)
-	m.loads = append(m.loads, &loadReq{model: m, a: newShader(shaderName)})
+	m.loads = append(m.loads, &loadReq{data: m, a: newShader(shaderName)})
 	m.time = time.Now()
 	m.uniforms = map[string][]float32{}
+	m.sm = &lin.M4{}
 	return m
 }
 
@@ -180,7 +193,7 @@ func (m *model) SetColour(r, g, b float64) {
 // Overrides existing values if it was the last one set.
 func (m *model) LoadMat(name string) Model {
 	m.mat = newMaterial(name)
-	m.loads = append(m.loads, &loadReq{model: m, a: newMaterial(name)})
+	m.loads = append(m.loads, &loadReq{data: m, a: newMaterial(name)})
 	return m
 }
 
@@ -189,7 +202,7 @@ func (m *model) LoadMat(name string) Model {
 func (m *model) LoadMesh(meshName string) Model {
 	if m.msh == nil && m.anm == nil {
 		m.msh = newMesh(meshName) // placeholder
-		req := &loadReq{model: m, a: newMesh(meshName)}
+		req := &loadReq{data: m, a: newMesh(meshName)}
 		m.loads = append(m.loads, req)
 	}
 	return m
@@ -234,14 +247,14 @@ func (m *model) SetDrawMode(mode int) Model {
 func (m *model) AddTex(name string) Model {
 	index := len(m.texs)
 	m.texs = append(m.texs, newTexture(name))
-	m.loads = append(m.loads, &loadReq{model: m, index: index, a: newTexture(name)})
+	m.loads = append(m.loads, &loadReq{data: m, index: index, a: newTexture(name)})
 	return m
 }
 func (m *model) SetTex(index int, name string) {
 	if index >= 0 && index < len(m.texs) {
 		// Add the set request to a list of textures that need to be loaded.
 		// These are handled each update.
-		req := &loadReq{model: m, index: index, a: newTexture(name)}
+		req := &loadReq{data: m, index: index, a: newTexture(name)}
 		m.loads = append(m.loads, req)
 	}
 }
@@ -269,11 +282,31 @@ func (m *model) SetTexMode(index int, mode int) Model {
 	return m
 }
 
+// In this case the texture has been generated in the given layer
+// and is already on the gpu. Ignored if there is already a
+// textured assigned to the model.
+//
+// Note: The layer texture must be rendered before the model
+//       using it is rendered.
+func (m *model) UseLayer(l Layer) Model {
+	layer, ok := l.(*layer)
+	if m.layer == nil && ok {
+		m.layer = layer
+		switch m.layer.attr {
+		case render.IMAGE_BUFF:
+			m.texs = append(m.texs, m.layer.tex)
+		case render.DEPTH_BUFF:
+			// shadow maps are handled in toDraw.
+		}
+	}
+	return m
+}
+
 // Wrap the font classes. Fonts are associated with a mesh
 // and a font texture.
 func (m *model) LoadFont(fontName string) Model {
 	m.fnt = newFont(fontName)
-	m.loads = append(m.loads, &loadReq{model: m, a: newFont(fontName)})
+	m.loads = append(m.loads, &loadReq{data: m, a: newFont(fontName)})
 	return m
 }
 func (m *model) SetPhrase(phrase string) Model {
@@ -320,7 +353,7 @@ func (m *model) SetUniform(id string, floats ...interface{}) {
 func (m *model) LoadAnim(animName string) Model {
 	if m.anm == nil && m.msh == nil {
 		m.anm = newAnimation(animName)
-		m.loads = append(m.loads, &loadReq{model: m, index: len(m.texs), a: newAnimation(animName)})
+		m.loads = append(m.loads, &loadReq{data: m, index: len(m.texs), a: newAnimation(animName)})
 		m.texs = append(m.texs, newTexture(animName+"0")) // reserve a texture spot.
 	}
 	return m
@@ -377,29 +410,41 @@ func (m *model) animate(dt float64) {
 	}
 }
 
-// toDraw sets all the data references and uniform data needed
-// by the rendering layer.
-func (m *model) toDraw(d render.Draw, eid uint64, depth bool, overlay int, distToCam float64) {
-	d.SetTag(eid)
+// CastShadow toggles whether or not the model casts a shadow. Default false.
+func (m *model) CastShadow() Model {
+	m.castShadow = !m.castShadow
+	return m
+}
+
+// HasShadows toggles whether or not the model reveals shadows. Default false.
+func (m *model) HasShadows() Model {
+	m.hasShadows = !m.hasShadows
+	return m
+}
+
+// toDraw sets the model specific bound data references and
+// uniform data needed by the rendering layer.
+func (m *model) toDraw(d render.Draw, mm *lin.M4) {
 	d.SetAlpha(float64(m.alpha)) // 1 : no transparency as the default.
 
-	// Set the drawing hints. Overlay trumps transparency since 2D overlay
-	// objects can't be sorted by distance anyways.
-	bucket := OPAQUE // used to sort the draw data. Lowest first.
-	switch {
-	case overlay > 0:
-		bucket = overlay // OVERLAY draw last.
-	case m.alpha < 1:
-		bucket = TRANSPARENT // sort and draw after opaque.
-	}
-	depth = depth && m.depth // both must be true for depth rendering.
-	tocam := 0.0
-	if depth {
-		tocam = distToCam
-	}
-	d.SetHints(bucket, tocam, depth)
+	// Use any previous render to texture passes.
+	if m.layer != nil {
+		switch m.layer.attr {
+		case render.IMAGE_BUFF:
+			// handled as regular texture below.
+			// Leave it to the shader to use the right the "uv#" uniform.
+		case render.DEPTH_BUFF:
+			d.SetShadowmap(m.layer.tex.tid) // texture with depth values.
 
-	// Set the drawing references.
+			// Shadow depth bias is the mvp matrix from the light.
+			// It needs to be adjusted to allow shadow maps to work.
+			m.sm.Mult(mm, m.layer.vp)   // model (light) view.
+			m.sm.Mult(m.sm, m.layer.bm) // incorporate shadow bias.
+			d.SetDbm(m.sm)
+		}
+	}
+
+	// Set the bound data references.
 	d.SetRefs(m.shd.program, m.msh.vao, m.drawMode)
 	if total := len(m.texs); total > 0 {
 		for cnt, t := range m.texs {

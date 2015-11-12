@@ -4,14 +4,14 @@
 package lin
 
 // Matrix functions deal with 3x3 and 4x4 matrices expected to be used
-// in CPU 3D transform or physics calculations. An example of CPU math is in
+// in CPU 3D transform or physics calculations. An example of CPU math is
 // providing precalulated per-frame transform matricies to the GPU rather than
 // having the GPU calculate identical per-vertex or per-fragment matricies.
 // Large scale, time-critical, repetitive math operations are expected to use
-// a GPGPU based package, eg. OpenCL.
+// a GPGPU based package, ie. OpenCL.
 //
 // Note that this matrix implementation does not attempt to be all inclusive.
-// Unused matrix methods, like rotation, are excluded. Ie. rotations are
+// Unused matrix methods, like rotation, are excluded since rotations are
 // tracked using quaternions.
 //
 // Row or Column Major order? No matter the convention, the end result of a
@@ -403,7 +403,7 @@ func (m *M3) ScaleS(x, y, z float64) *M3 {
 }
 
 // ScaleV (*) scales each column of matrix m using the given vector v
-// for elements for x, y, z.  The updated matrix m is returned.
+// for elements for x, y, z. The updated matrix m is returned.
 func (m *M3) ScaleV(v *V3) *M3 {
 	m.Xx, m.Xy, m.Xz = m.Xx*v.X, m.Xy*v.Y, m.Xz*v.Z
 	m.Yx, m.Yy, m.Yz = m.Yx*v.X, m.Yy*v.Y, m.Yz*v.Z

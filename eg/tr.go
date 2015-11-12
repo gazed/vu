@@ -53,8 +53,8 @@ type trtag struct {
 	colour    []float32
 }
 
-// A tetrahedron (triangular pyramid) with sides of length 2 and centered at
-// the origin (in order to look nice), would have points
+// A tetrahedron (triangular pyramid) with sides of length 2 and
+// centered at the origin (in order to look nice), would have points:
 //    (0,  2/√3,  −1/√6)
 //    (±1, −1/√3, −1/√6)
 //    (0,  0,     3/√6)
@@ -79,7 +79,7 @@ func (tag *trtag) initData() {
 	}
 }
 
-// resize sets the view port size.  User resizes are ignored.
+// resize sets the view port size. User resizes are ignored.
 func (tag *trtag) resize(width int, height int) {
 	gl.Viewport(0, 0, int32(width), int32(height))
 	tag.persp.Persp(60, float64(width)/float64(height), 0.1, 50)

@@ -25,8 +25,6 @@ func ps() {
 // Globally unique "tag" for this example.
 type pstag struct {
 	cam     vu.Camera  // scene camera.
-	run     float64    // Camera movement speed.
-	spin    float64    // Camera spin speed.
 	random  *rand.Rand // Random number generator.
 	effects []vu.Pov   // Particle effects.
 	effect  vu.Pov     // Active particle effect.
@@ -39,12 +37,9 @@ type pstag struct {
 
 // Create is the engine callback for initial asset creation.
 func (ps *pstag) Create(eng vu.Eng, s *vu.State) {
-	ps.run = 10   // move so many cubes worth in one second.
-	ps.spin = 270 // spin so many degrees in one second.
 	ps.live = []*vu.EffectParticle{}
 	ps.random = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
-	view := eng.Root().NewView()
-	ps.cam = view.Cam()
+	ps.cam = eng.Root().NewCam()
 	ps.cam.SetPerspective(60, float64(800)/float64(600), 0.1, 50)
 	ps.cam.SetLocation(0, 0, 2.5)
 
@@ -63,7 +58,7 @@ func (ps *pstag) Create(eng vu.Eng, s *vu.State) {
 	m.SetEffect(ps.fall, 250)
 	ps.effects = append(ps.effects, cpu)
 
-	// A jet engine exhaust attempt.
+	// A colourful exhaust attempt.
 	// FUTURE: update textures to look like engine exhaust.
 	jet := eng.Root().NewPov().SetLocation(0, -1, 0)
 	jet.SetVisible(false)
@@ -81,6 +76,8 @@ func (ps *pstag) Create(eng vu.Eng, s *vu.State) {
 
 // Update is the engine frequent user-input/state-update callback.
 func (ps *pstag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
+	run := 10.0   // move so many cubes worth in one second.
+	spin := 270.0 // spin so many degrees in one second.
 	if in.Resized {
 		ps.cam.SetPerspective(60, float64(s.W)/float64(s.H), 0.1, 50)
 	}
@@ -89,13 +86,13 @@ func (ps *pstag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 	for press, down := range in.Down {
 		switch press {
 		case vu.K_W:
-			ps.cam.Move(0, 0, dt*-ps.run, ps.cam.Lookxz())
+			ps.cam.Move(0, 0, dt*-run, ps.cam.Lookxz())
 		case vu.K_S:
-			ps.cam.Move(0, 0, dt*ps.run, ps.cam.Lookxz())
+			ps.cam.Move(0, 0, dt*run, ps.cam.Lookxz())
 		case vu.K_A:
-			ps.effect.Spin(0, dt*ps.spin, 0)
+			ps.effect.Spin(0, dt*spin, 0)
 		case vu.K_D:
-			ps.effect.Spin(0, dt*-ps.spin, 0)
+			ps.effect.Spin(0, dt*-spin, 0)
 		case vu.K_Tab:
 			if down == 1 {
 				ps.effect.SetVisible(false) // switch to the next effect.

@@ -23,25 +23,20 @@ func bb() {
 type bbtag struct {
 	cam        vu.Camera // Allow the user to move the camera.
 	ui         vu.Camera // 2D user interface.
-	run        float64   // Camera movement speed.
-	spin       float64   // Camera spin speed.
 	screenText vu.Pov    // Screen space text.
 }
 
 // Create is the startup asset creation.
 func (bb *bbtag) Create(eng vu.Eng, s *vu.State) {
-	bb.run = 10   // move so many cubes worth in one second.
-	bb.spin = 270 // spin so many degrees in one second.
 	top := eng.Root().NewPov()
-	view := top.NewView()
-	bb.cam = view.Cam()
+	bb.cam = top.NewCam()
 	bb.cam.SetLocation(0.5, 2, 2.5)
 	sun := top.NewPov().SetLocation(0, 3, -3)
 	sun.NewLight().SetColour(0.4, 0.7, 0.9)
 
 	// Load the floor model.
 	floor := top.NewPov()
-	floor.NewModel("gouraud").LoadMesh("floor").LoadMat("floor")
+	floor.NewModel("gouraud").LoadMesh("floor").LoadMat("gray")
 
 	// Create a single image from multiple textures using a shader.
 	c4 := top.NewPov().SetLocation(0.5, 2, -1).SetScale(0.25, 0.25, 0.25)
@@ -60,9 +55,8 @@ func (bb *bbtag) Create(eng vu.Eng, s *vu.State) {
 
 	// Banner text with an ortho overlay.
 	v2D := eng.Root().NewPov()
-	view2D := v2D.NewView()
-	view2D.SetUI()
-	bb.ui = view2D.Cam()
+	bb.ui = v2D.NewCam()
+	bb.ui.SetUI()
 
 	// 2D static location.
 	banner = v2D.NewPov().SetLocation(100, 100, 0)
@@ -76,6 +70,8 @@ func (bb *bbtag) Create(eng vu.Eng, s *vu.State) {
 
 // Update is the regular engine callback.
 func (bb *bbtag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
+	run := 10.0   // move so many cubes worth in one second.
+	spin := 270.0 // spin so many degrees in one second.
 	if in.Resized {
 		bb.resize(s.W, s.H)
 	}
@@ -83,17 +79,17 @@ func (bb *bbtag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 	for press, _ := range in.Down {
 		switch press {
 		case vu.K_W:
-			bb.cam.Move(0, 0, dt*-bb.run, bb.cam.Lookxz())
+			bb.cam.Move(0, 0, dt*-run, bb.cam.Lookxz())
 		case vu.K_S:
-			bb.cam.Move(0, 0, dt*bb.run, bb.cam.Lookxz())
+			bb.cam.Move(0, 0, dt*run, bb.cam.Lookxz())
 		case vu.K_Q:
-			bb.cam.Move(dt*-bb.run, 0, 0, bb.cam.Lookxz())
+			bb.cam.Move(dt*-run, 0, 0, bb.cam.Lookxz())
 		case vu.K_E:
-			bb.cam.Move(dt*bb.run, 0, 0, bb.cam.Lookxz())
+			bb.cam.Move(dt*run, 0, 0, bb.cam.Lookxz())
 		case vu.K_A:
-			bb.cam.AdjustYaw(dt * bb.spin)
+			bb.cam.AdjustYaw(dt * spin)
 		case vu.K_D:
-			bb.cam.AdjustYaw(dt * -bb.spin)
+			bb.cam.AdjustYaw(dt * -spin)
 		case vu.K_T:
 			eng.Shutdown()
 		}

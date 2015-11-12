@@ -9,16 +9,16 @@ import (
 
 // font holds a single bitmapped font. It knows how to pull individual
 // character images out of a single image that contains all the characters
-// for a font. It has to be combined with a texture (the font bitmapped image)
+// for a font. It is combined with a texture (the font bitmapped image)
 // in order to produce displayable strings.
 type font struct {
 	name   string         // Unique id for a glyph set.
-	tag    uint64         // name and type as a number.
+	tag    uint64         // Name and type as a number.
 	w, h   int            // Width and height of the entire font bitmap image.
 	chars  map[rune]*char // The "character" image information.
 	loaded bool
 
-	// scrach for creating rendered text phrases.
+	// scratch variables reused to create rendered text phrases.
 	vb []float32 // verticies.
 	tb []float32 // texture mapping "uv" values.
 	fb []uint16  // triangle face indicies.
@@ -37,22 +37,23 @@ func (f *font) label() string { return f.name } // asset name
 func (f *font) aid() uint64   { return f.tag }  // asset type and name.
 func (f *font) bid() uint64   { return f.tag }  // not bound.
 
-// set font mapping data.
+// set font mapping data. Expected to be called by loader
+// as fonts are loaded from disk.
 func (f *font) setSize(w, h int) { f.w, f.h = w, h }
 func (f *font) addChar(r rune, x, y, w, h, xo, yo, xa int) {
 	uvs := f.uvs(x, y, w, h)
 	f.chars[r] = &char{x, y, w, h, xo, yo, xa, uvs}
 }
 
-// setPhrase creates a string image for the given string returning
+// setPhrase creates an image for the given string returning
 // the verticies, and texture texture (uv) mapping information as a
 // buffer slice.
 //
 // The width in pixels for the resulting string image is returned.
 func (f *font) setPhrase(m *mesh, phrase string) (width int) {
-	vb := f.vb[:0]
-	tb := f.tb[:0]
-	fb := f.fb[:0]
+	vb := f.vb[:0] // reset keeping allocated memory.
+	tb := f.tb[:0] //  ""
+	fb := f.fb[:0] //  ""
 
 	// gather and arrange the letters for the phrase.
 	width = 0
@@ -88,7 +89,7 @@ func (f *font) setPhrase(m *mesh, phrase string) (width int) {
 
 // uvs calculates the four UV points for one character.  The x,y coordinates
 // are the top left of the character.  Note that the UV's are added to the array
-// so as to match the order the vertices are created  in panel().  This makes
+// so as to match the order the vertices are created in panel(). This makes
 // the letters appear the right way up rather than flipped.
 //
 // Only expected to be used when loading fonts from disk.
@@ -110,7 +111,7 @@ func (f *font) uvs(x, y, w, h int) []float32 {
 // ===========================================================================
 // char
 
-// char represents a single bitmap character.  See
+// char represents a single bitmap character. Works well with
 // http://www.angelcode.com/products/bmfont/doc/file_format.html
 type char struct {
 	x, y     int       // Top left corner.

@@ -8,7 +8,7 @@
 //    • Timestepped update/render loop.
 //    • Access to user input events.
 //    • Cameras and transform manipulation.
-//    • Coupling loaded assets to render and audio systems.
+//    • Delivering loaded assets to render and audio devices.
 // Refer to the vu/eg package for examples of engine functionality.
 //
 // Vu dependencies are:
@@ -18,10 +18,12 @@
 //    • WinAPI for Windows windowing and input. See package vu/device.
 package vu
 
-// Design note: Concurrency based on "Share memory by communicating".
-//              http://golang.org/doc/codewalk/sharemem/
-// For structures and concurrency passing a pointer to a structure passes
-// ownership of that structure instance.
+// Design note: vu contains the main thread "machine" which
+// is controlled by the "engine" state update goroutine.
+// Concurrency design is based on "Share memory by communicating"
+//     http://golang.org/doc/codewalk/sharemem
+// in which passing pointers to structure instances between goroutines
+// passes ownership of those instances.
 
 import (
 	"fmt"
@@ -35,8 +37,8 @@ import (
 )
 
 // New creates the Engine and initializes the underlying resources needed
-// by the engine. It then starts application callbacks through the App
-// interface. This is expected to be called once on application startup.
+// by the engine. It then starts application callbacks through the engine
+// App interface. This is expected to be called once on application startup.
 func New(app App, name string, wx, wy, ww, wh int) (err error) {
 	m := &machine{} // main thread and device facing handler.
 	if app == nil {
@@ -64,18 +66,22 @@ func New(app App, name string, wx, wy, ww, wh int) (err error) {
 	m.gc.Viewport(ww, wh)
 	m.dev.Open()
 	m.input = m.dev.Update()
+	m.frame1 = []render.Draw{} // Previous render frame.
+	m.frame0 = []render.Draw{} // Most recent render frame.
 
-	// Start the application facing loop for state updates and
-	// enter the device facing loop for rendering and user input polling.
+	// Start the application facing loop for state updates.
+	// Run the device facing loop for rendering and user input polling.
 	m.reqs = make(chan msg)
 	m.stop = make(chan bool)
-	go runEngine(app, wx, wy, ww, wh, m.reqs, m.stop)
-	m.startup()        // underlying device polling and rendering.
+	m.uf = make(chan []render.Draw)
+	go runEngine(app, wx, wy, ww, wh, m.reqs, m.uf, m.stop)
+	m.run()            // underlying device polling and rendering.
 	defer m.shutdown() // ensure shutdown happens no matter what.
 	return nil         // report successful termination.
 }
 
-// Engine constants used as input to various methods.
+// Engine constants needed as input to methods as noted in the
+// comments below.
 const (
 
 	// Global graphic state constants. See Eng.State
@@ -88,77 +94,72 @@ const (
 	POINTS    = render.POINTS    // Used for particle effects.
 	LINES     = render.LINES     // Used for drawing squares and boxes.
 
-	// User input key released indicator. Total time down, in update
-	// ticks, is key down ticks minus RELEASED. See App.Update.
+	// User input key released indicator. Total time down, in update ticks,
+	// is key down ticks minus RELEASED. See App.Update.
 	RELEASED = device.KEY_RELEASED
-
-	// Render buckets. Lower values drawn first.
-	OPAQUE      = render.OPAQUE      // draw first
-	TRANSPARENT = render.TRANSPARENT // draw after opaque
-	OVERLAY     = render.OVERLAY     // draw last.
 
 	// Texture rendering directives for Model.SetTexMode()
 	TEX_REPEAT = iota // Repeat texture when UV greater than 1.
 	TEX_CLAMP         // Clamp to texture edge.
 
-	// 3D Direction constants. Primarily used for panning or
-	// rotating a camera view. See Camera.Spin.
+	// 3D Direction constants. Primarily used for panning or rotating a camera.
+	// See Camera.Spin.
 	XAxis // Affect only the X axis.
 	YAxis // Affect only the Y axis.
 	ZAxis // Affect only the Z axis.
 
-	// Objects created by the application.
-	// Note that POV is both a transform hierarchy node
-	// and a particular location:orientation in 3D space.
-	POV   // Transform hierarchy node and 3D location:orientation.
-	MODEL // Rendered model attached to a Pov.
-	BODY  // Physics body attached to a Pov.
-	VIEW  // Camera and view transform attached to a Pov.
-	NOISE // Sound attached to a Pov.
-	LIGHT // Light attached to a Pov.
+	// Application created and controlled objects associated with the transform
+	// hierarchy. See Pov.Dispose.
+	POV    // Transform hierarchy node and 3D location:orientation.
+	MODEL  // Rendered model attached to a Pov.
+	BODY   // Physics body attached to a Pov.
+	CAMERA // Camera attached to a Pov.
+	NOISE  // Sound attached to a Pov.
+	LIGHT  // Light attached to a Pov.
+	LAYER  // Render pass layer attached to a Pov.
 )
 
 // vu
 // =============================================================================
 // This is the machine and it is driven by the application facing engine class.
-// machine  Defn: "engine is a device that drives a machine"
 
 // machine deals with initialization and handling of all underlying hardware;
 // generally through the OS, GPU, and audio API's. Machine is expected to be
-// run from the main thread -- this is expected and enforced by those
-// aforementioned API's.
+// run from the main thread -- this is enforced by those aforementioned API's.
+// Machine process requests from the application facing engine class.
 type machine struct {
-	gc     render.Renderer // Graphics card interface layer.
-	dev    device.Device   // Os specific window and rendering context.
-	ac     audio.Audio     // Audio card interface layer.
-	reqs   chan msg        // Requests from the application loop.
-	stop   chan bool       // Used to shutdown the application loop.
-	frame0 []render.Draw   // Previous render frame.
-	frame1 []render.Draw   // Most recent render frame.
-	input  *device.Pressed // Latest user keyboard and mouse input.
+	gc     render.Renderer    // Graphics card interface layer.
+	dev    device.Device      // Os specific window and rendering context.
+	ac     audio.Audio        // Audio card interface layer.
+	input  *device.Pressed    // Latest user keyboard and mouse input.
+	frame1 []render.Draw      // Previous render frame.
+	frame0 []render.Draw      // Most recent render frame.
+	uf     chan []render.Draw // pass back frame for updating.
+	reqs   chan msg           // Requests from the application loop.
+	stop   chan bool          // Used to shutdown the engine.
 
 	// Counts keeps track of the number of faces and verticies for
 	// each successfully bound mesh.
 	counts map[uint32]*meshCount
 }
 
-// startup is called on the main thread. Only the main thread can interact
-// with the device layer and the rendering context. This loop depends on
-// frequent and regular calls from the application update both for polling
+// run is the main thread. Only the main thread can interact with the
+// device layer and the rendering context. This loop depends on frequent
+// and regular calls from the application update both for polling
 // user input and rendering.
-func (m *machine) startup() {
-	m.gc.Enable(BLEND, true) // match application startup state.
-	m.gc.Enable(CULL, true)  // match application startup state.
+func (m *machine) run() {
+	m.gc.Enable(BLEND, true) // expected application startup state.
+	m.gc.Enable(CULL, true)  // expected application startup state.
 	for m.dev != nil && m.dev.IsAlive() {
-		req := <-m.reqs // guard against a closed channel.
+		req := <-m.reqs // req is nil for closed channel.
 
 		// handle all communication, blocking until there is a request
 		// to process. Requests wait until the current request is finished.
 		switch t := req.(type) {
 		case *shutdown:
-			return // exit immediately. The app loop is dead.
+			return // exit immediately. User shutdown engine.
 		case *appData:
-			m.refreshAppData(t) // sync with engine that is blocking on reply.
+			m.refreshAppData(t) // poll to refresh device input.
 		default:
 			switch t := req.(type) {
 			case *renderFrame:
@@ -190,13 +191,13 @@ func (m *machine) startup() {
 			}
 		}
 	}
-	close(m.stop) // The underlying device is gone, stop the app loop.
+	close(m.stop) // The underlying device is gone, stop the engine.
 }
 
-// shutdown stops and closes the engine and the applications shell.
+// shutdown properly cleans up and closes the device layers.
 func (m *machine) shutdown() {
 	if m.ac != nil {
-		m.ac.Shutdown()
+		m.ac.Dispose()
 		m.ac = nil
 	}
 	if m.dev != nil {
@@ -206,23 +207,21 @@ func (m *machine) shutdown() {
 }
 
 // render passes the frame draw data to the supporting render layer.
+// If there is a new frame, then unused frame is sent back for updating.
 func (m *machine) render(r *renderFrame) {
-	m.gc.Clear()
-	if r.frame != nil { // update the previous and current render frames.
-		m.frame0 = m.frame1
-		m.frame1 = r.frame
+
+	// update the previous and current render frames with a new frame.
+	if r.frame != nil && len(r.frame) > 0 {
+		updateFrame := m.frame1 // return this frame to be updated.
+		m.frame1 = m.frame0     // previous frame.
+		m.frame0 = r.frame      // new frame.
+		m.uf <- updateFrame     // return frame for updating.
 	}
 
-	// FUTURE:
-	// For each light...
-	//    For each occluder...
-	//       RenderOccluder(light, occluder) // render occluders from lights point of view.
-	// SetMainRenderTarget
-	// ... now render objects..., need to use shadow map.
-
-	// FUTURE: use the renderFrame interpolation and the previous frame
-	//         for rendering between frame updates.
-	for _, drawing := range m.frame1 {
+	// FUTURE: use interpolation between current and previous frames
+	//         for render requests between frame updates.
+	m.gc.Clear()
+	for _, drawing := range m.frame0 {
 		if drawing.Vao() > 0 {
 			m.setCounts(drawing)
 			m.gc.Render(drawing)
@@ -234,7 +233,6 @@ func (m *machine) render(r *renderFrame) {
 }
 
 // refreshAppData gathers user input and returns it on request.
-// Only poll input when requested so input is not dropped.
 // The underlying device layer collects input since last call.
 // Expected to be called once per update tick.
 func (m *machine) refreshAppData(data *appData) {
@@ -259,9 +257,9 @@ func (m *machine) setCounts(d render.Draw) {
 	}
 }
 
-// bind sends data to the graphics or audio card and replies when finished.
-// Data needs to be bound once before it can be used for rendering or audio.
-// Data needs rebinding if it is changed.
+// bind sends data to the graphics or audio card and replies on the supplied
+// channel when finished. Data needs to be bound once before it can be used
+// for rendering or audio. Data needs rebinding if it is changed.
 func (m *machine) bind(bd *bindData) {
 	switch d := bd.data.(type) {
 	case *mesh:
@@ -304,6 +302,13 @@ func (m *machine) bind(bd *bindData) {
 		} else {
 			bd.reply <- nil
 		}
+	case *layer:
+		err := m.gc.BindFrame(d.attr, &d.bid, &d.tex.tid, &d.db)
+		if err != nil {
+			bd.reply <- fmt.Errorf("Failed bind framebuffer %s", err)
+		} else {
+			bd.reply <- nil
+		}
 	default:
 		bd.reply <- fmt.Errorf("No bindings for %T", d)
 	}
@@ -327,6 +332,9 @@ func (m *machine) release(rd *releaseData) {
 		m.gc.ReleaseTexture(d.tid)
 	case *sound:
 		m.ac.ReleaseSound(d.sid)
+	case *layer:
+		m.gc.ReleaseFrame(d.bid, d.tex.tid, d.db)
+		d.bid, d.tex.tid, d.db = 0, 0, 0
 	default:
 		log.Printf("machine.release: No bindings for %T", rd)
 	}
@@ -364,8 +372,9 @@ func (m *machine) vet(name string, x0, y0, width, height int) (n string, x, y, w
 // =============================================================================
 // msg
 
-// msg: each structure below is a msg between concurrent goroutines.
-//      Messages are pointers to one of the structures below.
+// msg are requests and data handled by the engine goroutine.
+// Messages are pointers to one of the structures below.
+// The struct type is the message and the struct fields carry the data.
 type msg interface{}
 
 // appData contains both user input and engine state passed to the
@@ -396,9 +405,9 @@ type bindData struct {
 }
 
 // renderFrame requests a render. New render data is supplied after
-// an update and interpolation values are given for render requests
+// an update. Interpolation values are given for render requests
 // between new frames. No reply is expected. Render data is expected
-// to be created by the engine update loop and read/rendered by the
+// to be created by the engine update loop and processed by the
 // vu machine.
 type renderFrame struct {
 	interp float64       // Fraction between 0 and 1.
@@ -417,7 +426,7 @@ type playSound struct {
 	x, y, z float64
 }
 
-// state change messages. Operator to machine. Fire and forget.
+// state change messages. Engine to machine. Fire and forget.
 type enableAttr struct {
 	attr   uint32
 	enable bool
@@ -428,12 +437,13 @@ type setCursor struct{ cx, cy int }
 type showCursor struct{ enable bool }
 type toggleScreen struct{}
 
-// releaseData removes the underlying resources associated with one
-// of the following:
+// releaseData is used to request the removal a resources associated
+// with one of the following:
 //    bound and cached: *mesh, *shader, *texture, *sound, *noise,
 //    cached only     : *material, *font, *animation
+//    bound only      : *view
 type releaseData struct {
-	data interface{} // *mesh, *shader, *texture, *sound, *noise
+	data interface{}
 }
 
 // =============================================================================

@@ -7,13 +7,13 @@ import (
 	"github.com/gazed/vu/math/lin"
 )
 
-// Cull is attached to a View in order to reduce the number
+// Cull is attached to a Camera in order to reduce the number
 // of items sent for rendering.
 type Cull interface {
 
-	// Cull returns true if a model represented by point, px, py, pz
+	// Culled returns true if a model represented by point, px, py, pz
 	// should be culled using the given camera.
-	Cull(cam Camera, px, py, pz float64) bool
+	Culled(cam Camera, px, py, pz float64) bool
 }
 
 // =============================================================================
@@ -37,7 +37,7 @@ type frontCull struct {
 
 // Culler implmentation.
 // Project the part location back along the lookat vector.
-func (fc *frontCull) Cull(cam Camera, px, py, pz float64) bool {
+func (fc *frontCull) Culled(cam Camera, px, py, pz float64) bool {
 	fudgeFactor := float64(0.8) // don't move all the way up.
 	cx, cy, cz := lin.MultSQ(0, 0, -fc.radius*fudgeFactor, cam.Lookat())
 	px, py, pz = px-cx, py-cy, pz-cz // move part location back.
@@ -64,7 +64,7 @@ type radiusCull struct {
 
 // Culler implmentation. True true if the given location is
 // within the culler radius of the camera.
-func (rc *radiusCull) Cull(cam Camera, px, py, pz float64) bool {
+func (rc *radiusCull) Culled(cam Camera, px, py, pz float64) bool {
 	toc := cam.Distance(px, py, pz)
 	return toc > rc.rr
 }

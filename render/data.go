@@ -19,7 +19,7 @@ type Data interface {
 	Size() uint32         // Number of bytes
 }
 
-// NewVertexData creates and fixes settings for a set of vertex data.
+// NewVertexData creates and specifies usage for a set of vertex data.
 // Vertex data can be the vertex positions or per-vertex data points
 // like normals or UV texture information.
 // Data can now be loaded and updated using Data.Set().
@@ -38,7 +38,7 @@ func NewVertexData(lloc, span, usage uint32, normalize bool) Data {
 	return vd
 }
 
-// NewFaceData creates and fixes settings for a set of triangle faces.
+// NewFaceData creates and specifies usagefor a set of triangle faces.
 // Triangle faces contain vertex indicies ordered to draw triangles.
 // Data can now be loaded and updated using Data.Set().
 //     usage     : STATIC or DYNAMIC

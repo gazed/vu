@@ -18,10 +18,10 @@ import (
 	"github.com/gazed/vu/math/lin"
 )
 
-// IqData is model data from IQM or IQE files.
+// IqData is model data from IQM files.
 // It is intended for populating animated models.
 type IqData struct {
-	Name string // Data name from IQM or IQE file.
+	Name string // Data name from IQM file.
 
 	// Mesh and Texture data create the static model.
 	V        []float32   // Vertex positions.  Arranged as [][3]float32
@@ -252,7 +252,6 @@ func (l *loader) loadIqmAnims(hdr *iqmheader, data []byte, iqd *IqData, scr *scr
 		// FUTURE: use joint names as attachment points where the convention
 		//         is to have "attachment" in the joint name, and not have
 		//         the joint affect any verticies.
-		// println(cnt, "joint", scr.labels[j.Name])
 
 		// put the pose data into a transform ready structure.
 		t := &lin.V3{X: float64(j.Translate[0]), Y: float64(j.Translate[1]), Z: float64(j.Translate[2])}

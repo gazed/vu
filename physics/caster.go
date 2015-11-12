@@ -1,7 +1,7 @@
 // Copyright © 2014-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
-package move
+package physics
 
 // caster contains ray casting logic. It is separate from full collision
 // tracking and often used to answer the question "what is the user

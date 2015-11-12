@@ -16,11 +16,10 @@ typedef int (APIENTRY * PFNWGLSWAPINTERVALEXTPROC) (int);
 typedef const char *(APIENTRY * PFNWGLGETEXTENSIONSSTRINGARBPROC)( HDC );
 
 // Bind an opengl extension in order to create a proper context on windows.
-// (and its dependency)
+// (and its dependency) See: wglCreateContextAttribsARB
 //     http://www.opengl.org/wiki/Creating_an_OpenGL_Context_(WGL)
 //     http://www.opengl.org/registry/specs/ARB/wgl_create_context.txt
 //     http://www.opengl.org/registry/specs/EXT/wgl_extensions_string.txt
-// wglCreateContextAttribsARB
 typedef HGLRC (WINAPI * PFNWGLCREATECONTEXTATTRIBSARBPROC) (HDC, HGLRC, const int *);
 typedef const char *(APIENTRY * PFNWGLGETEXTENSIONSSTRINGEXTPROC)( void );
 #define WGL_CONTEXT_MAJOR_VERSION_ARB             0x2091
@@ -136,7 +135,7 @@ int gs_get_pixelformat(long shell)
 
 // gs_context creates an opengl context. Actually it creates two of them.
 // The first context is used to find better functions to create the final
-// context.  Note that the pixel format is done only once for a window so
+// context. Note that the pixel format is done only once for a window so
 // it must be correctly chosen.
 long gs_context(long long * display, long long * shell)
 {
