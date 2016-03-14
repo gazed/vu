@@ -1,4 +1,4 @@
-// Copyright © 2014-2015 Galvanized Logic Inc.
+// Copyright © 2014-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -12,8 +12,14 @@ import (
 )
 
 // fm demos and tests the vu/form package by visualizing grid layouts
-// created from string based layout plans. Overall this is an experiment
-// in trying to provide some application GUI support.
+// created from string based layout plans.
+//
+// This is the 3rd iteration in an experiment to see if there is any
+// application benefit to a 2D UI support package. So far this has been
+// NO in that the benefit to the app does not justify the amount of work
+// needed in the 2D UI support package.
+//
+// See vu/form/form.go for more design notes.
 func fm() {
 	fm := &fmtag{}
 	if err := vu.New(fm, "Form Layout", 400, 100, 800, 600); err != nil {

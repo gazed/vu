@@ -1,11 +1,11 @@
-// Copyright © 2013-2015 Galvanized Logic Inc.
+// Copyright © 2013-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package device
 
 // Design note: The original intent was to collect and process the OS
-// event queues concurrently. However, it turned out OSX only allows event
-// processng from the main thread.
+// event queues concurrently. However, OSX only allows event processng
+// from the main thread.
 
 // input is used to process a user event stream into the Pressed structure
 // that can be polled as needed.
@@ -34,13 +34,6 @@ func (i *input) pollEvents(os *nativeOs) *Pressed {
 	i.clone(i.curr, i.down)
 	return i.down
 }
-
-// KEY_RELEASED is used to indicate a key up event has occurred.
-// The total duration of a key press can be calculated by the difference
-// of Pressed.Down duration with KEY_RELEASED. A user would have to hold
-// a key down for 24 hours before the released duration became positive
-// (assuming a reasonable update time of 0.02 seconds).
-const KEY_RELEASED = -1000000000
 
 // processEvents updates the current input event buffer essentially turning
 // the user input stream into a map of what is currently pressed. A duration
@@ -123,7 +116,7 @@ func (i *input) releaseAll() {
 }
 
 // updateDurations tracks how long keys have been pressed for.
-// Expected to be called each signal (update loop). Ignore released keys.
+// Expected to be called each update. Ignore released keys.
 func (i *input) updateDurations() {
 	for key, val := range i.curr.Down {
 		if val >= 0 {
@@ -157,8 +150,8 @@ func (i *input) clone(in, out *Pressed) {
 // ===========================================================================
 // userInput
 
-// userInput is returned by readAndDispatch.  It is the current input of the
-// keyboard and mouse.  It tracks any user input changes.
+// userInput is returned by readAndDispatch. It is the current input of the
+// keyboard and mouse. It tracks any user input changes.
 type userInput struct {
 	id     int // Unique event id: one of the const's below
 	mouseX int // Current mouse X position.

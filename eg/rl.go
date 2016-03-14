@@ -1,4 +1,4 @@
-// Copyright © 2013-2015 Galvanized Logic Inc.
+// Copyright © 2013-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -21,6 +21,10 @@ import (
 // rl also tests camera movement that includes holding multiple movement keys
 // at the same time. The example does not have collision detection so you can
 // literally run through the maze.
+//
+// This is the one example that displays and tests statistics that can
+// be queried from the vu engine. Note that concurrent loading is also
+// visible, especially with the higher numbers corresponding to larger grids.
 func rl() {
 	rl := &rltag{}
 	if err := vu.New(rl, "Random Levels", 400, 100, 800, 600); err != nil {

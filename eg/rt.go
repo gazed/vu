@@ -1,4 +1,4 @@
-// Copyright © 2015 Galvanized Logic. All rights reserved.
+// Copyright © 2015-2016 Galvanized Logic. All rights reserved.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -21,8 +21,9 @@ import (
 )
 
 // rt helps to understand ray tracing basics. Real time hardware supported ray
-// tracing is a possible future rendering alternative. Ray tracing is sufficiently
-// different from standard rasterization it would likely need its own 3D engine.
+// tracing is a possible (far) future rendering alternative. Ray tracing is
+// sufficiently different from standard rasterization it would likely need
+// its own 3D engine.
 //
 // The code in this example is broken into two sections:
 //    1. OpenGL based code that displays a single texture on a quad mesh.
@@ -191,7 +192,7 @@ func (rt *rtrace) drawScene() {
 // and inspired a go code version:
 //   https://github.com/abelsson/rays/blob/master/gorays/main.go
 // The ray trace code below is based on the above links and
-// uses vu linear math libaries.
+// uses the vu/math/lin linear math libaries.
 //
 // The example is brute force Whitted Ray tracing. It is simply optimized
 // in that it uses only spheres for quicker ray collision calculations.
@@ -203,13 +204,14 @@ func (rt *rtrace) drawScene() {
 //     rayTrace() - creates image using a render worker per processor.
 //     render()   - one call to render for each image row. Render generates
 //                  64 rays per image row pixel.
-//     sample()   - calculates the colour for one ray.
+//     sample()   - calculates the color for one ray.
 //     trace()    - collides a ray with the scene.
 
 // The scene to be rendered. Each non-space is a sphere.
 // The scene background, sky and floor, are generated.
-// 23 spheres. Sampler:10864441 Tracer:15557132 Time 2.353326s
-//  1 sphere.  Sampler: 9614633 Tracer:11353321 Time 0.883293s
+// Some tests were run to capture the effect of adding spheres:
+//    23 spheres. Sampler:10864441 Tracer:15557132 Time 2.353326s
+//     1 sphere.  Sampler: 9614633 Tracer:11353321 Time 0.883293s
 var art = []string{
 	"                   ",
 	"                   ",
@@ -294,17 +296,17 @@ func (rt *rtrace) worker(a, b, c lin.V3, img *image.NRGBA, rows <-chan row, wg *
 	}
 }
 
-type row int // row is for rendering the colours for one row of the image.
+type row int // row is for rendering the colors for one row of the image.
 
-// render one row of pixels by calculating a colour for each pixel.
-// The image pixel row number is r. Fill the pixel colour into the
-// image after the colour has been calculated.
+// render one row of pixels by calculating a color for each pixel.
+// The image pixel row number is r. Fill the pixel color into the
+// image after the color has been calculated.
 func (r row) render(rt *rtrace, a, b, c lin.V3, img *image.NRGBA, seed *uint32) {
 	rgba := color.NRGBA{0, 0, 0, 255}
 	t, v1, v2 := lin.NewV3(), lin.NewV3(), lin.NewV3() // temp vectors.
-	colour, orig, dir := lin.NewV3(), lin.NewV3(), lin.NewV3()
+	color, orig, dir := lin.NewV3(), lin.NewV3(), lin.NewV3()
 	for x := (rt.iw - 1); x >= 0; x-- {
-		colour.SetS(13, 13, 13) // Use a very dark default colour.
+		color.SetS(13, 13, 13) // Use a very dark default color.
 
 		// Cast 64 rays per pixel for blur (stochastic sampling) and soft-shadows.
 		for cnt := 0; cnt < 64; cnt++ {
@@ -320,37 +322,37 @@ func (r row) render(rt *rtrace, a, b, c lin.V3, img *image.NRGBA, seed *uint32) 
 			dir.Add(dir, v1.Scale(&a, rnda).Add(v1, v2.Scale(&b, rndb)).Add(v1, &c).Scale(v1, 16))
 			dir.Unit()
 
-			// accumulate the colour from each of the 64 rays.
+			// accumulate the color from each of the 64 rays.
 			sample := rt.sample(*orig, *dir, seed)
-			colour = sample.Scale(&sample, 3.5).Add(&sample, colour)
+			color = sample.Scale(&sample, 3.5).Add(&sample, color)
 		}
 
-		// set the final pixel colour in the image.
-		rgba.R = byte(colour.X) // red
-		rgba.G = byte(colour.Y) // green
-		rgba.B = byte(colour.Z) // blue
+		// set the final pixel color in the image.
+		rgba.R = byte(color.X) // red
+		rgba.G = byte(color.Y) // green
+		rgba.B = byte(color.Z) // blue
 		img.SetNRGBA(rt.iw-x, int(r), rgba)
 	}
 }
 
-// sample calculates the colour value for a given ray (origin and direction)
+// sample calculates the color value for a given ray (origin and direction)
 // shot into the scene. It relies on the trace() method to determine what the
-// ray hit and recursively calls itself to add in the colour values of any
+// ray hit and recursively calls itself to add in the color values of any
 // child rays. This method performs the job of a rasterization pipeline shader
-// by calculating colour based on light and normals wherever rays hit scene
+// by calculating color based on light and normals wherever rays hit scene
 // objects.
-func (rt *rtrace) sample(orig, dir lin.V3, seed *uint32) (colour lin.V3) {
+func (rt *rtrace) sample(orig, dir lin.V3, seed *uint32) (color lin.V3) {
 	rt.sampleCalls += 1                     // track number of times called
 	st, dist, bounce := rt.trace(orig, dir) // check ray scene collision.
 	obounce := bounce
 
-	// generate a sky colour if the ray is going up.
+	// generate a sky color if the ray is going up.
 	if st == missHigh {
-		p := 1 - dir.Z // make the sky colour lighter closer to the horizon.
+		p := 1 - dir.Z // make the sky color lighter closer to the horizon.
 		p = p * p
 		p = p * p
-		colour.SetS(0.7, 0.6, 1)
-		return *colour.Scale(&colour, p)
+		color.SetS(0.7, 0.6, 1)
+		return *color.Scale(&color, p)
 	}
 
 	// add randomness to light for soft shadows.
@@ -373,17 +375,17 @@ func (rt *rtrace) sample(orig, dir lin.V3, seed *uint32) (colour lin.V3) {
 		}
 	}
 
-	// generate a floor colour if the ray was going down.
+	// generate a floor color if the ray was going down.
 	if st == missLow {
 		hitAt.Scale(hitAt, 0.2)
-		colour.SetS(3, 3, 3) // gray floor squares.
+		color.SetS(3, 3, 3) // gray floor squares.
 		if int(math.Ceil(hitAt.X)+math.Ceil(hitAt.Y))&1 == 1 {
-			colour.SetS(1, 1, 3) // blue floor squares.
+			color.SetS(1, 1, 3) // blue floor squares.
 		}
-		return *(colour.Scale(&colour, lightIntensity*0.2+0.1))
+		return *(color.Scale(&color, lightIntensity*0.2+0.1))
 	}
 
-	// calculate the colour 'rgb' with diffuse and specular component.
+	// calculate the color 'rgb' with diffuse and specular component.
 	// r is the reflection vector.
 	reflectDir := lin.NewV3()
 	reflectDir.Add(&dir, tmpv.Scale(&obounce, obounce.Dot(tmpv.Scale(&dir, -2))))
@@ -391,11 +393,11 @@ func (rt *rtrace) sample(orig, dir lin.V3, seed *uint32) (colour lin.V3) {
 	rgb = math.Pow(rgb, 99)
 
 	// cast a child ray from where the parent ray hit.
-	// Add in the result of the colour from the child ray.
-	colour.SetS(rgb, rgb, rgb)
-	addColour := rt.sample(*hitAt, *reflectDir, seed)
-	addColour.Scale(&addColour, 0.5)
-	return *(colour.Add(&colour, &addColour))
+	// Add in the result of the color from the child ray.
+	color.SetS(rgb, rgb, rgb)
+	addColor := rt.sample(*hitAt, *reflectDir, seed)
+	addColor.Scale(&addColor, 0.5)
+	return *(color.Add(&color, &addColor))
 }
 
 // trace casts a ray (origin, direction) to see if the ray hits any

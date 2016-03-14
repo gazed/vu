@@ -1,4 +1,4 @@
-// Copyright © 2013-2015 Galvanized Logic Inc.
+// Copyright © 2013-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -15,6 +15,8 @@ import (
 // cr, collision resolution, demonstrates simulated physics by having balls bounce
 // on a floor. The neat thing is that after the initial locations have been set
 // the physics simulation handles all subsequent position updates.
+//
+// Set useBalls to false and "go build" to have the demo use cubes.
 func cr() {
 	cr := &crtag{}
 	if err := vu.New(cr, "Collision Resolution", 400, 100, 800, 600); err != nil {
@@ -34,7 +36,7 @@ type crtag struct {
 func (cr *crtag) Create(eng vu.Eng, s *vu.State) {
 	cr.top = eng.Root().NewPov()
 	sun := cr.top.NewPov().SetLocation(0, 10, 10)
-	sun.NewLight().SetColour(0.8, 0.8, 0.8)
+	sun.NewLight().SetColor(0.8, 0.8, 0.8)
 	cr.cam = cr.top.NewCam()
 	cr.cam.SetPerspective(60, float64(800)/float64(600), 0.1, 500)
 	cr.cam.SetLocation(0, 10, 25)
@@ -55,7 +57,7 @@ func (cr *crtag) Create(eng vu.Eng, s *vu.State) {
 		cr.getBox(cr.striker)
 		cr.striker.SetRotation(&lin.Q{X: 0.1825742, Y: 0.3651484, Z: 0.5477226, W: 0.7302967})
 	}
-	cr.striker.Model().SetColour(rand.Float64(), rand.Float64(), rand.Float64())
+	cr.striker.Model().SetColor(rand.Float64(), rand.Float64(), rand.Float64())
 
 	// create a block of physics bodies.
 	cubeSize := 3
@@ -108,7 +110,7 @@ func (cr *crtag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 			ball.NewBody(vu.NewSphere(1))
 			ball.SetSolid(1, 0.9)
 			m := ball.NewModel("gouraud").LoadMesh("sphere").LoadMat("red")
-			m.SetColour(rand.Float64(), rand.Float64(), rand.Float64())
+			m.SetColor(rand.Float64(), rand.Float64(), rand.Float64())
 		case vu.K_Space:
 			body := cr.striker.Body()
 			body.Push(-2.5, 0, -0.5)

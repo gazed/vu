@@ -1,4 +1,4 @@
-// Copyright © 2013-2015 Galvanized Logic Inc.
+// Copyright © 2013-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package device
@@ -8,14 +8,13 @@ import (
 )
 
 // native specifies the methods that each of the native layers must implement.
-// Each native layer is a CGO wrapper over the underlying native window.
+// Each native layer is a CGO wrapper over the underlying native code.
 //
 // Native code is separated in platform specific files as per
 //      http://golang.org/pkg/go/build/
-// Supported platforms are osx (darwin), win (windows) , and lin (linux).
-//      osx: os_darwin.go  wraps: os_darwin.h, os_darwin.m
+// Supported platforms are osx (darwin), win (windows).
+//      osx: os_darwin.go  wraps: os_darwin.h,  os_darwin.m
 //      win: os_windows.go wraps: os_windows.h, os_windows.c
-//      FUTURE lin: os_linux.go   wraps: os_linux.h, os_linux.c
 // Each will have a unique implementation of the native interface and will
 // only be included when building on their respective platforms.
 //
@@ -26,7 +25,6 @@ type native interface {
 	// value is a reference of the underlying OS structure. For example:
 	//    osx: pointer to NSApplication instance.
 	//    win: HWND reference from CreateWindowEx.
-	//    lin: FUTURE
 	display() int64
 
 	// displayDispose cleans and releases all resources including the OpenGL
@@ -46,10 +44,9 @@ type native interface {
 	// For example:
 	//    osx: pointer to NSWindow
 	//    win: HDC (handle) to device context from GetDC(hwnd)
-	//    lin: FUTURE
 	shell(r *nrefs) int64
 
-	// shellOpen shows the window (shell) on the given display.  This should be
+	// shellOpen shows the window (shell) on the given display. This should be
 	// called after the OpenGL context has been created.
 	shellOpen(r *nrefs)
 
@@ -62,27 +59,23 @@ type native interface {
 	// The native layer calls are:
 	//    osx: NSRect content = [(id)shell contentRectForFrameRect:frame];
 	//    win: GetClientRect(hwnd, &rect);
-	//    lin: FUTURE
 	size(r *nrefs) (x, y, w, h int)
 
 	// showCursor hides or shows the cursor. The cursor is locked to the
 	// application window when it is hidden.
 	//    osx: [NSCursor unhide]; [NSCursor hide];
 	//    win: ReleaseCapture(); SetCapture(hwnd);
-	//    lin: FUTURE
 	showCursor(r *nrefs, show bool)
 
 	// setCursorAt places the cursor at the given window coordinates.
 	//    osx: CGWarpMouseCursorPosition(point);
 	//    win: SetCursorPos(loc.x, loc.y);
-	//    lin: FUTURE
 	setCursorAt(r *nrefs, x, y int)
 
 	// context creates an OpenGL context and fills in the context field of the
 	// nrefs structure. For example the context field is:
 	//    osx: pointer to NSOpenGLContext
 	//    win: HGLRC (handle) from wglCreateContext(hdc);
-	//    lin: FUTURE
 	//
 	// Note that display and shell may be updated when creating a context. This
 	// is due to windows need to re-create a window in order to get a properly
@@ -94,7 +87,6 @@ type native interface {
 	// main loop to display the most recent drawing.
 	//    osx: [(id)context flushBuffer]
 	//    win: SwapBuffers(hdc)
-	//    lin: FUTURE
 	swapBuffers(r *nrefs)
 
 	// setAlphaBufferSize sets the desired size of the OpenGL alpha buffer.
@@ -105,11 +97,11 @@ type native interface {
 	// This needs to be called before the OpenGL context is created.
 	setDepthBufferSize(size int)
 
-	// setSize sets the desired window size. This needs to be called before the
+	// setSize sets the desired window size. Needs to be called before the
 	// window is created.
 	setSize(x, y, width, height int)
 
-	// setTitle sets the desired window title. This needs to be called before
+	// setTitle sets the desired window title. Needs to be called before
 	// the window is created.
 	setTitle(title string)
 

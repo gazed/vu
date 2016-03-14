@@ -1,12 +1,18 @@
-// Copyright © 2013-2015 Galvanized Logic Inc.
+// Copyright © 2013-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 // Package render provides access to 3D graphics.
 // It encapsulates and provides a common interface to graphic card
-// programming interfaces like OpenGL and DirectX.
+// programming APIs like OpenGL or DirectX. Render is OS indepdent.
+// It relies on OS specific graphics contexts to be created by vu/device.
 //
 // Package render is provided as part of the vu (virtual universe) 3D engine.
 package render
+
+// FUTURE: render PC alternatives include Vulkan, DirectX.
+// FUTURE: render alternatives for consoles.
+// FUTURE: real time ray tracer renderer implementation... likely need
+//         entirely different ray-trace based engine.
 
 import (
 	"image"
@@ -20,7 +26,7 @@ import (
 type Renderer interface {
 	Init() (err error)               // Call first, once at startup.
 	Clear()                          // Clear all buffers before rendering.
-	Color(r, g, b, a float32)        // Set the default render clear colour
+	Color(r, g, b, a float32)        // Set the default render clear color
 	Enable(attr uint32, enable bool) // Enable or disable graphic state.
 	Viewport(width int, height int)  // Set the available screen real estate.
 
@@ -32,7 +38,7 @@ type Renderer interface {
 	Render(d Draw) // Render bound data and textures with bound shaders.
 
 	// BindFrame creates a framebuffer object with an associated texture.
-	//   buf : DEPTH_BUFF, for depth, or IMAGE_BUFF, for colour and depth.
+	//   buf : DEPTH_BUFF, for depth, or IMAGE_BUFF, for color and depth.
 	//   fbo : returned frame buffer object identifier.
 	//   tid : returned texture identifier.
 	//   db  : returned depth buffer render buffer.
@@ -45,12 +51,10 @@ type Renderer interface {
 	ReleaseFrame(fbo, tid, db uint32) // Free framebuffer and texture.
 }
 
-// New provides the graphics implementation determined by the
-// renderer implementation that was included by the build,
-// ie: OpenGL on OSX and Linux.
+// New provides the render implementation as determined by the build.
 func New() Renderer { return newRenderer() }
 
-// Renderer independent constants, ie: not specific to OpenGL or DirectX.
+// Renderer implementation independent constants.
 const (
 	// Draw modes for vertex data rendering. Used in Draw.SetRefs.
 	TRIANGLES = iota // Triangles are the default for 3D models.
@@ -65,10 +69,5 @@ const (
 
 	// BindFrame buffer types.
 	DEPTH_BUFF // For depth only.
-	IMAGE_BUFF // For colour and depth.
+	IMAGE_BUFF // For color and depth.
 )
-
-// FUTURE: directx.go implementation to test the Render API and the
-//         graphics layer encapsulation. Would need a corresponding
-//         vu/render/dx package.
-// FUTURE: real time ray tracer renderer implementation.

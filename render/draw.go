@@ -1,4 +1,4 @@
-// Copyright © 2015 Galvanized Logic Inc.
+// Copyright © 2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package render
@@ -12,9 +12,11 @@ import (
 // Draw contains the information necessary for a single draw call.
 // A draw call needs references for vertex buffers, textures, and a shader
 // that have been bound with render.Bind*(). Only the data needed by
-// this draws shader has to be set.
+// the shader for this draw call has to be set.
 //
-// It is recommended to reuse allocated Draw instances where feasible
+// Keep in mind that one draw call is often just one object in a scene
+// and an entire scene needs to be redrawn 50 or 60 times a second.
+// It is thus recommended to reuse allocated Draw instances where feasible
 // by resetting the information as necessary before passing to Render.
 type Draw interface {
 	SetMv(mv *lin.M4)            // Model-View transform.
@@ -47,7 +49,7 @@ type Draw interface {
 	//   count  : Total number of textures for this draw.
 	//   index  : Texture index starting from 0.
 	//   tid    : Bound texture reference.
-	//   fn, f0 : Used when there are multiple textures for one mesh.
+	//   fn, f0 : Used for multiple textures on one mesh.
 	SetTex(count, index int, tid, fn, f0 uint32)
 	SetShadowmap(tid uint32) // Shadow depth map texture id.
 

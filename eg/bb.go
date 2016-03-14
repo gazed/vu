@@ -1,4 +1,4 @@
-// Copyright © 2013-2015 Galvanized Logic Inc.
+// Copyright © 2013-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -9,8 +9,9 @@ import (
 	"github.com/gazed/vu"
 )
 
-// bb tests the engines handling of billboards and banners as well
-// as combining multiple textures using shaders.
+// bb tests the engines handling of billboards, banners and fonts as
+// well as combining multiple textures using shaders. Different 3D text
+// types are created to show the possibilities for including text in games.
 func bb() {
 	bb := &bbtag{}
 	if err := vu.New(bb, "Billboarding & Banners", 400, 100, 800, 600); err != nil {
@@ -32,7 +33,7 @@ func (bb *bbtag) Create(eng vu.Eng, s *vu.State) {
 	bb.cam = top.NewCam()
 	bb.cam.SetLocation(0.5, 2, 2.5)
 	sun := top.NewPov().SetLocation(0, 3, -3)
-	sun.NewLight().SetColour(0.4, 0.7, 0.9)
+	sun.NewLight().SetColor(0.4, 0.7, 0.9)
 
 	// Load the floor model.
 	floor := top.NewPov()

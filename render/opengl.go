@@ -1,8 +1,5 @@
-// Copyright © 2013-2015 Galvanized Logic Inc.
+// Copyright © 2013-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
-
-// +build !dx
-// Use opengl by default.
 
 package render
 
@@ -70,7 +67,7 @@ func (gc *opengl) Enable(attribute uint32, enabled bool) {
 		if enabled {
 			gl.Enable(attribute)
 
-			// Using non pre-multiplied alpha colour data so...
+			// Using non pre-multiplied alpha color data so...
 			gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
 		} else {
 			gl.Disable(attribute)
@@ -238,8 +235,8 @@ func (gc *opengl) bindUniforms(d *draw) {
 
 }
 
-// validate that OpenGL is available at the right version. For OpenGL 3.2
-// the following lines should be in the report.
+// validate that OpenGL is available at the right version.
+// For OpenGL 3.2 the following lines should be in the report.
 //	       [+] glFramebufferTexture
 //	       [+] glGetBufferParameteri64v
 //	       [+] glGetInteger64i_v

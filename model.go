@@ -1,4 +1,4 @@
-// Copyright © 2015 Galvanized Logic Inc.
+// Copyright © 2015-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package vu
@@ -17,17 +17,20 @@ import (
 // assets and the data needed by the rendering system. Assets, such as
 // shaders, mesh, textures, etc. are specified as unique strings in the
 // Load* methods. Assets are loaded and converted to intermediate data
-// which is later converted to render draws in order to render the model.
+// which is later converted to render draws for the render system.
 //
-// A Model is expected to be attached to a point-of-view (Pov) to give
+// A model is expected to be attached to a point-of-view (Pov) to give
 // it a 3D location and orientation in the render transform hierarchy.
+//
+// It is the applications responsibility to ensure that a models shader
+// is provided with its expected asset data. Mismatches generate logs.
 type Model interface {
 	Shader() (name string)     // Rendered models have a shader.
-	LoadMat(name string) Model // Optional surface material colours.
+	LoadMat(name string) Model // Optional surface material color.
 	Alpha() (a float64)        // Transparency: 1 for full opaque
 	SetAlpha(a float64)        // ...0 for fully transparent.
-	Colour() (r, g, b float64) // Colors between 0 and 1.
-	SetColour(r, g, b float64) // ...1 for full colour.
+	Color() (r, g, b float64)  // Colors between 0 and 1.
+	SetColor(r, g, b float64)  // ...1 for full color.
 
 	// Mesh handles verticies, per-vertex data, and triangle faces.
 	// Meshes can be loaded from assets or created/generated.
@@ -45,7 +48,7 @@ type Model interface {
 	//    Vertex positions lloc=0 span=3_floats_per_vertex.
 	//    Vertex normals   lloc=1 span=3_floats_per_vertex.
 	//    UV tex coords    lloc=2 span=2_floats_per_vertex.
-	//    Colours          lloc=3 span=4_floats_per_vertex.
+	//    Color            lloc=3 span=4_floats_per_vertex.
 	InitMesh(lloc, span, usage uint32, normalize bool) Model
 	SetMeshData(lloc uint32, data interface{}) // Only works after InitMesh
 	InitFaces(usage uint32) Model              // Defaults to STATIC_DRAW
@@ -54,9 +57,10 @@ type Model interface {
 
 	// Models can have one or more textures applied to a single mesh.
 	// Textures are initialized from assets and can be updated with images.
-	AddTex(texture string) Model          // Loads and adds a texture.
+	AddTex(name string) Model             // Loads and adds a texture.
+	NewTex(name string) Model             // Adds new texture. Needs SetImg.
 	SetTex(index int, name string)        // Replace/reload texture.
-	SetImg(index int, img image.Image)    // Replace image, ignore nil.
+	SetImg(index int, img image.Image)    // Replace image, nil values ignored.
 	TexImg(index int) image.Image         // Get image, nil if invalid index.
 	SetTexMode(index int, mode int) Model // TEX_CLAMP, TEX_REPEAT.
 	UseLayer(l Layer) Model               // Use render pass texture.
@@ -78,7 +82,7 @@ type Model interface {
 
 	// Particle effects are either CPU:application or GPU:shader based.
 	// SetEffect sets a CPU controlled particle effect.
-	SetEffect(mover Effect, maxParticles int) Model
+	SetEffect(mover ParticleEffect, maxParticles int) Model
 	SetDepth(enabled bool) Model // Effects work better ignoring depth.
 
 	// Set/get shader uniform values where id is the shader uniform name.
@@ -100,15 +104,15 @@ type Model interface {
 // to the rendering system. The application specifies the model resources.
 // These resources are later linked and bound during engine processing.
 type model struct {
-	shd      *shader    // Mandatory GPU render program.
-	texs     []*texture // Optional: one or more texture images.
-	mat      *material  // Optional: material lighting info.
-	msh      *mesh      // Mandatory vertex buffer data.
-	drawMode int        // TRIANGLES, POINTS, LINES.
-	effect   *effect    // Optional particle effect.
-	loads    []*loadReq // Assets waiting to be loaded.
-	depth    bool       // Depth buffer on by default.
-	layer    *layer     // Optional previous render pass.
+	shd      *shader         // Mandatory GPU render program.
+	texs     []*texture      // Optional: one or more texture images.
+	mat      *material       // Optional: material lighting info.
+	msh      *mesh           // Mandatory vertex buffer data.
+	drawMode int             // TRIANGLES, POINTS, LINES.
+	effect   *particleEffect // Optional particle effect.
+	loads    []*loadReq      // Assets waiting to be loaded.
+	depth    bool            // Depth buffer on by default.
+	layer    *layer          // Optional previous render pass.
 
 	// Optional animated model control information.
 	anm     *animation // Optional: bone animation info.
@@ -129,9 +133,9 @@ type model struct {
 	// Shader dependent uniform data.
 	time     time.Time            // Time needed by some shaders.
 	alpha    float32              // Transparency between 0 and 1.
-	kd       rgb                  // Diffuse colour.
-	ka       rgb                  // Ambient colour.
-	ks       rgb                  // Specular colour.
+	kd       rgb                  // Diffuse color.
+	ka       rgb                  // Ambient color.
+	ks       rgb                  // Specular color.
 	uniforms map[string][]float32 // Uniform values.
 	sm       *lin.M4              // scratch matrix.
 }
@@ -181,15 +185,15 @@ func (m *model) SetAlpha(a float64) {
 	m.alpha = float32(a)
 }
 
-// Colour can override values loaded from a material.
-func (m *model) Colour() (r, g, b float64) {
+// Color can override values loaded from a material.
+func (m *model) Color() (r, g, b float64) {
 	return float64(m.kd.R), float64(m.kd.G), float64(m.kd.B)
 }
-func (m *model) SetColour(r, g, b float64) {
+func (m *model) SetColor(r, g, b float64) {
 	m.kd.R, m.kd.G, m.kd.B = float32(r), float32(g), float32(b)
 }
 
-// Material is used to help with colouring for shaders that use lights.
+// Material is used to help with coloring for shaders that use lights.
 // Overrides existing values if it was the last one set.
 func (m *model) LoadMat(name string) Model {
 	m.mat = newMaterial(name)
@@ -257,6 +261,10 @@ func (m *model) SetTex(index int, name string) {
 		req := &loadReq{data: m, index: index, a: newTexture(name)}
 		m.loads = append(m.loads, req)
 	}
+}
+func (m *model) NewTex(name string) Model {
+	m.texs = append(m.texs, newTexture(name))
+	return m
 }
 func (m *model) SetImg(index int, img image.Image) {
 	if img != nil && index >= 0 && index < len(m.texs) {
@@ -361,7 +369,7 @@ func (m *model) LoadAnim(animName string) Model {
 func (m *model) Animate(move, frame int) bool {
 	if m.anm != nil {
 		m.nFrames = m.anm.maxFrames(move)
-		m.move = m.anm.playMovement(move)
+		m.move = m.anm.isMovement(move)
 		if frame < m.nFrames {
 			m.frame = float64(frame)
 		}
@@ -389,9 +397,9 @@ func (m *model) Pose(index int) *lin.M4 {
 }
 
 // SetEffect ties the particle effect classes to the model.
-func (m *model) SetEffect(mover Effect, maxParticles int) Model {
+func (m *model) SetEffect(mover ParticleEffect, maxParticles int) Model {
 	if mover != nil {
-		m.effect = newEffect(m, mover, maxParticles)
+		m.effect = newParticleEffect(m, mover, maxParticles)
 		m.depth = false // only time model depth is set to false.
 	}
 	return m
@@ -437,7 +445,7 @@ func (m *model) toDraw(d render.Draw, mm *lin.M4) {
 			d.SetShadowmap(m.layer.tex.tid) // texture with depth values.
 
 			// Shadow depth bias is the mvp matrix from the light.
-			// It needs to be adjusted to allow shadow maps to work.
+			// It is adjusted as needed by shadow maps.
 			m.sm.Mult(mm, m.layer.vp)   // model (light) view.
 			m.sm.Mult(m.sm, m.layer.bm) // incorporate shadow bias.
 			d.SetDbm(m.sm)
@@ -464,12 +472,12 @@ func (m *model) toDraw(d render.Draw, mm *lin.M4) {
 	}
 	d.SetTime(time.Since(m.time).Seconds()) // For shaders that need elapsed time.
 
-	// Set colour uniforms.
+	// Set color uniforms.
 	d.SetFloats("kd", m.kd.R, m.kd.G, m.kd.B)
 	d.SetFloats("ks", m.ks.R, m.ks.G, m.ks.B)
 	d.SetFloats("ka", m.ka.R, m.ka.G, m.ka.B)
 
-	// Set user specificed uniforms.
+	// Set user specified uniforms.
 	for uniform, uvalues := range m.uniforms {
 		d.SetFloats(uniform, uvalues...)
 	}

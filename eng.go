@@ -1,4 +1,4 @@
-// Copyright © 2015 Galvanized Logic Inc.
+// Copyright © 2013-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package vu
@@ -14,7 +14,7 @@ import (
 )
 
 // Eng provides support for a 3D application conforming to the App interface.
-// Eng holds the root transform hierarchy node, a point-of-view (Pov) where
+// Eng provides the root transform hierarchy node, a point-of-view (Pov) where
 // models, physics bodies, and noises are attached and processed each update.
 // Eng is also used to set global engine state and provides top level timing
 // statistics.
@@ -22,10 +22,10 @@ type Eng interface {
 	Shutdown()     // Stop the engine and free allocated resources.
 	Reset()        // Put the engine back to its initial state.
 	State() *State // Query engine state. State updated per tick.
-	Root() Pov     // Single root transform always exists.
+	Root() Pov     // Single root of the transform hierarchy.
 
 	// Requests to change engine state.
-	SetColor(r, g, b, a float32)      // Set background clear colour.
+	SetColor(r, g, b, a float32)      // Set background clear color.
 	ShowCursor(show bool)             // Hide or show the cursor.
 	SetCursorAt(x, y int)             // Put cursor at the window pixel x,y.
 	Enable(attr uint32, enabled bool) // Enable/disable render attributes.
@@ -54,8 +54,8 @@ type App interface {
 
 	// Update allows applications to change state prior to the next render.
 	// Update is called many times a second after the initial call to Create.
-	//      i : user input refreshed prior to each call.
-	//      s : engine state refreshed prior to each call.
+	//    i : user input refreshed prior to each call.
+	//    s : engine state refreshed prior to each call.
 	Update(eng Eng, i *Input, s *State) // Process user input.
 }
 
@@ -64,8 +64,8 @@ type App interface {
 // engine implements Eng.
 
 // engine controls application communication and state updates.
-// It is also an entity manager in that it uses a unique entity id to
-// group application object instances by component functionality.
+// It is also an entity manager in that it uses a unique entity id
+// to group application object instances by component functionality.
 // Engine relies on helper classes for the majority of the work:
 //     An asset manager for loading application assets.
 //     A physics manager for handling forces and collisions.
@@ -76,9 +76,9 @@ type engine struct {
 	machine chan msg           // Communicate with device loop.
 	stop    chan bool          // Closed or any value means stop the engine.
 	data    *appData           // Combination user input and application state.
-	sm      *scene             // Scene manager. Creates render frames.
+	scene   *scene             // Scene manager. Creates render frames.
 	frame   []render.Draw      // update frame for next frame.
-	uf      chan []render.Draw // next update frame returned from machine.
+	oframe  chan []render.Draw // old frame returned from machine.
 	physics physics.Physics    // Physics manager. Handles forces, collisions.
 
 	// Asset manager. Handles loading assets concurrently.
@@ -117,7 +117,7 @@ func newEngine(machine chan msg) *engine {
 	eng.physics = physics.NewPhysics()
 	eng.loaded = make(chan []*loadReq)
 	eng.loader = newLoader(eng.loaded, machine)
-	eng.sm = newScene()
+	eng.scene = newScene()
 	return eng
 }
 
@@ -142,15 +142,15 @@ const (
 // allows the application to initiate object creation for rendering and
 // to consume user input from device polling.
 func runEngine(app App, wx, wy, ww, wh int,
-	machine chan msg, uf chan []render.Draw, stop chan bool) {
+	machine chan msg, ofr chan []render.Draw, stop chan bool) {
 	defer catchErrors()
 	eng := newEngine(machine)
 	go eng.loader.runLoader()
-	eng.uf = uf
+	eng.oframe = ofr
 	eng.stop = stop
 	eng.data.state.setScreen(wx, wy, ww, wh)
 	app.Create(eng, eng.data.state)
-	eng.sm.init(eng)
+	eng.scene.init(eng)
 	ut := uint64(0)         // kick off initial update...
 	eng.update(app, dt, ut) // queue the initial load asset requests.
 
@@ -179,7 +179,7 @@ func runEngine(app App, wx, wy, ww, wh int,
 			// Perform the update, preparing the next render frame.
 			eng.update(app, dt, ut) // Update state, physics, etc.
 			if eng.alive {          // Application may have quit.
-				eng.frame = eng.sm.snapshot(eng, eng.frame)
+				eng.frame = eng.scene.snapshot(eng, eng.frame)
 			}
 
 			// Reset and start counting times for the next update.
@@ -198,7 +198,7 @@ func runEngine(app App, wx, wy, ww, wh int,
 			interpolation := updateTimer.Seconds() / dt.Seconds()
 			if len(eng.frame) > 0 {
 				eng.machine <- &renderFrame{frame: eng.frame, interp: interpolation, ut: ut}
-				eng.frame = <-eng.uf      // immediately get next render frame
+				eng.frame = <-eng.oframe  // immediately get next render frame
 				eng.frame = eng.frame[:0] // ... and mark it as unpreprepared.
 			} else {
 				eng.machine <- &renderFrame{frame: nil, interp: interpolation, ut: ut}
@@ -282,8 +282,8 @@ func (eng *engine) communicate() {
 	}
 }
 
-// update polls user input, runs physics, calls application update, and
-// finally refreshes all models resulting in updated transforms.
+// update polls user input, runs physics, calls application update,
+// and finally refreshes all models resulting in updated transforms.
 // The transform hierarchy is now ready to generate a render frame.
 func (eng *engine) update(app App, dt time.Duration, ut uint64) {
 
@@ -387,8 +387,8 @@ func (eng *engine) updateSoundListener() {
 }
 
 // release sends a release resource request to the machine.
-// Expected to be run as a goroutine so that it can block on the
-// send until the machine is ready to process it.
+// Expected to be run as a goroutine so that its this method that blocks
+// until the machine is ready to process it.
 func (eng *engine) release(rd *releaseData) { eng.machine <- rd }
 
 // rebind sends a bind request to the machine and waits for
@@ -431,7 +431,7 @@ func (eng *engine) Reset() {
 	eng.noises = map[uint64]*noise{}
 	eng.bodies = map[uint64]physics.Body{}
 	eng.solids = map[uint64]physics.Body{}
-	eng.eid = 1
+	eng.eid = 1                              // 0 invalid, 1 used for root.
 	eng.povs[eng.eid] = newPov(eng, eng.eid) // root
 	eng.soundListener = eng.povs[eng.eid]
 }
@@ -684,7 +684,7 @@ func (eng *engine) disposeNoise(n *noise) {
 
 // disposeLayer removes the render pass layer, if any, from the given entity.
 // No complaints if there is no layer at the given entity. This is safe to
-// remove from the GPU since it is not cached.
+// remove from the GPU since it is not cached/shared.
 func (eng *engine) disposeLayer(l *layer) {
 	eng.release(&releaseData{data: l}) // dispose of the framebuffer.
 }
@@ -709,14 +709,14 @@ func (eng *engine) Modelled() (models, verts int) {
 // Rendered returns the number of models and the number
 // of verticies rendered in the last rendering pass.
 func (eng *engine) Rendered() (models, verts int) {
-	return eng.sm.renDraws, eng.sm.renVerts
+	return eng.scene.renDraws, eng.scene.renVerts
 }
 
 // Eng interface implementation to handle requests
 // for changing engine state.
 func (eng *engine) SetColor(r, g, b, a float32) {
 	go func(r, g, b, a float32) {
-		eng.machine <- &setColour{r: r, g: g, b: b, a: a}
+		eng.machine <- &setColor{r: r, g: g, b: b, a: a}
 	}(r, g, b, a)
 }
 func (eng *engine) ShowCursor(show bool) {
@@ -746,9 +746,15 @@ func (eng *engine) SetVolume(zeroToOne float64) {
 
 // engine
 // ===========================================================================
-// Expose/wrap physics shapes.
+// expose/wrap physics shapes.
 
 func (eng *engine) SetGravity(g float64) { eng.physics.SetGravity(g) }
+
+// Collide checks if two bodies are intersecting independent of the solver
+// and without updating the the bodies locations.
+func (eng *engine) Collide(a, b physics.Body) bool {
+	return eng.physics.Collide(a, b)
+}
 
 // NewBox creates a box shaped physics body located at the origin.
 // The box size is given by the half-extents so that actual size
@@ -790,10 +796,4 @@ func NewPlane(nx, ny, nz float64) physics.Body {
 // x, y, z is valid when hit is true.
 func Cast(ray, b physics.Body) (hit bool, x, y, z float64) {
 	return physics.Cast(ray, b)
-}
-
-// Collide checks if two bodies are intersecting independent of the solver
-// and without updating the the bodies locations.
-func (eng *engine) Collide(a, b physics.Body) bool {
-	return eng.physics.Collide(a, b)
 }

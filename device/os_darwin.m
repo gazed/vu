@@ -1,4 +1,4 @@
-// Copyright © 2013-2015 Galvanized Logic Inc.
+// Copyright © 2013-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 // The OSX (darwin) native layer implementation.
@@ -373,4 +373,3 @@ void gs_set_attr_s(long attr, char * value) {
         break;
     }
 }
-

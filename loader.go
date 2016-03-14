@@ -1,4 +1,4 @@
-// Copyright © 2015 Galvanized Logic Inc.
+// Copyright © 2015-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package vu
@@ -18,7 +18,7 @@ import (
 // be initialized with communication channels.
 //
 // The loader is used internally by the engine to cache and reuse
-// imported data across multiple model and noise instances.
+// imported data for multiple model and noise instances.
 type loader struct {
 	loads []*loadReq // Collects asset load requests.
 
@@ -75,11 +75,10 @@ func (l *loader) runLoader() {
 					req.a, req.err = l.loadMaterial(a)
 				case *sound:
 					req.a, req.err = l.loadSound(a)
-
-				// FUTURE handle releaseData requests. See eng.dispose design note.
 				default:
 					log.Printf("loader: unknown request %T", a)
 
+					// FUTURE: handle releaseData requests. See eng.dispose design note.
 				}
 			}
 			go l.returnAssets(requests)
@@ -93,8 +92,8 @@ func (l *loader) runLoader() {
 func (l *loader) loadAssets(reqs []*loadReq) { l.load <- reqs }
 
 // returnAssets funnels a group of loaded assets back to the
-// engine loop. The engine loop may be busy, so make this
-// method, started as a goroutine, wait instead of the loader.
+// engine loop. The engine loop may be busy so this method,
+// started as a goroutine, waits instead of the loader.
 func (l *loader) returnAssets(assets []*loadReq) {
 	l.loaded <- assets
 }
@@ -473,7 +472,7 @@ func (l *loader) release(data interface{}) {
 // loadReq is a request to fetch asset data from persistent store.
 // Expected to be created by the engine goroutine and passed on a channel
 // to the loader goroutine. The loader loads the asset and passes back
-// the request.
+// the completed request.
 type loadReq struct {
 	eid uint64 // pov entity identifier.
 	a   asset  // asset to be loaded (anm, fnt, mat, msh, shd, snd, tex, fbo).
@@ -499,7 +498,7 @@ type cache map[uint64]interface{}
 
 // newCache creates a new in-memory cache for loaded items. Expected to be
 // called once during application initialization (since a cache works best
-// when there is only one instance of it :).
+// when there is only one instance of it :)
 func newCache() cache {
 	return make(map[uint64]interface{})
 }

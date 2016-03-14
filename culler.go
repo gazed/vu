@@ -1,4 +1,4 @@
-// Copyright © 2014-2015 Galvanized Logic Inc.
+// Copyright © 2014-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package vu
@@ -7,8 +7,8 @@ import (
 	"github.com/gazed/vu/math/lin"
 )
 
-// Cull is attached to a Camera in order to reduce the number
-// of items sent for rendering.
+// Cull reduces the number of items sent for rendering.
+// It is attached to a Camera.
 type Cull interface {
 
 	// Culled returns true if a model represented by point, px, py, pz
@@ -48,7 +48,7 @@ func (fc *frontCull) Culled(cam Camera, px, py, pz float64) bool {
 // =============================================================================
 
 // NewRadiusCull returns a culler that removes objects outside a given
-// radius from the camera. Can be used for show objects around the camera
+// radius from the camera. Can be used for show objects around a camera
 // for top down minimaps.
 func NewRadiusCull(r float64) Cull {
 	if r < 0 {
@@ -62,7 +62,7 @@ type radiusCull struct {
 	rr float64 // radius squared.
 }
 
-// Culler implmentation. True true if the given location is
+// Culler implmentation. True if the given location is
 // within the culler radius of the camera.
 func (rc *radiusCull) Culled(cam Camera, px, py, pz float64) bool {
 	toc := cam.Distance(px, py, pz)

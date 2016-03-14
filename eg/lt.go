@@ -1,4 +1,4 @@
-// Copyright © 2015 Galvanized Logic Inc.
+// Copyright © 2015-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -13,6 +13,10 @@ import (
 // lt tests the engines handling of some of the engine lighting shaders.
 // It also checks the conversion of light position and normal vectors
 // needed for proper lighting.
+//
+// Note the use of the box.obj model that needs 24 verticies to get
+// proper lighting on each face. Also note how many more verticies are
+// necessary for the sphere.obj model.
 func lt() {
 	lt := &lttag{}
 	if err := vu.New(lt, "Lighting", 400, 100, 800, 600); err != nil {
@@ -33,7 +37,7 @@ func (lt *lttag) Create(eng vu.Eng, s *vu.State) {
 	lt.cam3D = top.NewCam()
 	lt.cam3D.SetLocation(0.5, 2, 0.5)
 	lt.sun = top.NewPov().SetLocation(0, 2.5, -1.75).SetScale(0.05, 0.05, 0.05)
-	lt.sun.NewLight().SetColour(0.4, 0.7, 0.9)
+	lt.sun.NewLight().SetColor(0.4, 0.7, 0.9)
 
 	// Model at the light position.
 	lt.sun.NewModel("solid").LoadMesh("sphere").LoadMat("red")
@@ -72,9 +76,9 @@ func (lt *lttag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 			lt.sun.Move(-speed, 0, 0, lin.QI) // left
 		case vu.K_D:
 			lt.sun.Move(speed, 0, 0, lin.QI) // right
-		case vu.K_Q:
+		case vu.K_Z:
 			lt.sun.Move(0, speed, 0, lin.QI) // up
-		case vu.K_E:
+		case vu.K_X:
 			lt.sun.Move(0, -speed, 0, lin.QI) // down
 		}
 	}

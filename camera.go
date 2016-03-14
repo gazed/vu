@@ -1,4 +1,4 @@
-// Copyright © 2013-2015 Galvanized Logic Inc.
+// Copyright © 2014-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package vu
@@ -14,29 +14,31 @@ import (
 	"github.com/gazed/vu/render"
 )
 
-// Camera dictates how models are rendered. A camera is attached to a Pov where
-// it renders all models in that Pov's hierarchy. Camera tracks the location
-// and orientation of a camera as well as an associated projection transform.
-// Keeping their own location and orientation allows cameras to be positioned
-// independently from the transform hierarchy models.
+// Camera is necessary to render models. A camera is attached to a point
+// of view (Pov) where it renders all models in that Pov's hierarchy.
+// Camera tracks the location and orientation of a camera as well as an
+// associated projection transform. Keeping its location and orientation
+// separate from the transform hierarchy allows a camera to be positioned
+// independently from the models.
 type Camera interface {
 	Location() (x, y, z float64)    // Get, or
 	SetLocation(x, y, z float64)    // ...Set the camera location.
 	Move(x, y, z float64, q *lin.Q) // Adjust location along orientation.
 
-	// Orientation is calculated from pitch and yaw.
+	// Orientation is calculated from pitch and yaw. Lookat can be used
+	// for flying cameras. Lookxz is good for walking cameras.
 	Lookat() *lin.Q          // Get the XYZ view orientation.
-	Lookxz() *lin.Q          // Get quaternion Y rotation.
-	Pitch() (deg float64)    // Get or...
+	Lookxz() *lin.Q          // Get quaternion rotation about Y.
+	Pitch() (deg float64)    // Looking up/down. Get or...
 	SetPitch(deg float64)    // ...Set the X rotation in degrees,
 	AdjustPitch(deg float64) // ...adjust rotation around X axis.
-	Yaw() (deg float64)      // Get or...
+	Yaw() (deg float64)      // Spinning around. Get or...
 	SetYaw(deg float64)      // ...Set the Y rotation in degrees,
 	AdjustYaw(deg float64)   // ...adjust rotation around Y axis.
 
 	// SetCull sets a method that reduces the number of Models rendered
-	// each update. It can be engine supplied ie: NewFacingCuller,
-	// or application supplied.
+	// each update. It can be application supplied or engine supplied
+	// ie: NewFacingCuller.
 	SetCull(c Cull)        // Set to nil to turn off culling.
 	SetDepth(enabled bool) // True for 3D camera. 2D cams ignore depth.
 	SetLast(index int)     // For sequencing UI cameras. Higher is later.
@@ -52,12 +54,12 @@ type Camera interface {
 	SetOrthographic(left, right, bottom, top, near, far float64) // 2D.
 
 	// Ray applies inverse transforms to derive world space coordinates for
-	// a ray projected from the camera through the mouse's mx, my screen
-	// position given window width and height ww, wh.
+	// a ray projected from the camera through the mouse's mx,my screen
+	// position given window width and height ww,wh.
 	Ray(mx, my, ww, wh int) (x, y, z float64)
 
-	// Screen calculates screen coordinates sx, sy for world coordinates
-	// wx, wy, wz and window width and height ww, wh.
+	// Screen calculates screen coordinates sx,sy for world coordinates
+	// wx,wy,wz and window width and height ww,wh.
 	Screen(wx, wy, wz float64, ww, wh int) (sx, sy int)
 
 	// Distance returns the distance squared of the camera to the given point.
@@ -96,8 +98,8 @@ type camera struct {
 	ray *lin.V3 // Scratch for pick ray calculations.
 }
 
-// newCamera creates a default point of view that is looking down
-// the positive Z axis.
+// newCamera creates a default rendering field that is looking down
+// the positive Z axis with positive Y up.
 func newCamera() *camera {
 	c := &camera{depth: true}
 	c.vt = VP
@@ -143,11 +145,15 @@ func (c *camera) SetLocation(x, y, z float64) {
 	c.at.Loc.X, c.at.Loc.Y, c.at.Loc.Z = x, y, z
 	c.updateTransform()
 }
+
+// Lookat returns a direction good for flying around.
 func (c *camera) Lookat() *lin.Q { return c.at.Rot }
+
+// Lookxz returns a direction that works for walking around.
 func (c *camera) Lookxz() *lin.Q { return c.yrot }
 
 // Move relative to the given orientation.
-// Use Look() to fly. Use Yaw() to run along XZ.
+// Use Lookat() to fly. Use Lookxz() to run along XZ.
 func (c *camera) Move(x, y, z float64, q *lin.Q) {
 	dx, dy, dz := lin.MultSQ(x, y, z, q)
 	c.at.Loc.X += dx
@@ -249,10 +255,10 @@ func (c *camera) Ray(mx, my, ww, wh int) (x, y, z float64) {
 	return c.ray.X, c.ray.Y, c.ray.Z
 }
 
-// Screen applies the camera transform on a 3D point in world space wx, wy, wz
-// and returns the 2D screen coordinate sx, sy. The window width and height
-// ww, wh are also needed. Essentially the reverse of the Ray method and
-// duplicates what is done in the rendering pipeline.
+// Screen applies the camera transform on a 3D point in world space wx,wy,wz
+// and returns the 2D screen coordinate sx,sy. The window width and height
+// ww,wh are also needed. Essentially the reverse of the Ray method and
+// duplicating what is done in the rendering pipeline.
 func (c *camera) Screen(wx, wy, wz float64, ww, wh int) (sx, sy int) {
 	vec := c.v0.SetS(wx, wy, wz, 1)
 	vec.MultvM(vec, c.vm)          // apply view matrix.
@@ -274,7 +280,7 @@ func (c *camera) Screen(wx, wy, wz float64, ww, wh int) (sx, sy int) {
 
 // ViewTransform creates a transform matrix from location and orientation.
 // This is expected to be used for camera transforms. The camera is thought
-// of as being at 0, 0, 0. This means moving the camera forward by x:units
+// of as being at 0,0,0. This means moving the camera forward by x:units
 // really means moving the world (everything else) back -x:units. Likewise
 // rotating the camera by x:degrees really means rotating the world by -x.
 type ViewTransform func(*lin.T, *lin.Q, *lin.M4) *lin.M4

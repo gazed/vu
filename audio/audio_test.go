@@ -1,4 +1,4 @@
-// Copyright © 2013-2015 Galvanized Logic Inc.
+// Copyright © 2013-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package audio
@@ -7,7 +7,7 @@ import (
 	"testing"
 	//	"time"
 
-	"github.com/gazed/vu/load"
+	"vu/load"
 )
 
 // test that an audio resource can be loaded. Mimics the steps taken
@@ -29,6 +29,6 @@ func TestAudio(t *testing.T) {
 	// Don't play noises during normal testing, but if you're interested...
 	// ... then uncomment and "import time" (need to sleep for the sound to happen).
 	// 	a.PlaySound(snd, 0, 0, 0)
-	// 	time.Sleep(500 * time.Millisecond)
+	// 	time.Sleep(1000 * time.Millisecond)
 	a.Dispose()
 }

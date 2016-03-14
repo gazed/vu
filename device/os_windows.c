@@ -1,8 +1,8 @@
-// Copyright © 2013-2015 Galvanized Logic Inc.
+// Copyright © 2013-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 // The microsoft (windows) native layer implementation.
-// This wraps the microsoft API's (where the real work is done).
+// This wraps the microsoft windowing API's (where the real work is done).
 
 #include "os_windows.h"
 
@@ -144,8 +144,8 @@ LRESULT CALLBACK gs_wnd_proc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     return DefWindowProc( hwnd, msg, wParam, lParam );
 }
 
-// Get the current mouse position relative to the bottom left corner of the
-// application window.
+// Get the current mouse position relative to the bottom left corner
+// of the application window.
 void gs_pos(long display, long *x, long *y)
 {
     HWND hwnd = LongToHandle(display);
@@ -442,7 +442,8 @@ void gs_set_attr_s(long attr, char * value)
 {
    switch (attr) {
    case GS_AppName:
-       if (value != NULL && strlen(value) < 40) {
+       if (value != NULL && strlen(value) < 40)
+       {
            strcpy( defaults.gs_AppName, TEXT(value) );
        }
        break;

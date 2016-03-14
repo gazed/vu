@@ -1,4 +1,4 @@
-// Copyright © 2013-2015 Galvanized Logic Inc.
+// Copyright © 2014-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package vu
@@ -7,6 +7,7 @@ import (
 	"github.com/gazed/vu/render"
 )
 
+// mesh is an optional, but very common, part of a rendered Model.
 // mesh holds 3D model data in a format that is easily consumed by a rendering
 // layer. The data consists of one or more sets of per-vertex data points and
 // how the vertex positions are organized into shapes like triangles or lines.

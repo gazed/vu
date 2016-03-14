@@ -1,4 +1,4 @@
-// Copyright © 2015 Galvanized Logic Inc.
+// Copyright © 2015-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 // Package vu, virtual universe, provides 3D application support. Vu wraps
@@ -18,12 +18,15 @@
 //    • WinAPI for Windows windowing and input. See package vu/device.
 package vu
 
-// Design note: vu contains the main thread "machine" which
-// is controlled by the "engine" state update goroutine.
+// Overview: this file contains the main thread "machine" which is
+// controlled by the "engine" state updater. Machine communicates with
+// the hardware devices while engine communicates with the application.
+//    User <- application <-> engine <-> machine <-> devices <- User
+//
 // Concurrency design is based on "Share memory by communicating"
 //     http://golang.org/doc/codewalk/sharemem
-// in which passing pointers to structure instances between goroutines
-// passes ownership of those instances.
+// in which ownership of structs is transfered when passing struct pointers
+// between goroutines
 
 import (
 	"fmt"
@@ -38,7 +41,11 @@ import (
 
 // New creates the Engine and initializes the underlying resources needed
 // by the engine. It then starts application callbacks through the engine
-// App interface. This is expected to be called once on application startup.
+// App interface. New is expected to be called one time on application startup.
+//    app  : application callback handler.
+//    name : window title.
+//    wx,wy: bottom left window position.
+//    ww,wh: window width and height.
 func New(app App, name string, wx, wy, ww, wh int) (err error) {
 	m := &machine{} // main thread and device facing handler.
 	if app == nil {
@@ -80,8 +87,7 @@ func New(app App, name string, wx, wy, ww, wh int) (err error) {
 	return nil         // report successful termination.
 }
 
-// Engine constants needed as input to methods as noted in the
-// comments below.
+// Engine constants needed as input to methods as noted.
 const (
 
 	// Global graphic state constants. See Eng.State
@@ -166,7 +172,7 @@ func (m *machine) run() {
 				m.render(t)
 			case *bindData:
 				m.bind(t)
-			case *setColour:
+			case *setColor:
 				m.gc.Color(t.r, t.g, t.b, t.a)
 			case *enableAttr:
 				m.gc.Enable(t.attr, t.enable)
@@ -207,7 +213,7 @@ func (m *machine) shutdown() {
 }
 
 // render passes the frame draw data to the supporting render layer.
-// If there is a new frame, then unused frame is sent back for updating.
+// If there is a new frame, then the unused frame is sent back for updating.
 func (m *machine) render(r *renderFrame) {
 
 	// update the previous and current render frames with a new frame.
@@ -391,7 +397,7 @@ func newAppData() *appData {
 	as := &appData{reply: make(chan *appData)}
 	as.input = &Input{Down: map[int]int{}}
 	as.state = &State{CullBacks: true, Blend: true}
-	as.state.setColour(0, 0, 0, 1)
+	as.state.setColor(0, 0, 0, 1)
 	return as
 }
 
@@ -431,7 +437,7 @@ type enableAttr struct {
 	attr   uint32
 	enable bool
 }
-type setColour struct{ r, g, b, a float32 }
+type setColor struct{ r, g, b, a float32 }
 type setVolume struct{ gain float64 }
 type setCursor struct{ cx, cy int }
 type showCursor struct{ enable bool }

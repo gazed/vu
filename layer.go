@@ -1,4 +1,4 @@
-// Copyright © 2015 Galvanized Logic Inc.
+// Copyright © 2015-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package vu
@@ -7,11 +7,13 @@ import (
 	"github.com/gazed/vu/math/lin"
 )
 
-// FUTURE is a layer really just an alternative render target?
+// FUTURE: Lots more to do for render targets/passes/layers.
+//         Need a clean design *and* need to justify the additionaly code
+//         complexity against the render output benefits.
 
 // Layer is used to render to a 1024x1024 sized frame buffer based texture.
-// A layer represents an extra render pass where objects are drawn to an
-// off screen texture.
+// A layer represents the output of an extra render pass where objects drawn
+// to this off screen texture are used as input for a later render pass.
 type Layer interface{}
 
 // Layer
@@ -19,12 +21,12 @@ type Layer interface{}
 // layer implements Layer.
 
 // layer implements Layer.
-// Note that the mvp value must be set by the POV that is taking the picture.
-// The values are copied in as the POV is rendered, and then used later if
+// Note that the mvp value must be set by the Pov that is taking the picture.
+// The values are copied in as the Pov is rendered, and then used later if
 // the layer is being used as a shadow map.
 type layer struct {
 	bid  uint32   // Framebuffer id. Default 0 for default framebuffer.
-	db   uint32   // Depth Renderbuffer.
+	db   uint32   // Depth renderbuffer.
 	attr int      // What type of layer. Full IMAGE or SHADOW_MAP.
 	vp   *lin.M4  // light view-projection layer transform.
 	bm   *lin.M4  // bias matrix.

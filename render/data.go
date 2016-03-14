@@ -1,21 +1,19 @@
-// Copyright © 2013-2015 Galvanized Logic Inc.
+// Copyright © 2013-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
-package render
 
-// vertexData and faceData abstract away some of the render data details.
-// They correspond to render layer buffer data that is eventually consumed
-// by shaders.
+package render
 
 import (
 	"log"
 )
 
 // Data carries the buffer data that is bound/copied to the GPU.
-// These can be vertex data, or triangle face data.
+// Data is expected to be instances from NewVertexData or NewFaceData.
+// A model is often comprised of multiple sets of data.
 type Data interface {
-	Set(data interface{}) // Copy data in.
-	Len() int             // Number of verticies
+	Set(data interface{}) // Copy data in. Invalid types are logged.
+	Len() int             // Number of elements.
 	Size() uint32         // Number of bytes
 }
 
@@ -48,6 +46,11 @@ func NewFaceData(usage uint32) Data {
 	fd.usage = usage
 	return fd
 }
+
+// Design Note:
+// vertexData and faceData abstract away some of the render data details.
+// They correspond to render layer buffer data that is eventually consumed
+// by shaders.
 
 // Data public
 // =============================================================================

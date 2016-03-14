@@ -1,4 +1,4 @@
-// Copyright © 2015 Galvanized Logic Inc.
+// Copyright © 2015-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 // The microsoft (windows) native layer opengl implementation.
@@ -77,7 +77,7 @@ int gs_get_initial_pixelformat(long shell)
         1,                 // version
         flags,             // see above
         PFD_TYPE_RGBA,     // type of framebuffer
-        32,                // colour depth
+        32,                // color depth
         0,0,0,0,0,0,0,0,   // red, green, blue, alpha bits
         0,0,0,0,0,         // accum bits
         24,                // depth buffer bits.
