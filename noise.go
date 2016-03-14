@@ -1,4 +1,4 @@
-// Copyright © 2015 Galvanized Logic Inc.
+// Copyright © 2015-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package vu
@@ -7,9 +7,9 @@ import (
 	"github.com/gazed/vu/audio"
 )
 
-// Noise manages sounds associated with a singe Pov. Each sound must be
+// Noise manages sounds associated with a singe Pov. Each noise must be
 // loaded with sound data that has been bound to the audio card in order
-// for the sound can be played.
+// for the noise to be played.
 type Noise interface {
 	Add(sound string) // Loads and adds a sound.
 	Play(index int)   // Play. Loaded and bound sounds only.
@@ -41,7 +41,7 @@ func (n *noise) Add(soundName string) {
 }
 
 // Play gets the sounds location and generates a play sound request.
-// The play request is sent as a goroutine allowing the goroutine to block
+// The play request is sent to a goroutine allowing the goroutine to block
 // until the machine can service the request.
 func (n *noise) Play(index int) {
 	if n.loaded && index >= 0 && index < len(n.snds) {

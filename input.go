@@ -1,4 +1,4 @@
-// Copyright © 2013-2015 Galvanized Logic Inc.
+// Copyright © 2014-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package vu
@@ -7,22 +7,22 @@ import (
 	"github.com/gazed/vu/device"
 )
 
-// Input is used to communicate current user input to the application.
-// This gives the current cursor location, current pressed keys,
+// Input is used to communicate user feedback to the application.
+// User feedback is the current cursor location, current pressed keys,
 // mouse buttons, and modifiers. These are sent to the application
 // each App.Update() callback.
 //
 // The map of keys and mouse buttons that are currently pressed also
 // include how long they have been pressed in update ticks. A negative
-// value indicates a release. The total down duration can be calculated
-// on release using down duration less RELEASED timestamp.
+// value indicates a key release, upon which the total down duration can
+// be calculated using the down duration less the RELEASED timestamp.
 type Input struct {
 	Mx, My  int         // Current mouse location.
 	Down    map[int]int // Keys, buttons with down duration ticks.
 	Focus   bool        // True if window is in focus.
 	Resized bool        // True if window was resized or moved.
-	Scroll  int         // Scroll amount, if any.
-	Dt      float64     // Delta time for this update.
+	Scroll  int         // Scroll amount: plus, minus or zero.
+	Dt      float64     // Delta time for this update tick.
 	Ut      uint64      // Total number of update ticks.
 }
 
@@ -37,8 +37,8 @@ func (in *Input) convertInput(pressed *device.Pressed, ut uint64, dt float64) {
 	in.Dt = dt
 	in.Ut = ut
 
-	// Create a key/mouse down map that the application can trash.
-	// It is expected to be cleared and refilled each update.
+	// Create a key/mouse down map that the application can trash
+	// since it is cleared and refilled each update.
 	for key, _ := range in.Down {
 		delete(in.Down, key)
 	}

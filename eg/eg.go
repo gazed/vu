@@ -1,6 +1,5 @@
-// Copyright © 2013-2015 Galvanized Logic Inc.
+// Copyright © 2013-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
-
 
 // Package eg is used to test and demonstrate different aspects of the
 // vu (virtual universe) engine. Examples are used both to showcase a
@@ -8,7 +7,8 @@
 // the engine. The examples are run using:
 //      eg [example name]
 // Invoking eg without parameters will list the examples that can be run.
-// Please look at each examples source code for possible user actions.
+// Please look at each examples source code for possible user actions like
+// moving around or tabbing to show different scenes.
 //
 // The package subdirectories contain resource data needed by the examples.
 package main

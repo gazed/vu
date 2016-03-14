@@ -1,4 +1,4 @@
-// Copyright © 2013-2015 Galvanized Logic Inc.
+// Copyright © 2013-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -11,6 +11,11 @@ import (
 
 // kc explores treating the keyboard as a controller.
 // It assigns each keyboard key a unique symbol.
+//
+// Treating the keyboard like a complicated console controller
+// basically means ignoring its ability to input text. Overall
+// a simplification over regluar keyboards, but having lot more
+// potential controls than a console controller.
 func kc() {
 	kc := &kctag{}
 	if err := vu.New(kc, "Keyboard Controller", 200, 200, 900, 400); err != nil {
@@ -44,13 +49,13 @@ func (kc *kctag) Create(eng vu.Eng, s *vu.State) {
 
 	// Place the key symbols over the keys.
 	font := "lucidiaSu18"
-	fontColour := "lucidiaSu18Black"
+	fontColor := "lucidiaSu18Black"
 	for code, key := range kc.positions { // map key is key code, map value is key struct
 		if char := vu.Keysym(code); char > 0 {
 			cx, cy := key.location()
 			letter := top.NewPov().SetLocation(cx, cy, 0)
 			model := letter.NewModel("uv")
-			model.AddTex(fontColour).LoadFont(font).SetPhrase(string(char))
+			model.AddTex(fontColor).LoadFont(font).SetPhrase(string(char))
 		}
 	}
 

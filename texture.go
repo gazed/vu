@@ -1,4 +1,4 @@
-// Copyright © 2015 Galvanized Logic Inc.
+// Copyright © 2015-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package vu
@@ -7,6 +7,7 @@ import (
 	"image"
 )
 
+// texture is an optional, but very common, part of a rendered Model.
 // texture deals with 2D pictures that are mapped onto objects.
 // Texture data is copied to the graphics card. One or more
 // Textures can be associated with a Model and consumed by a Shader.

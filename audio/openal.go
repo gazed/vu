@@ -1,4 +1,4 @@
-// Copyright © 2013-2015 Galvanized Logic Inc.
+// Copyright © 2013-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 // +build !dx
@@ -14,10 +14,10 @@ import (
 	"github.com/gazed/vu/audio/al"
 )
 
-// 64-bit OpenAL may be difficult to locate for Windows machines.
-// Try openal.org and their installer. Alternatively try
-//    http://kcat.strangesoft.net/openal.html/openal-soft-1.15.1-bin.zip.
-// Extract Win64/soft_oal.dll from the zip to c:/Windows/System32/OpenAL32.dll
+// Note: 64-bit OpenAL may be difficult to locate for Windows machines.
+//       Try openal.org and their installer. Alternatively try
+//          http://kcat.strangesoft.net/openal.html/openal-soft-1.15.1-bin.zip.
+//       Extract Win64/soft_oal.dll from zip to c:/Windows/System32/OpenAL32.dll
 
 // openal provides sound support for the engine. It exposes the useful parts
 // of the underlying OpenAL audio library as well as providing some sound

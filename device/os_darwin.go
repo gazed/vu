@@ -1,10 +1,10 @@
-// Copyright © 2013-2015 Galvanized Logic Inc.
+// Copyright © 2013-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package device
 
 // The OSX (darwin) native layer. This wraps the c functions that wrap the
-// objective-c code that calls the OSX windowing library (where the real
+// objective-c code that calls the OSX window library (where the real
 // work is done).
 
 // // The following block is C code and cgo directvies.
@@ -22,8 +22,6 @@ import (
 )
 
 // OS specific structure to differentiate it from the other native layers.
-// Two input structures are continually reused each time rather than allocating
-// a osx input structure on each readAndDispatch.
 type osx struct {
 	gsu *C.GSEvent
 }
@@ -52,11 +50,11 @@ func (o *osx) setCursorAt(r *nrefs, x, y int) {
 	C.gs_set_cursor_location(C.long(r.display), C.long(x), C.long(y))
 }
 func (o *osx) showCursor(r *nrefs, show bool) {
-	tf1 := 0
+	trueFalse := 0 // trueFalse needs to be 0 or 1.
 	if show {
-		tf1 = 1
+		trueFalse = 1
 	}
-	C.gs_show_cursor(C.uchar(tf1))
+	C.gs_show_cursor(C.uchar(trueFalse))
 }
 
 // Implement native interface.
@@ -66,6 +64,7 @@ func (o *osx) readDispatch(r *nrefs, in *userInput) *userInput {
 	o.gsu.mousey = -1
 	o.gsu.key = 0
 	o.gsu.scroll = 0
+
 	// o.gsu.mods retain the modifier key state between calls.
 	C.gs_read_dispatch(C.long(r.display), o.gsu)
 

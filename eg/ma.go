@@ -1,4 +1,4 @@
-// Copyright © 2014-2015 Galvanized Logic Inc.
+// Copyright © 2014-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -13,8 +13,8 @@ import (
 )
 
 // ma, model animation, is an example of loading and animating a model using
-// skeletel animation. It is based on the example data provided in the IQM
-// Development kit from http://sauerbraten.org/iqm.
+// skeletel animation. Load any Inter-Quake-Model (IQM) models found in the model
+// directory. This allows the example to function as a model previewer.
 func ma() {
 	ma := &matag{}
 	if err := vu.New(ma, "Model Animation", 400, 100, 800, 600); err != nil {
@@ -44,7 +44,7 @@ func (ma *matag) Create(eng vu.Eng, s *vu.State) {
 	ma.cam.SetPerspective(60, float64(800)/float64(600), 0.1, 50)
 	ma.cam.SetLocation(0, 3, 10)
 
-	// load any available IQM/E models. The loaded model data is fed to
+	// load any available IQM models. The loaded model data is fed to
 	// the animation capable shader "anim".
 	for _, modelFile := range ma.modelFiles() {
 		pov := ma.top.NewPov()

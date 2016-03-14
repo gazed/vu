@@ -1,17 +1,17 @@
-// Copyright © 2013-2015 Galvanized Logic Inc.
+// Copyright © 2014-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package vu
 
-// material is used to colour a mesh. It specifies the surface colour and
+// material is used to color a mesh. It specifies the surface color and
 // how the surface is lit. Materials are applied to a rendered model by
 // a shader.
 type material struct {
 	name   string  // Unique matrial name.
 	tag    uint64  // name and type as a number.
-	kd     rgb     // Diffuse colour of the material.
-	ka     rgb     // Ambient colour of the material.
-	ks     rgb     // Specular colour of the material.
+	kd     rgb     // Diffuse color of the material.
+	ka     rgb     // Ambient color of the material.
+	ks     rgb     // Specular color of the material.
 	tr     float32 // Transparency (alpha, dissolve) for the material.
 	loaded bool    // True if data has been set.
 }
@@ -27,11 +27,11 @@ func newMaterial(name string) *material {
 // Note: aid is the same as bid for CPU local assets.
 func (m *material) label() string { return m.name } // asset name
 func (m *material) aid() uint64   { return m.tag }  // asset type and name.
-func (m *material) bid() uint64   { return m.tag }  // not bound.
+func (m *material) bid() uint64   { return m.tag }  // does not need binding.
 
 // setMaterial creates a new material identified by name.
-// Colours can be provided, but if they're not, then the
-// default colour is fully transparent black.
+// Color can be provided, but if they're not, then the
+// default color is fully transparent black.
 func (m *material) setMaterial(kd, ka, ks *rgb, tr float32) {
 	m.kd.R, m.kd.G, m.kd.B = kd.R, kd.G, kd.B
 	m.ks.R, m.ks.G, m.ks.B = ks.R, ks.G, ks.B
@@ -44,9 +44,9 @@ func (m *material) setMaterial(kd, ka, ks *rgb, tr float32) {
 // ===========================================================================
 // rgb
 
-// rgb holds colour information where each field is expected to contain
-// a value from 0.0 to 1.0. A value of 0 means none of that colour while a value
-// of 1 means as much as possible of that colour. For example:
+// rgb holds color information where each field is expected to contain
+// a value from 0.0 to 1.0. A value of 0 means none of that color while a value
+// of 1 means as much as possible of that color. For example:
 //     black := &rgb{0, 0, 0}     white := &rgb{1, 1, 1}
 //     red   := &rgb{1, 0, 0}     gray  := &rgb{0.5, 0.5, 0.5}
 type rgb struct {
@@ -55,7 +55,7 @@ type rgb struct {
 	B float32 // Blue.
 }
 
-// isBlack returns true if all of the colours are zero.
+// isBlack returns true if all of the color are zero.
 // This may indicate the material has not be set.
 func (c *rgb) isBlack() bool {
 	return c.R == 0 && c.G == 0 && c.B == 0

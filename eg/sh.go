@@ -1,4 +1,4 @@
-// Copyright © 2013-2015 Galvanized Logic Inc.
+// Copyright © 2013-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -15,6 +15,8 @@ import (
 // to appear demonstrates that the majority of the functionality is working.
 // The remainder of the example dumps keyboard and mouse events showing that
 // user input is being processed.
+//
+// See vu/device package for more information.
 func sh() {
 	sh := &shtag{}
 	dev := device.New("Shell", 400, 100, 800, 600)

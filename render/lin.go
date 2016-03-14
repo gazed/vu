@@ -1,4 +1,4 @@
-// Copyright © 2013-2015 Galvanized Logic Inc.
+// Copyright © 2013-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package render
@@ -8,9 +8,10 @@ import (
 )
 
 // lin hides the fact that the current underlying graphics implementation
-// deals in float32 rather than float64. These are kept package local
-// because it is expected that GPU's will transition from 32 to 64 bit
-// and then these 32 bit structures and conversions can disappear.
+// deals in float32 rather than float64 used by Go and vu/math/lin.
+// These are kept package local because it is expected that GPU's will
+// transition from 32 to 64 bit and then these 32 bit structures and
+// conversions can disappear.
 //
 // These are data holders only. Please keep all math operations
 // restricted to vu/math/lin.
@@ -88,12 +89,12 @@ type m4 struct {
 	wx, wy, wz, ww float32 // indices c, d, e, f  [30, 31, 32, 33]
 }
 
+// Mvp makes m4 compatible for the Mvp interface.
+func (m *m4) Set(mm *lin.M4) Mvp { return m.tom4(mm) }
+
 // Pointer is used to access the matrix data as an array of floats.
 // Used to pass the matrix to native graphic layer.
 func (m *m4) Pointer() *float32 { return &(m.xx) }
-
-// Mvp makes m4 compatible for the Mvp interface.
-func (m *m4) Set(mm *lin.M4) Mvp { return m.tom4(mm) }
 
 // tom4 turns a math/lin matrix into a matrix that can be used
 // by the render system. The input math matrix, mm, is used to fill the values

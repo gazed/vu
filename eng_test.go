@@ -1,11 +1,10 @@
-// Copyright © 2015 Galvanized Logic Inc.
+// Copyright © 2015-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package vu
 
 import (
 	"testing"
-
 	"github.com/gazed/vu/math/lin"
 )
 
@@ -20,7 +19,7 @@ func TestChildWorldTransform(t *testing.T) {
 	// call placeModels to initialize the model transform matrix needed by World.
 	eng.placeModels(eng.root(), lin.M4I) // update all transforms.
 	if x, y, z := child.World(); !lin.Aeq(x, 0) || !lin.Aeq(y, -7.96) || !lin.Aeq(z, -3.12) {
-		t.Errorf("Expecting %f %f %f, got %f, %f %f", 0.0, -7.96, -3.12, x, y, z)
+		t.Errorf("Expecting 0.0, -7.96, -3.12, got %f, %f %f", x, y, z)
 	}
 	if eng != nil {
 		eng.Shutdown()

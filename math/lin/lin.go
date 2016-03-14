@@ -1,6 +1,7 @@
 // Copyright © 2013-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
+
 // Package lin provides a linear math library that includes vectors,
 // matrices, quaternions, transforms and some utility functions.
 // Linear math operations are useful in 3D applications for describing

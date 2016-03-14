@@ -11,12 +11,12 @@ import (
 	"strings"
 )
 
-// MtlData holds colour and alpha information.
+// MtlData holds color and alpha information.
 // It is intended for populating rendered models.
 type MtlData struct {
-	KaR, KaG, KaB float32 // Ambient colour.
-	KdR, KdG, KdB float32 // Diffuse colour.
-	KsR, KsG, KsB float32 // Specular colour.
+	KaR, KaG, KaB float32 // Ambient color.
+	KdR, KdG, KdB float32 // Diffuse color.
+	KsR, KsG, KsB float32 // Specular color.
 	Tr            float32 // Transparency
 }
 

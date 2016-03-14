@@ -12,7 +12,7 @@
 //     Data                    File            Likely Used For
 //    ------                  ------          ------------------
 //   bitmapped fonts        : txtfile.fnt --> rendered font
-//   colour and surface data: txtfile.mtl --> rendered model material
+//   color and surface data : txtfile.mtl --> rendered model material
 //   vertex data            : txtfile.obj --> rendered model mesh
 //   vertex shader program  : txtfile.vsh -┐
 //   fragment shader program: txtfile.fsh --> rendered model shader

@@ -1,4 +1,4 @@
-// Copyright © 2013-2015 Galvanized Logic Inc.
+// Copyright © 2013-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -18,10 +18,12 @@ import (
 
 // tr demonstrates basic OpenGL by drawing a triangle. If anything this example
 // shows that basic OpenGL is not all that basic. Check out the following methods:
-//   • initData()   creates a triangle mesh that includes verticies, faces, and colours.
+//   • initData()   creates a triangle mesh that includes verticies, faces, and colors.
 //   • initScene()  makes the data available to the graphics card.
 //   • initShader() uses render.BindProgram to load and prepare the shader programs.
 //   • drawScene()  is called to render and spin the triangle.
+//
+// Note that the OpenGL go bindings in vu.render/gl have been generated.
 func tr() {
 	tag := &trtag{}
 	dev := device.New("Triangle", 400, 100, 600, 600)
@@ -50,7 +52,7 @@ type trtag struct {
 	// mesh information
 	verticies []float32
 	faces     []uint8
-	colour    []float32
+	color     []float32
 }
 
 // A tetrahedron (triangular pyramid) with sides of length 2 and
@@ -71,7 +73,7 @@ func (tag *trtag) initData() {
 		1, 3, 0, // right face  GRW
 		1, 2, 3, // bottom face GBW
 	}
-	tag.colour = []float32{
+	tag.color = []float32{
 		1, 0, 0, 1, // vertex 0 is red
 		0, 1, 0, 1, // vertex 1 is green
 		0, 0, 1, 1, // vertex 2 is blue
@@ -114,11 +116,11 @@ func (tag *trtag) initScene() {
 	gl.EnableVertexAttribArray(vattr)
 	gl.VertexAttribPointer(vattr, 3, gl.FLOAT, false, 0, 0)
 
-	// colour data.
+	// color data.
 	var cbuff uint32
 	gl.GenBuffers(1, &cbuff)
 	gl.BindBuffer(gl.ARRAY_BUFFER, cbuff)
-	gl.BufferData(gl.ARRAY_BUFFER, int64(len(tag.colour)*4), gl.Pointer(&(tag.colour[0])), gl.STATIC_DRAW)
+	gl.BufferData(gl.ARRAY_BUFFER, int64(len(tag.color)*4), gl.Pointer(&(tag.color[0])), gl.STATIC_DRAW)
 	cattr := uint32(gl.GetAttribLocation(tag.shaders, "in_c"))
 	gl.EnableVertexAttribArray(cattr)
 	gl.VertexAttribPointer(cattr, 4, gl.FLOAT, false, 0, 0)

@@ -1,4 +1,4 @@
-// Copyright © 2014-2015 Galvanized Logic Inc.
+// Copyright © 2014-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package land
@@ -7,6 +7,7 @@ import (
 	"testing"
 )
 
+// TestRegions uses the same seed, so gets the same result.
 func TestRegions(t *testing.T) {
 	if r := Regions(8, 4, 1234); r[2][4] != 1 {
 		t.Errorf("Expected 1, but got %d", r[2][4])

@@ -1,4 +1,4 @@
-// Copyright © 2014-2015 Galvanized Logic Inc.
+// Copyright © 2014-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -12,6 +12,9 @@ import (
 
 // tm demonstrates creating, texturing, and rendering a dynamic terrain map
 // from a generated height map. The intent is to mimic a surface/land map.
+//
+// The water is simulated by two planes with a higher transparent blue plane
+// covering a lower opaque blue plane.
 func tm() {
 	tm := &tmtag{}
 	if err := vu.New(tm, "Terrain Map", 400, 100, 800, 600); err != nil {
@@ -39,18 +42,18 @@ func (tm *tmtag) Create(eng vu.Eng, s *vu.State) {
 	tm.cam = eng.Root().NewCam()
 	tm.cam.SetOrthographic(0, float64(tm.ww), 0, float64(tm.wh), 0, 50)
 	sun := eng.Root().NewPov().SetLocation(0, 5, 0)
-	sun.NewLight().SetColour(0.4, 0.7, 0.9)
+	sun.NewLight().SetColor(0.4, 0.7, 0.9)
 
 	// create the world surface.
 	seed := int64(123)
 	patchSize := 128
-	tm.world = land.New(1, patchSize, seed)
+	tm.world = land.New(patchSize, seed)
 	worldTile := tm.world.NewTile(1, 0, 0)
 	textureRatio := 256.0 / 1024.0
 	tm.surface = vu.NewSurface(patchSize, patchSize, 16, float32(textureRatio), 10)
 
 	// create a separate surface for generating initial land textures.
-	emap := land.New(1, patchSize, seed-1)
+	emap := land.New(patchSize, seed-1)
 	etile := emap.NewTile(1, 0, 0)
 	etopo := etile.Topo()
 

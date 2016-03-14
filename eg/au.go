@@ -1,5 +1,6 @@
-// Copyright © 2013-2015 Galvanized Logic Inc.
+// Copyright © 2013-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
+
 
 package main
 
@@ -14,6 +15,8 @@ import (
 // au demonstrates basic audio library, vu/audio/al, capabilities.
 // It checks that OpenAL is installed and the bindings are working
 // by loading and playing a sound.
+//
+// See the vu:Pov interface when using sound with the vu engine.
 func au() {
 	al.Init() // map the bindings to the OpenAL dynamic library.
 
@@ -59,8 +62,9 @@ func au() {
 			}
 
 			// Start playback and give enough time for the playback to finish.
+			// OpenAL can throw a SIGABRT if it is shut down while playing.
 			al.SourcePlay(source)
-			time.Sleep(500 * time.Millisecond)
+			time.Sleep(1000 * time.Millisecond)
 			return
 		}
 		log.Printf("au: error, failed to get a context")

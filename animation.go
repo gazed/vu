@@ -1,5 +1,6 @@
-// Copyright © 2015 Galvanized Logic Inc.
+// Copyright © 2015-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
+
 
 package vu
 
@@ -9,7 +10,9 @@ import (
 	"github.com/gazed/vu/math/lin"
 )
 
-// animation is a sequence of positions (frames) for the joints of a model
+// animation is part of the rigged model animation system.
+// It is exposed through Model where it is optional.
+// An animation is a sequence of positions (frames) for the joints of a model
 // where the position of each model vertex can be affected by up to 4 joints.
 // Animation data is independent of any given instance, thus making Animation
 // safe to cache and reference by multiple models.
@@ -41,10 +44,10 @@ func newAnimation(name string) *animation {
 }
 
 // label, aid, and bid are used to uniquely identify assets.
-// Note: aid is the same as bid for CPU local assets.
+// Note: aid is the same as bid for CPU local assets like animation.
 func (a *animation) label() string { return a.name } // asset name
 func (a *animation) aid() uint64   { return a.tag }  // asset type and name.
-func (a *animation) bid() uint64   { return a.tag }  // not bound.
+func (a *animation) bid() uint64   { return a.tag }  // does not need binding.
 
 // setData initializes the animation data that has been processed
 // into a series of frames. SetData is expected to be called once
@@ -52,7 +55,6 @@ func (a *animation) bid() uint64   { return a.tag }  // not bound.
 //    frames  : gives the 3D position of all joints.
 //    joints  : number of joints and their parent joints.
 //    movement: range of frames forming a unique motion.
-// setData is expected to be called once during loading/initialization.
 func (a *animation) setData(frames []*lin.M4, joints []int32, movements []movement) {
 	a.jointCnt = len(joints)
 	a.moves = movements
@@ -71,27 +73,31 @@ func (a *animation) setData(frames []*lin.M4, joints []int32, movements []moveme
 
 // setRate changes the number of frames per second for the given
 // animation movement.
+//    movement: the affected animation movement, indexed from 0 up.
+//    rate    : frames per second. Often 24.
 func (a *animation) setRate(movement int, rate float64) {
 	if movement >= 0 && movement < len(a.moves) {
 		a.moves[movement].rate = rate
 	}
 }
 
-// moveNames allows the user to query the name
-// assigned to each distinct animation movement.
+// moveNames allows the user to query the name assigned
+// to each distinct animation movement. The slice index can be
+// used as the movement parameter in other methods.
 func (a *animation) moveNames() []string { return a.mnames }
 
-// playMovement returns the movement index if it is valid.
+// isMovement returns the movement index if it is valid.
 // Otherwise 0 is returned.
-func (a *animation) playMovement(index int) int {
-	if index >= 0 && index < len(a.moves) {
-		return index
+func (a *animation) isMovement(movement int) int {
+	if movement >= 0 && movement < len(a.moves) {
+		return movement
 	}
 	return 0
 }
 
 // maxFrames returns the number of frames in the current movement.
 // Return 0 for unrecognized movements.
+//    movement: the affected animation movement, indexed from 0 up.
 func (a *animation) maxFrames(movement int) int {
 	if movement >= 0 && movement < len(a.moves) {
 		mv := a.moves[movement]
@@ -103,6 +109,11 @@ func (a *animation) maxFrames(movement int) int {
 // animate combines per model instance information with the animation data
 // to produce the unique model pose. The pose data is expected to be updated
 // on the graphics card each update tick.
+//    dt      : elapased time since last update. Generally 0.02sec.
+//    frame   : the current frame position.
+//    movement: the affected animation movement, indexed from 0 up.
+//    pose    : interpolated data at the fractional frame position.
+// Returns the new fractional frame position.
 func (a *animation) animate(dt, frame float64, movement int, pose []lin.M4) float64 {
 	if len(a.moves) <= 0 {
 		return 0

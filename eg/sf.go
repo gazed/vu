@@ -1,4 +1,4 @@
-// Copyright © 2013-2015 Galvanized Logic Inc.
+// Copyright © 2013-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -23,6 +23,7 @@ import (
 // and the other contributors to shadertoy and heroku.
 //
 // This example renders using OpenGL calls from package vu/render/gl.
+// See other examples and vu/shader.go for engine supported shaders in action.
 func sf() {
 	sf := new(sftag)
 	dev := device.New("Shader Fire", 400, 100, 500, 500)

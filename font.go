@@ -1,12 +1,17 @@
-// Copyright © 2013-2015 Galvanized Logic Inc.
+// Copyright © 2014-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package vu
+
+// FUTURE: create 3D fonts from system fonts on the fly or
+//         make a separate tool like:
+//         http://www.angelcode.com/products/bmfont/
 
 import (
 	"github.com/gazed/vu/render"
 )
 
+// font is an optional part of a rendered Model.
 // font holds a single bitmapped font. It knows how to pull individual
 // character images out of a single image that contains all the characters
 // for a font. It is combined with a texture (the font bitmapped image)
@@ -35,7 +40,7 @@ func newFont(name string) *font {
 // Note: aid is the same as bid for CPU local assets.
 func (f *font) label() string { return f.name } // asset name
 func (f *font) aid() uint64   { return f.tag }  // asset type and name.
-func (f *font) bid() uint64   { return f.tag }  // not bound.
+func (f *font) bid() uint64   { return f.tag }  // does not need binding.
 
 // set font mapping data. Expected to be called by loader
 // as fonts are loaded from disk.
@@ -46,8 +51,8 @@ func (f *font) addChar(r rune, x, y, w, h, xo, yo, xa int) {
 }
 
 // setPhrase creates an image for the given string returning
-// the verticies, and texture texture (uv) mapping information as a
-// buffer slice.
+// the verticies, and texture texture (uv) mapping information as
+// a buffer slice.
 //
 // The width in pixels for the resulting string image is returned.
 func (f *font) setPhrase(m *mesh, phrase string) (width int) {
@@ -64,6 +69,7 @@ func (f *font) setPhrase(m *mesh, phrase string) (width int) {
 			// skip spaces.
 			xo, yo := float32(c.xOffset), float32(c.yOffset)
 			if c.w != 0 && c.h != 0 {
+
 				// calculate the x, y positions based on desired locations.
 				vb = append(vb,
 					float32(width)+xo, yo, 0, // upper left

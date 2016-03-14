@@ -1,4 +1,4 @@
-// Copyright © 2013-2015 Galvanized Logic Inc.
+// Copyright © 2013-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -18,6 +18,9 @@ import (
 // with the key line being:
 //	      meshes, _ := ldr.Obj("monkey")
 // This example renders using OpenGL from package vu/render/gl.
+//
+// See other examples use of the vu:Pov interface for a much easier way
+// to load and render models when done as part of the vu engine.
 func ld() {
 	ld := &ldtag{}
 	dev := device.New("Load Model", 400, 100, 800, 600)

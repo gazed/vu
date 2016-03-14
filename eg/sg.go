@@ -1,4 +1,4 @@
-// Copyright © 2013-2015 Galvanized Logic Inc.
+// Copyright © 2013-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -15,7 +15,7 @@ import (
 // layers of sub-parts. The scene graph is demonstrated by changing the top level
 // location, orientation and having it affect the sub-parts. Sg also tests adding
 // and removing parts from a scene graph. Note that transparency sorting is
-// handled by the engine.
+// handled automatically by the engine.
 //
 // This example has a bit more code due to playing around with what can best
 // be described as merging and splitting voxels.

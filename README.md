@@ -1,4 +1,4 @@
-<!-- Copyright © 2013-2015 Galvanized Logic Inc.                       -->
+<!-- Copyright © 2013-2016 Galvanized Logic Inc.                       -->
 <!-- Use is governed by a BSD-style license found in the LICENSE file. -->
 
 #Vu
@@ -10,28 +10,28 @@ and briefly summarized below.
 Sub packages
 --------
 
-* ``audio`` Positions and plays sounds in a 3D environment.
-* ``audio/al`` OpenAL bindings. Links the audio layer and the sound hardware.
-* ``device`` Links the application to native OS specific window and user events.
-* ``load`` Asset loaders including models, textures, audio, shaders, and bitmapped fonts.
-* ``math/lin`` Vector, matrix, quaternion, and transform linear math library.
-* ``physics`` Repositions bodies based on simulated physics.
-* ``render`` 3D drawing and graphics interface.
-* ``render/gl`` Generated OpenGL bindings. Links rendering system to graphics hardware.
-* ``render/gl/gen`` OpenGL binding generator.
+* [audio](http://godoc.org/github.com/gazed/vu/audio) Positions and plays sounds in a 3D environment.
+* [audio/al](http://godoc.org/github.com/gazed/vu/audio/al) OpenAL bindings. Links the audio layer and the sound hardware.
+* [device](http://godoc.org/github.com/gazed/vu/device)  Links the application to native OS specific window and user events.
+* [load](http://godoc.org/github.com/gazed/vu/load) Asset loaders including models, textures, audio, shaders, and bitmapped fonts.
+* [math/lin](http://godoc.org/github.com/gazed/vu/math/lin) Vector, matrix, quaternion, and transform linear math library.
+* [physics](http://godoc.org/github.com/gazed/vu/physics) Repositions bodies based on simulated physics.
+* [render](http://godoc.org/github.com/gazed/vu/render) 3D drawing and graphics interface.
+* [render/gl](http://godoc.org/github.com/gazed/vu/render/gl) Generated OpenGL bindings. Links rendering system to graphics hardware.
+* [render/gl/gen](http://godoc.org/github.com/gazed/vu/render/gl/gen)  OpenGL binding generator.
 
 Less essential, but potentially more fun packages are:
 
-* ``eg`` Examples that both demonstrate and validate the vu engine.
-* ``ai`` Behaviour Tree for autonomous units.
-* ``form`` 2D GUI layout helper.
-* ``grid`` Grid based random level generators. A-star and flow field pathfinding.
-* ``land`` Height map and land surface generator.
+* [eg](http://godoc.org/github.com/gazed/vu/eg) Examples that both demonstrate and validate the vu engine.
+* [ai](http://godoc.org/github.com/gazed/vu/ai) Behaviour Tree for autonomous units.
+* [form](http://godoc.org/github.com/gazed/vu/form) 2D GUI layout helper.
+* [grid](http://godoc.org/github.com/gazed/vu/grid) Grid based random level generators. A-star and flow field pathfinding.
+* [land](http://godoc.org/github.com/gazed/vu/land) Height map and land surface generator.
 
 Installation
 -----
 
-Ensure you have installed [Go](http://golang.org) > 1.5:
+Ensure you have installed [Go](http://golang.org) > 1.6:
 
 ```bash
 go get -u github.com/gazed/vu

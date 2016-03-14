@@ -1,4 +1,4 @@
-// Copyright © 2014-2015 Galvanized Logic. All rights reserved.
+// Copyright © 2014-2016 Galvanized Logic. All rights reserved.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -13,6 +13,10 @@ import (
 
 // rc demonstrates ray-casting and mouse-picking. In this example the plane
 // is centered at the origin and the camera is tilted 45 degrees around X.
+//
+// The key idea with is that mouse screen positioning can be interpreted as
+// interacting with elements of a 3D scene. See vu/camera.go which holds
+// the inverse matricies needed to transform screen space to world space.
 func rc() {
 	rc := &rctag{}
 	if err := vu.New(rc, "Ray Cast", 400, 100, 800, 600); err != nil {
@@ -77,7 +81,7 @@ func (rc *rctag) Create(eng vu.Eng, s *vu.State) {
 }
 
 // makeSphere creates a sphere at the given x, y, z location and with
-// the given r, g, b colour.
+// the given r, g, b color.
 func (rc *rctag) makeSphere(parent vu.Pov, x, y, z float64, r, g, b float32) vu.Pov {
 	sz := 0.5
 	sp := parent.NewPov()
@@ -161,7 +165,7 @@ func (rc *rctag) raycast(mx, my int) {
 }
 
 // hovercast checks the sphere each update and turns the spheres a different
-// colour when the mouse is over them.
+// color when the mouse is over them.
 func (rc *rctag) hovercast(mx, my int) {
 	rx, ry, rz := rc.cam.Ray(mx, my, rc.ww, rc.wh)
 	ray := vu.NewRay(rx, ry, rz)
@@ -178,4 +182,4 @@ func (rc *rctag) hovercast(mx, my int) {
 	}
 }
 
-type rgb struct{ R, G, B float32 } // rgb holds a colour.
+type rgb struct{ R, G, B float32 } // rgb holds a color.

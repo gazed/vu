@@ -1,10 +1,10 @@
-// Copyright © 2015 Galvanized Logic Inc.
+// Copyright © 2015-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package vu
 
-// FUTURE : lots can be done here, but needs to be balanced with cluttering
-//          up the engine code. Variations in timing are expected to be mostly
+// FUTURE : lots can be done here, but it needs to be balanced against engine
+//          code clutter. Variations in timing are expected to be mostly
 //          influenced by device capability, ie: mobile devices are less capable
 //          than consoles or desktops.
 //      o Rendering times are not currently captured from the machine goroutine.
@@ -23,8 +23,8 @@ import (
 // Timing gives a rough idea. Expect things to go slower the more
 // models, draw calls, and the greater number of verticies.
 //
-// FPS = Renders/Elapsed. This is how many render requests were sent.
-// Actual number of renders is likely at the monitor refresh rate
+// FPS = Renders/Elapsed. This is how many render requests were generated.
+// Actual number of renders likely matches the monitor refresh rate
 // which is 60/sec for most flat screen monitors.
 type Timing struct {
 	Elapsed time.Duration // Total loop time since last update.
@@ -34,9 +34,7 @@ type Timing struct {
 
 // Zero all time and counter values.
 func (t *Timing) Zero() {
-	t.Update = 0  // Previous update time.
-	t.Elapsed = 0 // Total elapsed time since last update.
-	t.Renders = 0 // Number of renders since last update.
+	t.Update, t.Elapsed, t.Renders = 0, 0, 0
 }
 
 // Dump current amount of update loop time tracked in milliseconds.

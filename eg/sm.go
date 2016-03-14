@@ -1,4 +1,4 @@
-// Copyright © 2013-2015 Galvanized Logic Inc.
+// Copyright © 2013-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -11,7 +11,10 @@ import (
 )
 
 // sm, shadow map, tests the engines handling of shadow maps
-// and multipass rendering. These are hard shadows.
+// and multipass rendering. These are hard shadows. More work has to
+// be done to soften and blur shadows the further away they are from
+// their source.
+//
 // FUTURE: upgrade shader to PCSS ie:
 //   http://developer.download.nvidia.com/whitepapers/2008/PCSS_Integration.pdf
 func sm() {
@@ -37,7 +40,7 @@ func (sm *smtag) Create(eng vu.Eng, s *vu.State) {
 
 	// need a light for shadows.
 	sm.sun = scene.NewPov().SetLocation(0, 0, 0)
-	sm.sun.NewLight().SetColour(0.8, 0.8, 0.8)
+	sm.sun.NewLight().SetColor(0.8, 0.8, 0.8)
 
 	// create a scene that will render a shadow map.
 	sm.cam = scene.NewCam()

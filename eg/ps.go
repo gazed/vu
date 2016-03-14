@@ -1,4 +1,4 @@
-// Copyright © 2014-2015 Galvanized Logic Inc.
+// Copyright © 2014-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -13,7 +13,9 @@ import (
 )
 
 // ps demonstrates a CPU-based particle system and a GPU-based (shader only)
-// particle system with support provided by vu/Effect.
+// particle system with support provided by vu/Effect. The CPU particles
+// need an update method - see fall and vent below. The GPU-based particles
+// are updated by the shader code.
 func ps() {
 	ps := &pstag{}
 	if err := vu.New(ps, "Particle System", 400, 100, 800, 600); err != nil {
@@ -32,12 +34,12 @@ type pstag struct {
 
 	// live particles are recalculated each update and
 	// shared between the CPU particle effects.
-	live []*vu.EffectParticle // scratch particle list.
+	live []*vu.Particle // scratch particle list.
 }
 
 // Create is the engine callback for initial asset creation.
 func (ps *pstag) Create(eng vu.Eng, s *vu.State) {
-	ps.live = []*vu.EffectParticle{}
+	ps.live = []*vu.Particle{}
 	ps.random = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
 	ps.cam = eng.Root().NewCam()
 	ps.cam.SetPerspective(60, float64(800)/float64(600), 0.1, 50)
@@ -58,7 +60,7 @@ func (ps *pstag) Create(eng vu.Eng, s *vu.State) {
 	m.SetEffect(ps.fall, 250)
 	ps.effects = append(ps.effects, cpu)
 
-	// A colourful exhaust attempt.
+	// A colorful exhaust attempt.
 	// FUTURE: update textures to look like engine exhaust.
 	jet := eng.Root().NewPov().SetLocation(0, -1, 0)
 	jet.SetVisible(false)
@@ -143,7 +145,7 @@ func (ps *pstag) makeParticles(m vu.Model) {
 // at a leisurely pace. Particles are started spread out at a the same height
 // and then slowly moved down. Particles that have passed their maximum lifetime
 // are removed.
-func (ps *pstag) fall(all []*vu.EffectParticle, dt float64) (live []*vu.EffectParticle) {
+func (ps *pstag) fall(all []*vu.Particle, dt float64) (live []*vu.Particle) {
 	emit := 1                        // max particles emitted each update.
 	lifespan := float32(1.0 / 200.0) // inverse number of updates to live.
 	ps.live = ps.live[:0]            // reset keeping memory.
@@ -168,7 +170,7 @@ func (ps *pstag) fall(all []*vu.EffectParticle, dt float64) (live []*vu.EffectPa
 
 // vent is a CPU particle position updater. It uses a shader expecting a 2x2
 // texture atlas where the textures are assigned according to the particle index.
-func (ps *pstag) vent(all []*vu.EffectParticle, dt float64) (live []*vu.EffectParticle) {
+func (ps *pstag) vent(all []*vu.Particle, dt float64) (live []*vu.Particle) {
 	emit := 1                       // max particles emitted each update.
 	lifespan := float32(1.0 / 40.0) // inverse number of updates to live.
 	ps.live = ps.live[:0]           // reset keeping memory.

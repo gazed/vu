@@ -1,4 +1,4 @@
-// Copyright © 2015 Galvanized Logic Inc.
+// Copyright © 2013-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package vu
@@ -12,9 +12,12 @@ import (
 // Points of view, Pov's, are combinations of positions and orientations.
 // Pov's are created by the application and may have additional associated
 // components like rendered models and physics bodies. The associated
-// components use the location and orientation of the Pov. A Pov can also
-// have a child Pov's whose position and orientation are relative to the
-// parent. A hiearchy of parent-child Pov's forms a transform hierarchy.
+// components use the location and orientation of the Pov.
+//
+// A Pov can also have a child Pov's whose position and orientation are
+// relative to the parent. This hiearchy of parent-child Pov's forms the
+// transform hierarchy. The hierarchy root is expected to be created and
+// held by Eng.
 type Pov interface {
 	World() (x, y, z float64)        // World space location.
 	Location() (x, y, z float64)     // Get, or
@@ -24,8 +27,8 @@ type Pov interface {
 	Spin(x, y, z float64)            // Rotate degrees about the given axis.
 	Move(x, y, z float64, q *lin.Q)  // Move along indicated direction.
 
-	// Visible affects this transform and any child transforms.
-	Visible() bool           // Invisible transforms are removed from
+	// Visible affects this Pov and its child Pov's.
+	Visible() bool           // Invisible Pov's are removed from
 	SetVisible(visible bool) // ...rendering without disposing them.
 
 	// Per axis scale. Normal is 1, greater than 1 to enlarge,
@@ -37,7 +40,7 @@ type Pov interface {
 	NewPov() Pov      // Creates attaches a new child transform Pov.
 	Dispose(kind int) // Discard POV, MODEL, BODY, VIEW, NOISE, or LAYER.
 
-	// Adding a camera to a Pov means that all rendered models in the povs
+	// Adding a camera to a Pov means that all rendered models in the Pov's
 	// hierarchy will be viewed with this camera settings.
 	Cam() Camera    // Nil if no camera for this Pov.
 	NewCam() Camera // Camera for the group of this Pov's child models.
@@ -47,26 +50,25 @@ type Pov interface {
 	NewModel(shader string) Model // Nil if a model already exists.
 
 	// Body is an optional physics component associated with a Pov. Bodies
-	// are set at top level Pov transforms to have valid world coordindates.
+	// are set on top level Pov transforms to get valid world coordindates.
 	Body() physics.Body                  // Nil if no body.
 	NewBody(b physics.Body) physics.Body // Create non-colliding body.
 	SetSolid(mass, bounce float64)       // Make existing body collide.
 
-	// Sound is an optional audio component. Played sounds occur at the
-	// associated Pov's location. Sounds that are played will be louder
-	// as the distance between the played sound and listener decreases.
-	Noise() Noise    // Nil if no sound.
+	// Noise is an optional audio component. Played noises occur at the
+	// associated Pov's location. Noises that are played will be louder
+	// as the distance between the played noise and listener decreases.
+	Noise() Noise    // Nil if no noise.
 	NewNoise() Noise // Create noise. Nil if noise already exists.
-	SetListener()    // Place the single global sound listener at this pov.
+	SetListener()    // Place the single global noise listener at this Pov.
 
-	// Light is optional. It affects lighting calculations for this pov
+	// Light is optional. It affects lighting calculations for this Pov
 	// and all child pov's.
 	Light() Light    // Nil if no light for this Pov.
 	NewLight() Light // Create a light at this Pov.
 
-	// Layer is an optional render to texture pass. This pov and all
-	// child pov's will be rendered to a texture instead of to the
-	// default frame buffer.
+	// Layer is an optional render to texture pass. This Pov and all
+	// child Pov's will be rendered to this texture layer.
 	Layer() Layer    // Nil if no layer for this Pov.
 	NewLayer() Layer // Create a rendered texture at this Pov.
 }
@@ -77,6 +79,8 @@ type Pov interface {
 
 // pov's are the nodes that make up the Application transform hierarchy.
 // The engine provides a default root and the application adds the child nodes.
+// All user object creation requests pass through the pov instances which
+// forward them to the engine entity manager.
 type pov struct {
 	eng     *engine // Entity manager.
 	eid     uint64  // Unique entity identifier.
@@ -86,7 +90,7 @@ type pov struct {
 
 	// Each pov node can have children which base their position and
 	// orientation relative to the parents.
-	parent   *pov   // nil if no parent.
+	parent   *pov   // nil if no parent: nil means root.
 	children []*pov // child transforms.
 
 	// variables for recalculating transforms each update.

@@ -1,4 +1,4 @@
-// Copyright © 2014-2015 Galvanized Logic Inc.
+// Copyright © 2014-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package land
@@ -56,8 +56,8 @@ func Regions(size, numRegions int, seed int64) RegionData {
 	return data
 }
 
-// point is a temporary structure used by Regions to save the region
-// seed locations.
+// point is a temporary structure used by Regions
+// to save the region seed locations.
 type point struct {
 	x, y int
 }

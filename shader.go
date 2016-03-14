@@ -1,15 +1,18 @@
-// Copyright © 2013-2015 Galvanized Logic Inc.
+// Copyright © 2015-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package vu
+
+// FUTURE: enhance design to incorporate/handle HLSL and Vulkan shaders.
 
 import (
 	"strings"
 )
 
-// shader is the opengl Shader implementation. It encapsulates all the OpenGL
-// and GLSL specific knowledge while conforming to the generic Shader interface.
-// FUTURE: improve design by applying to HLSL and upcoming Vulkan shaders.
+// shader is an essential part of a rendered Model. It contains the logic
+// to control parts of the GPU render pipeline. Shader is OpenGL specific.
+// It encapsulates all the OpenGL and GLSL specific knowledge while conforming
+// to the generic Shader interface.
 type shader struct {
 	name    string   // Unique shader identifier.
 	tag     uint64   // name and type as a number.
@@ -74,9 +77,14 @@ func (s *shader) ensureNewLines() {
 // =============================================================================
 // shaderLibrary - glsl
 
+// DESIGN: Keep the shaders relatively small until there are more/better
+//         debugging tools and ways of handling shader code. Would like
+//         something better (more concise, more robust) than this current
+//         GLSL code within Go code design.
+
 // shaderLibrary provides pre-made GLSL shaders. Each shader is identified
 // by a unique name. These provide some basic shaders to get simple examples
-// runing quickly and can be used as starting templates for new shaders.
+// running quickly and can be used as starting templates for new shaders.
 var shaderLibrary = map[string]func() (vsh, fsh []string){
 	"solid":   solidShader,
 	"alpha":   alphaShader,
@@ -96,7 +104,7 @@ var shaderLibrary = map[string]func() (vsh, fsh []string){
 
 // ===========================================================================
 
-// solidShader shades all verticies the given diffuse colour.
+// solidShader shades all verticies the given diffuse color.
 func solidShader() (vsh, fsh []string) {
 	vsh = []string{
 		"#version 330",
@@ -104,7 +112,7 @@ func solidShader() (vsh, fsh []string) {
 		"",
 		"uniform mat4 mvpm;", // model view projection matrix
 		"uniform vec3 kd;",   // material diffuse value
-		"out     vec4 v_c;",  // vertex colour
+		"out     vec4 v_c;",  // vertex color
 		"void main(void) {",
 		"   gl_Position = mvpm * vec4(in_v, 1.0);",
 		"	v_c = vec4(kd, 1.0);",
@@ -113,7 +121,7 @@ func solidShader() (vsh, fsh []string) {
 	fsh = []string{
 		"#version 330",
 		"in  vec4 v_c;",  // color from vertex shader
-		"out vec4 ffc; ", // final fragment colour.
+		"out vec4 ffc; ", // final fragment color.
 		"void main(void) {",
 		"   ffc = v_c;",
 		"}",
@@ -123,16 +131,16 @@ func solidShader() (vsh, fsh []string) {
 
 // ===========================================================================
 
-// alphaShader combines a colour with alpha to make transparent objects.
+// alphaShader combines a color with alpha to make transparent objects.
 func alphaShader() (vsh, fsh []string) {
 	vsh = []string{
 		"#version 330",
 		"layout(location=0) in vec3 in_v;", // verticies
 		"",
 		"uniform mat4  mvpm;",  // model view projection matrix
-		"uniform vec3  kd;",    // diffuse colour
+		"uniform vec3  kd;",    // diffuse color
 		"uniform float alpha;", // transparency
-		"out     vec4  v_c;",   // vertex colour
+		"out     vec4  v_c;",   // vertex color
 		"void main() {",
 		"	gl_Position = mvpm * vec4(in_v, 1.0);",
 		"	v_c = vec4(kd, alpha);",
@@ -141,7 +149,7 @@ func alphaShader() (vsh, fsh []string) {
 	fsh = []string{
 		"#version 330",
 		"in  vec4 v_c;", // color from vertex shader
-		"out vec4 ffc;", // final fragment colour
+		"out vec4 ffc;", // final fragment color
 		"void main() {",
 		"   ffc = v_c;",
 		"}",
@@ -153,7 +161,7 @@ func alphaShader() (vsh, fsh []string) {
 //      http://www.packtpub.com/article/opengl-glsl-4-shaders-basics
 //      http://devmaster.net/posts/2974/the-basics-of-3d-lighting
 //
-// Diffuse: The algorithm is used to calculate the colour for the polygon.
+// Diffuse: The algorithm is used to calculate the color for the polygon.
 //          The polygon has only one normal and the only part of the above
 //          algorithm used is: diffuse*(normal . light-direction)
 func diffuseShader() (vsh, fsh []string) {
@@ -167,22 +175,22 @@ func diffuseShader() (vsh, fsh []string) {
 		"uniform mat3  nm;",    // normal matrix
 		"uniform vec4  l;",     // light position in camera space.
 		"uniform vec3  ld;",    // light source intensity.
-		"uniform vec3  kd;",    // material diffuse colour.
+		"uniform vec3  kd;",    // material diffuse color.
 		"uniform float alpha;", // transparency
-		"out     vec4  v_c;",   // vertex colour
+		"out     vec4  v_c;",   // vertex color
 		"void main() {",
 		"   vec4 vpos = vec4(in_v, 1.0);",
 		"   vec3 norm = normalize(nm * in_n);", // Convert normal and position to eye coords
 		"   vec3 lightDirection = normalize(vec3(l - mvm*vpos));",
-		"   vec3 colour = ld * kd * max(dot(lightDirection, norm), 0.0);",
-		"   v_c = vec4(colour, alpha);", // pass on the amount of diffuse light.
+		"   vec3 color = ld * kd * max(dot(lightDirection, norm), 0.0);",
+		"   v_c = vec4(color, alpha);",  // pass on the amount of diffuse light.
 		"   gl_Position = mvpm * vpos;", // pass on the transformed vertex position
 		"}",
 	}
 	fsh = []string{
 		"#version 330",
-		"in  vec4 v_c;", // interpolated vertex colour
-		"out vec4 ffc;", // final fragment colour
+		"in  vec4 v_c;", // interpolated vertex color
+		"out vec4 ffc;", // final fragment color
 		"void main() {",
 		"   ffc = v_c;",
 		"}",
@@ -196,8 +204,8 @@ func diffuseShader() (vsh, fsh []string) {
 //      http://www.packtpub.com/article/opengl-glsl-4-shaders-basics
 //      http://devmaster.net/posts/2974/the-basics-of-3d-lighting
 //
-// Gouraud : Calculate a colour at each vertex.
-//           The colours are then interpolated across the polygon.
+// Gouraud : Calculate a color at each vertex.
+//           The color are then interpolated across the polygon.
 func gouraudShader() (vsh, fsh []string) {
 	vsh = []string{
 		"#version 330",
@@ -216,7 +224,7 @@ func gouraudShader() (vsh, fsh []string) {
 		"const   vec3  la = vec3(0.3);", // FUTURE make la a uniform.
 		"const   vec3  ls = vec3(0.4);", // FUTURE make ls a uniform.
 		"const   float shine = 8.0;",    // FUTURE make shine a uniform.
-		"out     vec4  v_c;",            // vertex colour
+		"out     vec4  v_c;",            // vertex color
 		"void main() {",
 		"   vec4 vpos = vec4(in_v, 1.0);",
 		"   vec3 norm = normalize(nm * in_n);",
@@ -230,15 +238,15 @@ func gouraudShader() (vsh, fsh []string) {
 		"   vec3 spec = vec3(0.0);",
 		"   if (sDotN > 0.0)",
 		"      spec = ls * ks * pow( max( dot(r,v), 0.0 ), shine );",
-		"   vec3 colour = ambient + diffuse + spec;", // combine all the values.
-		"   v_c = vec4(colour, alpha);",              // pass on the vertex colour
-		"   gl_Position = mvpm * vpos;",              // pass on the transformed vertex
+		"   vec3 color = ambient + diffuse + spec;", // combine all the values.
+		"   v_c = vec4(color, alpha);",              // pass on the vertex color
+		"   gl_Position = mvpm * vpos;",             // pass on the transformed vertex
 		"}",
 	}
 	fsh = []string{
 		"#version 330",
-		"                   in      vec4      v_c;", // interpolated vertex colour
-		"layout(location=0) out     vec4      ffc;", // final fragment colour
+		"                   in      vec4      v_c;", // interpolated vertex color
+		"layout(location=0) out     vec4      ffc;", // final fragment color
 		"void main() {",
 		"   ffc = v_c;",
 		"}",
@@ -251,7 +259,7 @@ func gouraudShader() (vsh, fsh []string) {
 // phongShader is based on
 //       http://www.packtpub.com/article/opengl-glsl-4-shaders-basics
 //
-// Phong Shading   : Calculate the colour intensity for each pixel using
+// Phong Shading   : Calculate the color intensity for each pixel using
 //                   interpolated vertex normals.
 func phongShader() (vsh, fsh []string) {
 	vsh = []string{
@@ -263,7 +271,7 @@ func phongShader() (vsh, fsh []string) {
 		"uniform mat4  mvm;",  // model view matrix
 		"uniform mat3  nm;",   // normal matrix
 		"uniform vec4  l;",    // untransformed light position
-		"out   vec3  v_n;",    // vertex colour
+		"out   vec3  v_n;",    // vertex color
 		"out   vec3  v_s;",    // vector from vertex to light.
 		"out   vec3  v_e;",    // vertex eye position.
 		"void main() {",
@@ -288,7 +296,7 @@ func phongShader() (vsh, fsh []string) {
 		"const   vec3  la = vec3(0.3);", // FUTURE make la a uniform.
 		"const   vec3  ls = vec3(0.4);", // FUTURE make ls a uniform.
 		"const   float shine = 8.0;",    // FUTURE make shine a uniform.
-		"out     vec4  ffc;",            // final fragment colour
+		"out     vec4  ffc;",            // final fragment color
 		"void main() {",
 		"   vec3 r = reflect(-v_s, v_n);",
 		"   float sDotN = max( dot(v_s,v_n), 0.0 );",
@@ -297,8 +305,8 @@ func phongShader() (vsh, fsh []string) {
 		"   vec3 spec = vec3(0.0);",
 		"   if (sDotN > 0.0)",
 		"      spec = ls * ks * pow( max( dot(r,v_e), 0.0 ), shine);",
-		"   vec3 colour = ambient + diffuse + spec;", // combine all the values.
-		"   ffc = vec4(colour, alpha);",              // final fragment colour
+		"   vec3 color = ambient + diffuse + spec;", // combine all the values.
+		"   ffc = vec4(color, alpha);",              // final fragment color
 		"}",
 	}
 	return vsh, fsh
@@ -325,7 +333,7 @@ func uvShader() (vsh, fsh []string) {
 		"in      vec2      t_uv;",
 		"uniform sampler2D uv;",
 		"uniform float     alpha;", // transparency
-		"out     vec4      ffc;",   // final fragment colour
+		"out     vec4      ffc;",   // final fragment color
 		"void main() {",
 		"   ffc = texture(uv, t_uv);",
 		"   ffc.a = ffc.a*alpha;",
@@ -362,7 +370,7 @@ func bbShader() (vsh, fsh []string) {
 		"in      vec2      t_uv;",  // interpolated uv coordinates
 		"uniform sampler2D uv;",    // texture sampler
 		"uniform float     alpha;", // transparency
-		"out     vec4      ffc;",   // final fragment colour
+		"out     vec4      ffc;",   // final fragment color
 		"void main() {",
 		"   ffc = texture(uv, t_uv) * vec4(1.0, 1.0, 1.0, alpha);",
 		"}",
@@ -382,7 +390,7 @@ func bbrShader() (vsh, fsh []string) {
 		"uniform float     time;",  // current time in seconds
 		"uniform float     spin;",  // rotation speed 0 -> 1
 		"uniform float     alpha;", // transparency
-		"out     vec4      ffc;",   // final fragment colour
+		"out     vec4      ffc;",   // final fragment color
 		"",
 		"void main() {",
 		"   float sa = sin(time*spin);",               // calculate rotation
@@ -425,7 +433,7 @@ func animShader() (vsh, fsh []string) {
 		"in      vec2      t_uv;",  // interpolated uv coordinates
 		"uniform sampler2D uv;",    // texture sampler
 		"uniform float     alpha;", // transparency
-		"out     vec4      ffc; ",  // final fragment colour
+		"out     vec4      ffc; ",  // final fragment color
 		"",
 		"void main() {",
 		"   ffc = texture(uv, t_uv);",
@@ -485,10 +493,10 @@ func shadowShader() (vsh, fsh []string) {
 		"in      vec4            s_uv;",      // interpolated shadow uv coordinates
 		"uniform sampler2D       uv;",        // object material texture sampler
 		"uniform sampler2DShadow sm;",        // shadow map depth texture sampler
-		"layout(location = 0) out vec4 ffc;", // final fragment colour
+		"layout(location = 0) out vec4 ffc;", // final fragment color
 		"void main(){",
 		"    vec4 lightColor = vec4(1,1,1,1);",        // white light
-		"    vec4 diffuseColor = texture(uv, t_uv); ", // object colour from texture
+		"    vec4 diffuseColor = texture(uv, t_uv); ", // object color from texture
 		"",
 		"", // compare the depth found in the texture at xy
 		"", // with the depth at z.

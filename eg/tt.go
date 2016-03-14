@@ -1,4 +1,4 @@
-// Copyright © 2015 Galvanized Logic. All rights reserved.
+// Copyright © 2015-2016 Galvanized Logic. All rights reserved.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -15,6 +15,9 @@ import (
 //   http://processors.wiki.ti.com/index.php/Render_to_Texture_with_OpenGL_ES
 //   http://in2gpu.com/2014/09/24/render-to-texture-in-opengl/
 //   http://www.lighthouse3d.com/tutorials/opengl_framebuffer_objects/
+//
+// This is another example of multi-pass rendering and can be used for
+// generating live in-game portals.
 func tt() {
 	tt := &totex{}
 	if err := vu.New(tt, "Render to Texture", 400, 100, 800, 600); err != nil {
@@ -53,7 +56,7 @@ func (tt *totex) Create(eng vu.Eng, s *vu.State) {
 	model := tt.frame.NewModel("uv").LoadMesh("flipboard")
 	model.UseLayer(scene0.Layer()) // use rendered texture from scene0.
 
-	// set camera perspectives and default background colour.
+	// set camera perspectives and default background color.
 	tt.resize(s.W, s.H)
 }
 

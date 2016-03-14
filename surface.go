@@ -27,7 +27,7 @@ type SurfacePoint struct {
 	Blend  float32 // Texture blend value between 0 and 1.
 }
 
-// NewSurface creates a surface that holds a sx by sy set of SurfacePoints.
+// NewSurface creates a surface that holds a sx-by-sy set of SurfacePoints.
 //    spread       : the number of tiles one texture covers.
 //    textureRatio : the size of one texture to the size of the texture atlas.
 //    scale        : the amount of scaling applied to each height.
@@ -103,7 +103,7 @@ func (s *surface) Update(m Model, xoff, yoff int) {
 	// http://www.gamedev.net/topic/163625-fast-way-to-calculate-heightmap-normals/
 	sx, sy := len(s.pts), len(s.pts[0])
 	norms := s.nms
-	yScale, xzScale := float32(1), float32(1)
+	yScale, xzScale := s.scale, float32(1)
 	for x := 0; x < sx; x++ {
 		for y := 0; y < sy; y++ {
 
@@ -146,8 +146,8 @@ func (s *surface) Update(m Model, xoff, yoff int) {
 	border := float32(0.001)
 
 	// Generate the verticies, triangle faces, and matching normals.
-	hscale := float32(s.scale) // scaling range of 1 to -1
-	vc := uint16(0)            // vertex counter.
+	hscale := s.scale // scaling range of 1 to -1
+	vc := uint16(0)   // vertex counter.
 	for x := 0; x < sx-1; x++ {
 		for y := 0; y < sy-1; y++ {
 

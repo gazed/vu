@@ -1,7 +1,9 @@
-// Copyright © 2015 Galvanized Logic Inc.
+// Copyright © 2013-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package vu
+
+// FUTURE: Continue to enhance support for multiple render passes.
 
 import (
 	"log"
@@ -11,24 +13,26 @@ import (
 )
 
 // scene manager helps the engine create frames (render draw call lists)
-// from pov's, models, and cameras. It is an integral engine helper class
-// that encapsulates and interacts with the render system to create a frame
-// using engine component information.
+// from Pov's, Models, and Cameras. It is an integral engine helper class
+// that encapsulates and interacts with the render system to create a
+// render frame from engine component information.
 //
-// There are three render frames. One for updating state, the other two for
+// There are three render frames. One for updating, the other two for
 // rendering with interpolation.
 type scene struct {
-	scene        []*pov  // flattened pov hiearchy updated each frame.
+	scene []*pov // flattened pov hiearchy updated each frame.
+	white *light // default light.
+
+	// Multiple render pass support.
 	pass         *layer  // default disabled render pass layer.
 	shadowMap    *layer  // scratch shadow map.
 	shadowShader *shader // shadow map specific shader.
-	white        *light  // default light.
 
 	// Track update times, the number of draw calls, and verticies.
 	renDraws int // Number of models rendered last update.
 	renVerts int // Number of verticies rendered last update.
 
-	// Scratch variables are reused to reduce garbage collection.
+	// Scratch variables: reused to reduce garbage collection.
 	mv  *lin.M4 // Scratch model-view matrix.
 	mvp *lin.M4 // Scratch model-view-proj matrix.
 	v0  *lin.V4 // Scratch for location calculations.
@@ -67,8 +71,8 @@ func (sm *scene) init(eng *engine) {
 
 // snapshot fills a frame with draw requests. All transforms are expected
 // to have been updated before calling this method.
-// Snapshot flattens the POV hierarchy in the following manner:
-//   o depth first traversal of the POV hiearchy.
+// Snapshot flattens the Pov hierarchy in the following manner:
+//   o depth first traversal of the Pov hiearchy.
 //   o light/camera replace the previous light/camera.
 //   o layer adds a pre-render pass for the child hierarchy.
 //
@@ -88,7 +92,7 @@ func (sm *scene) snapshot(eng *engine, frame []render.Draw) []render.Draw {
 	return frame
 }
 
-// updateScene recursively turns the pov hierarchy into a flat list using
+// updateScene recursively turns the Pov hierarchy into a flat list using
 // a depth first traversal. Pov's not affecting the rendered scene are culled.
 // The important thing is to generate a consistent list of Pov's that are
 // easily processed into draw calls for the render frame.

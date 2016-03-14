@@ -1,4 +1,4 @@
-// Copyright © 2014-2015 Galvanized Logic Inc.
+// Copyright © 2014-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -16,6 +16,8 @@ import (
 // ff demonstrates flow field path finding by having a bunch of chasers and
 // a goal. The goal is randomly reset once all the chasers have reached it.
 // Restarting the example will create a different random grid.
+//
+// See vu/grid/flow.go for more information on flow fields.
 func ff() {
 	ff := &fftag{}
 	if err := vu.New(ff, "Flow Field", 400, 100, 750, 750); err != nil {
