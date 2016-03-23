@@ -3,8 +3,8 @@
 
 #Vu
 
-Vu (Virtual Universe) is a minimalist 3D engine written primarily in Go (Golang).
-Vu is composed of packages, detailed in [GoDoc](http://godoc.org/github.com/gazed/vu),
+Vu (Virtual Universe) is an agile 3D engine based on the modern programming
+language Go (Golang). Vu is composed of packages, detailed in [GoDoc](http://godoc.org/github.com/gazed/vu),
 and briefly summarized below.
 
 Sub packages
@@ -76,8 +76,8 @@ The engine and its packages include the essentials by design. In particular:
 * There is no networking package.
 * Physics only handles boxes and spheres.
 * The device layer interface provides only the absolute minimum from the underlying
-  windowing system. Only OSX, Windows 7+ are currently supported.
+  windowing system. Only OSX and Windows 7+ are currently supported.
 * Rendering supports standard OpenGL 3.3 and later. OpenGL extensions are not used.
-* Windows is limited by the availability of OpenGL and OpenAL. Generally
-  OpenGL issues are fixed by downloading manufacturer's graphic card drivers.
+* The Windows platform is sometimes limited by the availability of OpenGL and OpenAL.
+  Generally OpenGL issues are fixed by downloading manufacturer's graphic card drivers.
   However older laptops with Intel graphics don't always have OpenGL drivers.
