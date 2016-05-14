@@ -100,19 +100,19 @@ func (l *loader) loadIqm(file io.ReadCloser, iqd *IqData) (*IqData, error) {
 		}
 		for cnt := 0; cnt < inbytes; cnt++ {
 			data[bytesRead] = inbuff[cnt]
-			bytesRead += 1
+			bytesRead++
 		}
 	}
 	if bytesRead != dataSize {
 		return iqd, fmt.Errorf("Invalid .iqm file")
 	}
 	scratch := &scratch{}
-	if hdr.Num_meshes > 0 {
+	if hdr.NumMeshes > 0 {
 		if err := l.loadIqmMeshes(hdr, data, iqd, scratch); err != nil {
 			return iqd, err
 		}
 	}
-	if hdr.Num_anims > 0 {
+	if hdr.NumAnims > 0 {
 		if err := l.loadIqmAnims(hdr, data, iqd, scratch); err != nil {
 			return iqd, err
 		}
@@ -135,8 +135,8 @@ func (l *loader) loadIqmMeshes(hdr *iqmheader, data []byte, iqd *IqData, scr *sc
 
 	// Get all the text labels referenced by other structures. Index the
 	// labels by their byte position which is how they are referenced
-	buff.Seek(int64(hdr.Ofs_text-iqmheaderSize), 0)
-	text := make([]byte, hdr.Num_text)
+	buff.Seek(int64(hdr.OfsText-iqmheaderSize), 0)
+	text := make([]byte, hdr.NumText)
 	if err = binary.Read(buff, binary.LittleEndian, text); err != nil {
 		return fmt.Errorf("Invalid .iqm text block %s", err)
 	}
@@ -155,33 +155,33 @@ func (l *loader) loadIqmMeshes(hdr *iqmheader, data []byte, iqd *IqData, scr *sc
 
 	// Get the vertex data.
 	va := &iqmvertexarray{}
-	buff.Seek(int64(hdr.Ofs_vertexarrays-iqmheaderSize), 0)
-	for cnt := 0; cnt < int(hdr.Num_vertexarrays); cnt++ {
+	buff.Seek(int64(hdr.OfsVertexArrays-iqmheaderSize), 0)
+	for cnt := 0; cnt < int(hdr.NumVertexArrays); cnt++ {
 		if err = binary.Read(buff, binary.LittleEndian, va); err != nil {
 			return fmt.Errorf("Invalid .iqm file: %s", err)
 		}
 		switch va.Type {
-		case iQM_POSITION:
-			iqd.V = make([]float32, va.Size*hdr.Num_vertexes)
-			err = l.readVertexData(data, va, iQM_FLOAT, 3, iqd.V)
-		case iQM_NORMAL:
-			iqd.N = make([]float32, va.Size*hdr.Num_vertexes)
-			err = l.readVertexData(data, va, iQM_FLOAT, 3, iqd.N)
-		case iQM_TANGENT:
-			iqd.X = make([]float32, va.Size*hdr.Num_vertexes)
-			err = l.readVertexData(data, va, iQM_FLOAT, 4, iqd.X)
-		case iQM_TEXCOORD:
-			iqd.T = make([]float32, va.Size*hdr.Num_vertexes)
-			err = l.readVertexData(data, va, iQM_FLOAT, 2, iqd.T)
+		case iQMPOSITION:
+			iqd.V = make([]float32, va.Size*hdr.NumVertexes)
+			err = l.readVertexData(data, va, iQMFLOAT, 3, iqd.V)
+		case iQMNORMAL:
+			iqd.N = make([]float32, va.Size*hdr.NumVertexes)
+			err = l.readVertexData(data, va, iQMFLOAT, 3, iqd.N)
+		case iQMTANGENT:
+			iqd.X = make([]float32, va.Size*hdr.NumVertexes)
+			err = l.readVertexData(data, va, iQMFLOAT, 4, iqd.X)
+		case iQMTEXCOORD:
+			iqd.T = make([]float32, va.Size*hdr.NumVertexes)
+			err = l.readVertexData(data, va, iQMFLOAT, 2, iqd.T)
 
 		// Indexes and weights are sent to the GPU as bytes in order
 		// to reduce the amount of data transferred.
-		case iQM_BLENDINDEXES:
-			iqd.B = make([]byte, va.Size*hdr.Num_vertexes)
-			err = l.readVertexData(data, va, iQM_UBYTE, 4, iqd.B)
-		case iQM_BLENDWEIGHTS:
-			iqd.W = make([]byte, va.Size*hdr.Num_vertexes)
-			err = l.readVertexData(data, va, iQM_UBYTE, 4, iqd.W)
+		case iQMBLENDINDEXES:
+			iqd.B = make([]byte, va.Size*hdr.NumVertexes)
+			err = l.readVertexData(data, va, iQMUBYTE, 4, iqd.B)
+		case iQMBLENDWEIGHTS:
+			iqd.W = make([]byte, va.Size*hdr.NumVertexes)
+			err = l.readVertexData(data, va, iQMUBYTE, 4, iqd.W)
 			// Note: blend weights are normalized to 0-1 floats on GPU transfer.
 		}
 		if err != nil {
@@ -190,26 +190,26 @@ func (l *loader) loadIqmMeshes(hdr *iqmheader, data []byte, iqd *IqData, scr *sc
 	}
 
 	// Get the triangle face data.
-	buff.Seek(int64(hdr.Ofs_triangles-iqmheaderSize), 0)
-	faces := make([]uint32, 3*hdr.Num_triangles)
+	buff.Seek(int64(hdr.OfsTriangles-iqmheaderSize), 0)
+	faces := make([]uint32, 3*hdr.NumTriangles)
 	if err = binary.Read(buff, binary.LittleEndian, faces); err != nil {
 		return fmt.Errorf("Invalid .iqm triangles %s", err)
 	}
-	iqd.F = make([]uint16, 3*hdr.Num_triangles)
+	iqd.F = make([]uint16, 3*hdr.NumTriangles)
 	for cnt := 0; cnt < len(faces); cnt++ {
 		iqd.F[cnt] = uint16(faces[cnt])
 	}
 
 	// Multiple meshes mean means that multiple textures are used for this model.
 	msh := &iqmmesh{}
-	buff.Seek(int64(hdr.Ofs_meshes-iqmheaderSize), 0)
-	for cnt := 0; cnt < int(hdr.Num_meshes); cnt++ {
+	buff.Seek(int64(hdr.OfsMeshes-iqmheaderSize), 0)
+	for cnt := 0; cnt < int(hdr.NumMeshes); cnt++ {
 		if err = binary.Read(buff, binary.LittleEndian, msh); err != nil {
 			return fmt.Errorf("Invalid .iqm file: %s", err)
 		}
 		itex := IqTexture{}
 		itex.Name = scr.labels[msh.Material] // Name of the mesh resource.
-		itex.F0, itex.Fn = msh.First_triangle, msh.Num_triangles
+		itex.F0, itex.Fn = msh.FirstTriangle, msh.NumTriangles
 		iqd.Textures = append(iqd.Textures, itex)
 	}
 	return nil
@@ -231,18 +231,18 @@ func (l *loader) readVertexData(data []byte, va *iqmvertexarray, dtype, dspan ui
 // loadIqmAnims parses the animation data from the file data into the
 // IqData structure.
 func (l *loader) loadIqmAnims(hdr *iqmheader, data []byte, iqd *IqData, scr *scratch) (err error) {
-	if hdr.Num_poses != hdr.Num_joints {
-		return fmt.Errorf("Invalid .iqm joints %d must equal poses %d", hdr.Num_joints, hdr.Num_poses)
+	if hdr.NumPoses != hdr.NumJoints {
+		return fmt.Errorf("Invalid .iqm joints %d must equal poses %d", hdr.NumJoints, hdr.NumPoses)
 	}
 	buff := bytes.NewReader(data)
 
 	// Read base pose joint data.
-	jnts := make([]iqmjoint, hdr.Num_joints)
-	buff.Seek(int64(hdr.Ofs_joints-iqmheaderSize), 0)
+	jnts := make([]iqmjoint, hdr.NumJoints)
+	buff.Seek(int64(hdr.OfsJoints-iqmheaderSize), 0)
 	if err = binary.Read(buff, binary.LittleEndian, jnts); err != nil {
 		return fmt.Errorf("Invalid .iqm file: %s", err)
 	}
-	iqd.Joints = make([]int32, hdr.Num_joints)
+	iqd.Joints = make([]int32, hdr.NumJoints)
 
 	// process the joint base transforms using an intermediate form.
 	basePoses := []*transform{}
@@ -262,40 +262,40 @@ func (l *loader) loadIqmAnims(hdr *iqmheader, data []byte, iqd *IqData, scr *scr
 	l.createBaseFrames(iqd, basePoses, scr)
 
 	// Get the per frame pose data.
-	buff.Seek(int64(hdr.Ofs_poses-iqmheaderSize), 0)
-	poses := make([]iqmpose, hdr.Num_poses)
+	buff.Seek(int64(hdr.OfsPoses-iqmheaderSize), 0)
+	poses := make([]iqmpose, hdr.NumPoses)
 	if err = binary.Read(buff, binary.LittleEndian, poses); err != nil {
 		return fmt.Errorf("Invalid .iqm poses %s", err)
 	}
 
 	// Get the animation data.
-	buff.Seek(int64(hdr.Ofs_anims-iqmheaderSize), 0)
-	animData := make([]iqmanim, hdr.Num_anims)
+	buff.Seek(int64(hdr.OfsAnims-iqmheaderSize), 0)
+	animData := make([]iqmanim, hdr.NumAnims)
 	if err = binary.Read(buff, binary.LittleEndian, animData); err != nil {
 		return fmt.Errorf("Invalid .iqm animations %s", err)
 	}
 	for _, adata := range animData {
 		anim := IqAnim{}
 		anim.Name = scr.labels[adata.Name]
-		anim.F0 = adata.First_frame
-		anim.Fn = adata.Num_frames
+		anim.F0 = adata.FirstFrame
+		anim.Fn = adata.NumFrames
 		anim.Rate = adata.Framerate
 		iqd.Anims = append(iqd.Anims, anim)
 	}
 
 	// Get the animation frames.
-	buff.Seek(int64(hdr.Ofs_frames-iqmheaderSize), 0)
-	frameData := make([]uint16, hdr.Num_frames*hdr.Num_framechannels)
+	buff.Seek(int64(hdr.OfsFrames-iqmheaderSize), 0)
+	frameData := make([]uint16, hdr.NumFrames*hdr.NumFrameChannels)
 	if err = binary.Read(buff, binary.LittleEndian, frameData); err != nil {
 		return fmt.Errorf("Invalid .iqm frames %s", err)
 	}
 
 	// Generate the final animation frames from base poses and frame poses.
 	pt := &transform{&lin.V3{}, &lin.Q{}, &lin.V3{}} // pose transform
-	iqd.Frames = make([]*lin.M4, hdr.Num_frames*hdr.Num_poses)
+	iqd.Frames = make([]*lin.M4, hdr.NumFrames*hdr.NumPoses)
 	fcnt := 0
-	for frame := 0; frame < int(hdr.Num_frames); frame++ {
-		for pose := 0; pose < int(hdr.Num_poses); pose++ {
+	for frame := 0; frame < int(hdr.NumFrames); frame++ {
+		for pose := 0; pose < int(hdr.NumPoses); pose++ {
 			p := poses[pose]
 			pt.t.X, fcnt = l.getPoseChannel(&p, frameData, fcnt, 0, 0x01)
 			pt.t.Y, fcnt = l.getPoseChannel(&p, frameData, fcnt, 1, 0x02)
@@ -309,8 +309,8 @@ func (l *loader) loadIqmAnims(hdr *iqmheader, data []byte, iqd *IqData, scr *scr
 			pt.s.Z, fcnt = l.getPoseChannel(&p, frameData, fcnt, 9, 0x200)
 
 			// Combine all the data into a animation ready frame transform matrix.
-			cnt := frame*int(hdr.Num_poses) + pose
-			iqd.Frames[cnt] = l.genFrame(scr, pt, pose, int(hdr.Num_poses), int(p.Parent))
+			cnt := frame*int(hdr.NumPoses) + pose
+			iqd.Frames[cnt] = l.genFrame(scr, pt, pose, int(hdr.NumPoses), int(p.Parent))
 		}
 	}
 	return nil
@@ -384,10 +384,9 @@ func (l *loader) genFrame(scr *scratch, pt *transform, pcnt, numPoses, parent in
 	if parent >= 0 {
 		// parentBasePose * childPose * childInverseBasePose
 		return m4.Mult(scr.inversebaseframe[pcnt], m4).Mult(m4, scr.baseframe[parent])
-	} else {
-		// childPose * childInverseBasePose
-		return m4.Mult(scr.inversebaseframe[pcnt], m4)
 	}
+	// childPose * childInverseBasePose
+	return m4.Mult(scr.inversebaseframe[pcnt], m4)
 }
 
 // =============================================================================
@@ -396,20 +395,20 @@ func (l *loader) genFrame(scr *scratch, pt *transform, pcnt, numPoses, parent in
 // iqmheader provides the indexes to the remaining data and is at the begining
 // of the iqm file.
 type iqmheader struct {
-	Magic                                                 [16]byte // the string "INTERQUAKEMODEL\0".
-	Version                                               uint32   // Must be version 2.
-	Filesize                                              uint32   // Total bytes in the file.
-	Flags                                                 uint32
-	Num_text, Ofs_text                                    uint32
-	Num_meshes, Ofs_meshes                                uint32 // Number and data offset of meshes.
-	Num_vertexarrays, Num_vertexes, Ofs_vertexarrays      uint32
-	Num_triangles, Ofs_triangles, Ofs_adjacency           uint32
-	Num_joints, Ofs_joints                                uint32
-	Num_poses, Ofs_poses                                  uint32
-	Num_anims, Ofs_anims                                  uint32
-	Num_frames, Num_framechannels, Ofs_frames, Ofs_bounds uint32
-	Num_comment, Ofs_comment                              uint32
-	Num_extensions, Ofs_extensions                        uint32 // A linked list, not a contiguous array.
+	Magic                                             [16]byte // the string "INTERQUAKEMODEL\0".
+	Version                                           uint32   // Must be version 2.
+	Filesize                                          uint32   // Total bytes in the file.
+	Flags                                             uint32
+	NumText, OfsText                                  uint32
+	NumMeshes, OfsMeshes                              uint32 // Number and data offset of meshes.
+	NumVertexArrays, NumVertexes, OfsVertexArrays     uint32
+	NumTriangles, OfsTriangles, OfsAdjacency          uint32
+	NumJoints, OfsJoints                              uint32
+	NumPoses, OfsPoses                                uint32
+	NumAnims, OfsAnims                                uint32
+	NumFrames, NumFrameChannels, OfsFrames, OfsBounds uint32
+	NumComment, OfsComment                            uint32
+	NumExtensions, OfsExtensions                      uint32 // A linked list, not a contiguous array.
 }
 
 // iqmheaderSize is (16 bytes)+(27 fields)*(4 bytes) = 124 bytes.
@@ -419,10 +418,10 @@ var iqmheaderSize = uint32(124)
 var iqmMagic = []byte{'I', 'N', 'T', 'E', 'R', 'Q', 'U', 'A', 'K', 'E', 'M', 'O', 'D', 'E', 'L', 0}
 
 type iqmmesh struct {
-	Name                          uint32 // unique name for the mesh, if desired
-	Material                      uint32 // set to a name of a non-unique material or texture
-	First_vertex, Num_vertexes    uint32
-	First_triangle, Num_triangles uint32
+	Name                        uint32 // unique name for the mesh, if desired
+	Material                    uint32 // set to a name of a non-unique material or texture
+	FirstVertex, NumVertexes    uint32
+	FirstTriangle, NumTriangles uint32
 }
 
 type iqmvertexarray struct {
@@ -462,10 +461,10 @@ type iqmpose struct {
 }
 
 type iqmanim struct {
-	Name                    uint32
-	First_frame, Num_frames uint32
-	Framerate               float32
-	Flags                   uint32
+	Name                  uint32
+	FirstFrame, NumFrames uint32
+	Framerate             float32
+	Flags                 uint32
 }
 
 // all vertex array entries must ordered as defined below, if present
@@ -474,31 +473,31 @@ type iqmanim struct {
 // an IQM implementation is not required to honor any other format/size than those recommended
 // however, it may support other format/size combinations for these types if it desires
 const ( // vertex array type
-	iQM_POSITION     = 0 // float, 3
-	iQM_TEXCOORD     = 1 // float, 2
-	iQM_NORMAL       = 2 // float, 3
-	iQM_TANGENT      = 3 // float, 4
-	iQM_BLENDINDEXES = 4 // ubyte, 4
-	iQM_BLENDWEIGHTS = 5 // ubyte, 4
-	iQM_COLOR        = 6 // ubyte, 4
+	iQMPOSITION     = 0 // float, 3
+	iQMTEXCOORD     = 1 // float, 2
+	iQMNORMAL       = 2 // float, 3
+	iQMTANGENT      = 3 // float, 4
+	iQMBLENDINDEXES = 4 // ubyte, 4
+	iQMBLENDWEIGHTS = 5 // ubyte, 4
+	iQMCOLOR        = 6 // ubyte, 4
 
 	// all values up to IQM_CUSTOM are reserved for future use
 	// any value >= IQM_CUSTOM is interpreted as CUSTOM type
 	// the value then defines an offset into the string table, where offset = value - IQM_CUSTOM
 	// this must be a valid string naming the type
-	iQM_CUSTOM = 0x10
+	iQMCUSTOM = 0x10
 )
 
 const ( // vertex array format
-	iQM_BYTE   = 0
-	iQM_UBYTE  = 1
-	iQM_SHORT  = 2
-	iQM_USHORT = 3
-	iQM_INT    = 4
-	iQM_UINT   = 5
-	iQM_HALF   = 6
-	iQM_FLOAT  = 7
-	iQM_DOUBLE = 8
+	iQMBYTE   = 0
+	iQMUBYTE  = 1
+	iQMSHORT  = 2
+	iQMUSHORT = 3
+	iQMINT    = 4
+	iQMUINT   = 5
+	iQMHALF   = 6
+	iQMFLOAT  = 7
+	iQMDOUBLE = 8
 )
 
 // transform is a temporary structure to help read pose information from

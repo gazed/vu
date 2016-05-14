@@ -77,21 +77,21 @@ func (bb *bbtag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 		bb.resize(s.W, s.H)
 	}
 	dt := in.Dt
-	for press, _ := range in.Down {
+	for press := range in.Down {
 		switch press {
-		case vu.K_W:
+		case vu.KW:
 			bb.cam.Move(0, 0, dt*-run, bb.cam.Lookxz())
-		case vu.K_S:
+		case vu.KS:
 			bb.cam.Move(0, 0, dt*run, bb.cam.Lookxz())
-		case vu.K_Q:
+		case vu.KQ:
 			bb.cam.Move(dt*-run, 0, 0, bb.cam.Lookxz())
-		case vu.K_E:
+		case vu.KE:
 			bb.cam.Move(dt*run, 0, 0, bb.cam.Lookxz())
-		case vu.K_A:
+		case vu.KA:
 			bb.cam.AdjustYaw(dt * spin)
-		case vu.K_D:
+		case vu.KD:
 			bb.cam.AdjustYaw(dt * -spin)
-		case vu.K_T:
+		case vu.KT:
 			eng.Shutdown()
 		}
 	}

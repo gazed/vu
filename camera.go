@@ -203,9 +203,9 @@ func (c *camera) Distance(px, py, pz float64) float64 {
 // Implement Camera interface.
 func (c *camera) SetDepth(enabled bool) { c.depth = enabled }
 func (c *camera) SetCull(cull Cull)     { c.cull = cull }
-func (c *camera) SetLast(index int)     { c.overlay = render.OVERLAY + index }
+func (c *camera) SetLast(index int)     { c.overlay = render.Overlay + index }
 func (c *camera) SetUI() {
-	c.overlay = render.OVERLAY // Draw last.
+	c.overlay = render.Overlay // Draw last.
 	c.depth = false            // 2D rendering.
 	c.SetView(VO)              // orthographic view transform.
 }
@@ -296,9 +296,9 @@ func VO(pov *lin.T, scr *lin.Q, vm *lin.M4) *lin.M4 {
 	return vm.Set(lin.M4I).ScaleMS(1, 1, 0)
 }
 
-// XZ_XY perspective to ortho view transform.
+// XzXy perspective to ortho view transform.
 // Can help transform a 3D map to a 2D overlay.
-func XZ_XY(at *lin.T, scr *lin.Q, vm *lin.M4) *lin.M4 {
+func XzXy(at *lin.T, scr *lin.Q, vm *lin.M4) *lin.M4 {
 	rot := scr.SetAa(1, 0, 0, -lin.Rad(90))
 	l := at.Loc
 	return vm.SetQ(rot).ScaleMS(1, 1, 0).TranslateTM(-l.X, -l.Y, -l.Z)

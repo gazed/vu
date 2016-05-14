@@ -9,9 +9,9 @@ import (
 	"github.com/gazed/vu/math/lin"
 )
 
-// Shapes are physics collision primitives used to represent a 3D model.
-// A Shape is always in local space centered at the origin. Combine a
-// shape with a transform to position the shape anywhere in world space.
+// Shape is a physics collision primitive generally used 3D model collision
+// detection. A Shape is always in local space centered at the origin.
+// Combine a shape with a transform to position the shape anywhere in world space.
 // Shapes do not allocate memory. They expect to be given the necessary
 // structures when doing calculations like filling in bounding boxes.
 type Shape interface {

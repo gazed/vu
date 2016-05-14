@@ -98,6 +98,11 @@ void gs_display_dispose(long display);
     }
 #endif
 
+// Copy and paste strings to and from the general clipboard.
+// Strings returned by copy must be freed by the caller.
+char* gs_clip_copy(long display);
+void gs_clip_paste(long display, const char* string);
+
 // Customize the window and context by setting attributes before the
 // display or context is initialized.
 void gs_set_attr_l(long attr, long value);

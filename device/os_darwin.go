@@ -105,6 +105,23 @@ func (o *osx) setTitle(title string) {
 	C.gs_set_attr_s(C.GS_AppName, cstr)
 }
 
+// Implement native interface: nrefs unused, needed by other platforms.
+func (o *osx) copyClip(r *nrefs) string {
+	if cstr := C.gs_clip_copy(); cstr != nil {
+		str := C.GoString(cstr)      // make a Go copy.
+		C.free(unsafe.Pointer(cstr)) // free the C copy.
+		return str
+	}
+	return ""
+}
+
+// Implement native interface: nrefs unused, needed by other platforms.
+func (o *osx) pasteClip(r *nrefs, s string) {
+	cstr := C.CString(s)
+	defer C.free(unsafe.Pointer(cstr))
+	C.gs_clip_paste(cstr)
+}
+
 // Transform os specific events to user events.
 var events = map[int]int{
 	C.GS_LeftMouseDown:     clickedMouse,
@@ -127,12 +144,12 @@ var events = map[int]int{
 
 // Map the mice buttons into left and right.
 var mouseButtons = map[int]int{
-	C.GS_LeftMouseDown:  mouse_Left,
-	C.GS_RightMouseDown: mouse_Right,
-	C.GS_OtherMouseDown: mouse_Middle,
-	C.GS_LeftMouseUp:    mouse_Left,
-	C.GS_RightMouseUp:   mouse_Right,
-	C.GS_OtherMouseUp:   mouse_Middle,
+	C.GS_LeftMouseDown:  mouseLeft,
+	C.GS_RightMouseDown: mouseRight,
+	C.GS_OtherMouseDown: mouseMiddle,
+	C.GS_LeftMouseUp:    mouseLeft,
+	C.GS_RightMouseUp:   mouseRight,
+	C.GS_OtherMouseUp:   mouseMiddle,
 }
 
 // Expose the underlying OSX key modifier masks.
@@ -147,106 +164,106 @@ const (
 // Expose the underlying OSX key codes as generic code.
 // Each native layer is expected to support the generic codes.
 const (
-	key_0              = 0x1D // kVK_ANSI_0
-	key_1              = 0x12 // kVK_ANSI_1
-	key_2              = 0x13 // kVK_ANSI_2
-	key_3              = 0x14 // kVK_ANSI_3
-	key_4              = 0x15 // kVK_ANSI_4
-	key_5              = 0x17 // kVK_ANSI_5
-	key_6              = 0x16 // kVK_ANSI_6
-	key_7              = 0x1A // kVK_ANSI_7
-	key_8              = 0x1C // kVK_ANSI_8
-	key_9              = 0x19 // kVK_ANSI_9
-	key_A              = 0x00 // kVK_ANSI_A
-	key_B              = 0x0B // kVK_ANSI_B
-	key_C              = 0x08 // kVK_ANSI_C
-	key_D              = 0x02 // kVK_ANSI_D
-	key_E              = 0x0E // kVK_ANSI_E
-	key_F              = 0x03 // kVK_ANSI_F
-	key_G              = 0x05 // kVK_ANSI_G
-	key_H              = 0x04 // kVK_ANSI_H
-	key_I              = 0x22 // kVK_ANSI_I
-	key_J              = 0x26 // kVK_ANSI_J
-	key_K              = 0x28 // kVK_ANSI_K
-	key_L              = 0x25 // kVK_ANSI_L
-	key_M              = 0x2E // kVK_ANSI_M
-	key_N              = 0x2D // kVK_ANSI_N
-	key_O              = 0x1F // kVK_ANSI_O
-	key_P              = 0x23 // kVK_ANSI_P
-	key_Q              = 0x0C // kVK_ANSI_Q
-	key_R              = 0x0F // kVK_ANSI_R
-	key_S              = 0x01 // kVK_ANSI_S
-	key_T              = 0x11 // kVK_ANSI_T
-	key_U              = 0x20 // kVK_ANSI_U
-	key_V              = 0x09 // kVK_ANSI_V
-	key_W              = 0x0D // kVK_ANSI_W
-	key_X              = 0x07 // kVK_ANSI_X
-	key_Y              = 0x10 // kVK_ANSI_Y
-	key_Z              = 0x06 // kVK_ANSI_Z
-	key_F1             = 0x7A // kVK_F1
-	key_F2             = 0x78 // kVK_F2
-	key_F3             = 0x63 // kVK_F3
-	key_F4             = 0x76 // kVK_F4
-	key_F5             = 0x60 // kVK_F5
-	key_F6             = 0x61 // kVK_F6
-	key_F7             = 0x62 // kVK_F7
-	key_F8             = 0x64 // kVK_F8
-	key_F9             = 0x65 // kVK_F9
-	key_F10            = 0x6D // kVK_F10
-	key_F11            = 0x67 // kVK_F11
-	key_F12            = 0x6F // kVK_F12
-	key_F13            = 0x69 // kVK_F13
-	key_F14            = 0x6B // kVK_F14
-	key_F15            = 0x71 // kVK_F15
-	key_F16            = 0x6A // kVK_F16
-	key_F17            = 0x40 // kVK_F17
-	key_F18            = 0x4F // kVK_F18
-	key_F19            = 0x50 // kVK_F19
-	key_F20            = 0x5A // kVK_F20
-	key_Keypad0        = 0x52 // kVK_ANSI_Keypad0
-	key_Keypad1        = 0x53 // kVK_ANSI_Keypad1
-	key_Keypad2        = 0x54 // kVK_ANSI_Keypad2
-	key_Keypad3        = 0x55 // kVK_ANSI_Keypad3
-	key_Keypad4        = 0x56 // kVK_ANSI_Keypad4
-	key_Keypad5        = 0x57 // kVK_ANSI_Keypad5
-	key_Keypad6        = 0x58 // kVK_ANSI_Keypad6
-	key_Keypad7        = 0x59 // kVK_ANSI_Keypad7
-	key_Keypad8        = 0x5B // kVK_ANSI_Keypad8
-	key_Keypad9        = 0x5C // kVK_ANSI_Keypad9
-	key_KeypadDecimal  = 0x41 // kVK_ANSI_KeypadDecimal
-	key_KeypadMultiply = 0x43 // kVK_ANSI_KeypadMultiply
-	key_KeypadPlus     = 0x45 // kVK_ANSI_KeypadPlus
-	key_KeypadClear    = 0x47 // kVK_ANSI_KeypadClear
-	key_KeypadDivide   = 0x4B // kVK_ANSI_KeypadDivide
-	key_KeypadEnter    = 0x4C // kVK_ANSI_KeypadEnter
-	key_KeypadMinus    = 0x4E // kVK_ANSI_KeypadMinus
-	key_KeypadEquals   = 0x51 // kVK_ANSI_KeypadEquals
-	key_Equal          = 0x18 // kVK_ANSI_Equal
-	key_Minus          = 0x1B // kVK_ANSI_Minus
-	key_LeftBracket    = 0x21 // kVK_ANSI_LeftBracket
-	key_RightBracket   = 0x1E // kVK_ANSI_RightBracket
-	key_Quote          = 0x27 // kVK_ANSI_Quote
-	key_Semicolon      = 0x29 // kVK_ANSI_Semicolon
-	key_Backslash      = 0x2A // kVK_ANSI_Backslash
-	key_Grave          = 0x32 // kVK_ANSI_Grave
-	key_Slash          = 0x2C // kVK_ANSI_Slash
-	key_Comma          = 0x2B // kVK_ANSI_Comma
-	key_Period         = 0x2F // kVK_ANSI_Period
-	key_Return         = 0x24 // kVK_Return
-	key_Tab            = 0x30 // kVK_Tab
-	key_Space          = 0x31 // kVK_Space
-	key_Delete         = 0x33 // kVK_Delete
-	key_ForwardDelete  = 0x75 // kVK_ForwardDelete
-	key_Escape         = 0x35 // kVK_Escape
-	key_Home           = 0x73 // kVK_Home
-	key_PageUp         = 0x74 // kVK_PageUp
-	key_PageDown       = 0x79 // kVK_PageDown
-	key_LeftArrow      = 0x7B // kVK_LeftArrow
-	key_RightArrow     = 0x7C // kVK_RightArrow
-	key_DownArrow      = 0x7D // kVK_DownArrow
-	key_UpArrow        = 0x7E // kVK_UpArrow
-	key_End            = 0x77 // kVK_End
-	mouse_Left         = 0xA0 // tack on unique values for mouse buttons
-	mouse_Middle       = 0xA1
-	mouse_Right        = 0xA2
+	key0              = 0x1D // kVK_ANSI_0
+	key1              = 0x12 // kVK_ANSI_1
+	key2              = 0x13 // kVK_ANSI_2
+	key3              = 0x14 // kVK_ANSI_3
+	key4              = 0x15 // kVK_ANSI_4
+	key5              = 0x17 // kVK_ANSI_5
+	key6              = 0x16 // kVK_ANSI_6
+	key7              = 0x1A // kVK_ANSI_7
+	key8              = 0x1C // kVK_ANSI_8
+	key9              = 0x19 // kVK_ANSI_9
+	keyA              = 0x00 // kVK_ANSI_A
+	keyB              = 0x0B // kVK_ANSI_B
+	keyC              = 0x08 // kVK_ANSI_C
+	keyD              = 0x02 // kVK_ANSI_D
+	keyE              = 0x0E // kVK_ANSI_E
+	keyF              = 0x03 // kVK_ANSI_F
+	keyG              = 0x05 // kVK_ANSI_G
+	keyH              = 0x04 // kVK_ANSI_H
+	keyI              = 0x22 // kVK_ANSI_I
+	keyJ              = 0x26 // kVK_ANSI_J
+	keyK              = 0x28 // kVK_ANSI_K
+	keyL              = 0x25 // kVK_ANSI_L
+	keyM              = 0x2E // kVK_ANSI_M
+	keyN              = 0x2D // kVK_ANSI_N
+	keyO              = 0x1F // kVK_ANSI_O
+	keyP              = 0x23 // kVK_ANSI_P
+	keyQ              = 0x0C // kVK_ANSI_Q
+	keyR              = 0x0F // kVK_ANSI_R
+	keyS              = 0x01 // kVK_ANSI_S
+	keyT              = 0x11 // kVK_ANSI_T
+	keyU              = 0x20 // kVK_ANSI_U
+	keyV              = 0x09 // kVK_ANSI_V
+	keyW              = 0x0D // kVK_ANSI_W
+	keyX              = 0x07 // kVK_ANSI_X
+	keyY              = 0x10 // kVK_ANSI_Y
+	keyZ              = 0x06 // kVK_ANSI_Z
+	keyF1             = 0x7A // kVK_F1
+	keyF2             = 0x78 // kVK_F2
+	keyF3             = 0x63 // kVK_F3
+	keyF4             = 0x76 // kVK_F4
+	keyF5             = 0x60 // kVK_F5
+	keyF6             = 0x61 // kVK_F6
+	keyF7             = 0x62 // kVK_F7
+	keyF8             = 0x64 // kVK_F8
+	keyF9             = 0x65 // kVK_F9
+	keyF10            = 0x6D // kVK_F10
+	keyF11            = 0x67 // kVK_F11
+	keyF12            = 0x6F // kVK_F12
+	keyF13            = 0x69 // kVK_F13
+	keyF14            = 0x6B // kVK_F14
+	keyF15            = 0x71 // kVK_F15
+	keyF16            = 0x6A // kVK_F16
+	keyF17            = 0x40 // kVK_F17
+	keyF18            = 0x4F // kVK_F18
+	keyF19            = 0x50 // kVK_F19
+	keyF20            = 0x5A // kVK_F20
+	keyKeypad0        = 0x52 // kVK_ANSI_Keypad0
+	keyKeypad1        = 0x53 // kVK_ANSI_Keypad1
+	keyKeypad2        = 0x54 // kVK_ANSI_Keypad2
+	keyKeypad3        = 0x55 // kVK_ANSI_Keypad3
+	keyKeypad4        = 0x56 // kVK_ANSI_Keypad4
+	keyKeypad5        = 0x57 // kVK_ANSI_Keypad5
+	keyKeypad6        = 0x58 // kVK_ANSI_Keypad6
+	keyKeypad7        = 0x59 // kVK_ANSI_Keypad7
+	keyKeypad8        = 0x5B // kVK_ANSI_Keypad8
+	keyKeypad9        = 0x5C // kVK_ANSI_Keypad9
+	keyKeypadDecimal  = 0x41 // kVK_ANSI_KeypadDecimal
+	keyKeypadMultiply = 0x43 // kVK_ANSI_KeypadMultiply
+	keyKeypadPlus     = 0x45 // kVK_ANSI_KeypadPlus
+	keyKeypadClear    = 0x47 // kVK_ANSI_KeypadClear
+	keyKeypadDivide   = 0x4B // kVK_ANSI_KeypadDivide
+	keyKeypadEnter    = 0x4C // kVK_ANSI_KeypadEnter
+	keyKeypadMinus    = 0x4E // kVK_ANSI_KeypadMinus
+	keyKeypadEquals   = 0x51 // kVK_ANSI_KeypadEquals
+	keyEqual          = 0x18 // kVK_ANSI_Equal
+	keyMinus          = 0x1B // kVK_ANSI_Minus
+	keyLeftBracket    = 0x21 // kVK_ANSI_LeftBracket
+	keyRightBracket   = 0x1E // kVK_ANSI_RightBracket
+	keyQuote          = 0x27 // kVK_ANSI_Quote
+	keySemicolon      = 0x29 // kVK_ANSI_Semicolon
+	keyBackslash      = 0x2A // kVK_ANSI_Backslash
+	keyGrave          = 0x32 // kVK_ANSI_Grave
+	keySlash          = 0x2C // kVK_ANSI_Slash
+	keyComma          = 0x2B // kVK_ANSI_Comma
+	keyPeriod         = 0x2F // kVK_ANSI_Period
+	keyReturn         = 0x24 // kVK_Return
+	keyTab            = 0x30 // kVK_Tab
+	keySpace          = 0x31 // kVK_Space
+	keyDelete         = 0x33 // kVK_Delete
+	keyForwardDelete  = 0x75 // kVK_ForwardDelete
+	keyEscape         = 0x35 // kVK_Escape
+	keyHome           = 0x73 // kVK_Home
+	keyPageUp         = 0x74 // kVK_PageUp
+	keyPageDown       = 0x79 // kVK_PageDown
+	keyLeftArrow      = 0x7B // kVK_LeftArrow
+	keyRightArrow     = 0x7C // kVK_RightArrow
+	keyDownArrow      = 0x7D // kVK_DownArrow
+	keyUpArrow        = 0x7E // kVK_UpArrow
+	keyEnd            = 0x77 // kVK_End
+	mouseLeft         = 0xA0 // tack on unique values for mouse buttons
+	mouseMiddle       = 0xA1
+	mouseRight        = 0xA2
 )

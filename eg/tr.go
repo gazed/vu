@@ -185,7 +185,7 @@ func (tag *trtag) drawScene() {
 
 	// rotate based on time... not on how fast the computer runs.
 	if time.Now().Sub(tag.lastTime).Seconds() > 0.01 {
-		tag.rotateAngle += 1
+		tag.rotateAngle++
 		tag.lastTime = time.Now()
 	}
 }

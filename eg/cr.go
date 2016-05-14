@@ -94,24 +94,24 @@ func (cr *crtag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 		cr.cam.SetPerspective(60, float64(s.W)/float64(s.H), 0.1, 50)
 	}
 	dt := in.Dt
-	for press, _ := range in.Down {
+	for press := range in.Down {
 		switch press {
-		case vu.K_W:
+		case vu.KW:
 			cr.cam.Move(0, 0, dt*-run, cr.cam.Lookxz())
-		case vu.K_S:
+		case vu.KS:
 			cr.cam.Move(0, 0, dt*run, cr.cam.Lookxz())
-		case vu.K_A:
+		case vu.KA:
 			cr.cam.AdjustYaw(dt * spin)
-		case vu.K_D:
+		case vu.KD:
 			cr.cam.AdjustYaw(dt * -spin)
-		case vu.K_B:
+		case vu.KB:
 			ball := cr.top.NewPov()
 			ball.SetLocation(-2.5+rand.Float64(), 15, -1.5-rand.Float64())
 			ball.NewBody(vu.NewSphere(1))
 			ball.SetSolid(1, 0.9)
 			m := ball.NewModel("gouraud").LoadMesh("sphere").LoadMat("red")
 			m.SetColor(rand.Float64(), rand.Float64(), rand.Float64())
-		case vu.K_Space:
+		case vu.KSpace:
 			body := cr.striker.Body()
 			body.Push(-2.5, 0, -0.5)
 		}

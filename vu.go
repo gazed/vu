@@ -1,7 +1,7 @@
 // Copyright © 2015-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
-// Package vu, virtual universe, provides 3D application support. Vu wraps
+// Package vu - virtual universe, provides 3D application support. Vu wraps
 // subsystems like rendering, physics, data loading, audio, etc. to provide
 // higher level functionality that includes:
 //    • Transform graphs and composite objects.
@@ -91,22 +91,22 @@ func New(app App, name string, wx, wy, ww, wh int) (err error) {
 const (
 
 	// Global graphic state constants. See Eng.State
-	BLEND = render.BLEND // Alpha blending. Enabled by default.
-	CULL  = render.CULL  // Backface culling. Enabled by default.
-	DEPTH = render.DEPTH // Z-buffer awareness. Enabled by default.
+	Blend     = render.Blend     // Alpha blending. Enabled by default.
+	CullFace  = render.CullFace  // Backface culling. Enabled by default.
+	DepthTest = render.DepthTest // Z-buffer awareness. Enabled by default.
 
 	// Per-part rendering constants for Model.SetDrawMode.
-	TRIANGLES = render.TRIANGLES // Triangles are the norm.
-	POINTS    = render.POINTS    // Used for particle effects.
-	LINES     = render.LINES     // Used for drawing squares and boxes.
+	Triangles = render.Triangles // Triangles are the norm.
+	Points    = render.Points    // Used for particle effects.
+	Lines     = render.Lines     // Used for drawing squares and boxes.
 
-	// User input key released indicator. Total time down, in update ticks,
-	// is key down ticks minus RELEASED. See App.Update.
-	RELEASED = device.KEY_RELEASED
+	// KeyReleased indicator. Total time down, in update ticks,
+	// is key down ticks minus KeyReleased. See App.Update.
+	KeyReleased = device.KeyReleased
 
 	// Texture rendering directives for Model.SetTexMode()
-	TEX_REPEAT = iota // Repeat texture when UV greater than 1.
-	TEX_CLAMP         // Clamp to texture edge.
+	TexRepeat = iota // Repeat texture when UV greater than 1.
+	TexClamp         // Clamp to texture edge.
 
 	// 3D Direction constants. Primarily used for panning or rotating a camera.
 	// See Camera.Spin.
@@ -116,13 +116,13 @@ const (
 
 	// Application created and controlled objects associated with the transform
 	// hierarchy. See Pov.Dispose.
-	POV    // Transform hierarchy node and 3D location:orientation.
-	MODEL  // Rendered model attached to a Pov.
-	BODY   // Physics body attached to a Pov.
-	CAMERA // Camera attached to a Pov.
-	NOISE  // Sound attached to a Pov.
-	LIGHT  // Light attached to a Pov.
-	LAYER  // Render pass layer attached to a Pov.
+	PovNode  // Transform hierarchy node and 3D location:orientation.
+	PovModel // Rendered model attached to a Pov.
+	PovBody  // Physics body attached to a Pov.
+	PovCam   // Camera attached to a Pov.
+	PovNoise // Sound attached to a Pov.
+	PovLight // Light attached to a Pov.
+	PovLayer // Render pass layer attached to a Pov.
 )
 
 // vu
@@ -154,8 +154,8 @@ type machine struct {
 // and regular calls from the application update both for polling
 // user input and rendering.
 func (m *machine) run() {
-	m.gc.Enable(BLEND, true) // expected application startup state.
-	m.gc.Enable(CULL, true)  // expected application startup state.
+	m.gc.Enable(Blend, true)    // expected application startup state.
+	m.gc.Enable(CullFace, true) // expected application startup state.
 	for m.dev != nil && m.dev.IsAlive() {
 		req := <-m.reqs // req is nil for closed channel.
 

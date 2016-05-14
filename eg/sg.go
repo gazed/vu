@@ -51,19 +51,19 @@ func (sg *sgtag) Create(eng vu.Eng, s *vu.State) {
 
 	// initialize the reactions
 	sg.reacts = map[int]inputHandler{
-		vu.K_W:     sg.forward,
-		vu.K_A:     sg.left,
-		vu.K_S:     sg.back,
-		vu.K_D:     sg.right,
-		vu.K_Equal: sg.attach,
-		vu.K_Minus: sg.detach,
-		vu.K_0:     func(i *vu.Input, down int) { sg.setTr(down, 0) },
-		vu.K_1:     func(i *vu.Input, down int) { sg.setTr(down, 1) },
-		vu.K_2:     func(i *vu.Input, down int) { sg.setTr(down, 2) },
-		vu.K_3:     func(i *vu.Input, down int) { sg.setTr(down, 3) },
-		vu.K_4:     func(i *vu.Input, down int) { sg.setTr(down, 4) },
-		vu.K_5:     func(i *vu.Input, down int) { sg.setTr(down, 5) },
-		vu.K_P:     sg.stats,
+		vu.KW:     sg.forward,
+		vu.KA:     sg.left,
+		vu.KS:     sg.back,
+		vu.KD:     sg.right,
+		vu.KEqual: sg.attach,
+		vu.KMinus: sg.detach,
+		vu.K0:     func(i *vu.Input, down int) { sg.setTr(down, 0) },
+		vu.K1:     func(i *vu.Input, down int) { sg.setTr(down, 1) },
+		vu.K2:     func(i *vu.Input, down int) { sg.setTr(down, 2) },
+		vu.K3:     func(i *vu.Input, down int) { sg.setTr(down, 3) },
+		vu.K4:     func(i *vu.Input, down int) { sg.setTr(down, 4) },
+		vu.K5:     func(i *vu.Input, down int) { sg.setTr(down, 5) },
+		vu.KP:     sg.stats,
 	}
 	eng.SetColor(0.1, 0.1, 0.1, 1.0)
 }
@@ -270,11 +270,11 @@ func (tr *trooper) trash() {
 		b.trash()
 	}
 	if tr.center != nil {
-		tr.center.Dispose(vu.POV)
+		tr.center.Dispose(vu.PovNode)
 		tr.center = nil
 	}
 	if tr.neo != nil {
-		tr.neo.Dispose(vu.POV)
+		tr.neo.Dispose(vu.PovNode)
 	}
 	tr.neo = nil
 }
@@ -445,7 +445,7 @@ func (b *block) merge() {
 // to ensure the cell count is correct.
 func (b *block) trash() {
 	if b.slab != nil {
-		b.slab.Dispose(vu.POV)
+		b.slab.Dispose(vu.PovNode)
 		b.slab = nil
 	}
 	for _, cube := range b.cubes {
@@ -518,7 +518,7 @@ func (c *cube) addCell() {
 // removeCell removes the last cell from the list of cube cells.
 func (c *cube) removeCell() {
 	last := len(c.cells)
-	c.cells[last-1].Dispose(vu.POV)
+	c.cells[last-1].Dispose(vu.PovNode)
 	c.cells = c.cells[:last-1]
 }
 

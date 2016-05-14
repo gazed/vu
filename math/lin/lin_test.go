@@ -10,18 +10,18 @@ import (
 )
 
 func TestAeqmately(t *testing.T) {
-	var f1 float64 = 0.0
-	var f2 float64 = 0.000001
-	var f3 float64 = -0.0001
+	var f1 = 0.0
+	var f2 = 0.000001
+	var f3 = -0.0001
 	if Aeq(f1, f2) && !Aeq(f1, f3) {
 		t.Error("Aeq")
 	}
 }
 
 func TestApproimatelyZero(t *testing.T) {
-	var f1 float64 = 0.0000001
-	var f2 float64 = -0.0000001
-	var f3 float64 = -0.0001
+	var f1 = 0.0000001
+	var f2 = -0.0000001
+	var f3 = -0.0001
 	if !AeqZ(f1) || !AeqZ(f2) || AeqZ(f3) {
 		t.Error("Aeqz")
 	}
@@ -41,8 +41,8 @@ func TestAtan2F(t *testing.T) {
 }
 
 func TestNang(t *testing.T) {
-	pos450, neg450 := float64(7.853981), float64(-7.853981)
-	pos90, neg90 := float64(1.570796), float64(-1.570796)
+	pos450, neg450 := 7.853981, -7.853981
+	pos90, neg90 := 1.570796, -1.570796
 	if !Aeq(Nang(pos450), pos90) || !Aeq(Nang(neg450), neg90) {
 		t.Error("Nang")
 	}

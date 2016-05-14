@@ -49,14 +49,14 @@ func (ps *pstag) Create(eng vu.Eng, s *vu.State) {
 	gpu := eng.Root().NewPov()
 	gpu.SetVisible(false)
 	m := gpu.NewModel("particle").AddTex("particle")
-	m.NewMesh("gpu").SetDrawMode(vu.POINTS).SetDepth(false)
+	m.NewMesh("gpu").SetDrawMode(vu.Points).SetDepth(false)
 	ps.makeParticles(m)
 	ps.effects = append(ps.effects, gpu)
 
 	// A CPU/shader based particle example using an effect shader.
 	cpu := eng.Root().NewPov()
 	cpu.SetVisible(false)
-	m = cpu.NewModel("effect").AddTex("particle").SetDrawMode(vu.POINTS)
+	m = cpu.NewModel("effect").AddTex("particle").SetDrawMode(vu.Points)
 	m.SetEffect(ps.fall, 250)
 	ps.effects = append(ps.effects, cpu)
 
@@ -64,7 +64,7 @@ func (ps *pstag) Create(eng vu.Eng, s *vu.State) {
 	// FUTURE: update textures to look like engine exhaust.
 	jet := eng.Root().NewPov().SetLocation(0, -1, 0)
 	jet.SetVisible(false)
-	m = jet.NewModel("exhaust").AddTex("exhaust").SetDrawMode(vu.POINTS)
+	m = jet.NewModel("exhaust").AddTex("exhaust").SetDrawMode(vu.Points)
 	m.SetEffect(ps.vent, 40)
 	ps.effects = append(ps.effects, jet)
 
@@ -87,15 +87,15 @@ func (ps *pstag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 	dt := in.Dt
 	for press, down := range in.Down {
 		switch press {
-		case vu.K_W:
+		case vu.KW:
 			ps.cam.Move(0, 0, dt*-run, ps.cam.Lookxz())
-		case vu.K_S:
+		case vu.KS:
 			ps.cam.Move(0, 0, dt*run, ps.cam.Lookxz())
-		case vu.K_A:
+		case vu.KA:
 			ps.effect.Spin(0, dt*spin, 0)
-		case vu.K_D:
+		case vu.KD:
 			ps.effect.Spin(0, dt*-spin, 0)
-		case vu.K_Tab:
+		case vu.KTab:
 			if down == 1 {
 				ps.effect.SetVisible(false) // switch to the next effect.
 				ps.index = ps.index + 1
@@ -105,13 +105,13 @@ func (ps *pstag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 				ps.effect = ps.effects[ps.index]
 				ps.effect.SetVisible(true)
 			}
-		case vu.K_La:
+		case vu.KLa:
 			ps.effect.Move(-dt*move, 0, 0, ps.cam.Lookxz())
-		case vu.K_Ra:
+		case vu.KRa:
 			ps.effect.Move(dt*move, 0, 0, ps.cam.Lookxz())
-		case vu.K_Ua:
+		case vu.KUa:
 			ps.effect.Move(0, 0, dt*move, ps.cam.Lookxz())
-		case vu.K_Da:
+		case vu.KDa:
 			ps.effect.Move(0, 0, -dt*move, ps.cam.Lookxz())
 		}
 	}
@@ -137,8 +137,8 @@ func (ps *pstag) makeParticles(m vu.Model) {
 		vv[index+2] = ps.random.Float32() - 0.5 // z
 		index += 3
 	}
-	m.InitMesh(0, 3, render.STATIC, false).SetMeshData(0, vv)
-	m.InitMesh(1, 1, render.STATIC, false).SetMeshData(1, vt)
+	m.InitMesh(0, 3, render.StaticDraw, false).SetMeshData(0, vv)
+	m.InitMesh(1, 1, render.StaticDraw, false).SetMeshData(1, vt)
 }
 
 // fall is a CPU particle position updater. It lets particles drift downwards

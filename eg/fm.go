@@ -64,7 +64,7 @@ func (fm *fmtag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 		switch {
 
 		// switch to the next layout example.
-		case press == vu.K_Tab && down == 1:
+		case press == vu.KTab && down == 1:
 			fm.layouts[fm.example].setVisible(false)
 			fm.example = fm.example + 1
 			if fm.example >= len(fm.layouts) {

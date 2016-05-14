@@ -205,10 +205,10 @@ func (m *M3) Abs(a *M3) *M3 {
 // The input matrix a is not changed. Matrix m may be used as the input parameter.
 // The updated matrix m is returned.
 func (m *M3) Transpose(a *M3) *M3 {
-	t_Xy, t_Xz, t_Yz := a.Xy, a.Xz, a.Yz
+	ttXy, ttXz, ttYz := a.Xy, a.Xz, a.Yz
 	m.Xx, m.Xy, m.Xz = a.Xx, a.Yx, a.Zx
-	m.Yx, m.Yy, m.Yz = t_Xy, a.Yy, a.Zy
-	m.Zx, m.Zy, m.Zz = t_Xz, t_Yz, a.Zz
+	m.Yx, m.Yy, m.Yz = ttXy, a.Yy, a.Zy
+	m.Zx, m.Zy, m.Zz = ttXz, ttYz, a.Zz
 	return m
 }
 
@@ -219,12 +219,12 @@ func (m *M3) Transpose(a *M3) *M3 {
 //    [ Wx Wy Wz Ww ]    [ Xw Yw Zw Ww ]
 // Same behaviour as M3.Transpose()
 func (m *M4) Transpose(a *M4) *M4 {
-	t_Xy, t_Xz, t_Yz := a.Xy, a.Xz, a.Yz
-	t_Xw, t_Yw, t_Zw := a.Xw, a.Yw, a.Zw
+	ttXy, ttXz, ttYz := a.Xy, a.Xz, a.Yz
+	ttXw, ttYw, ttZw := a.Xw, a.Yw, a.Zw
 	m.Xx, m.Xy, m.Xz, m.Xw = a.Xx, a.Yx, a.Zx, a.Wx
-	m.Yx, m.Yy, m.Yz, m.Yw = t_Xy, a.Yy, a.Zy, a.Wy
-	m.Zx, m.Zy, m.Zz, m.Zw = t_Xz, t_Yz, a.Zz, a.Wz
-	m.Wx, m.Wy, m.Wz, m.Ww = t_Xw, t_Yw, t_Zw, a.Ww
+	m.Yx, m.Yy, m.Yz, m.Yw = ttXy, a.Yy, a.Zy, a.Wy
+	m.Zx, m.Zy, m.Zz, m.Zw = ttXz, ttYz, a.Zz, a.Wz
+	m.Wx, m.Wy, m.Wz, m.Ww = ttXw, ttYw, ttZw, a.Ww
 	return m
 }
 
@@ -573,7 +573,7 @@ func (m *M3) Inv(a *M3) *M3 {
 	return m
 }
 
-// SetAa, set axis-angle, updates m to be a rotation matrix from the
+// SetAa set axis-angle, updates m to be a rotation matrix from the
 // given axis (ax, ay, az) and angle (in radians). See:
 //    http://en.wikipedia.org/wiki/Rotation_matrix#Rotation_matrix_from_axis_and_angle
 //    http://web.archive.org/web/20041029003853/...

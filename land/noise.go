@@ -67,9 +67,9 @@ func newNoise(seed int64) *noise {
 		pbase = append(pbase[:index], pbase[index+1:]...)
 	}
 	n.gradients = []*gradient{
-		&gradient{1, 1, 0}, &gradient{-1, 1, 0}, &gradient{1, -1, 0}, &gradient{-1, -1, 0},
-		&gradient{1, 0, 1}, &gradient{-1, 0, 1}, &gradient{1, 0, -1}, &gradient{-1, 0, -1},
-		&gradient{0, 1, 1}, &gradient{0, -1, 1}, &gradient{0, 1, -1}, &gradient{0, -1, -1}}
+		{1, 1, 0}, {-1, 1, 0}, {1, -1, 0}, {-1, -1, 0},
+		{1, 0, 1}, {-1, 0, 1}, {1, 0, -1}, {-1, 0, -1},
+		{0, 1, 1}, {0, -1, 1}, {0, 1, -1}, {0, -1, -1}}
 	n.perm = make([]byte, 512)
 	n.permMod12 = make([]byte, 512)
 	for cnt := 0; cnt < 512; cnt++ {

@@ -5,8 +5,7 @@
 //
 // Ignored because cgo attempts to compile it during normal builds.
 // To build a native test application, compile this on git bash (mingw) using:
-//     gcc -o App os_windows*.c os_win_gl.c -lopengl32 -lgdi32 -Wall -m64
-//     FUTURE gcc -o App os_windows*.c os_win_dx.cxx -ld3d11 -std=c++11 -Wall -m64
+//     gcc -o App os_windows*.c os_wgl_windows.c -lopengl32 -lgdi32 -Wall -m64
 
 #include "os_windows.h"
 
@@ -58,6 +57,15 @@ int main( void )
                 printf("key up   0x%.2lX - ", gsu.key);
             } else if (gsu.event == GS_KeyDown) {
                 printf("key down 0x%.2lX - ", gsu.key);
+
+                // test copy and paste.
+                if (gsu.key == 0x43) { // c key
+                    char *s = gs_clip_copy(display);
+                    printf(" \"%s\"", s);
+                    free(s);
+                } else if (gsu.key == 0x50) { // p key
+                    gs_clip_paste(display, "test paste string");
+                }
             } else if (gsu.event == GS_ScrollWheel) {
                 printf("wheel %ld - ", gsu.scroll);
             }  else {

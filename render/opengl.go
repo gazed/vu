@@ -30,14 +30,14 @@ func newRenderer() Renderer {
 // Renderer implementation specific constants.
 const (
 	// Values useed in Renderer.Enable() method.
-	BLEND      uint32 = gl.BLEND              // Alpha blending.
-	CULL              = gl.CULL_FACE          // Backface culling.
-	DEPTH             = gl.DEPTH_TEST         // Z-buffer (depth) awareness.
-	POINT_SIZE        = gl.PROGRAM_POINT_SIZE // Enable gl_PointSize in shaders.
+	Blend     uint32 = gl.BLEND              // Alpha blending.
+	CullFace         = gl.CULL_FACE          // Backface culling.
+	DepthTest        = gl.DEPTH_TEST         // Z-buffer (depth) awareness.
+	PointSize        = gl.PROGRAM_POINT_SIZE // Enable gl_PointSize in shaders.
 
 	// Vertex data render hints. Used in the Buffer.SetUsage() method.
-	STATIC  = gl.STATIC_DRAW  // Data created once and rendered many times.
-	DYNAMIC = gl.DYNAMIC_DRAW // Data is continually being updated.
+	StaticDraw  = gl.STATIC_DRAW  // Data created once and rendered many times.
+	DynamicDraw = gl.DYNAMIC_DRAW // Data is continually being updated.
 )
 
 // Renderer implementation.
@@ -57,13 +57,13 @@ func (gc *opengl) Viewport(width int, height int) {
 // Renderer implementation.
 func (gc *opengl) Enable(attribute uint32, enabled bool) {
 	switch attribute {
-	case CULL, DEPTH:
+	case CullFace, DepthTest:
 		if enabled {
 			gl.Enable(attribute)
 		} else {
 			gl.Disable(attribute)
 		}
-	case BLEND:
+	case Blend:
 		if enabled {
 			gl.Enable(attribute)
 
@@ -125,15 +125,15 @@ func (gc *opengl) Render(dr Draw) {
 	// bind the data buffers and render.
 	gl.BindVertexArray(d.vao)
 	switch d.mode {
-	case LINES:
+	case Lines:
 		gl.PolygonMode(gl.FRONT_AND_BACK, gl.LINE)
 		gl.DrawElements(gl.LINES, d.numFaces, gl.UNSIGNED_SHORT, 0)
 		gl.PolygonMode(gl.FRONT_AND_BACK, gl.FILL)
-	case POINTS:
+	case Points:
 		gl.Enable(gl.PROGRAM_POINT_SIZE)
 		gl.DrawArrays(gl.POINTS, 0, d.numVerts)
 		gl.Disable(gl.PROGRAM_POINT_SIZE)
-	case TRIANGLES:
+	case Triangles:
 		if len(d.texs) > 1 && d.texs[0].fn > 0 {
 			// Multiple textures on one model specify which verticies they apply to.
 			for _, tex := range d.texs {
@@ -305,7 +305,7 @@ func (gc *opengl) bindVertexBuffer(vdata Data) {
 	}
 	bytes := 4 // 4 bytes for float32 (gl.FLOAT)
 	switch vd.usage {
-	case STATIC:
+	case StaticDraw:
 		switch {
 		case len(vd.floats) > 0:
 			gl.BindBuffer(gl.ARRAY_BUFFER, vd.ref)
@@ -316,7 +316,7 @@ func (gc *opengl) bindVertexBuffer(vdata Data) {
 			gl.BufferData(gl.ARRAY_BUFFER, int64(len(vd.bytes)), gl.Pointer(&(vd.bytes[0])), vd.usage)
 			gl.VertexAttribPointer(vd.lloc, vd.span, gl.UNSIGNED_BYTE, vd.normalize, 0, 0)
 		}
-	case DYNAMIC:
+	case DynamicDraw:
 		var null gl.Pointer // zero.
 		switch {
 		case len(vd.floats) > 0:
@@ -432,7 +432,7 @@ func (gc *opengl) BindFrame(buf int, fbo, tid, db *uint32) (err error) {
 	gl.GenTextures(1, tid)
 	gl.BindTexture(gl.TEXTURE_2D, *tid)
 	switch buf {
-	case IMAGE_BUFF:
+	case ImageBuffer:
 		gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, size, size,
 			0, gl.RGBA, gl.UNSIGNED_BYTE, gl.Pointer(nil))
 		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
@@ -448,7 +448,7 @@ func (gc *opengl) BindFrame(buf int, fbo, tid, db *uint32) (err error) {
 		gl.FramebufferTexture(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, *tid, 0)
 		buffType := uint32(gl.COLOR_ATTACHMENT0)
 		gl.DrawBuffers(1, &buffType)
-	case DEPTH_BUFF:
+	case DepthBuffer:
 		gl.TexImage2D(gl.TEXTURE_2D, 0, gl.DEPTH_COMPONENT16, size, size,
 			0, gl.DEPTH_COMPONENT, gl.FLOAT, gl.Pointer(nil))
 		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)

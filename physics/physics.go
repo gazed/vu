@@ -20,7 +20,8 @@
 //   2. Altered source versions must be plainly marked as such, and must not be misrepresented as being the original software.
 //   3. This notice may not be removed or altered from any source distribution.
 
-// Physics is a real-time simulation of real-world physics. Physics applies
+// Package physics is a real-time simulation of real-world physics.
+// Physics applies
 // simulated forces to virtual 3D objects known as bodies. Physics updates
 // bodies locations and directions based on forces and collisions with
 // other bodies.
@@ -103,11 +104,11 @@ func newPhysics() *physics {
 }
 
 // margin is a gap for smoothing collision detections.
-var margin float64 = 0.04
+var margin = 0.04
 
 // maxFriction is used to limit the amount of friction that
 // can be applied to the combined friction of colliding bodies.
-var maxFriction float64 = 10.0
+var maxFriction = 10.0
 
 // Physics interface implementation.
 // Step the physics simulation forward by delta time (timestep).
@@ -171,7 +172,7 @@ func (px *physics) broadphase(bodies []Body, pairs map[uint64]*contactPair) {
 	}
 	var bodyA, bodyB *body
 	var uniques []Body
-	var pairId uint64
+	var pairID uint64
 	for cnt1, B1 := range bodies {
 		bodyA = B1.(*body)
 		uniques = bodies[cnt1+1:]
@@ -183,8 +184,8 @@ func (px *physics) broadphase(bodies []Body, pairs map[uint64]*contactPair) {
 
 			// check as long as one of the bodies can move.
 			if bodyA.movable || bodyB.movable {
-				pairId = bodyA.pairId(bodyB)
-				pair, existing := pairs[pairId]
+				pairID = bodyA.pairID(bodyB)
+				pair, existing := pairs[pairID]
 				if existing {
 					pair.valid = true
 					abA := bodyA.predictedAabb(px.abA, margin)
@@ -192,7 +193,7 @@ func (px *physics) broadphase(bodies []Body, pairs map[uint64]*contactPair) {
 					overlaps := abA.Overlaps(abB)
 					if !overlaps {
 						// Remove existing
-						delete(pairs, pairId)
+						delete(pairs, pairID)
 					}
 					// Otherwise hold existing
 				} else {
@@ -203,7 +204,7 @@ func (px *physics) broadphase(bodies []Body, pairs map[uint64]*contactPair) {
 						// Add new
 						pair = newContactPair(bodyA, bodyB)
 						pair.valid = true
-						pairs[pairId] = pair
+						pairs[pairID] = pair
 					}
 					// Otherwise ignore non-overlapping pair
 				}
@@ -212,9 +213,9 @@ func (px *physics) broadphase(bodies []Body, pairs map[uint64]*contactPair) {
 	}
 
 	// remove contact pairs referencing deleted bodies.
-	for pairId, pair := range pairs {
+	for pairID, pair := range pairs {
 		if !pair.valid {
-			delete(pairs, pairId)
+			delete(pairs, pairID)
 		}
 	}
 }

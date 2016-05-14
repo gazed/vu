@@ -21,7 +21,7 @@ func (l *loader) txt(fileName string) (lines []string, err error) {
 		lines = strings.Split(string(characters), "\n")
 
 		// shader source lines must be terminated with a linefeed in order to compile.
-		for cnt, _ := range lines {
+		for cnt := range lines {
 			lines[cnt] = strings.TrimSpace(lines[cnt]) + "\n"
 		}
 

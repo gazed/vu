@@ -110,10 +110,10 @@ func (s *surface) Update(m Model, xoff, yoff int) {
 			// average xslope
 			xmax, xmin := x, x
 			if xmax < sx-1 {
-				xmax += 1
+				xmax++
 			}
 			if xmin > 0 {
-				xmin -= 1
+				xmin--
 			}
 			xslope := float32(s.pts[xmax][y].Height - s.pts[xmin][y].Height)
 			if x == 0 || x == sx-1 {
@@ -123,10 +123,10 @@ func (s *surface) Update(m Model, xoff, yoff int) {
 			// average yslope
 			ymax, ymin := y, y
 			if ymax < sy-1 {
-				ymax += 1
+				ymax++
 			}
 			if ymin > 0 {
-				ymin -= 1
+				ymin--
 			}
 			yslope := float32(s.pts[x][ymax].Height - s.pts[x][ymin].Height)
 			if y == 0 || y == sy-1 {
@@ -204,10 +204,10 @@ func (s *surface) Update(m Model, xoff, yoff int) {
 			nb = append(nb, norms[x+1][y+1].x, norms[x+1][y+1].y, norms[x+1][y+1].z)
 		}
 	}
-	m.InitMesh(0, 3, render.DYNAMIC, false).SetMeshData(0, vb)
-	m.InitMesh(1, 3, render.DYNAMIC, false).SetMeshData(1, nb)
-	m.InitMesh(2, 4, render.DYNAMIC, false).SetMeshData(2, tb)
-	m.InitFaces(render.DYNAMIC).SetFaces(fb)
+	m.InitMesh(0, 3, render.DynamicDraw, false).SetMeshData(0, vb)
+	m.InitMesh(1, 3, render.DynamicDraw, false).SetMeshData(1, nb)
+	m.InitMesh(2, 4, render.DynamicDraw, false).SetMeshData(2, tb)
+	m.InitFaces(render.DynamicDraw).SetFaces(fb)
 }
 
 type xyz struct{ x, y, z float32 } // temporary structure for generating normals.

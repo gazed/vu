@@ -26,6 +26,10 @@ package main
 //
 // FUTURE: Consider using the XML specification instead of the header file.
 
+// Use 'go generate' to rebuild the OpenGL bindings.
+//go:generate go run gen.go -p ../../gl -s glcorearb.h-v4_3
+//go:generate go fmt ../../gl
+
 import (
 	"bufio"
 	"flag"
@@ -469,7 +473,7 @@ func modGoBooleans(goapi string) string {
 			for cnt := 0; cnt < len(btoks)-1; cnt++ {
 				btok := strings.TrimSpace(btoks[cnt])
 				startTrim := strings.LastIndexAny(btok, "( ")
-				tag := btok[startTrim+1 : len(btok)]
+				tag := btok[startTrim+1:]
 
 				// create the code block
 				cb := fmt.Sprintf("tf%d", cnt+1)
@@ -513,7 +517,7 @@ func modGoStrings(goapi string) string {
 		goapi = fmt.Sprintf("%s %s  %s", parts[0], insert, parts[1])
 		replace := fmt.Sprintf("(*C.char)(%s)", tag)
 		goapi = strings.Replace(goapi, replace, cstr, 1)
-		index += 1
+		index++
 	}
 
 	// change the return code for the functions that return strings.
@@ -561,57 +565,57 @@ const strArray = "_STR_ARRAY_"
 // and go functions. Not every type is represented, only those used in the spec.
 // Map values are c-wrapper-type, go-type, cgo-type
 var typemap = map[string][]string{
-	"GLchar*":            []string{"char*", "string", "(*C.char)"},
-	"GLubyte":            []string{"unsigned char", "uint8", "C.uchar"},
-	"GLubyte*":           []string{"unsigned char*", "*uint8", "(*C.uchar)"},
-	"GLboolean":          []string{"unsigned char", "bool", "C.uchar"},
-	"GLboolean*":         []string{"unsigned char*", "*uint8", "(*C.uchar)"},
-	"GLenum":             []string{"unsigned int", "uint32", "C.uint"},
-	"GLfloat":            []string{"float", "float32", "C.float"},
-	"GLfloat*":           []string{"float*", "*float32", "(*C.float)"},
-	"GLint":              []string{"int", "int32", "C.int"},
-	"GLint*":             []string{"int*", "*int32", "(*C.int)"},
-	"GLintptr":           []string{"long long", "int64", "C.longlong"},
-	"GLuint":             []string{"unsigned int", "uint32", "C.uint"},
-	"GLuint*":            []string{"unsigned int*", "*uint32", "(*C.uint)"},
-	"GLsizei":            []string{"int", "int32", "C.int"},
-	"GLsizeiptr":         []string{"long long", "int64", "C.longlong"},
-	"GLbitfield":         []string{"unsigned int", "uint32", "C.uint"},
-	"GLdouble":           []string{"double", "float64", "C.double"},
-	"GLvoid*":            []string{"void*", "Pointer", "unsafe.Pointer"},
-	"GLvoid**":           []string{"void**", "*Pointer", "(*unsafe.Pointer)"},
-	"GLdouble*":          []string{"double*", "*float64", "(*C.double)"},
-	"GLsizei*":           []string{"int*", "*int32", "(*C.int)"},
-	"GLenum*":            []string{"unsigned int*", "*uint32", "(*C.uint)"},
-	"GLshort":            []string{"short ", "int16", "C.short"},
-	"GLushort*":          []string{"unsigned short*", "*uint16", "(*C.ushort)"},
-	"GLsync":             []string{"GLsync", "Sync", "C.GLsync"},
-	"GLint64*":           []string{"long long*", "*int64", "(*C.longlong)"},
-	"GLuint64":           []string{"unsigned long long", "uint64", "C.ulonglong"},
-	"GLuint64*":          []string{"unsigned long long*", "*uint64", "(*C.ulonglong)"},
-	"constvoid*":         []string{"const void*", "Pointer", "unsafe.Pointer"},
-	"constGLfloat*":      []string{"const float*", "*float32", "(*C.float)"},
-	"constGLint*":        []string{"const int*", "*int32", "(*C.int)"},
-	"constGLsizei*":      []string{"const int*", "*int32", "(*C.int)"},
-	"constGLvoid*":       []string{"const void*", "Pointer", "unsafe.Pointer"},
-	"constGLuint*":       []string{"const unsigned int*", "*uint32", "(*C.uint)"},
-	"constGLvoid*const*": []string{"const void* const*", "*Pointer", "(*unsafe.Pointer)"},
-	"constGLenum*":       []string{"const unsigned int*", "*uint32", "(*C.uint)"},
-	"constGLchar*":       []string{"const char*", "string", "(*C.char)"},
-	"constGLubyte*":      []string{"const unsigned char*", "*uint8", "(*C.uchar)"},
-	"constGLdouble*":     []string{"const double*", "*float64", "(*C.double)"},
-	"constGLshort*":      []string{"const short *", "*int16", "(*C.short)"},
-	"constGLbyte*":       []string{"const signed char*", "*int8", "(*C.schar)"},
-	"constGLushort*":     []string{"const unsigned short*", "*uint16", "(*C.ushort)"},
-	"constGLint64":       []string{"long long", "int64", "C.longlong"},
+	"GLchar*":            {"char*", "string", "(*C.char)"},
+	"GLubyte":            {"unsigned char", "uint8", "C.uchar"},
+	"GLubyte*":           {"unsigned char*", "*uint8", "(*C.uchar)"},
+	"GLboolean":          {"unsigned char", "bool", "C.uchar"},
+	"GLboolean*":         {"unsigned char*", "*uint8", "(*C.uchar)"},
+	"GLenum":             {"unsigned int", "uint32", "C.uint"},
+	"GLfloat":            {"float", "float32", "C.float"},
+	"GLfloat*":           {"float*", "*float32", "(*C.float)"},
+	"GLint":              {"int", "int32", "C.int"},
+	"GLint*":             {"int*", "*int32", "(*C.int)"},
+	"GLintptr":           {"long long", "int64", "C.longlong"},
+	"GLuint":             {"unsigned int", "uint32", "C.uint"},
+	"GLuint*":            {"unsigned int*", "*uint32", "(*C.uint)"},
+	"GLsizei":            {"int", "int32", "C.int"},
+	"GLsizeiptr":         {"long long", "int64", "C.longlong"},
+	"GLbitfield":         {"unsigned int", "uint32", "C.uint"},
+	"GLdouble":           {"double", "float64", "C.double"},
+	"GLvoid*":            {"void*", "Pointer", "unsafe.Pointer"},
+	"GLvoid**":           {"void**", "*Pointer", "(*unsafe.Pointer)"},
+	"GLdouble*":          {"double*", "*float64", "(*C.double)"},
+	"GLsizei*":           {"int*", "*int32", "(*C.int)"},
+	"GLenum*":            {"unsigned int*", "*uint32", "(*C.uint)"},
+	"GLshort":            {"short ", "int16", "C.short"},
+	"GLushort*":          {"unsigned short*", "*uint16", "(*C.ushort)"},
+	"GLsync":             {"GLsync", "Sync", "C.GLsync"},
+	"GLint64*":           {"long long*", "*int64", "(*C.longlong)"},
+	"GLuint64":           {"unsigned long long", "uint64", "C.ulonglong"},
+	"GLuint64*":          {"unsigned long long*", "*uint64", "(*C.ulonglong)"},
+	"constvoid*":         {"const void*", "Pointer", "unsafe.Pointer"},
+	"constGLfloat*":      {"const float*", "*float32", "(*C.float)"},
+	"constGLint*":        {"const int*", "*int32", "(*C.int)"},
+	"constGLsizei*":      {"const int*", "*int32", "(*C.int)"},
+	"constGLvoid*":       {"const void*", "Pointer", "unsafe.Pointer"},
+	"constGLuint*":       {"const unsigned int*", "*uint32", "(*C.uint)"},
+	"constGLvoid*const*": {"const void* const*", "*Pointer", "(*unsafe.Pointer)"},
+	"constGLenum*":       {"const unsigned int*", "*uint32", "(*C.uint)"},
+	"constGLchar*":       {"const char*", "string", "(*C.char)"},
+	"constGLubyte*":      {"const unsigned char*", "*uint8", "(*C.uchar)"},
+	"constGLdouble*":     {"const double*", "*float64", "(*C.double)"},
+	"constGLshort*":      {"const short *", "*int16", "(*C.short)"},
+	"constGLbyte*":       {"const signed char*", "*int8", "(*C.schar)"},
+	"constGLushort*":     {"const unsigned short*", "*uint16", "(*C.ushort)"},
+	"constGLint64":       {"long long", "int64", "C.longlong"},
 
 	// array of strings.
-	"constGLchar**":      []string{"const char**", "[]string", strArray},
-	"constGLchar*const*": []string{"const char* const*", "[]string", strArray},
+	"constGLchar**":      {"const char**", "[]string", strArray},
+	"constGLchar*const*": {"const char* const*", "[]string", strArray},
 
 	// The following may not be in every spec.
-	"struct_cl_context*": []string{"struct _cl_context*", "*clContext", "(*C.struct__cl_context)"},
-	"struct_cl_event*":   []string{"struct _cl_event*", "*clEvent", "(*C.struct__cl_event)"},
-	"GLDEBUGPROCARB":     []string{"GLDEBUGPROCARB", "DEBUGPROCARB", "C.GLDEBUGPROCARB"},
-	"GLDEBUGPROC":        []string{"GLDEBUGPROC", "DEBUGPROC", "C.GLDEBUGPROC"},
+	"struct_cl_context*": {"struct _cl_context*", "*clContext", "(*C.struct__cl_context)"},
+	"struct_cl_event*":   {"struct _cl_event*", "*clEvent", "(*C.struct__cl_event)"},
+	"GLDEBUGPROCARB":     {"GLDEBUGPROCARB", "DEBUGPROCARB", "C.GLDEBUGPROCARB"},
+	"GLDEBUGPROC":        {"GLDEBUGPROC", "DEBUGPROC", "C.GLDEBUGPROC"},
 }

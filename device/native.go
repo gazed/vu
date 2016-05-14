@@ -111,6 +111,13 @@ type native interface {
 	// toggleFullscreen flips between application windowed and full screen mode.
 	// Must be called after starting processing with readDispatch().
 	toggleFullscreen(r *nrefs)
+
+	// copyClip puts the given string on the system clipboard.
+	copyClip(r *nrefs) string
+
+	// pasteClip gets a string from the system clipboard and returns nil
+	// if there was no string on the system clipboard.
+	pasteClip(r *nrefs, s string)
 }
 
 // native
@@ -215,3 +222,10 @@ func (os *nativeOs) swapBuffers() { os.nl.swapBuffers(os.nr) }
 func (os *nativeOs) readDispatch(in *userInput) *userInput {
 	return os.nl.readDispatch(os.nr, in)
 }
+
+// copyClip puts the given string on the system clipboard.
+func (os *nativeOs) copyClip() string { return os.nl.copyClip(os.nr) }
+
+// pasteClip gets a string from the system clipboard and returns nil
+// if there was no string on the system clipboard.
+func (os *nativeOs) pasteClip(s string) { os.nl.pasteClip(os.nr, s) }

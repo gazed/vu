@@ -72,7 +72,7 @@ func collideSphereSphere(a, b Body, c []*pointOfContact) (i, j Body, k []*pointO
 	c0 := c[0]
 	c0.depth = separation - (sa.R + sb.R) // how much overlap
 	c0.normal.SetS(1, 0, 0)               // sphere's have same center
-	if separation > lin.EPSILON {         // sphere's have different center
+	if separation > lin.Epsilon {         // sphere's have different center
 		c0.normal.SetS(dx/separation, dy/separation, dz/separation) // normalize
 	}
 	c0.point.Scale(c0.normal, sa.R)      // scale unit normal by radius to ...
@@ -124,7 +124,7 @@ func collideSphereBox(a, b Body, c []*pointOfContact) (i, j Body, k []*pointOfCo
 
 	// Collision occured, figure out the collision details.
 	var distance float64
-	if dsqrd <= lin.EPSILON {
+	if dsqrd <= lin.Epsilon {
 		// Handle the sphere center being inside the box. The contact normal is
 		// updated to be the normal for the closest box face.
 		px, py, pz, nx, ny, nz, distance = sphereBoxPenetration(box, sx, sy, sz)

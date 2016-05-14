@@ -46,7 +46,7 @@ func (a *openal) Init() (err error) {
 			return // success
 		}
 	}
-	return fmt.Errorf("openal audio init failed.")
+	return fmt.Errorf("openal audio init failed")
 }
 
 // validate that OpenAL is available. OSX has OpenAL.
@@ -54,11 +54,11 @@ func (a *openal) validate() error {
 	if report := al.BindingReport(); len(report) > 0 {
 		for _, line := range report {
 			if strings.Contains(line, "[-]") {
-				return fmt.Errorf("OpenAL uninitialized.")
+				return fmt.Errorf("OpenAL uninitialized")
 			}
 		}
 	} else {
-		return fmt.Errorf("OpenAL unavailable.")
+		return fmt.Errorf("OpenAL unavailable")
 	}
 	return nil
 }

@@ -102,23 +102,23 @@ func (tm *tmtag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 	}
 
 	// process user presses.
-	for press, _ := range in.Down {
+	for press := range in.Down {
 		switch press {
 
 		// Change the water level.
-		case vu.K_LBkt:
+		case vu.KLBkt:
 			dir := tm.cam.Lookat()
 			tm.ocean.Move(0, 0, 1*in.Dt, dir)
 			tm.coast.Move(0, 0, 1*in.Dt, dir)
-		case vu.K_RBkt:
+		case vu.KRBkt:
 			dir := tm.cam.Lookat()
 			tm.ocean.Move(0, 0, -1*in.Dt, dir)
 			tm.coast.Move(0, 0, -1*in.Dt, dir)
 
 		// Demonstrate texture evolution using a texture atlas.
-		case vu.K_Equal:
+		case vu.KEqual:
 			tm.evolve(0.01)
-		case vu.K_Minus:
+		case vu.KMinus:
 			tm.evolve(-0.01)
 		}
 	}

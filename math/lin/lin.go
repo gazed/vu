@@ -1,7 +1,6 @@
 // Copyright © 2013-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
-
 // Package lin provides a linear math library that includes vectors,
 // matrices, quaternions, transforms and some utility functions.
 // Linear math operations are useful in 3D applications for describing
@@ -32,35 +31,35 @@ import "math"
 const (
 
 	// PI and its commonly needed varients.
-	PI      float64 = math.Pi
-	PIx2    float64 = PI * 2
-	HALF_PI float64 = PIx2 * 0.25
-	DEG_RAD float64 = PIx2 / 360.0 // X degrees * DEG_RAD = Y radians
-	RAD_DEG float64 = 360.0 / PIx2 // Y radians * RAD_DEG = X degrees
+	PI     float64 = math.Pi
+	PIx2   float64 = PI * 2
+	HalfPi float64 = PIx2 * 0.25
+	DegRad float64 = PIx2 / 360.0 // X degrees * DEG_RAD = Y radians
+	RadDeg float64 = 360.0 / PIx2 // Y radians * RAD_DEG = X degrees
 
 	// Convenience numbers.
-	LARGE float64 = math.MaxFloat32
-	SQRT2 float64 = math.Sqrt2
-	SQRT3 float64 = 1.73205
+	Large float64 = math.MaxFloat32
+	Sqrt2 float64 = math.Sqrt2
+	Sqrt3 float64 = 1.73205
 
-	// EPSILON is used to distinguish when a float is close enough to a number.
+	// Epsilon is used to distinguish when a float is close enough to a number.
 	// Wikipedia: "In set theory epsilon is the limit ordinal of the sequence..."
-	EPSILON float64 = 0.000001
+	Epsilon float64 = 0.000001
 )
 
 // Rad converts degrees to radians.
-func Rad(deg float64) float64 { return deg * DEG_RAD }
+func Rad(deg float64) float64 { return deg * DegRad }
 
 // Deg converts radians to degrees.
-func Deg(rad float64) float64 { return rad * RAD_DEG }
+func Deg(rad float64) float64 { return rad * RadDeg }
 
 // AeqZ (~=) almost-equals returns true if the difference between x and zero
 // is so small that it doesn't matter.
-func AeqZ(x float64) bool { return math.Abs(x) < EPSILON }
+func AeqZ(x float64) bool { return math.Abs(x) < Epsilon }
 
 // Aeq (~=) almost-equals returns true if the difference between a and b is
 // so small that it doesn't matter.
-func Aeq(a, b float64) bool { return math.Abs(a-b) < EPSILON }
+func Aeq(a, b float64) bool { return math.Abs(a-b) < Epsilon }
 
 // Lerp returns the linear interpolation of a to b by the given ratio.
 func Lerp(a, b, ratio float64) float64 { return (b-a)*ratio + a }
@@ -74,16 +73,16 @@ func Min3(a, b, c float64) float64 { return math.Min(a, math.Min(b, c)) }
 // Atan2F is a fast approximation of Atan2. Source was posted at:
 //    http://www.gamedev.net/topic/441464-manually-implementing-atan2-or-atan/
 func Atan2F(y, x float64) float64 {
-	coeff_1 := PI / 4
-	coeff_2 := 3 * coeff_1
-	abs_y := math.Abs(y)
+	coeff1 := PI / 4
+	coeff2 := 3 * coeff1
+	absy := math.Abs(y)
 	var angle float64
 	if x >= 0 {
-		r := (x - abs_y) / (x + abs_y)
-		angle = coeff_1 - coeff_1*r
+		r := (x - absy) / (x + absy)
+		angle = coeff1 - coeff1*r
 	} else {
-		r := (x + abs_y) / (abs_y - x)
-		angle = coeff_2 - coeff_1*r
+		r := (x + absy) / (absy - x)
+		angle = coeff2 - coeff1*r
 	}
 	if y < 0 {
 		return -angle
@@ -138,7 +137,7 @@ func Round(val float64, prec int) float64 {
 // The returned index is always from 0-3.
 func AbsMax(a0, a1, a2, a3 float64) int {
 	maxIndex := -1
-	maxVal := -LARGE
+	maxVal := -Large
 	if math.Abs(a0) > maxVal {
 		maxIndex = 0
 		maxVal = math.Abs(a0)

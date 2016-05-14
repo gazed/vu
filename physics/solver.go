@@ -142,7 +142,7 @@ func (sol *solver) convertContacts(pair *contactPair, info *solverInfo) {
 				poc.sp.lateralFrictionDir.Sub(poc.sp.vel, sol.v0.Scale(poc.sp.normalWorldB, rvel))
 			} // scratch v0 free
 			lateralRelativeVelocity := poc.sp.lateralFrictionDir.LenSqr()
-			if lateralRelativeVelocity > lin.EPSILON {
+			if lateralRelativeVelocity > lin.Epsilon {
 				poc.sp.lateralFrictionDir.Scale(poc.sp.lateralFrictionDir, 1.0/math.Sqrt(lateralRelativeVelocity))
 			} else {
 				{ // scratch v0

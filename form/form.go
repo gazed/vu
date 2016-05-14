@@ -1,7 +1,6 @@
 // Copyright © 2014-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
-
 // Package form is used to divide a 2D area into sections using plans.
 // This reduces some of the code complexity involved in creating form based
 // 2D UIs. Forms are split into sections using arrays of strings where each
@@ -142,10 +141,10 @@ func New(plan []string, w, h int, constraints ...string) Form {
 
 				// check for increase of section spanx or spany.
 				if col > c.col+c.spanx {
-					c.spanx += 1
+					c.spanx++
 				}
 				if row > c.row+c.spany {
-					c.spany += 1
+					c.spany++
 				}
 			}
 		}

@@ -234,14 +234,14 @@ func (l *loader) importMesh(m *mesh) error {
 		if len(data[0].V) <= 0 || len(data[0].F) <= 0 {
 			return fmt.Errorf("Minimally need vertex and face data for %s", m.name)
 		}
-		m.initData(0, 3, render.STATIC, false).setData(0, data[0].V)
+		m.initData(0, 3, render.StaticDraw, false).setData(0, data[0].V)
 		if len(data[0].N) > 0 {
-			m.initData(1, 3, render.STATIC, false).setData(1, data[0].N)
+			m.initData(1, 3, render.StaticDraw, false).setData(1, data[0].N)
 		}
 		if len(data[0].T) > 0 {
-			m.initData(2, 2, render.STATIC, false).setData(2, data[0].T)
+			m.initData(2, 2, render.StaticDraw, false).setData(2, data[0].T)
 		}
-		m.initFaces(render.STATIC).setFaces(data[0].F)
+		m.initFaces(render.StaticDraw).setFaces(data[0].F)
 	} else {
 		return fmt.Errorf("loader.loadMesh: could not load %s %s", m.name, err)
 	}
@@ -272,12 +272,12 @@ func (l *loader) loadTexture(t *texture) (*texture, error) {
 
 // importTexture transfers data loaded from disk to the render object.
 func (l *loader) importTexture(t *texture) error {
-	if img, err := l.ld.Png(t.name); err == nil {
-		t.set(img)
-		return nil
-	} else {
+	img, err := l.ld.Png(t.name)
+	if err != nil {
 		return fmt.Errorf("loader.loadTexture: could not load %s %s", t.name, err)
 	}
+	t.set(img)
+	return nil
 }
 
 // loadMaterial returns a loaded material immediately if it is cached.
@@ -393,19 +393,19 @@ func (l *loader) importAnim(a *animation, m *mesh) (texs []*texture, err error) 
 	// Use the loaded data to initialize a render.Model
 	// Vertex position data and face data must be present.
 	// All other buffers are optional, but need T, B, W for animation.
-	m.initData(0, 3, render.STATIC, false).setData(0, iqd.V)
-	m.initFaces(render.STATIC).setFaces(iqd.F)
+	m.initData(0, 3, render.StaticDraw, false).setData(0, iqd.V)
+	m.initFaces(render.StaticDraw).setFaces(iqd.F)
 	if len(iqd.N) > 0 {
-		m.initData(1, 3, render.STATIC, false).setData(1, iqd.N)
+		m.initData(1, 3, render.StaticDraw, false).setData(1, iqd.N)
 	}
 	if len(iqd.T) > 0 {
-		m.initData(2, 2, render.STATIC, false).setData(2, iqd.T)
+		m.initData(2, 2, render.StaticDraw, false).setData(2, iqd.T)
 	}
 	if len(iqd.B) > 0 {
-		m.initData(4, 4, render.STATIC, false).setData(4, iqd.B)
+		m.initData(4, 4, render.StaticDraw, false).setData(4, iqd.B)
 	}
 	if len(iqd.W) > 0 {
-		m.initData(5, 4, render.STATIC, true).setData(5, iqd.W)
+		m.initData(5, 4, render.StaticDraw, true).setData(5, iqd.W)
 	}
 
 	// Store the animation data.
@@ -512,7 +512,7 @@ func (c cache) fetch(data *asset) (err error) {
 		*data, _ = stored.(asset)
 		return nil
 	}
-	return fmt.Errorf("cache.fetch: could not fetch asset.")
+	return fmt.Errorf("cache.fetch: could not fetch asset")
 }
 
 // store an asset based on its type and name. Subsequent calls to cache the

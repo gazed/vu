@@ -73,7 +73,7 @@ func newFlow(p Plan) *flow {
 	f.costmap = p
 	f.flowmap = make([][]int, f.ysz)
 	f.goalmap = make([][]int, f.ysz)
-	for y, _ := range f.flowmap {
+	for y := range f.flowmap {
 		f.flowmap[y] = make([]int, f.xsz)
 		f.goalmap[y] = make([]int, f.xsz)
 	}
@@ -119,7 +119,7 @@ func (f *flow) createGoalmap(goalx, goaly int) {
 
 	// reset all node costs to a large values.
 	for y, row := range f.goalmap {
-		for x, _ := range row {
+		for x := range row {
 			f.goalmap[x][y] = f.max
 			f.flowmap[x][y] = f.max
 		}
@@ -156,12 +156,12 @@ func (f *flow) createGoalmap(goalx, goaly int) {
 			// check and update the cost for each neighbour.
 			endNodeCost += f.cost(nx, ny)
 			if endNodeCost < f.goalmap[nx][ny] {
-				neighbourId := f.id(nx, ny)
+				neighbourID := f.id(nx, ny)
 
 				// Set neighbour node cost and add it as a candidate.
 				f.goalmap[nx][ny] = endNodeCost
-				if !f.alreadyCandidate(neighbourId) {
-					f.candidates = append(f.candidates, neighbourId)
+				if !f.alreadyCandidate(neighbourID) {
+					f.candidates = append(f.candidates, neighbourID)
 				}
 			}
 		}
@@ -171,7 +171,7 @@ func (f *flow) createGoalmap(goalx, goaly int) {
 // createFlowmap creates the flow map from the goal map.
 func (f *flow) createFlowmap(goalx, goaly int) {
 	for y, row := range f.goalmap {
-		for x, _ := range row {
+		for x := range row {
 			costToGoal := f.max
 			leastCost := f.max
 
@@ -264,8 +264,8 @@ func (f *flow) directNeighbours(x, y int) []int {
 
 // scan the list of candidates for the given identifier.
 func (f *flow) alreadyCandidate(id int) bool {
-	for _, candidateId := range f.candidates {
-		if id == candidateId {
+	for _, candidateID := range f.candidates {
+		if id == candidateID {
 			return true
 		}
 	}

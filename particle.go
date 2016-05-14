@@ -66,8 +66,8 @@ func newParticleEffect(m *model, pe ParticleEffect, maxParticles int) *particleE
 		m.msh.loaded = true // mesh data will be set on update.
 	}
 	floatsPerVertex, floatsPerData := 3, 2
-	m.InitMesh(0, uint32(floatsPerVertex), render.DYNAMIC, false)
-	m.InitMesh(1, uint32(floatsPerData), render.DYNAMIC, false)
+	m.InitMesh(0, uint32(floatsPerVertex), render.DynamicDraw, false)
+	m.InitMesh(1, uint32(floatsPerData), render.DynamicDraw, false)
 
 	// Allocate the maximum number of particles.
 	particles := []*Particle{}

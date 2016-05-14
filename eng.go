@@ -155,7 +155,7 @@ func runEngine(app App, wx, wy, ww, wh int,
 	eng.update(app, dt, ut) // queue the initial load asset requests.
 
 	// Initialize timers and kick off the main control timing loop.
-	var loopStart time.Time = time.Now()
+	loopStart := time.Now()
 	var updateStart time.Time
 	var timeUsed time.Duration
 	var updateTimer time.Duration // Track when to trigger an update.
@@ -173,7 +173,7 @@ func runEngine(app App, wx, wy, ww, wh int,
 		updateTimer += timeUsed
 		for updateTimer >= dt {
 			updateStart = time.Now() // Time the update.
-			ut += 1                  // Track the total update ticks.
+			ut++                     // Track the total update ticks.
 			updateTimer -= dt        // Remove delta time used.
 
 			// Perform the update, preparing the next render frame.
@@ -191,7 +191,7 @@ func runEngine(app App, wx, wy, ww, wh int,
 		// interpolation when there is no new frame. Ignore excess render time.
 		renderTimer += timeUsed
 		if renderTimer >= rt {
-			eng.times.Renders += 1
+			eng.times.Renders++
 
 			// Interpolation is the fraction of unused delta time between 0 and 1.
 			// ie: State state = currentState*interpolation + previousState * (1.0 - interpolation);
@@ -411,7 +411,7 @@ func (eng *engine) rebind(data interface{}) {
 // Expected to be called once on Application exit.
 func (eng *engine) Shutdown() {
 	eng.alive = false
-	eng.dispose(eng.root(), POV)
+	eng.dispose(eng.root(), PovNode)
 	if eng.machine != nil {
 		eng.loader.shutdown()
 		eng.machine <- &shutdown{}
@@ -422,7 +422,7 @@ func (eng *engine) Shutdown() {
 // its initial state. This allows the application to put the
 // engine back in a clean state without restarting.
 func (eng *engine) Reset() {
-	eng.dispose(eng.root(), POV)
+	eng.dispose(eng.root(), PovNode)
 	eng.povs = map[uint64]*pov{}
 	eng.cams = map[uint64]*camera{}
 	eng.models = map[uint64]*model{}
@@ -445,7 +445,7 @@ func (eng *engine) genid() uint64 {
 	if eng.eid == math.MaxUint64 {
 		return 0
 	}
-	eng.eid += 1 // first valid id is 1.
+	eng.eid++ // first valid id is 1.
 	return eng.eid
 }
 
@@ -622,29 +622,29 @@ func (eng *engine) setListener(p Pov) {
 func (eng *engine) dispose(p Pov, component int) {
 	if pv, ok := p.(*pov); ok && pv != nil {
 		switch component {
-		case BODY:
+		case PovBody:
 			delete(eng.bodies, pv.eid)
 			delete(eng.solids, pv.eid)
-		case CAMERA:
+		case PovCam:
 			delete(eng.cams, pv.eid)
-		case MODEL:
+		case PovModel:
 			if m, ok := eng.models[pv.eid]; ok {
 				eng.disposeModel(m)
 				delete(eng.models, pv.eid)
 			}
-		case NOISE:
+		case PovNoise:
 			if n, ok := eng.noises[pv.eid]; ok {
 				eng.disposeNoise(n)
 				delete(eng.noises, pv.eid)
 			}
-		case LIGHT:
+		case PovLight:
 			delete(eng.lights, pv.eid)
-		case LAYER:
+		case PovLayer:
 			if l, ok := eng.layers[pv.eid]; ok {
 				eng.disposeLayer(l)
 				delete(eng.layers, pv.eid)
 			}
-		case POV:
+		case PovNode:
 			eng.disposePov(pv)
 		}
 	}
@@ -654,10 +654,10 @@ func (eng *engine) dispose(p Pov, component int) {
 // of the transform hierarchy. All associated objects are disposed.
 func (eng *engine) disposePov(pv *pov) {
 	delete(eng.povs, pv.eid)
-	eng.dispose(pv, CAMERA)
-	eng.dispose(pv, BODY)
-	eng.dispose(pv, MODEL)
-	eng.dispose(pv, NOISE)
+	eng.dispose(pv, PovCam)
+	eng.dispose(pv, PovBody)
+	eng.dispose(pv, PovModel)
+	eng.dispose(pv, PovNoise)
 	if pv.parent != nil {
 		pv.parent.remChild(pv) // remove the one back reference that matters.
 	}

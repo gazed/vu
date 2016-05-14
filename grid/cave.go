@@ -1,7 +1,6 @@
 // Copyright © 2014-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
-
 package grid
 
 import (
@@ -23,16 +22,16 @@ type cave struct {
 func (c *cave) Generate(width, depth int) Grid {
 	c.create(width, depth, allFloors)
 	scratch := make([][]*cell, len(c.cells))
-	for x, _ := range scratch {
+	for x := range scratch {
 		scratch[x] = make([]*cell, len(c.cells[0]))
-		for y, _ := range c.cells[x] {
+		for y := range c.cells[x] {
 			scratch[x][y] = &cell{x, y, allFloors}
 		}
 	}
 
 	// randomly fill the map with walls.
-	for x, _ := range c.cells {
-		for y, _ := range c.cells[x] {
+	for x := range c.cells {
+		for y := range c.cells[x] {
 			c.cells[x][y].isWall = rand.Intn(100) < 40 // 40% chance of wall.
 		}
 	}
@@ -58,7 +57,7 @@ func (c *cave) Generate(width, depth int) Grid {
 // Results are stored in a temporary grid and then copied back once the
 // generation has finished.
 func (c *cave) runGeneration(scratch [][]*cell, makeWall func(w3x3, w5x5 int) bool) {
-	for x, _ := range c.cells {
+	for x := range c.cells {
 		for y, cell := range c.cells[x] {
 
 			// A tile is a wall if the 3x3 region around it has at least 5 walls.
@@ -69,8 +68,8 @@ func (c *cave) runGeneration(scratch [][]*cell, makeWall func(w3x3, w5x5 int) bo
 	}
 
 	// copy the generation back into main grid.
-	for x, _ := range c.cells {
-		for y, _ := range c.cells[x] {
+	for x := range c.cells {
+		for y := range c.cells[x] {
 			c.cells[x][y].isWall = scratch[x][y].isWall
 		}
 	}

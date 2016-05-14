@@ -57,17 +57,17 @@ func New() Renderer { return newRenderer() }
 // Renderer implementation independent constants.
 const (
 	// Draw modes for vertex data rendering. Used in Draw.SetRefs.
-	TRIANGLES = iota // Triangles are the default for 3D models.
-	POINTS           // Points are used for particle effects.
-	LINES            // Lines are used for drawing wireframe shapes.
+	Triangles = iota // Triangles are the default for 3D models.
+	Points           // Points are used for particle effects.
+	Lines            // Lines are used for drawing wireframe shapes.
 
 	// Render buckets. Lower values drawn first. Used in Draw.SetHints.
-	DEPTH_PASS  // draw first
-	OPAQUE      // draw after shadow
-	TRANSPARENT // draw after opaque
-	OVERLAY     // draw last.
+	DepthPass   // draw first
+	Opaque      // draw after shadow
+	Transparent // draw after opaque
+	Overlay     // draw last.
 
 	// BindFrame buffer types.
-	DEPTH_BUFF // For depth only.
-	IMAGE_BUFF // For color and depth.
+	DepthBuffer // For depth only.
+	ImageBuffer // For color and depth.
 )

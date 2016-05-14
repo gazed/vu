@@ -449,3 +449,87 @@ void gs_set_attr_s(long attr, char * value)
        break;
    }
 }
+
+// Private methods needed by copy/paste to handle UTF8 strings.
+WCHAR* utf8_wchar(const char* utf8);
+char* wchar_utf8(const WCHAR* wide);
+
+// Paste the given string into the general clipboard.
+void gs_clip_paste(long display, const char* string) {
+     WCHAR* widestr = utf8_wchar(string);
+     if (!widestr) {
+         return;
+     }
+     size_t wstrlen = (wcslen(widestr) + 1) * sizeof(WCHAR);
+     HANDLE stringHandle = GlobalAlloc(GMEM_MOVEABLE, wstrlen);
+     if (!stringHandle) {
+         free(widestr);
+         return;
+     }
+     memcpy(GlobalLock(stringHandle), widestr, wstrlen);
+     GlobalUnlock(stringHandle);
+     HWND hwnd = LongToHandle(display);
+     if (!OpenClipboard(hwnd)) {
+         GlobalFree(stringHandle);
+         free(widestr);
+         return;
+     }
+     EmptyClipboard();
+     SetClipboardData(CF_UNICODETEXT, stringHandle);
+     CloseClipboard();
+     free(widestr);
+}
+
+// Return the current clipboard contents if the clipboard contains text.
+// Otherwise return nil. Any returned strings must be freed by the caller.
+char* gs_clip_copy(long display) {
+    if (!IsClipboardFormatAvailable(CF_UNICODETEXT)) {
+        return NULL;
+    }
+    HWND hwnd = LongToHandle(display);
+    if (!OpenClipboard(hwnd)) {
+        return NULL;
+    }
+    HANDLE stringHandle = GetClipboardData(CF_UNICODETEXT);
+    if (!stringHandle) {
+        CloseClipboard();
+        return NULL;
+    }
+    char* clipboardString = wchar_utf8(GlobalLock(stringHandle));
+    GlobalUnlock(stringHandle);
+    CloseClipboard();
+    if (!clipboardString) {
+        return NULL;
+    }
+    return clipboardString;
+}
+
+// Returns a WCHAR string of the specified UTF-8 string
+// The returned string must be freed by the caller.
+WCHAR* utf8_wchar(const char* utf8) {
+    int length = MultiByteToWideChar(CP_UTF8, 0, utf8, -1, NULL, 0);
+    if (!length) {
+        return NULL;
+    }
+    WCHAR* wide = calloc(length, sizeof(WCHAR));
+    if (!MultiByteToWideChar(CP_UTF8, 0, utf8, -1, wide, length)) {
+        free(wide);
+        return NULL;
+    }
+    return wide; // needs to be freed by the caller.
+}
+
+// Returns a UTF-8 string version of the specified wide string
+// The returned string must be freed by the caller.
+char* wchar_utf8(const WCHAR* wide) {
+    int length = WideCharToMultiByte(CP_UTF8, 0, wide, -1, NULL, 0, NULL, NULL);
+    if (!length) {
+        return NULL;
+    }
+    char* utf8 = calloc(length, sizeof(char));
+    if (!WideCharToMultiByte(CP_UTF8, 0, wide, -1, utf8, length, NULL, NULL)) {
+        free(utf8);
+        return NULL;
+    }
+    return utf8; // needs to be freed by the caller.
+}

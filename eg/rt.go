@@ -53,12 +53,12 @@ func rt() {
 type rtrace struct {
 	vao     uint32     // vertex array object reference.
 	mvp     render.Mvp // transform matrix for rendering.
-	mvpId   int32      // mvp uniform id
+	mvpID   int32      // mvp uniform id
 	shaders uint32     // shader program reference.
 
 	// texture information.
 	img   *image.NRGBA // Texture data.
-	texId uint32       // Graphics card texture identifier.
+	texID uint32       // Graphics card texture identifier.
 	tex2D int32        // texture sampler uniform id
 
 	// quad mesh information
@@ -128,8 +128,8 @@ func (rt *rtrace) initRender() {
 	bounds := rt.img.Bounds()
 	width, height := int32(bounds.Dx()), int32(bounds.Dy())
 	ptr := gl.Pointer(&(rt.img.Pix[0]))
-	gl.GenTextures(1, &rt.texId)
-	gl.BindTexture(gl.TEXTURE_2D, rt.texId)
+	gl.GenTextures(1, &rt.texID)
+	gl.BindTexture(gl.TEXTURE_2D, rt.texID)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
 	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, ptr)
@@ -146,7 +146,7 @@ func (rt *rtrace) initRender() {
 	if err := gl.BindProgram(rt.shaders, vsrc, fsrc); err != nil {
 		log.Fatalf("Failed to create program: %s\n", err)
 	}
-	rt.mvpId = gl.GetUniformLocation(rt.shaders, "mvpm")
+	rt.mvpID = gl.GetUniformLocation(rt.shaders, "mvpm")
 	rt.tex2D = gl.GetUniformLocation(rt.shaders, "sampler2D")
 	rt.mvp = render.NewMvp().Set(lin.NewM4().Ortho(0, 4, 0, 4, 0, 10))
 
@@ -170,7 +170,7 @@ func (rt *rtrace) drawScene() {
 	gl.Uniform1i(rt.tex2D, 0)
 	gl.ActiveTexture(gl.TEXTURE0 + 0)
 	gl.BindVertexArray(rt.vao)
-	gl.UniformMatrix4fv(rt.mvpId, 1, false, rt.mvp.Pointer())
+	gl.UniformMatrix4fv(rt.mvpID, 1, false, rt.mvp.Pointer())
 	gl.DrawElements(gl.TRIANGLES, int32(len(rt.faces)), gl.UNSIGNED_BYTE, 0)
 
 	// cleanup
@@ -342,7 +342,7 @@ func (r row) render(rt *rtrace, a, b, c lin.V3, img *image.NRGBA, seed *uint32) 
 // by calculating color based on light and normals wherever rays hit scene
 // objects.
 func (rt *rtrace) sample(orig, dir lin.V3, seed *uint32) (color lin.V3) {
-	rt.sampleCalls += 1                     // track number of times called
+	rt.sampleCalls++                        // track number of times called
 	st, dist, bounce := rt.trace(orig, dir) // check ray scene collision.
 	obounce := bounce
 
@@ -406,7 +406,7 @@ func (rt *rtrace) sample(orig, dir lin.V3, seed *uint32) (color lin.V3) {
 //   missLow  : no hit and ray goes down.
 //   hit      : hit so return distance and reflection ray.
 func (rt *rtrace) trace(orig, dir lin.V3) (hitStatus int, minHitDistance float64, bounce lin.V3) {
-	rt.traceCalls += 1 // track number of times called.
+	rt.traceCalls++ // track number of times called.
 	minHitDistance = 1e9
 	hitStatus = missHigh
 	s := -orig.Z / dir.Z
@@ -420,7 +420,7 @@ func (rt *rtrace) trace(orig, dir lin.V3) (hitStatus int, minHitDistance float64
 	// http://www.lighthouse3d.com/tutorials/maths/ray-sphere-intersection/
 	// http://kylehalladay.com/blog/tutorial/math/2013/12/24/Ray-Sphere-Intersection.html
 	tempv := lin.NewV3()
-	for i, _ := range rt.scene {
+	for i := range rt.scene {
 		tempv.Add(&orig, &(rt.scene[i])) // ray origin + sphere center.
 		b := tempv.Dot(&dir)             // represent the intersection ray...
 		c := tempv.Dot(tempv) - 1        // ... and the sphere radius

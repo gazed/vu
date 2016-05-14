@@ -67,15 +67,15 @@ func (sm *smtag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 	}
 	dt := in.Dt
 	rate := 10.0
-	for press, _ := range in.Down {
+	for press := range in.Down {
 		switch press {
-		case vu.K_A:
+		case vu.KA:
 			sm.sun.Move(dt*rate, 0, 0, lin.QI) // left
-		case vu.K_D:
+		case vu.KD:
 			sm.sun.Move(-dt*rate, 0, 0, lin.QI) // right
-		case vu.K_W:
+		case vu.KW:
 			sm.sun.Move(0, -dt*rate, 0, lin.QI) // shadow up
-		case vu.K_S:
+		case vu.KS:
 			sm.sun.Move(0, dt*rate, 0, lin.QI) // shadow down
 		}
 	}

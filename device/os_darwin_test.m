@@ -50,6 +50,15 @@ int main(int argc, char *argv[]) {
                 printf("key up   0x%.2lX - ", gsu.key);
             } else if (gsu.event == GS_KeyDown) {
                 printf("key down 0x%.2lX - ", gsu.key);
+
+                // test copy and paste.
+                if (gsu.key == 0x08) { // c key
+                    char *s = gs_clip_copy();
+                    printf(" \"%s\"", s);
+                    free(s);
+                } else if (gsu.key == 0x23) { // p key
+                    gs_clip_paste("test paste string");
+                }
             } else if (gsu.event == GS_ScrollWheel) {
                 printf("wheel %ld - ", gsu.scroll);
             }  else {

@@ -88,15 +88,15 @@ func (ma *matag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 	dt := in.Dt
 	for press, down := range in.Down {
 		switch press {
-		case vu.K_W:
+		case vu.KW:
 			ma.cam.Move(0, 0, dt*run, ma.cam.Lookxz())
-		case vu.K_S:
+		case vu.KS:
 			ma.cam.Move(0, 0, dt*-run, ma.cam.Lookxz())
-		case vu.K_A:
+		case vu.KA:
 			ma.model.Spin(0, 0, 5)
-		case vu.K_D:
+		case vu.KD:
 			ma.model.Spin(0, 0, -5)
-		case vu.K_Tab:
+		case vu.KTab:
 			if down == 1 {
 
 				// switch to the next loaded model.
@@ -108,7 +108,7 @@ func (ma *matag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 				ma.model = ma.models[ma.index]
 				ma.model.SetVisible(true)
 			}
-		case vu.K_0, vu.K_1, vu.K_2, vu.K_3, vu.K_4, vu.K_5, vu.K_6, vu.K_7, vu.K_8, vu.K_9:
+		case vu.K0, vu.K1, vu.K2, vu.K3, vu.K4, vu.K5, vu.K6, vu.K7, vu.K8, vu.K9:
 			if down == 1 {
 				ma.playAnimation(press)
 			}
@@ -121,16 +121,16 @@ func (ma *matag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 // Animations that are not available are ignored.
 func (ma *matag) playAnimation(keyCode int) {
 	var actions = map[int]int{
-		vu.K_0: 0,
-		vu.K_1: 1,
-		vu.K_2: 2,
-		vu.K_3: 3,
-		vu.K_4: 4,
-		vu.K_5: 5,
-		vu.K_6: 6,
-		vu.K_7: 7,
-		vu.K_8: 8,
-		vu.K_9: 9,
+		vu.K0: 0,
+		vu.K1: 1,
+		vu.K2: 2,
+		vu.K3: 3,
+		vu.K4: 4,
+		vu.K5: 5,
+		vu.K6: 6,
+		vu.K7: 7,
+		vu.K8: 8,
+		vu.K9: 9,
 	}
 	if action, ok := actions[keyCode]; ok {
 		ma.model.Model().Animate(action, 0)

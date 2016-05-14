@@ -11,11 +11,11 @@ import (
 )
 
 // Check unique pair unique ids. Assign fixed body ids for an easy visual check.
-func TestPairId(t *testing.T) {
+func TestPairID(t *testing.T) {
 	b0, b1 := newBody(NewSphere(1)), newBody(NewSphere(1))
 	b0.bid, b1.bid = 1, 2
 	con := newContactPair(b0, b1)
-	pid0, pid1 := b0.pairId(b1), b1.pairId(b0)
+	pid0, pid1 := b0.pairID(b1), b1.pairID(b0)
 	if pid0 != 0x100000002 || pid1 != 0x100000002 || con.pid != 0x100000002 {
 		t.Error("Pair id's should be the same regardless of body order")
 	}

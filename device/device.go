@@ -51,6 +51,10 @@ type Device interface {
 	// called after a render. All rendering contexts are double buffered.
 	SwapBuffers()
 
+	// Copy/Paste interacts with the system clipboard using strings.
+	Copy() string   // Returns nil if no string on clipboard.
+	Paste(s string) // Paste the given string onto the clipboard.
+
 	// Update returns the current (key/mouse) pressed state.
 	// The calling application is expected to:
 	//   1. Treat the pressed information as read only.
@@ -74,12 +78,12 @@ type Pressed struct {
 	Resized bool        // True if window was resized or moved.
 }
 
-// KEY_RELEASED is used to indicate a key up event has occurred.
+// KeyReleased is used to indicate a key up event has occurred.
 // The total duration of a key press can be calculated by the difference
 // of Pressed.Down duration with KEY_RELEASED. A user would have to hold
 // a key down for 24 hours before the released duration became positive
 // (assuming a reasonable update time of 0.02 seconds).
-const KEY_RELEASED = -1000000000
+const KeyReleased = -1000000000
 
 // New provides a newly initialized Device with an underlying window and
 // graphics context created, but not yet displayed. The only thing left to
@@ -135,6 +139,6 @@ func (d *device) SwapBuffers()                    { d.os.swapBuffers() }
 func (d *device) IsFullScreen() bool              { return d.os.isFullscreen() }
 func (d *device) ToggleFullScreen()               { d.os.toggleFullscreen() }
 func (d *device) SetCursorAt(x, y int)            { d.os.setCursorAt(x, y) }
-func (d *device) Update() *Pressed {
-	return d.input.pollEvents(d.os)
-}
+func (d *device) Copy() string                    { return d.os.copyClip() }
+func (d *device) Paste(s string)                  { d.os.pasteClip(s) }
+func (d *device) Update() *Pressed                { return d.input.pollEvents(d.os) }

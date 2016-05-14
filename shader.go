@@ -51,9 +51,9 @@ func (s *shader) setSource(vsh, fsh []string) {
 	s.loaded = len(s.vsh) > 0 && len(s.fsh) > 0
 }
 
-// stripId is a helper method used by SetSource to parse GLSL
+// stripID is a helper method used by SetSource to parse GLSL
 // shader code.
-func (s *shader) stripId(id string) string {
+func (s *shader) stripID(id string) string {
 	id = strings.Replace(id, ";", "", -1)
 	if strings.Contains(id, "[") {
 		strs := strings.Split(id, "[")

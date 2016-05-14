@@ -5,6 +5,7 @@ package vu
 
 import (
 	"testing"
+
 	"github.com/gazed/vu/math/lin"
 )
 

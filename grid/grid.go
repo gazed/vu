@@ -59,30 +59,30 @@ type Grid interface {
 
 // Currently supported grid types that are used as the input to grid.New().
 const (
-	// PRIM_MAZE is a Randomized Prim's Algorithm (see wikipedia).
-	PRIM_MAZE = iota
+	// PrimMaze is a Randomized Prim's Algorithm (see wikipedia).
+	PrimMaze = iota
 
-	// SPARSE_SKIRMISH creates a skirmish grid by randomly traversing all the
+	// SparseSkirmish creates a skirmish grid by randomly traversing all the
 	// grid locations and adding random walls as long as there are more than
 	// two ways out of the grid location.
-	SPARSE_SKIRMISH
+	SparseSkirmish
 
-	// ROOMS_SKIRMISH is a skirmish grid created by subdividing the area
+	// RoomSkirmish is a skirmish grid created by subdividing the area
 	// recursively into rooms and chopping random exits in the room walls.
-	ROOMS_SKIRMISH
+	RoomSkirmish
 
-	// DENSE_SKIRMISH is a corridor only skirmish grid. It is a Prim's maze
+	// DenseSkirmish is a corridor only skirmish grid. It is a Prim's maze
 	// where the dead-ends have been eliminated.  Additionally each side of
 	// the grid is guaranteed to have one exit to the level exterior.
-	DENSE_SKIRMISH
+	DenseSkirmish
 
-	// CAVE produces interconnected non-square areas resembling a large
+	// Cave produces interconnected non-square areas resembling a large
 	// series of caves.
-	CAVE
+	Cave
 
-	// DUNGEON produces interconnected square areas resembling a series
+	// Dungeon produces interconnected square areas resembling a series
 	// of rooms connected by corridors.
-	DUNGEON
+	Dungeon
 )
 
 // Grid interface and grid types.
@@ -108,17 +108,17 @@ type Plan interface {
 // Returns nil if the gridType is not recognized.
 func New(gridType int) Grid {
 	switch gridType {
-	case PRIM_MAZE:
+	case PrimMaze:
 		return &primMaze{}
-	case SPARSE_SKIRMISH:
+	case SparseSkirmish:
 		return &sparse{}
-	case ROOMS_SKIRMISH:
+	case RoomSkirmish:
 		return &rooms{}
-	case DENSE_SKIRMISH:
+	case DenseSkirmish:
 		return &dense{}
-	case CAVE:
+	case Cave:
 		return &cave{}
-	case DUNGEON:
+	case Dungeon:
 		return &dungeon{}
 	}
 	return nil
@@ -197,9 +197,9 @@ const (
 func (g *grid) create(width, height int, cellType bool) {
 	gridWidth, gridHeight := g.validateSize(width), g.validateSize(height)
 	g.cells = make([][]*cell, gridWidth)
-	for x, _ := range g.cells {
+	for x := range g.cells {
 		g.cells[x] = make([]*cell, gridHeight)
-		for y, _ := range g.cells[x] {
+		for y := range g.cells[x] {
 			g.cells[x][y] = &cell{x, y, cellType}
 		}
 	}
@@ -218,7 +218,7 @@ func (g *grid) validateSize(size int) (validSize int) {
 	if size < 7 {
 		validSize = 7
 	} else if size%2 == 0 {
-		validSize += 1
+		validSize++
 	}
 	return
 }

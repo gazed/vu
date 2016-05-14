@@ -1,10 +1,10 @@
 // Copyright © 2013-2015 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 //
-// ODE (bullet) box-box collision detection is adapted to work with Vu.  
-// It was wrapped (instead of ported) due to c-langs ability to inline code 
+// ODE (bullet) box-box collision detection is adapted to work with Vu.
+// It was wrapped (instead of ported) due to c-langs ability to inline code
 // as well as to quickly get a working version that can be used to compare with
-// a golang implementation. To compare changes, the original source code was from 
+// a golang implementation. To compare changes, the original source code was from
 // bullet-2.81-rev2613/src/BulletCollision/CollisionDispatch/btBoxBoxDetector.cpp
 // which has the following license:
 //
@@ -16,11 +16,11 @@
 //    Bullet is Copyright (c) 2003-2006 Erwin Coumans  http://continuousphysics.com/Bullet/
 //    This software is provided 'as-is', without any express or implied warranty.
 //    In no event will the authors be held liable for any damages arising from the use of this software.
-//    Permission is granted to anyone to use this software for any purpose, 
-//    including commercial applications, and to alter it and redistribute it freely, 
+//    Permission is granted to anyone to use this software for any purpose,
+//    including commercial applications, and to alter it and redistribute it freely,
 //    subject to the following restrictions:
-//    
-//    1. The origin of this software must not be misrepresented; you must not claim that you wrote the original software. 
+//
+//    1. The origin of this software must not be misrepresented; you must not claim that you wrote the original software.
 //       If you use this software in a product, an acknowledgment in the product documentation would be appreciated but is not required.
 //    2. Altered source versions must be plainly marked as such, and must not be misrepresented as being the original software.
 //    3. This notice may not be removed or altered from any source distribution.
@@ -93,13 +93,13 @@ void dLineClosestApproach (const btVector3 pa, const btVector3 ua,
 	btScalar q1 =  dDOT(ua,p);
 	btScalar q2 = -dDOT(ub,p);
 	btScalar d = 1-uaub*uaub;
-	if (d <= 0.0001f) 
+	if (d <= 0.0001f)
 	{
 		// @@@ this needs to be made more robust
 		*alpha = 0;
 		*beta  = 0;
 	}
-	else 
+	else
 	{
 		d = 1.f/d;
 		*alpha = (q1 + uaub*q2)*d;
@@ -246,9 +246,9 @@ void cullPoints2 (int n, btScalar p[], int m, int i0, int iret[])
 }
 
 // addContactPoint copies upto 4 points into the output structure.
-void addContactPoint(BoxBoxResults *results, btVector3 normal, btVector3 point, btScalar depth) 
+void addContactPoint(BoxBoxResults *results, btVector3 normal, btVector3 point, btScalar depth)
 {
-	if (results->ncp < 4) 
+	if (results->ncp < 4)
 	{
 		int nc = results->ncp++;
 		results->bbc[nc].n[0] = -normal[0];
@@ -258,13 +258,13 @@ void addContactPoint(BoxBoxResults *results, btVector3 normal, btVector3 point, 
 		results->bbc[nc].p[1] = point[1];
 		results->bbc[nc].p[2] = point[2];
 		results->bbc[nc].d = -depth;
-	} 
+	}
 }
 
 int dBoxBox2 (const btVector3 p1, const dMatrix3 R1,
 		const btVector3 side1, const btVector3 p2,
 		const dMatrix3 R2, const btVector3 side2,
-		BoxBoxResults *results)	
+		BoxBoxResults *results)
 {
 	const btScalar fudge_factor = 1.05;
 	btVector3 p,pp,normalC;
@@ -602,26 +602,26 @@ int dBoxBox2 (const btVector3 p1, const dMatrix3 R1,
 	if (maxc > cnum) maxc = cnum;
 	if (maxc < 1) maxc = 1;
 
-	if (cnum <= maxc) 
+	if (cnum <= maxc)
 	{
-		if (code<4) 
+		if (code<4)
 		{
 			// we have less contacts than we need, so we use them all
-			for (j=0; j < cnum; j++) 
+			for (j=0; j < cnum; j++)
 			{
 				btVector3 pointInWorld;
-				for (i=0; i<3; i++) 
+				for (i=0; i<3; i++)
 					pointInWorld[i] = point[j*3+i] + pa[i];
 				addContactPoint(results,normal,pointInWorld,dep[j]);
 			}
-		} 
+		}
 		else
 		{
 			// we have less contacts than we need, so we use them all
-			for (j=0; j < cnum; j++) 
+			for (j=0; j < cnum; j++)
 			{
 				btVector3 pointInWorld;
-				for (i=0; i<3; i++) 
+				for (i=0; i<3; i++)
 					pointInWorld[i] = point[j*3+i] + pa[i]-normal[i]*dep[j];
 				addContactPoint(results,normal,pointInWorld,dep[j]);
 			}
@@ -632,9 +632,9 @@ int dBoxBox2 (const btVector3 p1, const dMatrix3 R1,
 		// find the deepest point, it is always the first contact.
 		int i1 = 0;
 		btScalar maxdepth = dep[0];
-		for (i=1; i<cnum; i++) 
+		for (i=1; i<cnum; i++)
 		{
-			if (dep[i] > maxdepth) 
+			if (dep[i] > maxdepth)
 			{
 				maxdepth = dep[i];
 				i1 = i;
@@ -644,15 +644,15 @@ int dBoxBox2 (const btVector3 p1, const dMatrix3 R1,
 		int iret[8];
 		cullPoints2 (cnum,ret,maxc,i1,iret);
 
-		for (j=0; j < maxc; j++) 
+		for (j=0; j < maxc; j++)
 		{
 			btVector3 posInWorld;
-			for (i=0; i<3; i++) 
+			for (i=0; i<3; i++)
 				posInWorld[i] = point[iret[j]*3+i] + pa[i];
-			if (code<4) 
+			if (code<4)
 			{
 				addContactPoint(results, normal,posInWorld,dep[iret[j]]);
-			} 
+			}
 			else
 			{
 				posInWorld[0] -= normal[0]*dep[iret[j]];

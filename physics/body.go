@@ -89,8 +89,8 @@ type body struct {
 // bodyUuid is a cheap simple global id. Allows 4 billion bodies before
 // luck takes over. FUTURE: need a body.Dispose() method to allow reuse
 // of body ids.
-var bodyUuid uint32
-var bodyUuidMutex sync.Mutex // Concurrency safety.
+var bodyUUID uint32
+var bodyUUIDMutex sync.Mutex // Concurrency safety.
 
 // NewBody returns a new Body structure. The body will
 // be positioned, with no rotation, at the origin.
@@ -120,12 +120,12 @@ func newBody(shape Shape) *body {
 	b.t0 = lin.NewT()
 
 	// create a unique body identifier
-	bodyUuidMutex.Lock()
-	b.bid = bodyUuid
-	if bodyUuid++; bodyUuid == 0 {
+	bodyUUIDMutex.Lock()
+	b.bid = bodyUUID
+	if bodyUUID++; bodyUUID == 0 {
 		log.Printf("Overflow: dev error. Unique body id wrapped.")
 	}
-	bodyUuidMutex.Unlock()
+	bodyUUIDMutex.Unlock()
 	return b
 }
 
@@ -187,9 +187,9 @@ func (b *body) setMaterial(mass, bounciness float64) *body {
 	return b
 }
 
-// pairId generates a unique id for bodies a and b.
+// pairID generates a unique id for bodies a and b.
 // The pair id is independent of calling order.
-func (b *body) pairId(a *body) uint64 {
+func (b *body) pairID(a *body) uint64 {
 	id0, id1 := b.bid, a.bid
 	if id0 > id1 {
 		id0, id1 = id1, id0 // calling order independence
@@ -237,8 +237,8 @@ func (b *body) integrateVelocities(ts float64) {
 
 	// clamp angular velocity. Collision calculations will fail if its to high.
 	avel := b.avel.Len()
-	if avel*ts > lin.HALF_PI {
-		b.avel.Scale(b.avel, lin.HALF_PI/ts/avel)
+	if avel*ts > lin.HalfPi {
+		b.avel.Scale(b.avel, lin.HalfPi/ts/avel)
 	}
 }
 

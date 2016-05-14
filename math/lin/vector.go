@@ -47,11 +47,11 @@ func (v *V3) Aeq(a *V3) bool {
 
 // AeqZ (~=) almost equals zero returns true if the square length of the vector
 // is close enough to zero that it makes no difference.
-func (v *V3) AeqZ() bool { return v.Dot(v) < EPSILON }
+func (v *V3) AeqZ() bool { return v.Dot(v) < Epsilon }
 
 // AeqZ (~=) almost equals zero returns true if the square length of the vector
 // is close enough to zero that it makes no difference.
-func (v *V4) AeqZ() bool { return v.Dot(v) < EPSILON }
+func (v *V4) AeqZ() bool { return v.Dot(v) < Epsilon }
 
 // GetS returns the float64 values of the vector.
 func (v *V3) GetS() (x, y, z float64) { return v.X, v.Y, v.Z }
@@ -278,7 +278,7 @@ func (v *V4) Div(s float64) *V4 {
 //     the angle between them."
 func (v *V3) Dot(a *V3) float64 { return v.X*a.X + v.Y*a.Y + v.Z*a.Z }
 
-// Dot vector v with input vector v1. Same behaviour as V3.Dot()
+// Dot vector v with input vector a. Same behaviour as V3.Dot()
 func (v *V4) Dot(a *V4) float64 { return v.X*a.X + v.Y*a.Y + v.Z*a.Z + v.W*a.W }
 
 // Len returns the length of vector v. Vector length is the square root of
@@ -377,7 +377,7 @@ func (v *V4) Lerp(a, b *V4, ratio float64) *V4 {
 func (v *V3) Nlerp(a, b *V3, ratio float64) *V3 { return v.Lerp(a, b, ratio).Unit() }
 
 // Nlerp updates vector v to be a normalized vector that is the linerar interpolation
-// between v1 and v2. Same behaviour as V3.Lerp()
+// between a and b. Same behaviour as V3.Lerp()
 func (v *V4) Nlerp(a, b *V4, ratio float64) *V4 { return v.Lerp(a, b, ratio).Unit() }
 
 // Plane generates 2 vectors perpendicular to normal vector v.

@@ -1,5 +1,5 @@
 // Package gl provides golang bindings for OpenGL
-// The bindings were generated from OpenGL spec src/vu/render/gl/gen/glcorearb.h-v4_3.
+// The bindings were generated from OpenGL spec glcorearb.h-v4_3.
 // The official OpenGL documentation for any of the constants
 // or methods can be found online. Just prepend "GL_"
 // to the function or constant names in this package.

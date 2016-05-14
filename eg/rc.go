@@ -53,7 +53,7 @@ func (rc *rctag) Create(eng vu.Eng, s *vu.State) {
 	rc.floor.NewBody(vu.NewPlane(0, 0, -1))       // the floors ray intersect shape.
 	rc.floor.SetScale(rc.fsize, rc.fsize, 0)      // scale the model to fsize.
 	m := rc.floor.NewModel("uv").LoadMesh("tile") // put the image on the floor.
-	m.AddTex("tile").SetTexMode(0, vu.TEX_REPEAT)
+	m.AddTex("tile").SetTexMode(0, vu.TexRepeat)
 
 	// create a selected tile tracker.
 	rc.hilite = top.NewPov().SetScale(0.625, 0.625, 0.001) // scale to cover a single tile.
@@ -100,15 +100,15 @@ func (rc *rctag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 	}
 	for press, down := range in.Down {
 		switch press {
-		case vu.K_Lm:
+		case vu.KLm:
 			if down == 1 {
 				rc.raycast(in.Mx, in.My)
 			}
-		case vu.K_Q:
+		case vu.KQ:
 			rc.floor.Spin(-1, 0, 0)
 			rc.hilite.Spin(-1, 0, 0)
 			rc.hilite.SetVisible(false)
-		case vu.K_E:
+		case vu.KE:
 			rc.floor.Spin(1, 0, 0)
 			rc.hilite.Spin(1, 0, 0)
 			rc.hilite.SetVisible(false)
@@ -171,7 +171,7 @@ func (rc *rctag) hovercast(mx, my int) {
 	ray := vu.NewRay(rx, ry, rz)
 	ray.World().SetLoc(rc.cam.Location())
 	parts := []vu.Pov{rc.s0, rc.s1, rc.s2, rc.s3}
-	colors := []rgb{rgb{1, 0, 0}, rgb{0, 1, 0}, rgb{0, 0, 1}, rgb{1, 1, 0}}
+	colors := []rgb{{1, 0, 0}, {0, 1, 0}, {0, 0, 1}, {1, 1, 0}}
 	for cnt, p := range parts {
 		if hit, _, _, _ := vu.Cast(ray, p.Body()); hit {
 			p.Model().SetUniform("kd", 1, 1, 1)

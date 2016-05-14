@@ -52,7 +52,7 @@ func (ff *fftag) Create(eng vu.Eng, s *vu.State) {
 
 	// populate the map
 	ff.msize = 69
-	ff.plan = grid.New(grid.ROOMS_SKIRMISH)
+	ff.plan = grid.New(grid.RoomSkirmish)
 	ff.plan.Generate(ff.msize, ff.msize)
 	width, height := ff.plan.Size()
 	for x := 0; x < width; x++ {
@@ -88,7 +88,7 @@ func (ff *fftag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 	}
 
 	// pause with space bar.
-	if _, ok := in.Down[vu.K_Space]; !ok {
+	if _, ok := in.Down[vu.KSpace]; !ok {
 		// move each of the chasers closer to the goal.
 		reset := true
 		for _, chaser := range ff.chasers {

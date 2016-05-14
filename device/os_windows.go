@@ -108,6 +108,23 @@ func (w *win) setTitle(title string) {
 	C.gs_set_attr_s(C.GS_AppName, cstr)
 }
 
+// Implement native interface.
+func (w *win) copyClip(r *nrefs) string {
+	if cstr := C.gs_clip_copy(C.long(r.display)); cstr != nil {
+		str := C.GoString(cstr)      // make a Go copy.
+		C.free(unsafe.Pointer(cstr)) // free the C copy.
+		return str
+	}
+	return ""
+}
+
+// Implement native interface.
+func (w *win) pasteClip(r *nrefs, s string) {
+	cstr := C.CString(s)
+	defer C.free(unsafe.Pointer(cstr))
+	C.gs_clip_paste(C.long(r.display), cstr)
+}
+
 // Transform os specific events to user events.
 var events = map[int]int{
 	C.GS_LeftMouseDown:     clickedMouse,
@@ -131,12 +148,12 @@ var events = map[int]int{
 
 // Also map the mice buttons into left and right.
 var mouseButtons = map[int]int{
-	C.GS_LeftMouseDown:  mouse_Left,
-	C.GS_RightMouseDown: mouse_Right,
-	C.GS_OtherMouseDown: mouse_Middle,
-	C.GS_LeftMouseUp:    mouse_Left,
-	C.GS_RightMouseUp:   mouse_Right,
-	C.GS_OtherMouseUp:   mouse_Middle,
+	C.GS_LeftMouseDown:  mouseLeft,
+	C.GS_RightMouseDown: mouseRight,
+	C.GS_OtherMouseDown: mouseMiddle,
+	C.GS_LeftMouseUp:    mouseLeft,
+	C.GS_RightMouseUp:   mouseRight,
+	C.GS_OtherMouseUp:   mouseMiddle,
 }
 
 // Expose the underlying Win key modifier masks.
@@ -155,106 +172,106 @@ const (
 // Windows virtual key codes.
 // http://msdn.microsoft.com/en-ca/library/windows/desktop/dd375731(v=vs.85).aspx
 const (
-	key_0              = 0x30 // 0 key
-	key_1              = 0x31 // 1 key
-	key_2              = 0x32 // 2 key
-	key_3              = 0x33 // 3 key
-	key_4              = 0x34 // 4 key
-	key_5              = 0x35 // 5 key
-	key_6              = 0x36 // 6 key
-	key_7              = 0x37 // 7 key
-	key_8              = 0x38 // 8 key
-	key_9              = 0x39 // 9 key
-	key_A              = 0x41 // A key
-	key_B              = 0x42 // B key
-	key_C              = 0x43 // C key
-	key_D              = 0x44 // D key
-	key_E              = 0x45 // E key
-	key_F              = 0x46 // F key
-	key_G              = 0x47 // G key
-	key_H              = 0x48 // H key
-	key_I              = 0x49 // I key
-	key_J              = 0x4A // J key
-	key_K              = 0x4B // K key
-	key_L              = 0x4C // L key
-	key_M              = 0x4D // M key
-	key_N              = 0x4E // N key
-	key_O              = 0x4F // O key
-	key_P              = 0x50 // P key
-	key_Q              = 0x51 // Q key
-	key_R              = 0x52 // R key
-	key_S              = 0x53 // S key
-	key_T              = 0x54 // T key
-	key_U              = 0x55 // U key
-	key_V              = 0x56 // V key
-	key_W              = 0x57 // W key
-	key_X              = 0x58 // X key
-	key_Y              = 0x59 // Y key
-	key_Z              = 0x5A // Z key
-	key_F1             = 0x70 // VK_F1            F1 key
-	key_F2             = 0x71 // VK_F2            F2 key
-	key_F3             = 0x72 // VK_F3            F3 key
-	key_F4             = 0x73 // VK_F4            F4 key
-	key_F5             = 0x74 // VK_F5            F5 key
-	key_F6             = 0x75 // VK_F6            F6 key
-	key_F7             = 0x76 // VK_F7            F7 key
-	key_F8             = 0x77 // VK_F8            F8 key
-	key_F9             = 0x78 // VK_F9            F9 key
-	key_F10            = 0x79 // VK_F10           F10 key  ---- on osx-kb
-	key_F11            = 0x7A // VK_F11           F11 key
-	key_F12            = 0x7B // VK_F12           F12 key
-	key_F13            = 0x7C // VK_F13           F13 key
-	key_F14            = 0x2C // VK_F14 0x7D      F14 key  0x2C on osx-kb
-	key_F15            = 0x91 // VK_F15 0x7E      F15 key  0x91
-	key_F16            = 0x13 // VK_F16 0x7F      F16 key  0x13
-	key_F17            = 0x80 // VK_F17           F17 key
-	key_F18            = 0x81 // VK_F18           F18 key
-	key_F19            = 0x82 // VK_F19           F19 key
-	key_F20            = 0x83 // VK_F20           F20 key
-	key_Keypad0        = 0x60 // VK_NUMPAD0  0x60 Numeric keypad 0 key :: VK_INSERT  0x20 on osx-kb
-	key_Keypad1        = 0x61 // VK_NUMPAD1  0x61 Numeric keypad 1 key :: VK_END     0x23 on osx-kb
-	key_Keypad2        = 0x62 // VK_NUMPAD2  0x62 Numeric keypad 2 key :: VK_DOWN    0x28 on osx-kb
-	key_Keypad3        = 0x63 // VK_NUMPAD3  0x63 Numeric keypad 3 key :: VK_NEXT    0x22 on osx-kb
-	key_Keypad4        = 0x64 // VK_NUMPAD4  0x64 Numeric keypad 4 key :: VK_LEFT    0x25 on osx-kb
-	key_Keypad5        = 0x65 // VK_NUMPAD5  0x65 Numeric keypad 5 key :: VK_CLEAR   0x0C on osx-kb
-	key_Keypad6        = 0x66 // VK_NUMPAD6  0x66 Numeric keypad 6 key :: VK_RIGHT   0x27 on osx-kb
-	key_Keypad7        = 0x67 // VK_NUMPAD7  0x67 Numeric keypad 7 key :: VK_HOME    0x26 on osx-kb
-	key_Keypad8        = 0x68 // VK_NUMPAD8  0x68 Numeric keypad 8 key :: VK_UP      0x21 on osx-kb
-	key_Keypad9        = 0x69 // VK_NUMPAD9  0x69 Numeric keypad 9 key :: VK_PRIOR
-	key_KeypadDecimal  = 0x6E // VK_DECIMAL       Decimal key :: VK_DELETE
-	key_KeypadMultiply = 0x6A // VK_MULTIPLY      Multiply key
-	key_KeypadPlus     = 0x6B // VK_ADD           Add key
-	key_KeypadClear    = 0x90 // VK_CLEAR    0x0C CLEAR key :: VK_OEM_CLEAR 0xFE     0x90 on osx-kb
-	key_KeypadDivide   = 0x6F // VK_DIVIDE        Divide key
-	key_KeypadEnter    = 0x2B // VK_EXECUTE                            :: VK_ENTER on osx-kb
-	key_KeypadMinus    = 0x6D // VK_SUBTRACT      Subtract key
-	key_KeypadEquals   = 0xE2 //
-	key_Equal          = 0xBB //
-	key_Minus          = 0xBD // VK_OEM_MINUS     For any country/region, the '-' key // VK_SEPARATOR 0x6C Separator key
-	key_LeftBracket    = 0xDB // VK_OEM_4         misc characters; varys: US standard keyboard, the '[{' key
-	key_RightBracket   = 0xDD // VK_OEM_6         misc characters; varys: US standard keyboard, the ']}' key
-	key_Quote          = 0xC0 // VK_OEM_7         misc characters; varys: US standard keyboard, the 'single/double-quote' key
-	key_Semicolon      = 0xBA // VK_OEM_1         misc characters; varys: US standard keyboard, the ';:' key
-	key_Backslash      = 0xDE // VK_OEM_5         misc characters; varys: US standard keyboard, the '/?' key
-	key_Grave          = 0xDF // VK_OEM_3         misc characters; varys: US standard keyboard, the '`~' key
-	key_Slash          = 0xBF //
-	key_Comma          = 0xBC // VK_OEM_COMMA     For any country/region, the ',' key
-	key_Period         = 0xBE // VK_OEM_PERIOD    For any country/region, the '.' key
-	key_Return         = 0x0D // VK_RETURN        ENTER key
-	key_Tab            = 0x09 // VK_TAB           TAB key
-	key_Space          = 0x20 // VK_SPACE         SPACEBAR
-	key_Delete         = 0x08 // VK_BACK          BACKSPACE key
-	key_ForwardDelete  = 0x2E // VK_DELETE        DEL key
-	key_Escape         = 0x1B // VK_ESCAPE        ESC key
-	key_Home           = 0x24 // VK_HOME          HOME key
-	key_PageUp         = 0x21 // VK_PRIOR         PAGE UP key
-	key_PageDown       = 0x22 // VK_NEXT          PAGE DOWN key
-	key_LeftArrow      = 0x25 // VK_LEFT          LEFT ARROW key
-	key_RightArrow     = 0x27 // VK_RIGHT         RIGHT ARROW key
-	key_DownArrow      = 0x28 // VK_DOWN          DOWN ARROW key
-	key_UpArrow        = 0x26 // VK_UP            UP ARROW key
-	key_End            = 0x23 // VK_END           END key
-	mouse_Left         = 0x01 // VK_LBUTTON Left mouse button (tack on unique values for mouse buttons)
-	mouse_Middle       = 0x04 // VK_MBUTTON Middle mouse button (three-button mouse)
-	mouse_Right        = 0x02 // VK_RBUTTON Right mouse button
+	key0              = 0x30 // 0 key
+	key1              = 0x31 // 1 key
+	key2              = 0x32 // 2 key
+	key3              = 0x33 // 3 key
+	key4              = 0x34 // 4 key
+	key5              = 0x35 // 5 key
+	key6              = 0x36 // 6 key
+	key7              = 0x37 // 7 key
+	key8              = 0x38 // 8 key
+	key9              = 0x39 // 9 key
+	keyA              = 0x41 // A key
+	keyB              = 0x42 // B key
+	keyC              = 0x43 // C key
+	keyD              = 0x44 // D key
+	keyE              = 0x45 // E key
+	keyF              = 0x46 // F key
+	keyG              = 0x47 // G key
+	keyH              = 0x48 // H key
+	keyI              = 0x49 // I key
+	keyJ              = 0x4A // J key
+	keyK              = 0x4B // K key
+	keyL              = 0x4C // L key
+	keyM              = 0x4D // M key
+	keyN              = 0x4E // N key
+	keyO              = 0x4F // O key
+	keyP              = 0x50 // P key
+	keyQ              = 0x51 // Q key
+	keyR              = 0x52 // R key
+	keyS              = 0x53 // S key
+	keyT              = 0x54 // T key
+	keyU              = 0x55 // U key
+	keyV              = 0x56 // V key
+	keyW              = 0x57 // W key
+	keyX              = 0x58 // X key
+	keyY              = 0x59 // Y key
+	keyZ              = 0x5A // Z key
+	keyF1             = 0x70 // VK_F1            F1 key
+	keyF2             = 0x71 // VK_F2            F2 key
+	keyF3             = 0x72 // VK_F3            F3 key
+	keyF4             = 0x73 // VK_F4            F4 key
+	keyF5             = 0x74 // VK_F5            F5 key
+	keyF6             = 0x75 // VK_F6            F6 key
+	keyF7             = 0x76 // VK_F7            F7 key
+	keyF8             = 0x77 // VK_F8            F8 key
+	keyF9             = 0x78 // VK_F9            F9 key
+	keyF10            = 0x79 // VK_F10           F10 key  ---- on osx-kb
+	keyF11            = 0x7A // VK_F11           F11 key
+	keyF12            = 0x7B // VK_F12           F12 key
+	keyF13            = 0x7C // VK_F13           F13 key
+	keyF14            = 0x2C // VK_F14 0x7D      F14 key  0x2C on osx-kb
+	keyF15            = 0x91 // VK_F15 0x7E      F15 key  0x91
+	keyF16            = 0x13 // VK_F16 0x7F      F16 key  0x13
+	keyF17            = 0x80 // VK_F17           F17 key
+	keyF18            = 0x81 // VK_F18           F18 key
+	keyF19            = 0x82 // VK_F19           F19 key
+	keyF20            = 0x83 // VK_F20           F20 key
+	keyKeypad0        = 0x60 // VK_NUMPAD0  0x60 Numeric keypad 0 key :: VK_INSERT  0x20 on osx-kb
+	keyKeypad1        = 0x61 // VK_NUMPAD1  0x61 Numeric keypad 1 key :: VK_END     0x23 on osx-kb
+	keyKeypad2        = 0x62 // VK_NUMPAD2  0x62 Numeric keypad 2 key :: VK_DOWN    0x28 on osx-kb
+	keyKeypad3        = 0x63 // VK_NUMPAD3  0x63 Numeric keypad 3 key :: VK_NEXT    0x22 on osx-kb
+	keyKeypad4        = 0x64 // VK_NUMPAD4  0x64 Numeric keypad 4 key :: VK_LEFT    0x25 on osx-kb
+	keyKeypad5        = 0x65 // VK_NUMPAD5  0x65 Numeric keypad 5 key :: VK_CLEAR   0x0C on osx-kb
+	keyKeypad6        = 0x66 // VK_NUMPAD6  0x66 Numeric keypad 6 key :: VK_RIGHT   0x27 on osx-kb
+	keyKeypad7        = 0x67 // VK_NUMPAD7  0x67 Numeric keypad 7 key :: VK_HOME    0x26 on osx-kb
+	keyKeypad8        = 0x68 // VK_NUMPAD8  0x68 Numeric keypad 8 key :: VK_UP      0x21 on osx-kb
+	keyKeypad9        = 0x69 // VK_NUMPAD9  0x69 Numeric keypad 9 key :: VK_PRIOR
+	keyKeypadDecimal  = 0x6E // VK_DECIMAL       Decimal key :: VK_DELETE
+	keyKeypadMultiply = 0x6A // VK_MULTIPLY      Multiply key
+	keyKeypadPlus     = 0x6B // VK_ADD           Add key
+	keyKeypadClear    = 0x90 // VK_CLEAR    0x0C CLEAR key :: VK_OEM_CLEAR 0xFE     0x90 on osx-kb
+	keyKeypadDivide   = 0x6F // VK_DIVIDE        Divide key
+	keyKeypadEnter    = 0x2B // VK_EXECUTE                            :: VK_ENTER on osx-kb
+	keyKeypadMinus    = 0x6D // VK_SUBTRACT      Subtract key
+	keyKeypadEquals   = 0xE2 //
+	keyEqual          = 0xBB //
+	keyMinus          = 0xBD // VK_OEM_MINUS     For any country/region, the '-' key // VK_SEPARATOR 0x6C Separator key
+	keyLeftBracket    = 0xDB // VK_OEM_4         misc characters; varys: US standard keyboard, the '[{' key
+	keyRightBracket   = 0xDD // VK_OEM_6         misc characters; varys: US standard keyboard, the ']}' key
+	keyQuote          = 0xC0 // VK_OEM_7         misc characters; varys: US standard keyboard, the 'single/double-quote' key
+	keySemicolon      = 0xBA // VK_OEM_1         misc characters; varys: US standard keyboard, the ';:' key
+	keyBackslash      = 0xDE // VK_OEM_5         misc characters; varys: US standard keyboard, the '/?' key
+	keyGrave          = 0xDF // VK_OEM_3         misc characters; varys: US standard keyboard, the '`~' key
+	keySlash          = 0xBF //
+	keyComma          = 0xBC // VK_OEM_COMMA     For any country/region, the ',' key
+	keyPeriod         = 0xBE // VK_OEM_PERIOD    For any country/region, the '.' key
+	keyReturn         = 0x0D // VK_RETURN        ENTER key
+	keyTab            = 0x09 // VK_TAB           TAB key
+	keySpace          = 0x20 // VK_SPACE         SPACEBAR
+	keyDelete         = 0x08 // VK_BACK          BACKSPACE key
+	keyForwardDelete  = 0x2E // VK_DELETE        DEL key
+	keyEscape         = 0x1B // VK_ESCAPE        ESC key
+	keyHome           = 0x24 // VK_HOME          HOME key
+	keyPageUp         = 0x21 // VK_PRIOR         PAGE UP key
+	keyPageDown       = 0x22 // VK_NEXT          PAGE DOWN key
+	keyLeftArrow      = 0x25 // VK_LEFT          LEFT ARROW key
+	keyRightArrow     = 0x27 // VK_RIGHT         RIGHT ARROW key
+	keyDownArrow      = 0x28 // VK_DOWN          DOWN ARROW key
+	keyUpArrow        = 0x26 // VK_UP            UP ARROW key
+	keyEnd            = 0x23 // VK_END           END key
+	mouseLeft         = 0x01 // VK_LBUTTON Left mouse button (tack on unique values for mouse buttons)
+	mouseMiddle       = 0x04 // VK_MBUTTON Middle mouse button (three-button mouse)
+	mouseRight        = 0x02 // VK_RBUTTON Right mouse button
 )

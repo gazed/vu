@@ -3,7 +3,7 @@
 
 package ai
 
-// Behaviour: controls actions for a period of time. These are provided by
+// Behaviour controls actions for a period of time. These are provided by
 // the application and are the building blocks of a behaviour tree. Status
 // is maintained by the behaviour as follows:
 //     • Uninitialized behaviours should have status INVALID.

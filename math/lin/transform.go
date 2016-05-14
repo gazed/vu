@@ -18,7 +18,7 @@ type T struct {
 	Rot *Q  // Rotation (direction, orientation).
 }
 
-// Equals (==) returns true of all elements of transform t have the same value as
+// Eq (==) returns true of all elements of transform t have the same value as
 // the corresponding element of transform a.
 func (t *T) Eq(a *T) bool { return t.Rot.Eq(a.Rot) && t.Loc.Eq(a.Loc) }
 
@@ -137,7 +137,7 @@ func (t *T) Integrate(a *T, linv, angv *V3, dt float64) *T {
 	// add interpolated angular velocity to current rotation. Google:
 	//    "Practical Parameterization of Rotations Using the Exponential Map",
 	//    F. Sebastian Grassia
-	angularMotionLimit := 0.5 * HALF_PI
+	angularMotionLimit := 0.5 * HalfPi
 	angLen := angv.Len()
 	if angLen*dt > angularMotionLimit {
 		angLen = angularMotionLimit / dt // limit the angular motion

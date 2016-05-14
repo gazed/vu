@@ -373,3 +373,25 @@ void gs_set_attr_s(long attr, char * value) {
         break;
     }
 }
+
+// Return the current clipboard contents if the clipboard contains text.
+// Otherwise return nil. Any returned strings must be freed by the caller.
+char* gs_clip_copy() {
+    NSPasteboard* pb = [NSPasteboard generalPasteboard];
+    if (![[pb types] containsObject:NSStringPboardType]) {
+        return NULL; // only deal with strings.
+    }
+    NSString* object = [pb stringForType:NSStringPboardType];
+    if (!object) {
+        return NULL; // only handle non-nil strings.
+    }
+    return strdup([object UTF8String]); // must be freed by caller.
+}
+
+// Paste the given string into the general clipboard.
+void gs_clip_paste(const char* string) {
+    NSArray* types = [NSArray arrayWithObjects:NSStringPboardType, nil];
+    NSPasteboard* pb = [NSPasteboard generalPasteboard];
+    [pb declareTypes:types owner:nil];
+    [pb setString:[NSString stringWithUTF8String:string] forType:NSStringPboardType];
+}

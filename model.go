@@ -279,7 +279,7 @@ func (m *model) TexImg(index int) image.Image {
 }
 func (m *model) SetTexMode(index int, mode int) Model {
 	m.texs[index].repeat = false
-	if index >= 0 && index < len(m.texs) && mode == TEX_REPEAT {
+	if index >= 0 && index < len(m.texs) && mode == TexRepeat {
 		m.texs[index].repeat = true
 		for _, req := range m.loads {
 			if t, ok := req.a.(*texture); ok && req.index == index {
@@ -301,9 +301,9 @@ func (m *model) UseLayer(l Layer) Model {
 	if m.layer == nil && ok {
 		m.layer = layer
 		switch m.layer.attr {
-		case render.IMAGE_BUFF:
+		case render.ImageBuffer:
 			m.texs = append(m.texs, m.layer.tex)
-		case render.DEPTH_BUFF:
+		case render.DepthBuffer:
 			// shadow maps are handled in toDraw.
 		}
 	}
@@ -438,10 +438,10 @@ func (m *model) toDraw(d render.Draw, mm *lin.M4) {
 	// Use any previous render to texture passes.
 	if m.layer != nil {
 		switch m.layer.attr {
-		case render.IMAGE_BUFF:
+		case render.ImageBuffer:
 			// handled as regular texture below.
 			// Leave it to the shader to use the right the "uv#" uniform.
-		case render.DEPTH_BUFF:
+		case render.DepthBuffer:
 			d.SetShadowmap(m.layer.tex.tid) // texture with depth values.
 
 			// Shadow depth bias is the mvp matrix from the light.

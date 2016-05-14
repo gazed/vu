@@ -55,8 +55,8 @@ func newScene() *scene {
 // scene graph. Create an internal shadow map specific shader not tied
 // to any specific model.
 func (sm *scene) init(eng *engine) {
-	l := newLayer(render.DEPTH_BUFF) // internal shadow map render buffer.
-	eng.loader.bindLayer(l)          // synchronously create and bind an fbo.
+	l := newLayer(render.DepthBuffer) // internal shadow map render buffer.
+	eng.loader.bindLayer(l)           // synchronously create and bind an fbo.
 	sm.shadowMap = l
 
 	// create a shadow map specific shader.
@@ -139,9 +139,8 @@ func (sm *scene) sceneLocation(p *pov, is3D bool) (px, py, pz float64) {
 		vec := sm.v0.SetS(0, 0, 0, 1)
 		vec.MultvM(vec, p.mm)      // Parents location incorporated into mm.
 		return vec.X, vec.Y, vec.Z // 3D world space.
-	} else {
-		return p.Location() // 2D screen pixel space for UI culling.
 	}
+	return p.Location() // 2D screen pixel space for UI culling.
 }
 
 // updateFrame prepares for rendering by converting a sequenced list
@@ -191,7 +190,7 @@ func (sm *scene) updateFrame(eng *engine, viewed []*pov, frame []render.Draw) []
 						model.shd = shd
 
 						// capture statistics.
-						sm.renDraws += 1                        // models rendered.
+						sm.renDraws++                           // models rendered.
 						sm.renVerts += model.msh.vdata[0].Len() // verticies rendered.
 					}
 				}
@@ -203,7 +202,7 @@ func (sm *scene) updateFrame(eng *engine, viewed []*pov, frame []render.Draw) []
 					light.toDraw(*draw, lwx, lwy, lwz)
 
 					// capture statistics.
-					sm.renDraws += 1                        // models rendered.
+					sm.renDraws++                           // models rendered.
 					sm.renVerts += model.msh.vdata[0].Len() // verticies rendered.
 				}
 			} else {
@@ -227,14 +226,14 @@ func (sm *scene) toDraw(d render.Draw, p *pov, cam *camera, m *model, rt uint32)
 
 	// Set the drawing order hints. Overlay trumps transparency since 2D overlay
 	// objects can't be sorted by distance anyways.
-	bucket := render.OPAQUE // used to sort the draw data. Lowest first.
+	bucket := render.Opaque // used to sort the draw data. Lowest first.
 	switch {
 	case m.castShadow && rt > 0:
-		bucket = render.DEPTH_PASS // pre-passes first.
+		bucket = render.DepthPass // pre-passes first.
 	case cam.overlay > 0:
 		bucket = cam.overlay // OVERLAY draw last.
 	case m.alpha < 1:
-		bucket = render.TRANSPARENT // sort and draw after opaque.
+		bucket = render.Transparent // sort and draw after opaque.
 	}
 	depth := cam.depth && m.depth // both must be true for depth rendering.
 	tocam := 0.0

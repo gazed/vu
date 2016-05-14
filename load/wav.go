@@ -14,9 +14,9 @@ import (
 //    https://ccrma.stanford.edu/courses/422/projects/WaveFormat/
 // WavHdr is intended for attaching sounds to 3D locations.
 type WavHdr struct {
-	RiffId      [4]byte // "RIFF"
+	RiffID      [4]byte // "RIFF"
 	FileSize    uint32  // Total file size minus 8 bytes.
-	WaveId      [4]byte // "WAVE"
+	WaveID      [4]byte // "WAVE"
 	Fmt         [4]byte // "fmt "
 	FmtSize     uint32  // Will be 16 for PCM.
 	AudioFormat uint16  // Will be 1 for PCM.
@@ -25,7 +25,7 @@ type WavHdr struct {
 	ByteRate    uint32  // SampleRate * NumChannels * BitsPerSample/8.
 	BlockAlign  uint16  // NumChannels * BitsPerSample/8.
 	SampleBits  uint16  // 8 bits = 8, 16 bits = 16, etc.
-	DataId      [4]byte // "data"
+	DataID      [4]byte // "data"
 	DataSize    uint32  // Size of audio data: total file size minus 44 bytes.
 }
 
@@ -50,7 +50,7 @@ func (l *loader) loadWav(file io.ReadCloser) (wh *WavHdr, bytes []byte, err erro
 	}
 
 	// check that it really is a WAVE file.
-	riff, wave := string(wh.RiffId[:]), string(wh.WaveId[:])
+	riff, wave := string(wh.RiffID[:]), string(wh.WaveID[:])
 	if riff != "RIFF" || wave != "WAVE" {
 		return nil, []byte{}, fmt.Errorf("Invalid .wav audio file")
 	}

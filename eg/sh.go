@@ -67,8 +67,16 @@ func (sh *shtag) update(dev device.Device) {
 		fmt.Println()
 	}
 
+	// demo clipboard copy/paste.
+	if down, ok := pressed.Down[device.KC]; ok && down == 1 {
+		fmt.Printf("\"%s\" ", dev.Copy())
+	}
+	if down, ok := pressed.Down[device.KP]; ok && down == 1 {
+		dev.Paste("Sample clipboard text")
+	}
+
 	// toggle windowed mode if W is pressed.
-	if down, ok := pressed.Down[device.K_W]; ok && down == 1 {
+	if down, ok := pressed.Down[device.KW]; ok && down == 1 {
 		dev.ToggleFullScreen()
 	}
 }

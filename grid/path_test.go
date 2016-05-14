@@ -69,7 +69,7 @@ func printPath(pts []int) {
 	roomMap[24][10] = 'T' // Y, X flipped for printout.
 
 	// print the map.
-	for cnty, _ := range roomMap {
+	for cnty := range roomMap {
 		for _, sym := range roomMap[cnty] {
 			fmt.Printf("%c", sym)
 		}

@@ -11,10 +11,9 @@ import (
 	"math"
 )
 
-// Unit length quaternions represent an angle of rotation and an
-// direction/orientation and are used to track/manipulate 3D object rotations.
-// Quaternions behave nicely for mathematical operations other than they are
-// not commutative.
+// Q is a unit length quaternion representing an angle of rotation.
+// Q is used to track/manipulate 3D object rotations. Quaternions behave
+// nicely for mathematical operations other than they are not commutative.
 type Q struct {
 	X float64 // X component of direction vector.
 	Y float64 // Y component of direction vector.
@@ -190,7 +189,7 @@ func (q *Q) Aa() (ax, ay, az, angle float64) {
 	return q.X * sin, q.Y * sin, q.Z * sin, 2 * math.Acos(q.W)
 }
 
-// SetAa, set axis-angle, updates q to have the rotation of the given
+// SetAa set axis-angle, updates q to have the rotation of the given
 // axis (ax, ay, az) and angle (in radians). See:
 //    http://web.archive.org/web/20041029003853/...
 //    ...http://www.j3d.org/matrix_faq/matrfaq_latest.html#Q56

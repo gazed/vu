@@ -9,7 +9,7 @@ import (
 	"github.com/gazed/vu/render"
 )
 
-// Points of view, Pov's, are combinations of positions and orientations.
+// Pov is a Point of view which is a combination of position and orientation.
 // Pov's are created by the application and may have additional associated
 // components like rendered models and physics bodies. The associated
 // components use the location and orientation of the Pov.
@@ -202,7 +202,7 @@ func (p *pov) NewModel(shader string) Model        { return p.eng.newModel(p, sh
 func (p *pov) Light() Light                        { return p.eng.light(p) }
 func (p *pov) NewLight() Light                     { return p.eng.newLight(p) }
 func (p *pov) Layer() Layer                        { return p.eng.layer(p) }
-func (p *pov) NewLayer() Layer                     { return p.eng.newLayer(p, render.IMAGE_BUFF) }
+func (p *pov) NewLayer() Layer                     { return p.eng.newLayer(p, render.ImageBuffer) }
 func (p *pov) Body() physics.Body                  { return p.eng.body(p) }
 func (p *pov) NewBody(b physics.Body) physics.Body { return p.eng.newBody(p, b) }
 func (p *pov) SetSolid(mass, bounce float64)       { p.eng.setSolid(p, mass, bounce) }

@@ -84,9 +84,9 @@ func (f *font) setPhrase(m *mesh, phrase string) (width int) {
 			fb = append(fb, i0, i0+1, i0+3, i0+1, i0+2, i0+3)
 		}
 	}
-	m.initData(0, 3, render.STATIC, false).setData(0, vb)
-	m.initData(2, 2, render.STATIC, false).setData(2, tb)
-	m.initFaces(render.STATIC).setFaces(fb)
+	m.initData(0, 3, render.StaticDraw, false).setData(0, vb)
+	m.initData(2, 2, render.StaticDraw, false).setData(2, tb)
+	m.initFaces(render.StaticDraw).setFaces(fb)
 	f.vb = vb // reuse the allocated memory.
 	f.tb = tb //   ""
 	f.fb = fb //   ""

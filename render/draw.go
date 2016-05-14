@@ -219,7 +219,7 @@ func (d draws) Less(i, j int) bool {
 	if di.bucket != dj.bucket {
 		return di.bucket < dj.bucket // First sort into buckets.
 	}
-	if di.bucket == TRANSPARENT {
+	if di.bucket == Transparent {
 		if !lin.Aeq(di.tocam, dj.tocam) {
 			return di.tocam > dj.tocam // Sort transparent by distance to camera.
 		}

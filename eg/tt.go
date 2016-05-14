@@ -67,17 +67,17 @@ func (tt *totex) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 		tt.resize(s.W, s.H)
 	}
 	dt := in.Dt
-	for press, _ := range in.Down {
+	for press := range in.Down {
 		switch press {
-		case vu.K_Q:
+		case vu.KQ:
 			tt.frame.Spin(0, dt*-spin, 0)
-		case vu.K_E:
+		case vu.KE:
 			tt.frame.Spin(0, dt*+spin, 0)
-		case vu.K_A:
+		case vu.KA:
 			tt.monkey.Spin(0, dt*-spin, 0)
-		case vu.K_D:
+		case vu.KD:
 			tt.monkey.Spin(0, dt*+spin, 0)
-		case vu.K_T:
+		case vu.KT:
 			eng.Shutdown()
 		}
 	}

@@ -35,12 +35,12 @@ func newContactPair(bodyA, bodyB *body) *contactPair {
 	con := &contactPair{}
 	con.bodyA, con.bodyB = bodyA, bodyB
 	if bodyA != nil && bodyB != nil {
-		con.pid = bodyA.pairId(bodyB)
+		con.pid = bodyA.pairID(bodyB)
 	}
 	con.pocs = newManifold() // allocate space for 4 contacts.
 	con.pocs = con.pocs[0:0] // start with zero contacts.
 	con.breakingLimit = 0.02
-	con.processingLimit = lin.LARGE
+	con.processingLimit = lin.Large
 	con.v0 = lin.NewV3()
 	con.v1 = lin.NewV3()
 	con.v2 = lin.NewV3()
@@ -77,7 +77,7 @@ func (con *contactPair) refreshContacts(wtA, wtB *lin.T) {
 				// removing invalid contact since relative movement orthogonal to normal exceeds margin
 			} else {
 				con.pocs[valid].set(con.pocs[index]) // keep valid points.
-				valid += 1
+				valid++
 			}
 		}
 	}
