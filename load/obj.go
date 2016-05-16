@@ -33,7 +33,7 @@ type ObjData struct {
 //    http://www.martinreddy.net/gfx/3d/OBJ.spec
 //
 // Note that the .obj files refer to vertices and normals through a absolute
-// count from the begining of the file. Both .obj and .mtl files can be
+// count from the beginning of the file. Both .obj and .mtl files can be
 // created from Blender.
 func (l *loader) obj(name string) (objs []*ObjData, err error) {
 	objs = []*ObjData{}

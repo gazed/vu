@@ -83,7 +83,7 @@ func (t *T) Mult(a, b *T) *T {
 	return t
 }
 
-// App applies its tranform to vector v. The updated vector v is returned.
+// App applies its transform to vector v. The updated vector v is returned.
 func (t *T) App(v *V3) *V3 {
 	v.MultvQ(v, t.Rot) // apply rotation.
 	v.Add(v, t.Loc)    // apply translation.

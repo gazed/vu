@@ -460,7 +460,7 @@ type solverInfo struct {
 	splitImpulse                 bool
 }
 
-// newSolverInfo intializes the solver information.
+// newSolverInfo initializes the solver information.
 func newSolverInfo() *solverInfo {
 	si := &solverInfo{}
 	si.damping = 1.0

@@ -180,7 +180,7 @@ func (p *pov) SetScale(x, y, z float64) Pov {
 	return p
 }
 
-// remChild is used by a pov removing itself from the heirarchy.
+// remChild is used by a pov removing itself from the hierarchy.
 func (p *pov) remChild(c *pov) {
 	for index, c := range p.children {
 		if c.eid == p.eid {

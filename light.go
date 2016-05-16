@@ -21,7 +21,7 @@ type Light interface {
 // light implements Light.
 
 // light is used to set shader uniform values.
-// Primarly shaders that care about lighting.
+// Primarily shaders that care about lighting.
 type light struct {
 	r, g, b float64 // light color.
 }

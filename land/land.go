@@ -72,7 +72,7 @@ func New(tileSize int, seed int64) Land {
 
 // Land interface
 // ============================================================================
-// land is a default implemention of Land
+// land is a default implementation of Land
 
 // land creates the world height map.
 // There is a limit to the number of map sections held in memory at any one

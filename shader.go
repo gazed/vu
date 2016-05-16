@@ -419,7 +419,7 @@ func animShader() (vsh, fsh []string) {
 		"out     vec2       t_uv;",           // pass uv coordinates through
 		"",
 		"void main() {",
-		"   mat3x4 m = bpos[int(joint.x)] * weight.x;", // upto four joints affect vertex.
+		"   mat3x4 m = bpos[int(joint.x)] * weight.x;", // up to four joints affect vertex.
 		"   m += bpos[int(joint.y)] * weight.y;",
 		"   m += bpos[int(joint.z)] * weight.z;",
 		"   m += bpos[int(joint.w)] * weight.w;",

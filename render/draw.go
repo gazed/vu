@@ -64,7 +64,7 @@ type Draw interface {
 
 	// Allow the application to set an object tag. Used for fallback
 	// object render sorting where lower values are rendered first.
-	Tag() (t uint64) // Retreive the tag set for this draw.
+	Tag() (t uint64) // Retrieve the tag set for this draw.
 	SetTag(t uint64) // Set a tag, like a unique model/entity identifier.
 	Bucket() int     // Get draw bucket. Lower buckets are rendered first.
 }

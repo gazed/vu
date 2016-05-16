@@ -209,13 +209,13 @@ func newPoc() *pointOfContact {
 	return poc
 }
 
-// newManifold creates space for upto 4 points of contact.
+// newManifold creates space for up to 4 points of contact.
 func newManifold() []*pointOfContact {
 	return []*pointOfContact{newPoc(), newPoc(), newPoc(), newPoc()}
 }
 
 // prepForSolver creates/updates the contact point data needed by the solver.
-// Information from the contactPair and pointOfContact are used to intialize
+// Information from the contactPair and pointOfContact are used to initialize
 // the corresponding solver point. Returns true if the point was prepared and
 // false if the point was discarded.
 func (poc *pointOfContact) prepForSolver(con *contactPair) {

@@ -25,7 +25,7 @@ package vu
 //
 // Concurrency design is based on "Share memory by communicating"
 //     http://golang.org/doc/codewalk/sharemem
-// in which ownership of structs is transfered when passing struct pointers
+// in which ownership of structs is transferred when passing struct pointers
 // between goroutines
 
 import (

@@ -225,7 +225,7 @@ var art = []string{
 }
 
 // createScene initializes the image size and positions spheres in 3D space.
-// This must be called once before begining raytracing.
+// This must be called once before beginning raytracing.
 func (rt *rtrace) createScene() []lin.V3 {
 	rt.iw, rt.ih = 512, 512
 	numRows := len(art)
@@ -369,7 +369,7 @@ func (rt *rtrace) sample(orig, dir lin.V3, seed *uint32) (color lin.V3) {
 		shadowFactor = 0
 	} else {
 		var hitStatus int
-		if hitStatus, dist, bounce = rt.trace(*hitAt, *lightDir); hitStatus != missHigh {
+		if hitStatus, _, bounce = rt.trace(*hitAt, *lightDir); hitStatus != missHigh {
 			lightIntensity = 0
 			shadowFactor = 0
 		}

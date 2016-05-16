@@ -393,7 +393,7 @@ import "C"
 import "unsafe"
 import "fmt"
 
-// AL/al.h constants (with AL_ removed). Refer to the orginal header for constant documentation.
+// AL/al.h constants (with AL_ removed). Refer to the original header for constant documentation.
 const (
 	FALSE                     = 0
 	TRUE                      = 1
@@ -462,7 +462,7 @@ const (
 	EXPONENT_DISTANCE_CLAMPED = 0xD006
 )
 
-// AL/alc.h constants (with AL removed). Refer to the orginal header for constant documentation.
+// AL/alc.h constants (with AL removed). Refer to the original header for constant documentation.
 const (
 	C_FALSE                            = 0
 	C_TRUE                             = 1

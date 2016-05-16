@@ -14,7 +14,7 @@ import (
 //
 // Treating the keyboard like a complicated console controller
 // basically means ignoring its ability to input text. Overall
-// a simplification over regluar keyboards, but having lot more
+// a simplification over regular keyboards, but having lot more
 // potential controls than a console controller.
 func kc() {
 	kc := &kctag{}

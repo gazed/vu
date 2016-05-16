@@ -44,7 +44,7 @@ type Grid interface {
 	// the given depth and width.
 	//
 	// The minimum maze dimension is 7x7, and grids must be odd numbered.
-	// The given grids width and height are modified, if necesary, to ensure
+	// The given grids width and height are modified, if necessary, to ensure
 	// valid values.
 	//
 	// Generate needs to be called after Seed and before other grid methods.
@@ -131,7 +131,7 @@ type grid struct {
 	seed  int64     // used for testing with deterministic grids.
 }
 
-// Seed uses the provide seed value to intialize the random source to a
+// Seed uses the provide seed value to initialize the random source to a
 // deterministic state.
 func (g *grid) Seed(seed int64) { g.seed = seed }
 

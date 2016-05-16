@@ -152,7 +152,7 @@ func newNativeOs() *nativeOs {
 
 // createDisplay makes and initializes a new native display instance.
 // This represents an application so this call is expected to be
-// peformed once at startup.
+// performed once at startup.
 //
 // Window attributes are passed into the method since some native layers
 // need them right away.

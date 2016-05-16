@@ -82,7 +82,7 @@ func (gc *opengl) Enable(attribute uint32, enabled bool) {
 //           • group by texture to avoid switching textures.
 //           • use interleaved vertex data.
 //           • uniform buffers http://www.opengl.org/wiki/Uniform_Buffer_Object.
-//           • ... lots more possiblities... leave your fav here.
+//           • ... lots more possibilities... leave your fav here.
 func (gc *opengl) Render(dr Draw) {
 	d, ok := dr.(*draw)
 	if !ok || d == nil {

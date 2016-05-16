@@ -31,7 +31,7 @@ package load
 // FUTURE: Load data into formats that can be immediately transferred
 //         to the GPU or audio card without further processing.
 //         Which standardized formats help with this?
-// FUTURE: wrap or develop more import formats. See possiblities at the
+// FUTURE: wrap or develop more import formats. See possibilities at the
 //         Open Asset Import Library: http://assimp.sourceforge.net
 // FUTURE: Have more than one supported file type for a given resource.
 // FUTURE: Industrial strength (database) back end?

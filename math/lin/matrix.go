@@ -5,7 +5,7 @@ package lin
 
 // Matrix functions deal with 3x3 and 4x4 matrices expected to be used
 // in CPU 3D transform or physics calculations. An example of CPU math is
-// providing precalulated per-frame transform matricies to the GPU rather than
+// providing precalculated per-frame transform matricies to the GPU rather than
 // having the GPU calculate identical per-vertex or per-fragment matricies.
 // Large scale, time-critical, repetitive math operations are expected to use
 // a GPGPU based package, ie. OpenCL.

@@ -30,7 +30,7 @@ import "math"
 // Various linear math constants.
 const (
 
-	// PI and its commonly needed varients.
+	// PI and its commonly needed variants.
 	PI     float64 = math.Pi
 	PIx2   float64 = PI * 2
 	HalfPi float64 = PIx2 * 0.25

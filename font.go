@@ -79,7 +79,7 @@ func (f *font) setPhrase(m *mesh, phrase string) (width int) {
 			}
 			width += c.xAdvance
 
-			// create the triangles indexes refering to the points created above.
+			// create the triangles indexes referring to the points created above.
 			i0 := uint16(cnt * 4)
 			fb = append(fb, i0, i0+1, i0+3, i0+1, i0+2, i0+3)
 		}

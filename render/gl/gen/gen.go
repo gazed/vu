@@ -218,7 +218,7 @@ func genCwrappers(gout *os.File, functions []string) {
 
 		// The cgo wrapper wraps the pointer definition.
 		apiLine = alterSpec(apiLine)
-		fname, rettype, plist, pnames, ptypes := splitLine(apiLine)
+		fname, rettype, _, pnames, ptypes := splitLine(apiLine)
 		wret, wparms, wnames := cwrapper(rettype, pnames, ptypes, gltypes)
 		ret := "return"
 		switch rettype {

@@ -108,7 +108,7 @@ func (a *animation) maxFrames(movement int) int {
 // animate combines per model instance information with the animation data
 // to produce the unique model pose. The pose data is expected to be updated
 // on the graphics card each update tick.
-//    dt      : elapased time since last update. Generally 0.02sec.
+//    dt      : time since last update. Generally 0.02sec.
 //    frame   : the current frame position.
 //    movement: the affected animation movement, indexed from 0 up.
 //    pose    : interpolated data at the fractional frame position.

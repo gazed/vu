@@ -386,7 +386,7 @@ func newBlock(part vu.Pov, x, y, z float64, level int) *block {
 	return b
 }
 
-// addCube is only used at the begining to add cubes that are owned by this
+// addCube is only used at the beginning to add cubes that are owned by this
 // panel.
 func (b *block) addCube(x, y, z, cubeSize float64) {
 	b.csize = cubeSize

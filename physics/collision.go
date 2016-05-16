@@ -122,7 +122,7 @@ func collideSphereBox(a, b Body, c []*pointOfContact) (i, j Body, k []*pointOfCo
 		return a, b, c[0:0]
 	}
 
-	// Collision occured, figure out the collision details.
+	// Collision occurred, figure out the collision details.
 	var distance float64
 	if dsqrd <= lin.Epsilon {
 		// Handle the sphere center being inside the box. The contact normal is

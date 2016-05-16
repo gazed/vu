@@ -8,7 +8,7 @@ import (
 )
 
 // FUTURE: Lots more to do for render targets/passes/layers.
-//         Need a clean design *and* need to justify the additionaly code
+//         Need a clean design *and* need to justify the additionally code
 //         complexity against the render output benefits.
 
 // Layer is used to render to a 1024x1024 sized frame buffer based texture.

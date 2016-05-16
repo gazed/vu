@@ -6,7 +6,7 @@ package grid
 // hex.go is a start to capturing some hex grid related code.
 //
 // HUGE thank you to one of the best educational websites anywhere
-// and the authorative site for hex grids:
+// and the authoritative site for hex grids:
 //    http://www.redblobgames.com/grids/hexagons/
 //    http://www.redblobgames.com/grids/hexagons/implementation.html
 

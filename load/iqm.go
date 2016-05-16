@@ -392,7 +392,7 @@ func (l *loader) genFrame(scr *scratch, pt *transform, pcnt, numPoses, parent in
 // =============================================================================
 // The binary structures for an IQM file is from sauerbraten.org/iqm/iqm.txt
 
-// iqmheader provides the indexes to the remaining data and is at the begining
+// iqmheader provides the indexes to the remaining data and is at the beginning
 // of the iqm file.
 type iqmheader struct {
 	Magic                                             [16]byte // the string "INTERQUAKEMODEL\0".

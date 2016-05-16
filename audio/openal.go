@@ -83,7 +83,7 @@ func (a *openal) SetGain(zeroToOne float64) {
 	}
 }
 
-// BindSound copies sound data to the sound card. If successfull then the
+// BindSound copies sound data to the sound card. If successful then the
 // sound reference, snd, and sound data buffer reference, buff are updated
 // with valid references.
 func (a *openal) BindSound(snd, buff *uint64, d *Data) (err error) {

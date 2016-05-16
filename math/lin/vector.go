@@ -410,7 +410,7 @@ func (v *V3) Plane(p, q *V3) {
 
 // MultvM updates vector v to be the multiplication of row vector rv
 // and matrix m. Vector v may be used as the input vector rv.
-// The udpated vector v is returned.
+// The updated vector v is returned.
 //                   [ Xx Xy Xz ]
 //    [ vx vy vz ] x [ Yx Yy Yz ] = [ vx' vy' vz' ]
 //                   [ Zx Zy Zz ]
@@ -439,7 +439,7 @@ func (v *V4) MultvM(rv *V4, m *M4) *V4 {
 
 // MultMv updates vector v to be the multiplication of matrix m and
 // column vector cv. Vector v may be used as the input vector cv.
-// The udpated vector v is returned.
+// The updated vector v is returned.
 //    [ Xx Xy Xz ]   [ vx ]   [ vx' ]
 //    [ Yx Yy Yz ] x [ vy ] = [ vx' ]
 //    [ Zx Zy Zz ]   [ vz ]   [ vz' ]

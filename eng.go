@@ -50,7 +50,7 @@ type Eng interface {
 //     err := vu.New(app, "Title", 0, 0, 800, 600) // Reg. app in new Eng.
 // Note that it is safe to call Eng methods from goroutines.
 type App interface {
-	Create(eng Eng, s *State) // Called once after successfull startup.
+	Create(eng Eng, s *State) // Called once after successful startup.
 
 	// Update allows applications to change state prior to the next render.
 	// Update is called many times a second after the initial call to Create.
