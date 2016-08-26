@@ -42,7 +42,7 @@ type Model interface {
 	// InitMesh must be called once, SetMesh data may be called as needed.
 	//    lloc     : layout location is the shader input reference.
 	//    span     : indicates the number of data points per vertex.
-	//    usage    : STATIC or DYNAMIC.
+	//    usage    : StaticDraw or DynamicDraw.
 	//    normalize: true to convert data to the 0->1 range.
 	// Some vertex shader data conventions are:
 	//    Vertex positions lloc=0 span=3_floats_per_vertex.
@@ -51,9 +51,9 @@ type Model interface {
 	//    Color            lloc=3 span=4_floats_per_vertex.
 	InitMesh(lloc, span, usage uint32, normalize bool) Model
 	SetMeshData(lloc uint32, data interface{}) // Only works after InitMesh
-	InitFaces(usage uint32) Model              // Defaults to STATIC_DRAW
+	InitFaces(usage uint32) Model              // Defaults to StaticDraw
 	SetFaces(data []uint16)                    // Indicies to vertex positions.
-	SetDrawMode(mode int) Model                // TRIANGLES, LINES, POINTS.
+	SetDrawMode(mode int) Model                // Triangles, Lines, Points.
 
 	// Models can have one or more textures applied to a single mesh.
 	// Textures are initialized from assets and can be updated with images.
@@ -62,7 +62,7 @@ type Model interface {
 	SetTex(index int, name string)        // Replace/reload texture.
 	SetImg(index int, img image.Image)    // Replace image, nil values ignored.
 	TexImg(index int) image.Image         // Get image, nil if invalid index.
-	SetTexMode(index int, mode int) Model // TEX_CLAMP, TEX_REPEAT.
+	SetTexMode(index int, mode int) Model // TexClamp, TexRepeat.
 	UseLayer(l Layer) Model               // Use render pass texture.
 
 	// Animated models can have multiple animated sequences,
@@ -108,7 +108,7 @@ type model struct {
 	texs     []*texture      // Optional: one or more texture images.
 	mat      *material       // Optional: material lighting info.
 	msh      *mesh           // Mandatory vertex buffer data.
-	drawMode int             // TRIANGLES, POINTS, LINES.
+	drawMode int             // Triangles, Points, Lines.
 	effect   *particleEffect // Optional particle effect.
 	loads    []*loadReq      // Assets waiting to be loaded.
 	depth    bool            // Depth buffer on by default.
@@ -136,6 +136,7 @@ type model struct {
 	kd       rgb                  // Diffuse color.
 	ka       rgb                  // Ambient color.
 	ks       rgb                  // Specular color.
+	ns       float32              // Specular exponent.
 	uniforms map[string][]float32 // Uniform values.
 	sm       *lin.M4              // scratch matrix.
 }
@@ -348,7 +349,7 @@ func (m *model) SetUniform(id string, floats ...interface{}) {
 		case int:
 			values = append(values, float32(v))
 		default:
-			log.Print("vu.model.SetUniform: unknown type ", id, ":", value)
+			log.Print("model.SetUniform: unknown type ", id, ":", value)
 		}
 	}
 	m.uniforms[id] = values
@@ -476,6 +477,7 @@ func (m *model) toDraw(d render.Draw, mm *lin.M4) {
 	d.SetFloats("kd", m.kd.R, m.kd.G, m.kd.B)
 	d.SetFloats("ks", m.ks.R, m.ks.G, m.ks.B)
 	d.SetFloats("ka", m.ka.R, m.ka.G, m.ka.B)
+	d.SetFloats("ns", m.ns)
 
 	// Set user specified uniforms.
 	for uniform, uvalues := range m.uniforms {

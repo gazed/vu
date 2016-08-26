@@ -1,7 +1,7 @@
 // Copyright © 2014-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
-package land
+package synth
 
 import (
 	"math"
@@ -9,8 +9,8 @@ import (
 	"time"
 )
 
-// noise is a simplex noise generator algorithm. Its purpose is to help
-// create random world maps. The random seed can be saved in order to
+// simplex is a gradient noise generator algorithm. Its purpose is to help
+// create random world maps and images. The random seed can be saved to
 // recreate a given map at a later date.
 //
 // From and thanks to:
@@ -18,34 +18,34 @@ import (
 //    http://www.itn.liu.se/~stegu/simplexnoise/SimplexNoise.java
 // Modified with
 //	  https://github.com/Ian-Parberry/Tobler/
-// Be aware of patent on 3D and higher. Possibly move to OpenSimplex
-// or Wavelet noise.
+// Be aware of patent on 3D simplex and higher although this code is based
+// on an clean opensource implementation that should not be affected by the patent.
 //    https://www.google.com/patents/US6867776
-type noise struct {
-	F2, F3    float64     // skewing and unskewing factors...
-	G2, G3    float64     // ... for 2 and 3 dimensions.
+type simplex struct {
+	f2, f3    float64     // skewing and unskewing factors...
+	g2, g3    float64     // ...for 2 and 3 dimensions.
 	seed      int64       // seed that is unique for a given map.
 	pseudo    []byte      // pseudo randomly ordered numbers 0-255
 	perm      []byte      // 512 pseudo random numbers from 0-255
 	permMod12 []byte      // pseudo random numbers mod 12
 	gradients []*gradient // slopes to adjacent points.
-	random    *rand.Rand  // random number generator.
+	rng       *rand.Rand  // random number generator.
 
 	// Exponentially Distributed Noise by Ian Parberry.
 	mag    []float64 // magnitudes.
 	magExp float64   // gradient magnitude exponent.
 }
 
-// newNoise generates random noise based on a seed. Use 0 for the
+// newSimplex generates random noise based on a seed. Use 0 for the
 // seed to create a new random map. Use a previous seed to get
 // a previously generated map.
-func newNoise(seed int64) *noise {
-	n := &noise{}
-	n.seed = seed
-	if n.seed == 0 {
-		n.seed = time.Now().UnixNano()
+func newSimplex(seed int64) *simplex {
+	s := &simplex{}
+	s.seed = seed
+	if s.seed == 0 { // create random seed if one not specified.
+		s.seed = time.Now().UnixNano()
 	}
-	n.random = rand.New(rand.NewSource(n.seed))
+	s.rng = rand.New(rand.NewSource(s.seed))
 	pbase := []byte{151, 160, 137, 91, 90, 15,
 		131, 13, 201, 95, 96, 53, 194, 233, 7, 225, 140, 36, 103, 30, 69, 142, 8, 99, 37, 240, 21, 10, 23,
 		190, 6, 148, 247, 120, 234, 75, 0, 26, 197, 62, 94, 252, 219, 203, 117, 35, 11, 32, 57, 177, 33,
@@ -62,48 +62,48 @@ func newNoise(seed int64) *noise {
 
 	// reorder the pseudo random numbers for each generator.
 	for len(pbase) > 0 {
-		index := n.random.Intn(len(pbase))
-		n.pseudo = append(n.pseudo, pbase[index])
+		index := s.rng.Intn(len(pbase))
+		s.pseudo = append(s.pseudo, pbase[index])
 		pbase = append(pbase[:index], pbase[index+1:]...)
 	}
-	n.gradients = []*gradient{
+	s.gradients = []*gradient{
 		{1, 1, 0}, {-1, 1, 0}, {1, -1, 0}, {-1, -1, 0},
 		{1, 0, 1}, {-1, 0, 1}, {1, 0, -1}, {-1, 0, -1},
 		{0, 1, 1}, {0, -1, 1}, {0, 1, -1}, {0, -1, -1}}
-	n.perm = make([]byte, 512)
-	n.permMod12 = make([]byte, 512)
+	s.perm = make([]byte, 512)
+	s.permMod12 = make([]byte, 512)
 	for cnt := 0; cnt < 512; cnt++ {
-		n.perm[cnt] = n.pseudo[cnt&255]
-		n.permMod12[cnt] = n.perm[cnt] % 12
+		s.perm[cnt] = s.pseudo[cnt&255]
+		s.permMod12[cnt] = s.perm[cnt] % 12
 	}
 
 	// Skewing and unskewing factors for 2 and 3 dimensions
-	n.F2, n.G2 = 0.5*(math.Sqrt(3.0)-1.0), (3.0-math.Sqrt(3.0))/6.0
-	n.F3, n.G3 = 1.0/3.0, 1.0/6.0
+	s.f2, s.g2 = 0.5*(math.Sqrt(3.0)-1.0), (3.0-math.Sqrt(3.0))/6.0
+	s.f3, s.g3 = 1.0/3.0, 1.0/6.0
 
 	//gradient magnitude array. Base on: https://github.com/Ian-Parberry/Tobler/
-	s := 1.0        //current magnitude
-	n.magExp = 1.02 ///< Mu, the gradient magnitude exponent.
-	n.mag = make([]float64, 512)
+	m := 1.0        //current magnitude
+	s.magExp = 1.02 ///< Mu, the gradient magnitude exponent.
+	s.mag = make([]float64, 512)
 	for cnt := 0; cnt < 512; cnt++ {
-		n.mag[cnt] = s
-		s /= n.magExp
+		s.mag[cnt] = m
+		m /= s.magExp
 	}
-	return n
+	return s
 }
 
 // dot2D provides a dot product of the point with the gradient.
-func (n *noise) dot2D(g *gradient, x, y float64) float64 {
+func (s *simplex) dot2D(g *gradient, x, y float64) float64 {
 	return g.x*x + g.y*y
 }
 
 // dot3D provides a dot product of the point with the gradient.
-func (n *noise) dot3D(g *gradient, x, y, z float64) float64 {
+func (s *simplex) dot3D(g *gradient, x, y, z float64) float64 {
 	return g.x*x + g.y*y + g.z*z
 }
 
 // floor was benchmarked to be a *lot* faster than (int)Math.floor(x).
-func (n *noise) floor(x float64) int {
+func (s *simplex) floor(x float64) int {
 	xi := int(x)
 	if x < float64(xi) {
 		return xi - 1
@@ -112,22 +112,22 @@ func (n *noise) floor(x float64) int {
 }
 
 // generate 2D simplex noise.
-// From http://www.itn.liu.se/~stegu/simplexnoise/SimplexNoise.java
-func (n *noise) generate2D(xin, yin float64) float64 {
+// From http://www.its.liu.se/~stegu/simplexnoise/SimplexNoise.java
+func (s *simplex) Gen2D(xin, yin float64) float64 {
 	var n0, n1, n2 float64 // Noise contributions from the three corners
 
 	// Skew the input space to determine which simplex cell we're in
-	s := (xin + yin) * n.F2 // Hairy factor for 2D
-	i := int(n.floor(xin + s))
-	j := int(n.floor(yin + s))
-	t := float64(i+j) * n.G2
-	X0 := float64(i) - t // Unskew the cell origin back to (x,y) space
-	Y0 := float64(j) - t
-	x0 := xin - X0 // The x,y distances from the cell origin
-	y0 := yin - Y0
+	h := (xin + yin) * s.f2 // Hairy factor for 2D
+	i := int(s.floor(xin + h))
+	j := int(s.floor(yin + h))
+	t := float64(i+j) * s.g2
+	xs := float64(i) - t // Unskew the cell origin back to (x,y) space
+	ys := float64(j) - t
+	x0 := xin - xs // The x,y distances from the cell origin
+	y0 := yin - ys
 
 	// For the 2D case, the simplex shape is an equilateral triangle.
-	// Determine which simplex we are in.
+	// Determine which simplex we are is.
 	var i1, j1 int // Offsets for second (middle) corner of simplex in (i,j) coords
 	if x0 > y0 {
 		i1 = 1
@@ -140,17 +140,17 @@ func (n *noise) generate2D(xin, yin float64) float64 {
 	// A step of (1,0) in (i,j) means a step of (1-c,-c) in (x,y), and
 	// a step of (0,1) in (i,j) means a step of (-c,1-c) in (x,y), where
 	// c = (3-sqrt(3))/6
-	x1 := x0 - float64(i1) + n.G2 // Offsets for middle corner in (x,y) unskewed coords
-	y1 := y0 - float64(j1) + n.G2
-	x2 := x0 - 1.0 + 2.0*n.G2 // Offsets for last corner in (x,y) unskewed coords
-	y2 := y0 - 1.0 + 2.0*n.G2
+	x1 := x0 - float64(i1) + s.g2 // Offsets for middle corner in (x,y) unskewed coords
+	y1 := y0 - float64(j1) + s.g2
+	x2 := x0 - 1.0 + 2.0*s.g2 // Offsets for last corner in (x,y) unskewed coords
+	y2 := y0 - 1.0 + 2.0*s.g2
 
 	// Work out the hashed gradient indices of the three simplex corners
 	ii := i & 255
 	jj := j & 255
-	gi0 := n.permMod12[ii+int(n.perm[jj])]
-	gi1 := n.permMod12[ii+i1+int(n.perm[jj+j1])]
-	gi2 := n.permMod12[ii+1+int(n.perm[jj+1])]
+	gi0 := s.permMod12[ii+int(s.perm[jj])]
+	gi1 := s.permMod12[ii+i1+int(s.perm[jj+j1])]
+	gi2 := s.permMod12[ii+1+int(s.perm[jj+1])]
 
 	// Calculate the contribution from the three corners
 	t0 := 0.5 - x0*x0 - y0*y0
@@ -158,21 +158,21 @@ func (n *noise) generate2D(xin, yin float64) float64 {
 		n0 = 0.0
 	} else {
 		t0 *= t0
-		n0 = t0 * t0 * n.mag[gi0] * n.dot2D(n.gradients[gi0], x0, y0) // (x,y) of grad3 used for 2D gradient
+		n0 = t0 * t0 * s.mag[gi0] * s.dot2D(s.gradients[gi0], x0, y0) // (x,y) of grad3 used for 2D gradient
 	}
 	t1 := 0.5 - x1*x1 - y1*y1
 	if t1 < 0 {
 		n1 = 0.0
 	} else {
 		t1 *= t1
-		n1 = t1 * t1 * n.mag[gi1] * n.dot2D(n.gradients[gi1], x1, y1)
+		n1 = t1 * t1 * s.mag[gi1] * s.dot2D(s.gradients[gi1], x1, y1)
 	}
 	t2 := 0.5 - x2*x2 - y2*y2
 	if t2 < 0 {
 		n2 = 0.0
 	} else {
 		t2 *= t2
-		n2 = t2 * t2 * n.mag[gi2] * n.dot2D(n.gradients[gi2], x2, y2)
+		n2 = t2 * t2 * s.mag[gi2] * s.dot2D(s.gradients[gi2], x2, y2)
 	}
 
 	// Add contributions from each corner to get the final noise value.
@@ -186,26 +186,26 @@ type gradient struct {
 	x, y, z float64
 }
 
-// 3D simplex noise
-// From http://www.itn.liu.se/~stegu/simplexnoise/SimplexNoise.java
-func (n *noise) generate3D(xin, yin, zin float64) float64 {
+// Gen3D simplex noise
+// From http://www.its.liu.se/~stegu/simplexnoise/SimplexNoise.java
+func (s *simplex) Gen3D(xin, yin, zin float64) float64 {
 	var n0, n1, n2, n3 float64 // Noise contributions from the four corners
 
 	// Skew the input space to determine which simplex cell we're in
-	s := (xin + yin + zin) * n.F3 // Very nice and simple skew factor for 3D
-	i := int(n.floor(xin + s))
-	j := int(n.floor(yin + s))
-	k := int(n.floor(zin + s))
-	t := float64(i+j+k) * n.G3
-	X0 := float64(i) - t // Unskew the cell origin back to (x,y,z) space
-	Y0 := float64(j) - t
-	Z0 := float64(k) - t
-	x0 := xin - X0 // The x,y,z distances from the cell origin
-	y0 := yin - Y0
-	z0 := zin - Z0
+	h := (xin + yin + zin) * s.f3 // Very nice and simple skew factor for 3D
+	i := int(s.floor(xin + h))
+	j := int(s.floor(yin + h))
+	k := int(s.floor(zin + h))
+	t := float64(i+j+k) * s.g3
+	xs := float64(i) - t // Unskew the cell origin back to (x,y,z) space
+	ys := float64(j) - t
+	zs := float64(k) - t
+	x0 := xin - xs // The x,y,z distances from the cell origin
+	y0 := yin - ys
+	z0 := zin - zs
 
-	// For the 3D case, the simplex shape is a slightly irregular tetrahedron.
-	// Determine which simplex we are in.
+	// For the 3D case, the simplex shape is a slightly irregular tetrahedros.
+	// Determine which simplex we are is.
 	var i1, j1, k1 int // Offsets for second corner of simplex in (i,j,k) coords
 	var i2, j2, k2 int // Offsets for third corner of simplex in (i,j,k) coords
 	if x0 >= y0 {
@@ -230,24 +230,24 @@ func (n *noise) generate3D(xin, yin, zin float64) float64 {
 	// a step of (0,1,0) in (i,j,k) means a step of (-c,1-c,-c) in (x,y,z), and
 	// a step of (0,0,1) in (i,j,k) means a step of (-c,-c,1-c) in (x,y,z), where
 	// c = 1/6.
-	x1 := x0 - float64(i1) + n.G3 // Offsets for second corner in (x,y,z) coords
-	y1 := y0 - float64(j1) + n.G3
-	z1 := z0 - float64(k1) + n.G3
-	x2 := x0 - float64(i2) + 2.0*n.G3 // Offsets for third corner in (x,y,z) coords
-	y2 := y0 - float64(j2) + 2.0*n.G3
-	z2 := z0 - float64(k2) + 2.0*n.G3
-	x3 := x0 - 1.0 + 3.0*n.G3 // Offsets for last corner in (x,y,z) coords
-	y3 := y0 - 1.0 + 3.0*n.G3
-	z3 := z0 - 1.0 + 3.0*n.G3
+	x1 := x0 - float64(i1) + s.g3 // Offsets for second corner in (x,y,z) coords
+	y1 := y0 - float64(j1) + s.g3
+	z1 := z0 - float64(k1) + s.g3
+	x2 := x0 - float64(i2) + 2.0*s.g3 // Offsets for third corner in (x,y,z) coords
+	y2 := y0 - float64(j2) + 2.0*s.g3
+	z2 := z0 - float64(k2) + 2.0*s.g3
+	x3 := x0 - 1.0 + 3.0*s.g3 // Offsets for last corner in (x,y,z) coords
+	y3 := y0 - 1.0 + 3.0*s.g3
+	z3 := z0 - 1.0 + 3.0*s.g3
 
 	// Work out the hashed gradient indices of the four simplex corners
 	ii := i & 255
 	jj := j & 255
 	kk := k & 255
-	gi0 := n.permMod12[ii+int(n.perm[jj+int(n.perm[kk])])]
-	gi1 := n.permMod12[ii+i1+int(n.perm[jj+j1+int(n.perm[kk+k1])])]
-	gi2 := n.permMod12[ii+i2+int(n.perm[jj+j2+int(n.perm[kk+k2])])]
-	gi3 := n.permMod12[ii+1+int(n.perm[jj+1+int(n.perm[kk+1])])]
+	gi0 := s.permMod12[ii+int(s.perm[jj+int(s.perm[kk])])]
+	gi1 := s.permMod12[ii+i1+int(s.perm[jj+j1+int(s.perm[kk+k1])])]
+	gi2 := s.permMod12[ii+i2+int(s.perm[jj+j2+int(s.perm[kk+k2])])]
+	gi3 := s.permMod12[ii+1+int(s.perm[jj+1+int(s.perm[kk+1])])]
 
 	// Calculate the contribution from the four corners
 	t0 := 0.5 - x0*x0 - y0*y0 - z0*z0
@@ -255,28 +255,28 @@ func (n *noise) generate3D(xin, yin, zin float64) float64 {
 		n0 = 0.0
 	} else {
 		t0 *= t0
-		n0 = t0 * t0 * n.mag[gi0] * n.dot3D(n.gradients[gi0], x0, y0, z0)
+		n0 = t0 * t0 * s.mag[gi0] * s.dot3D(s.gradients[gi0], x0, y0, z0)
 	}
 	t1 := 0.5 - x1*x1 - y1*y1 - z1*z1
 	if t1 < 0 {
 		n1 = 0.0
 	} else {
 		t1 *= t1
-		n1 = t1 * t1 * n.mag[gi1] * n.dot3D(n.gradients[gi1], x1, y1, z1)
+		n1 = t1 * t1 * s.mag[gi1] * s.dot3D(s.gradients[gi1], x1, y1, z1)
 	}
 	t2 := 0.5 - x2*x2 - y2*y2 - z2*z2
 	if t2 < 0 {
 		n2 = 0.0
 	} else {
 		t2 *= t2
-		n2 = t2 * t2 * n.mag[gi2] * n.dot3D(n.gradients[gi2], x2, y2, z2)
+		n2 = t2 * t2 * s.mag[gi2] * s.dot3D(s.gradients[gi2], x2, y2, z2)
 	}
 	t3 := 0.5 - x3*x3 - y3*y3 - z3*z3
 	if t3 < 0 {
 		n3 = 0.0
 	} else {
 		t3 *= t3
-		n3 = t3 * t3 * n.mag[gi3] * n.dot3D(n.gradients[gi3], x3, y3, z3)
+		n3 = t3 * t3 * s.mag[gi3] * s.dot3D(s.gradients[gi3], x3, y3, z3)
 	}
 
 	// Add contributions from each corner to get the final noise value.

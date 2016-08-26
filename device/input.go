@@ -47,6 +47,12 @@ func (i *input) processEvent(event *userInput) {
 	switch event.id {
 	case resizedShell, movedShell:
 		i.curr.Resized = true
+
+		// release all down keys on resize to avoid missing
+		// release events.
+		for key := range i.curr.Down {
+			i.recordRelease(key)
+		}
 	case activatedShell, uniconifiedShell:
 		i.curr.Focus = true
 	case deactivatedShell, iconifiedShell:

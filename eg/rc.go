@@ -3,6 +3,9 @@
 
 package main
 
+// Controls:
+//   Lm    : show mouse hit
+
 import (
 	"fmt"
 	"log"
@@ -104,14 +107,6 @@ func (rc *rctag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 			if down == 1 {
 				rc.raycast(in.Mx, in.My)
 			}
-		case vu.KQ:
-			rc.floor.Spin(-1, 0, 0)
-			rc.hilite.Spin(-1, 0, 0)
-			rc.hilite.SetVisible(false)
-		case vu.KE:
-			rc.floor.Spin(1, 0, 0)
-			rc.hilite.Spin(1, 0, 0)
-			rc.hilite.SetVisible(false)
 		}
 	}
 	rc.hovercast(in.Mx, in.My)

@@ -3,6 +3,12 @@
 
 package main
 
+// Controls:
+//   WS    : move camera            : forward back
+//   AD    : spin model             : left right
+//   0-9   : select animation
+//   Tab   : switch model
+
 import (
 	"fmt"
 	"io/ioutil"

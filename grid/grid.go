@@ -11,10 +11,10 @@
 //       maze.Generate(width, height) // Generate the grid.
 //       for x := 0; x < width; x++ {
 //          for y := 0; y < height; y++ {
-//             if maze.isWall(x, y) {
-//                 // Do something with a wall.
-//             } else {
+//             if maze.isOpen(x, y) {
 //                 // Do something with an open area.
+//             } else {
+//                 // Do something with a wall.
 //             }
 //          }
 //       }

@@ -3,6 +3,9 @@
 
 package main
 
+// Controls:
+//   Tab   : next layout
+
 import (
 	"log"
 

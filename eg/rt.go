@@ -3,6 +3,8 @@
 
 package main
 
+// Controls: NA
+
 import (
 	"image"
 	"image/color"
@@ -135,15 +137,13 @@ func (rt *rtrace) initRender() {
 	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, ptr)
 
 	// texture sampling shader.
-	loader := load.NewLoader()
-	shader := "tuv"
-	vsrc, verr := loader.Vsh(shader)
-	fsrc, ferr := loader.Fsh(shader)
-	if verr != nil || ferr != nil {
-		log.Fatalf("Failed to load shaders %s %s\n", verr, ferr)
+	shader := &load.ShdData{}
+	err := shader.Load("tuv", load.NewLocator())
+	if err != nil {
+		log.Fatalf("Failed to load shaders %s\n", err)
 	}
 	rt.shaders = gl.CreateProgram()
-	if err := gl.BindProgram(rt.shaders, vsrc, fsrc); err != nil {
+	if err := gl.BindProgram(rt.shaders, shader.Vsh, shader.Fsh); err != nil {
 		log.Fatalf("Failed to create program: %s\n", err)
 	}
 	rt.mvpID = gl.GetUniformLocation(rt.shaders, "mvpm")

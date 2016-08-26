@@ -5,7 +5,7 @@ package audio
 
 import (
 	"testing"
-	//	"time"
+	// "time"
 
 	"github.com/gazed/vu/load"
 )
@@ -15,11 +15,11 @@ import (
 func TestAudio(t *testing.T) {
 	a := audioWrapper()
 	a.Init()
-	loader := load.NewLoader()
-	loader.SetDir(2, "../eg/audio") // 2 == load.snd
+	s := &load.SndData{}
 	soundData := &Data{}
-	if wh, data, err := loader.Wav("bloop"); err == nil {
-		soundData.Set(wh.Channels, wh.SampleBits, wh.Frequency, wh.DataSize, data)
+	if err := s.Load("bloop", load.NewLocator().Dir("WAV", "../eg/audio")); err == nil {
+		at := s.Attrs
+		soundData.Set(at.Channels, at.SampleBits, at.Frequency, at.DataSize, s.Data)
 	}
 	snd, buff := uint64(0), uint64(0)
 	if err := a.BindSound(&snd, &buff, soundData); err != nil || buff == 0 || snd == 0 {
@@ -28,7 +28,7 @@ func TestAudio(t *testing.T) {
 
 	// Don't play noises during normal testing, but if you're interested...
 	// ... then uncomment and "import time" (need to sleep for the sound to happen).
-	// 	a.PlaySound(snd, 0, 0, 0)
-	// 	time.Sleep(1000 * time.Millisecond)
+	// a.PlaySound(snd, 0, 0, 0)
+	// time.Sleep(1000 * time.Millisecond)
 	a.Dispose()
 }

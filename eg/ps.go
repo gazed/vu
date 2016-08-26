@@ -3,6 +3,11 @@
 
 package main
 
+// Controls:
+//   Tab   : switch effect
+//   WS    : move camera            : forward back
+//   AD    : spin model             : left right
+
 import (
 	"log"
 	"math/rand"
@@ -83,7 +88,6 @@ func (ps *pstag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 	if in.Resized {
 		ps.cam.SetPerspective(60, float64(s.W)/float64(s.H), 0.1, 50)
 	}
-	move := 2.0
 	dt := in.Dt
 	for press, down := range in.Down {
 		switch press {
@@ -105,14 +109,6 @@ func (ps *pstag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 				ps.effect = ps.effects[ps.index]
 				ps.effect.SetVisible(true)
 			}
-		case vu.KLa:
-			ps.effect.Move(-dt*move, 0, 0, ps.cam.Lookxz())
-		case vu.KRa:
-			ps.effect.Move(dt*move, 0, 0, ps.cam.Lookxz())
-		case vu.KUa:
-			ps.effect.Move(0, 0, dt*move, ps.cam.Lookxz())
-		case vu.KDa:
-			ps.effect.Move(0, 0, -dt*move, ps.cam.Lookxz())
 		}
 	}
 }

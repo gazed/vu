@@ -23,7 +23,7 @@ type loader struct {
 	loads []*loadReq // Collects asset load requests.
 
 	// loader goroutine communication.
-	ld     load.Loader     // asset loader.
+	loc    load.Locator    // Locates the asset data on disk.
 	cache  cache           // asset cache.
 	stop   chan bool       // shutdown requests.
 	load   chan []*loadReq // asset load requests.
@@ -34,7 +34,7 @@ type loader struct {
 // newLoader is expected to be called once on startup by the engine.
 func newLoader(loaded chan []*loadReq, binder chan msg) *loader {
 	l := &loader{loaded: loaded, binder: binder}
-	l.ld = load.NewLoader()
+	l.loc = load.NewLocator()
 	l.cache = newCache()
 	l.stop = make(chan bool)
 	l.load = make(chan []*loadReq)
@@ -148,8 +148,10 @@ func (l *loader) loadSound(s *sound) (*sound, error) {
 
 // importSound transfers audio data loaded from disk to the sound object.
 func (l *loader) importSound(s *sound) error {
-	if wh, data, err := l.ld.Wav(s.name); err == nil {
-		s.data.Set(wh.Channels, wh.SampleBits, wh.Frequency, wh.DataSize, data)
+	snd := &load.SndData{}
+	if err := snd.Load(s.name, l.loc); err == nil {
+		a := snd.Attrs
+		s.data.Set(a.Channels, a.SampleBits, a.Frequency, a.DataSize, snd.Data)
 	} else {
 		return fmt.Errorf("loader.loadSound: could not load %s %s", s.label(), err)
 	}
@@ -180,20 +182,17 @@ func (l *loader) loadShader(s *shader) (*shader, error) {
 }
 
 // importShader transfers data loaded from disk to the render object.
+// Disk based files override predefined engine shaders.
 func (l *loader) importShader(s *shader) error {
-	ld := load.NewLoader()
-
-	// first look for .vsh, .fsh disk files.
-	vsrc, verr := ld.Vsh(s.name)
-	fsrc, ferr := ld.Fsh(s.name)
-	if verr == nil && ferr == nil {
-		s.setSource(vsrc, fsrc)
+	shd := &load.ShdData{}
+	if err := shd.Load(s.name, l.loc); err == nil {
+		s.setSource(shd.Vsh, shd.Fsh) // first look for .vsh, .fsh on disk.
 		return nil
 	}
 
 	// next look for a pre-defined engine shader.
 	if sfn, ok := shaderLibrary[s.name]; ok {
-		vsrc, fsrc = sfn()
+		vsrc, fsrc := sfn()
 		s.setSource(vsrc, fsrc)
 		return nil
 	}
@@ -230,18 +229,19 @@ func (l *loader) bindMesh(m *mesh) error {
 
 // importMesh transfers data loaded from disk to the render object.
 func (l *loader) importMesh(m *mesh) error {
-	if data, err := l.ld.Obj(m.name); err == nil && len(data) > 0 {
-		if len(data[0].V) <= 0 || len(data[0].F) <= 0 {
+	msh := &load.MshData{}
+	if err := msh.Load(m.name, l.loc); err == nil {
+		if len(msh.V) <= 0 || len(msh.F) <= 0 {
 			return fmt.Errorf("Minimally need vertex and face data for %s", m.name)
 		}
-		m.initData(0, 3, render.StaticDraw, false).setData(0, data[0].V)
-		if len(data[0].N) > 0 {
-			m.initData(1, 3, render.StaticDraw, false).setData(1, data[0].N)
+		m.initData(0, 3, render.StaticDraw, false).setData(0, msh.V)
+		if len(msh.N) > 0 {
+			m.initData(1, 3, render.StaticDraw, false).setData(1, msh.N)
 		}
-		if len(data[0].T) > 0 {
-			m.initData(2, 2, render.StaticDraw, false).setData(2, data[0].T)
+		if len(msh.T) > 0 {
+			m.initData(2, 2, render.StaticDraw, false).setData(2, msh.T)
 		}
-		m.initFaces(render.StaticDraw).setFaces(data[0].F)
+		m.initFaces(render.StaticDraw).setFaces(msh.F)
 	} else {
 		return fmt.Errorf("loader.loadMesh: could not load %s %s", m.name, err)
 	}
@@ -272,11 +272,12 @@ func (l *loader) loadTexture(t *texture) (*texture, error) {
 
 // importTexture transfers data loaded from disk to the render object.
 func (l *loader) importTexture(t *texture) error {
-	img, err := l.ld.Png(t.name)
+	img := &load.ImgData{}
+	err := img.Load(t.name, l.loc)
 	if err != nil {
 		return fmt.Errorf("loader.loadTexture: could not load %s %s", t.name, err)
 	}
-	t.set(img)
+	t.set(img.Img)
 	return nil
 }
 
@@ -298,11 +299,12 @@ func (l *loader) loadMaterial(m *material) (*material, error) {
 
 // importMaterial transfers data loaded from disk to the render object.
 func (l *loader) importMaterial(m *material) error {
-	if mtl, err := l.ld.Mtl(m.label()); err == nil {
+	mtl := &load.MtlData{}
+	if err := mtl.Load(m.label(), l.loc); err == nil {
 		kd := &rgb{mtl.KdR, mtl.KdG, mtl.KdB}
 		ka := &rgb{mtl.KaR, mtl.KaG, mtl.KaB}
 		ks := &rgb{mtl.KsR, mtl.KsG, mtl.KsB}
-		m.setMaterial(kd, ka, ks, mtl.Tr)
+		m.setMaterial(kd, ka, ks, mtl.Alpha, mtl.Ns)
 		return nil
 	}
 	return fmt.Errorf("loader.loadMaterial: could not load %s", m.name)
@@ -326,7 +328,8 @@ func (l *loader) loadFont(f *font) (*font, error) {
 
 // importFont transfers data loaded from disk to the render object.
 func (l *loader) importFont(f *font) error {
-	if fnt, err := l.ld.Fnt(f.label()); err == nil {
+	fnt := &load.FntData{}
+	if err := fnt.Load(f.label(), l.loc); err == nil {
 		f.setSize(fnt.W, fnt.H)
 		for _, ch := range fnt.Chars {
 			f.addChar(ch.Char, ch.X, ch.Y, ch.W, ch.H, ch.Xo, ch.Yo, ch.Xa)
@@ -385,33 +388,33 @@ func (l *loader) loadAnim(a *animation, m *mesh) (*animation, *mesh, []*texture)
 // importAnim loads the animation, mesh, and texture for an
 // animated model.
 func (l *loader) importAnim(a *animation, m *mesh) (texs []*texture, err error) {
-	var iqd *load.IqData
-	if iqd, err = l.ld.Iqm(a.name); err != nil {
+	mod := &load.ModData{}
+	if err = mod.Load(a.name, l.loc); err != nil {
 		return nil, err
 	}
 
 	// Use the loaded data to initialize a render.Model
 	// Vertex position data and face data must be present.
 	// All other buffers are optional, but need T, B, W for animation.
-	m.initData(0, 3, render.StaticDraw, false).setData(0, iqd.V)
-	m.initFaces(render.StaticDraw).setFaces(iqd.F)
-	if len(iqd.N) > 0 {
-		m.initData(1, 3, render.StaticDraw, false).setData(1, iqd.N)
+	m.initData(0, 3, render.StaticDraw, false).setData(0, mod.V)
+	m.initFaces(render.StaticDraw).setFaces(mod.F)
+	if len(mod.N) > 0 {
+		m.initData(1, 3, render.StaticDraw, false).setData(1, mod.N)
 	}
-	if len(iqd.T) > 0 {
-		m.initData(2, 2, render.StaticDraw, false).setData(2, iqd.T)
+	if len(mod.T) > 0 {
+		m.initData(2, 2, render.StaticDraw, false).setData(2, mod.T)
 	}
-	if len(iqd.B) > 0 {
-		m.initData(4, 4, render.StaticDraw, false).setData(4, iqd.B)
+	if len(mod.Blends) > 0 {
+		m.initData(4, 4, render.StaticDraw, false).setData(4, mod.Blends)
 	}
-	if len(iqd.W) > 0 {
-		m.initData(5, 4, render.StaticDraw, true).setData(5, iqd.W)
+	if len(mod.Weights) > 0 {
+		m.initData(5, 4, render.StaticDraw, true).setData(5, mod.Weights)
 	}
 
 	// Store the animation data.
-	if len(iqd.Frames) > 0 {
+	if len(mod.Frames) > 0 {
 		moves := []movement{}
-		for _, ia := range iqd.Anims {
+		for _, ia := range mod.Movements {
 			movement := movement{
 				name: ia.Name,
 				f0:   int(ia.F0),
@@ -419,12 +422,12 @@ func (l *loader) importAnim(a *animation, m *mesh) (texs []*texture, err error) 
 				rate: float64(ia.Rate)}
 			moves = append(moves, movement)
 		}
-		a.setData(iqd.Frames, iqd.Joints, moves)
+		a.setData(mod.Frames, mod.Joints, moves)
 	}
 
 	// Get model textures. There may be more than one.
 	// Convention: use texture names based on the animation name.
-	for cnt, itex := range iqd.Textures {
+	for cnt, itex := range mod.TMap {
 		tname := a.name + strconv.Itoa(cnt)
 		tex := newTexture(tname)
 		if tex, err = l.loadTexture(tex); tex != nil && err == nil {

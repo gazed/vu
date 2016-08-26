@@ -58,6 +58,10 @@ int main(int argc, char *argv[]) {
                     free(s);
                 } else if (gsu.key == 0x23) { // p key
                     gs_clip_paste("test paste string");
+                } else if (gsu.key == 0x11) { // t key: Test fullscreen toggle.
+                   printf(" toggle before %d", gs_fullscreen(display));
+                   gs_toggle_fullscreen(display);
+                   printf(" toggle after %d", gs_fullscreen(display));
                 }
             } else if (gsu.event == GS_ScrollWheel) {
                 printf("wheel %ld - ", gsu.scroll);

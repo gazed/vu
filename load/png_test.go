@@ -1,4 +1,4 @@
-// Copyright © 2013-2015 Galvanized Logic Inc.
+// Copyright © 2013-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package load
@@ -9,11 +9,12 @@ import (
 
 // Uses vu/eg resource directories.
 func TestLoadPng(t *testing.T) {
-	load := newLoader().setDir(img, "../eg/images")
-	if img, _ := load.png("xxx"); img != nil {
-		t.Error("Image should be nil for bad files")
+	img := &ImgData{}
+	loc := NewLocator().Dir("PNG", "../eg/images")
+	if err := img.Load("xxx", loc); err == nil {
+		t.Error("Image should fail for bad files")
 	}
-	if img, _ := load.png("image"); img == nil {
+	if err := img.Load("image", loc); err != nil {
 		t.Error("Could not load image file")
 	}
 }

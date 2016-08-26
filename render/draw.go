@@ -73,9 +73,8 @@ type Draw interface {
 func NewDraw() Draw {
 	d := &draw{}
 	d.mv = &m4{}
-	d.mvp = &m4{}
 	d.pm = &m4{}
-	d.nm = &m3{}
+	d.mvp = &m4{}
 	d.dbm = &m4{}
 	d.scale = &v3{1, 1, 1}
 	d.floats = map[string][]float32{} // Float uniform values.
@@ -113,7 +112,6 @@ type draw struct {
 	mv    *m4    // Model View.
 	mvp   *m4    // Model View projection.
 	pm    *m4    // Projection only.
-	nm    *m3    // Normal matrix
 	dbm   *m4    // Depth bias matrix for shadow maps.
 	scale *v3    // Scale X, Y, Z
 	pose  []m34  // Per render frame of animation bone data.

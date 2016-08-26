@@ -15,7 +15,8 @@ uniform mat4  pm;   // projection matrix
 // the fragment shader can use this for it's output colour's alpha component 
 out float opacity;
 
-void main() {
+void main()
+{
 	// work out the elapsed time for _this particle_ after its start time
 	float t = time - start_time;
 

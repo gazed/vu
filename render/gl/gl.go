@@ -1,4 +1,5 @@
 // Package gl provides golang bindings for OpenGL
+// Use is governed by a BSD-style license found in the LICENSE file.
 // The bindings were generated from OpenGL spec glcorearb.h-v4_3.
 // The official OpenGL documentation for any of the constants
 // or methods can be found online. Just prepend "GL_"

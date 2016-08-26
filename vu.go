@@ -91,9 +91,11 @@ func New(app App, name string, wx, wy, ww, wh int) (err error) {
 const (
 
 	// Global graphic state constants. See Eng.State
-	Blend     = render.Blend     // Alpha blending. Enabled by default.
-	CullFace  = render.CullFace  // Backface culling. Enabled by default.
-	DepthTest = render.DepthTest // Z-buffer awareness. Enabled by default.
+	Blend       = render.Blend       // Alpha blending. Enabled by default.
+	CullFace    = render.CullFace    // Backface culling. Enabled by default.
+	DepthTest   = render.DepthTest   // Z-buffer awareness. Enabled by default.
+	StaticDraw  = render.StaticDraw  // Data created once and rendered many times.
+	DynamicDraw = render.DynamicDraw // Data is continually being updated.
 
 	// Per-part rendering constants for Model.SetDrawMode.
 	Triangles = render.Triangles // Triangles are the norm.

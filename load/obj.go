@@ -1,4 +1,4 @@
-// Copyright © 2013-2015 Galvanized Logic Inc.
+// Copyright © 2013-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package load
@@ -13,52 +13,30 @@ import (
 	"github.com/gazed/vu/math/lin"
 )
 
-// ObjData stores vertex data from .obj files.
-// It is intended for populating rendered models.
-// The V,F buffers are expected to have data.
-// The N,T buffers are optional.
-type ObjData struct {
-	Name string    // Data name from .obj file.
-	V    []float32 // Vertex positions.    Arranged as [][3]float32
-	N    []float32 // Vertex normals.      Arranged as [][3]float32
-	T    []float32 // Texture coordinates. Arranged as [][2]float32
-	F    []uint16  // Triangle faces.      Arranged as [][3]uint16
-}
-
-// obj loads a Wavefront .obj file containing one or more mesh descriptions.
-// A Wavefront obj file is a text representation of one or more 3D models.
-// This loader is specifically looking for triangle meshes with normals
-// and supports a limited subset of the full specification:
+// Obj loads a Wavefront OBJ file containing one or more mesh descriptions.
+// A Wavefront OBJ file is a text representation of one or more 3D models.
+// This loader supports a limited subset of the full specification. It is
+// specifically looking for a single object triangle mesh with normals.
 //    https://en.wikipedia.org/wiki/Wavefront_.obj_file#File_format
 //    http://www.martinreddy.net/gfx/3d/OBJ.spec
-//
-// Note that the .obj files refer to vertices and normals through a absolute
-// count from the beginning of the file. Both .obj and .mtl files can be
-// created from Blender.
-func (l *loader) obj(name string) (objs []*ObjData, err error) {
-	objs = []*ObjData{}
-	var file io.ReadCloser
-	fname := name + ".obj"
-	if file, err = l.getResource(l.dir[mod], fname); err == nil {
-		defer file.Close()
-		objects := l.obj2Strings(file)
-
-		// parse each wavefront object into a mesh.
-		odata := &objData{}
-		for _, obj := range objects {
-			if faces, derr := l.obj2Data(obj.lines, odata); derr == nil {
-				if objData, merr := l.obj2ObjData(obj.name, odata, faces); merr == nil {
-					objs = append(objs, objData)
-				} else {
-					return objs, fmt.Errorf("obj2ObjData %s: %s", fname, merr)
-				}
-			} else {
-				return objs, fmt.Errorf("obj2Data %s: %s", fname, derr)
-			}
-		}
+// The Reader r is expected to be opened and closed by the caller.
+// A successful import overwrites the data in ObjData.
+func Obj(r io.Reader, d *MshData) error {
+	objs := obj2Strings(r)
+	if len(objs) <= 0 {
+		return fmt.Errorf("No objects in .obj file")
 	}
-	return
+	odata := &objData{}
+	faces, derr := obj2Data(objs[0].lines, odata)
+	if derr != nil {
+		return fmt.Errorf("obj2Data %s", derr)
+	}
+	return obj2MshData(objs[0].name, odata, faces, d)
 }
+
+// public inteface
+// =============================================================================
+// internal implementation for loading OBJ files.
 
 // objStrings is an intermediate data structure used in parsing.
 type objStrings struct {
@@ -93,7 +71,7 @@ type face struct {
 // obj2Strings reads in all the file data grouped by object name. This is needed
 // because a single wavefront file can hold many objects. Separating the objects
 // makes parsing easier.
-func (l *loader) obj2Strings(file io.ReadCloser) (objs []*objStrings) {
+func obj2Strings(file io.Reader) (objs []*objStrings) {
 	objs = []*objStrings{}
 	name := ""
 	var curr *objStrings
@@ -114,7 +92,10 @@ func (l *loader) obj2Strings(file io.ReadCloser) (objs []*objStrings) {
 }
 
 // obj2Data turns a wavefront object into numbers and temporary data structures.
-func (l *loader) obj2Data(lines []string, odata *objData) (faces []face, err error) {
+//
+// Note that the OBJ files refer to vertices and normals through a absolute
+// count from the beginning of the file. OBJ files can be created from Blender.
+func obj2Data(lines []string, odata *objData) (faces []face, err error) {
 	for _, line := range lines {
 		tokens := strings.Split(line, " ")
 		var f1, f2, f3 float32
@@ -153,10 +134,10 @@ func (l *loader) obj2Data(lines []string, odata *objData) (faces []face, err err
 	return
 }
 
-// obj2ObjData turns the data from .obj format into an internal OpenGL friendly
+// obj2MshData turns the data from .obj format into an internal OpenGL friendly
 // format. The following information needs to be created for each mesh.
 //
-//    mesh.V = append(mesh.V, ...4-float32) - indexed from 0
+//    mesh.V = append(mesh.V, ...3-float32) - indexed from 0
 //    mesh.N = append(mesh.N, ...3-float32) - indexed from 0
 //    mesh.T = append(mesh.T, ...2-float32)	- indexed from 0
 //    mesh.F = append(mesh.F, ...3-uint16)	- refers to above zero indexed values
@@ -166,8 +147,7 @@ func (l *loader) obj2Data(lines []string, odata *objData) (faces []face, err err
 //
 // Additionally the normals at each vertex are generated as the sum of the
 // normals for each face that shares that vertex.
-func (l *loader) obj2ObjData(name string, odata *objData, faces []face) (data *ObjData, err error) {
-	data = &ObjData{}
+func obj2MshData(name string, odata *objData, faces []face, data *MshData) (err error) {
 	data.Name = name
 	vmap := make(map[string]int) // the unique vertex data points for this face.
 	vcnt := -1
@@ -181,7 +161,7 @@ func (l *loader) obj2ObjData(name string, odata *objData, faces []face) (data *O
 			facei := face.s[pi]
 			v, t, n := -1, -1, -1
 			if v, t, n, err = parseFaceIndex(facei); err != nil {
-				return data, fmt.Errorf("could not parse face data %s", err)
+				return fmt.Errorf("could not parse face data %s", err)
 			}
 
 			// cut down the amount of information passed around by reusing points
@@ -210,7 +190,7 @@ func (l *loader) obj2ObjData(name string, odata *objData, faces []face) (data *O
 			data.F = append(data.F, uint16(vmap[vertexIndex]))
 		}
 	}
-	return data, err
+	return err
 }
 
 // parseFace turns a face index point string (representing multiple indices)

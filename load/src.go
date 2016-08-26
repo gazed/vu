@@ -1,32 +1,35 @@
-// Copyright © 2013-2015 Galvanized Logic Inc.
+// Copyright © 2013-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package load
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"strings"
 )
 
-// txt loads the fragment or vertex shader source into a slice of strings.
-// Each line must be terminated with a single linefeed. Nil is returned
-// if the expected source file is not found on disk.
-func (l *loader) txt(fileName string) (lines []string, err error) {
-	var file io.ReadCloser
-	if file, err = l.getResource(l.dir[src], fileName); err == nil {
-		defer file.Close()
-		characters, _ := ioutil.ReadAll(bufio.NewReader(file))
-		lines = strings.Split(string(characters), "\n")
+// SrcData is a slice of linefeed terminated strings used to load
+// text based files.
+type SrcData []string
 
-		// shader source lines must be terminated with a linefeed in order to compile.
-		for cnt := range lines {
-			lines[cnt] = strings.TrimSpace(lines[cnt]) + "\n"
-		}
-
-		// remove extraneous last line from split.
-		lines = lines[0 : len(lines)-1]
+// Src loads text based data into SrcData.
+// Each line terminated with a single linefeed (needed for shader source).
+// The Reader r is expected to be opened and closed by the caller.
+// A successful import returns a new slice of strings in SrcData.
+func Src(r io.Reader) (d SrcData, err error) {
+	characters, berr := ioutil.ReadAll(bufio.NewReader(r))
+	if berr != nil {
+		return nil, fmt.Errorf("Load source %s\n", berr)
 	}
-	return
+	d = strings.Split(string(characters), "\n")
+
+	// shader source lines must be terminated with a linefeed in order to compile.
+	for cnt := range d {
+		d[cnt] = strings.TrimSpace(d[cnt]) + "\n"
+	}
+	d = d[0 : len(d)-1] // remove extraneous last line from split.
+	return d, nil
 }

@@ -245,9 +245,10 @@ void gs_read_dispatch(long display, GSEvent *urge) {
                 float dx, dy;
                 gs_scroll(display, &dx, &dy);
                 urge->scroll = (long)dy;
-            } else if (urge->event == GS_ModKeysChanged) {
-                urge->mods = (long) ([event modifierFlags] & NSDeviceIndependentModifierFlagsMask);
             }
+
+            // keep key modifiers updated.
+            urge->mods = (long) ([event modifierFlags] & NSDeviceIndependentModifierFlagsMask);
         }
     }
 
@@ -272,9 +273,11 @@ unsigned char gs_shell_alive(long shell) {
 }
 
 // Return 1 if the application is full screen, 0 otherwise.
+// This needs to return the correct result right after a call
+// to gs_toggle_fullscreen.
 unsigned char gs_fullscreen(long display) {
-    NSApplicationPresentationOptions options = [(id) display currentSystemPresentationOptions];
-    return (options&NSApplicationPresentationFullScreen) == NSApplicationPresentationFullScreen;
+    NSWindow *window = [(id)display mainWindow];
+    return (([window styleMask] & NSFullScreenWindowMask) == NSFullScreenWindowMask);
 }
 
 // Flip full screen mode. Must be called after starting processing

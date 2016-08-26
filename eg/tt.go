@@ -3,6 +3,11 @@
 
 package main
 
+// Controls: none
+//   WS    : spin frame             : left right
+//   AD    : spin model             : left right
+//   T     : shut down
+
 import (
 	"log"
 
@@ -19,7 +24,7 @@ import (
 // This is another example of multi-pass rendering and can be used for
 // generating live in-game portals.
 func tt() {
-	tt := &totex{}
+	tt := &toTex{}
 	if err := vu.New(tt, "Render to Texture", 400, 100, 800, 600); err != nil {
 		log.Printf("tt: error starting engine %s", err)
 	}
@@ -27,16 +32,15 @@ func tt() {
 }
 
 // Globally unique "tag" that encapsulates example specific data.
-type totex struct {
-	cam0       vu.Camera // Camera for rendering monkey to texture scene.
-	monkey     vu.Pov    // Allow user to spin monkey.
-	cam1       vu.Camera // Camera for rendering texture frame.
-	frame      vu.Pov    // Allow user to spin frame.
-	screenText vu.Pov    // Screen space text.
+type toTex struct {
+	cam0   vu.Camera // Camera for rendering monkey to texture scene.
+	monkey vu.Pov    // Allow user to spin monkey.
+	cam1   vu.Camera // Camera for rendering texture frame.
+	frame  vu.Pov    // Allow user to spin frame.
 }
 
 // Create is the startup asset creation.
-func (tt *totex) Create(eng vu.Eng, s *vu.State) {
+func (tt *toTex) Create(eng vu.Eng, s *vu.State) {
 
 	// create a scene that will render the blender monkey model to a texture.
 	scene0 := eng.Root().NewPov()
@@ -61,7 +65,7 @@ func (tt *totex) Create(eng vu.Eng, s *vu.State) {
 }
 
 // Update is the regular engine callback.
-func (tt *totex) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
+func (tt *toTex) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 	spin := 270.0 // spin so many degrees in one second.
 	if in.Resized {
 		tt.resize(s.W, s.H)
@@ -69,9 +73,9 @@ func (tt *totex) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 	dt := in.Dt
 	for press := range in.Down {
 		switch press {
-		case vu.KQ:
+		case vu.KW:
 			tt.frame.Spin(0, dt*-spin, 0)
-		case vu.KE:
+		case vu.KS:
 			tt.frame.Spin(0, dt*+spin, 0)
 		case vu.KA:
 			tt.monkey.Spin(0, dt*-spin, 0)
@@ -82,7 +86,7 @@ func (tt *totex) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 		}
 	}
 }
-func (tt *totex) resize(ww, wh int) {
+func (tt *toTex) resize(ww, wh int) {
 	tt.cam0.SetPerspective(60, float64(1024)/float64(1024), 0.1, 50) // Image size.
 	tt.cam1.SetPerspective(60, float64(ww)/float64(wh), 0.1, 50)     // Screen size.
 }

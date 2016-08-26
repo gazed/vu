@@ -3,6 +3,10 @@
 
 package main
 
+// Controls:
+//   key   : print out key press info
+//   mouse : print out mouse click info
+
 import (
 	"fmt"
 	"time"

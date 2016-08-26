@@ -1,4 +1,4 @@
-// Copyright © 2013-2015 Galvanized Logic Inc.
+// Copyright © 2013-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package load
@@ -9,11 +9,46 @@ import (
 	"io"
 )
 
-// WavHdr is used to load a .wav audio file into memory such that it is
-// easily usable by the audio library. The wave PCM soundfile format is:
-//    https://ccrma.stanford.edu/courses/422/projects/WaveFormat/
-// WavHdr is intended for attaching sounds to 3D locations.
-type WavHdr struct {
+// Wav attempts to load WAV based audio data into SndData.
+// The wave PCM soundfile format is from:
+//     https://ccrma.stanford.edu/courses/422/projects/WaveFormat
+// The Reader r is expected to be opened and closed by the caller.
+// A successful import overwrites the data in SndData.
+func Wav(r io.Reader, d *SndData) (err error) {
+	hdr := &wavHeader{}
+	if err = binary.Read(r, binary.LittleEndian, hdr); err != nil {
+		return fmt.Errorf("Invalid .wav audio file: %s", err)
+	}
+
+	// check that it really is a WAVE file.
+	riff, wave := string(hdr.RiffID[:]), string(hdr.WaveID[:])
+	if riff != "RIFF" || wave != "WAVE" {
+		return fmt.Errorf("Invalid .wav audio file")
+	}
+
+	// read the audio data.
+	bytesRead := uint32(0)
+	data := []byte{}
+	inbuff := make([]byte, hdr.DataSize)
+	for bytesRead < hdr.DataSize {
+		inbytes, readErr := r.Read(inbuff)
+		if readErr != nil {
+			return fmt.Errorf("Corrupt .wav audio file")
+		}
+		data = append(data, inbuff...)
+		bytesRead += uint32(inbytes)
+	}
+	if bytesRead != hdr.DataSize {
+		return fmt.Errorf("Invalid .wav audio file %d %d", bytesRead, hdr.DataSize)
+	}
+	attrs := &SndAttributes{Channels: hdr.Channels, Frequency: hdr.Frequency,
+		DataSize: hdr.DataSize, SampleBits: hdr.SampleBits}
+	d.Attrs, d.Data = attrs, data
+	return nil
+}
+
+// wavHeader is an internal implementation for loading WAV files.
+type wavHeader struct {
 	RiffID      [4]byte // "RIFF"
 	FileSize    uint32  // Total file size minus 8 bytes.
 	WaveID      [4]byte // "WAVE"
@@ -27,48 +62,4 @@ type WavHdr struct {
 	SampleBits  uint16  // 8 bits = 8, 16 bits = 16, etc.
 	DataID      [4]byte // "data"
 	DataSize    uint32  // Size of audio data: total file size minus 44 bytes.
-}
-
-// wav attempts to load audio data into a slice of bytes. A successful load
-// results in the sound being filled with data, otherwise err is returned.
-func (l *loader) wav(filename string) (wh *WavHdr, data []byte, err error) {
-	var file io.ReadCloser
-	if file, err = l.getResource(l.dir[snd], filename+".wav"); err == nil {
-		defer file.Close()
-		return l.loadWav(file)
-	}
-	return nil, []byte{}, err
-}
-
-// loadWav reads a valid wave file into a header and a bunch audio data into bytes.
-// Invalid files return a nil header and an empty data slice.
-// FUTURE: Handle the info block.
-func (l *loader) loadWav(file io.ReadCloser) (wh *WavHdr, bytes []byte, err error) {
-	wh = &WavHdr{}
-	if err = binary.Read(file, binary.LittleEndian, wh); err != nil {
-		return nil, []byte{}, fmt.Errorf("Invalid .wav audio file: %s", err)
-	}
-
-	// check that it really is a WAVE file.
-	riff, wave := string(wh.RiffID[:]), string(wh.WaveID[:])
-	if riff != "RIFF" || wave != "WAVE" {
-		return nil, []byte{}, fmt.Errorf("Invalid .wav audio file")
-	}
-
-	// read the audio data.
-	bytesRead := uint32(0)
-	data := []byte{}
-	inbuff := make([]byte, wh.DataSize)
-	for bytesRead < wh.DataSize {
-		inbytes, readErr := file.Read(inbuff)
-		if readErr != nil {
-			return nil, []byte{}, fmt.Errorf("Corrupt .wav audio file")
-		}
-		data = append(data, inbuff...)
-		bytesRead += uint32(inbytes)
-	}
-	if bytesRead != wh.DataSize {
-		return nil, []byte{}, fmt.Errorf("Invalid .wav audio file %d %d", bytesRead, wh.DataSize)
-	}
-	return wh, data, nil
 }

@@ -26,12 +26,12 @@ Less essential, but potentially more fun packages are:
 * [ai](http://godoc.org/github.com/gazed/vu/ai) Behaviour Tree for autonomous units.
 * [form](http://godoc.org/github.com/gazed/vu/form) 2D GUI layout helper.
 * [grid](http://godoc.org/github.com/gazed/vu/grid) Grid based random level generators. A-star and flow field pathfinding.
-* [land](http://godoc.org/github.com/gazed/vu/land) Height map and land surface generator.
+* [synth](http://godoc.org/github.com/gazed/vu/synth) Procedural generation utilities.
 
 Installation
 -----
 
-Ensure you have installed [Go](http://golang.org) > 1.6:
+Ensure you have installed [Go](http://golang.org) 1.6+:
 
 ```bash
 go get -u github.com/gazed/vu

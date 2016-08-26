@@ -1,7 +1,7 @@
 // Copyright © 2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
-package land
+package synth
 
 // Z-order curve utility methods. A z-order number represents a single value
 // of a global x,y positioning. The number of bits in the z-order number

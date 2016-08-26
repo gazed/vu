@@ -3,6 +3,11 @@
 
 package main
 
+// Controls:
+//   WASD  : move the light position: forward left back right
+//   ZX    : move light position    : up down
+//   LaRa  : spin the cube          : left right.
+
 import (
 	"log"
 	"math/rand"

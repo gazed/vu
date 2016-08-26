@@ -3,6 +3,9 @@
 
 package main
 
+// Controls:
+//   WASD  : move light position    : up left down right
+
 import (
 	"log"
 

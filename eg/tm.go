@@ -3,11 +3,15 @@
 
 package main
 
+// Controls:
+//   []    : move ocean level       : up down
+//   -=    : change texture         : greener browner
+
 import (
 	"log"
 
 	"github.com/gazed/vu"
-	"github.com/gazed/vu/land"
+	"github.com/gazed/vu/synth"
 )
 
 // tm demonstrates creating, texturing, and rendering a dynamic terrain map
@@ -26,34 +30,32 @@ func tm() {
 // Encapsulate example specific data with a unique "tag".
 type tmtag struct {
 	cam     vu.Camera
-	ww, wh  int         // window size.
 	gm      vu.Model    // visible surface model
 	ground  vu.Pov      // visible surface.
 	coast   vu.Pov      // shallow water plane.
 	ocean   vu.Pov      // deep water plane.
-	world   land.Land   // height map generation.
+	world   synth.Land  // height map generation.
 	surface vu.Surface  // data structure used to create land.
 	evo     [][]float64 // used for evolution experiments.
 }
 
 // Create is the engine callback for initial asset creation.
 func (tm *tmtag) Create(eng vu.Eng, s *vu.State) {
-	tm.ww, tm.wh = s.W, s.H
 	tm.cam = eng.Root().NewCam()
-	tm.cam.SetOrthographic(0, float64(tm.ww), 0, float64(tm.wh), 0, 50)
+	tm.cam.SetOrthographic(0, float64(s.W), 0, float64(s.H), 0, 50)
 	sun := eng.Root().NewPov().SetLocation(0, 5, 0)
 	sun.NewLight().SetColor(0.4, 0.7, 0.9)
 
 	// create the world surface.
 	seed := int64(123)
 	patchSize := 128
-	tm.world = land.New(patchSize, seed)
+	tm.world = synth.NewLand(patchSize, seed)
 	worldTile := tm.world.NewTile(1, 0, 0)
 	textureRatio := 256.0 / 1024.0
 	tm.surface = vu.NewSurface(patchSize, patchSize, 16, float32(textureRatio), 10)
 
 	// create a separate surface for generating initial land textures.
-	emap := land.New(patchSize, seed-1)
+	emap := synth.NewLand(patchSize, seed-1)
 	etile := emap.NewTile(1, 0, 0)
 	etopo := etile.Topo()
 
@@ -86,10 +88,10 @@ func (tm *tmtag) Create(eng vu.Eng, s *vu.State) {
 	// Add water planes.
 	tm.ocean = eng.Root().NewPov()
 	tm.ocean.SetLocation(256, 0, -10.5)
-	tm.ocean.SetScale(float64(tm.ww), float64(tm.wh), 1)
+	tm.ocean.SetScale(float64(s.W), float64(s.H), 1)
 	tm.ocean.NewModel("alpha").LoadMesh("plane").LoadMat("blue")
 	tm.coast = eng.Root().NewPov().SetLocation(256, 0, -10)
-	tm.coast.SetScale(float64(tm.ww), float64(tm.wh), 1)
+	tm.coast.SetScale(float64(s.W), float64(s.H), 1)
 	tm.coast.NewModel("alpha").LoadMesh("plane").LoadMat("transparent_blue")
 	return
 }
@@ -97,7 +99,6 @@ func (tm *tmtag) Create(eng vu.Eng, s *vu.State) {
 // Update is the regular engine callback.
 func (tm *tmtag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 	if in.Resized {
-		tm.ww, tm.wh = s.W, s.H
 		tm.cam.SetOrthographic(0, float64(s.W), 0, float64(s.H), 0, 50)
 	}
 

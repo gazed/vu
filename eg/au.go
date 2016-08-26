@@ -3,6 +3,8 @@
 
 package main
 
+// Controls: NA
+
 import (
 	"log"
 	"time"
@@ -35,8 +37,8 @@ func au() {
 			al.GenSources(1, &source)
 
 			// read in the audio data.
-			ldr := load.NewLoader()
-			wh, data, err := ldr.Wav("bloop")
+			sound := &load.SndData{}
+			err := sound.Load("bloop", load.NewLocator())
 			if err != nil {
 				log.Printf("au: error loading audio file %s %s", "bloop", err)
 				return
@@ -44,12 +46,14 @@ func au() {
 
 			// copy the audio data into the buffer
 			tag := &autag{}
-			format := tag.audioFormat(wh)
+			attrs := sound.Attrs
+			format := tag.audioFormat(attrs)
 			if format < 0 {
 				log.Printf("au: error recognizing audio format")
 				return
 			}
-			al.BufferData(buffer, int32(format), al.Pointer(&(data[0])), int32(wh.DataSize), int32(wh.Frequency))
+			al.BufferData(buffer, int32(format), al.Pointer(&(sound.Data[0])),
+				int32(attrs.DataSize), int32(attrs.Frequency))
 
 			// attach the source to a buffer.
 			al.Sourcei(source, al.BUFFER, int32(buffer))
@@ -76,15 +80,15 @@ type autag struct{}
 
 // audioFormat figures out which of the OpenAL formats to use based on the
 // WAVE file information.
-func (a *autag) audioFormat(wh *load.WavHdr) int32 {
+func (a *autag) audioFormat(attrs *load.SndAttributes) int32 {
 	format := int32(-1)
-	if wh.Channels == 1 && wh.SampleBits == 8 {
+	if attrs.Channels == 1 && attrs.SampleBits == 8 {
 		format = al.FORMAT_MONO8
-	} else if wh.Channels == 1 && wh.SampleBits == 16 {
+	} else if attrs.Channels == 1 && attrs.SampleBits == 16 {
 		format = al.FORMAT_MONO16
-	} else if wh.Channels == 2 && wh.SampleBits == 8 {
+	} else if attrs.Channels == 2 && attrs.SampleBits == 8 {
 		format = al.FORMAT_STEREO8
-	} else if wh.Channels == 2 && wh.SampleBits == 16 {
+	} else if attrs.Channels == 2 && attrs.SampleBits == 16 {
 		format = al.FORMAT_STEREO16
 	}
 	return format

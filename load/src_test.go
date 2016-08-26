@@ -1,4 +1,4 @@
-// Copyright © 2013-2015 Galvanized Logic Inc.
+// Copyright © 2013-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package load
@@ -10,8 +10,9 @@ import (
 
 // Uses vu/eg resource directories.
 func TestLoadSource(t *testing.T) {
-	load := newLoader().SetDir(src, "../eg/source")
-	source, _ := load.Fsh("basic")
+	shd := &ShdData{}
+	loc := NewLocator().Dir("VSH", "../eg/source").Dir("FSH", "../eg/source")
+	err := shd.Load("basic", loc)
 	expect := []string{
 		"#version 330\n",
 		"\n",
@@ -22,8 +23,8 @@ func TestLoadSource(t *testing.T) {
 		"{\n",
 		"out_Color = ex_Color;\n",
 		"}\n"}
-	got, want := fmt.Sprintf("%s", source), fmt.Sprintf("%s", expect)
-	if got != want {
+	got, want := fmt.Sprintf("%s", shd.Fsh), fmt.Sprintf("%s", expect)
+	if err != nil || got != want {
 		t.Errorf(format, got, want)
 	}
 }

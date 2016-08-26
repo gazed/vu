@@ -55,6 +55,8 @@ func main() {
 		{"rt", "rt: Ray Trace", rt},
 		{"tt", "tt: Render to Texture", tt},
 		{"sm", "sm: Shadow Map", sm},
+		{"pt", "pt: Procedural Textures", pt},
+		{"ss", "ss: Super Shapes", ss},
 	}
 
 	// run the first matching example.

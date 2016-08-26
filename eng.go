@@ -267,6 +267,7 @@ func (eng *engine) communicate() {
 					}
 					m.ks = a.ks // Can't currently be overridden on model.
 					m.ka = a.ka // ditto
+					m.ns = a.ns // ditto
 				}
 			case *sound:
 				if n, ok := req.data.(*noise); ok {

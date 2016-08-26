@@ -3,6 +3,11 @@
 
 package main
 
+// Controls:
+//   WS    : move camera            : forward back
+//   AD    : spin camera            : left right
+//    T    : shut down
+
 import (
 	"log"
 
@@ -83,10 +88,6 @@ func (bb *bbtag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 			bb.cam.Move(0, 0, dt*-run, bb.cam.Lookxz())
 		case vu.KS:
 			bb.cam.Move(0, 0, dt*run, bb.cam.Lookxz())
-		case vu.KQ:
-			bb.cam.Move(dt*-run, 0, 0, bb.cam.Lookxz())
-		case vu.KE:
-			bb.cam.Move(dt*run, 0, 0, bb.cam.Lookxz())
 		case vu.KA:
 			bb.cam.AdjustYaw(dt * spin)
 		case vu.KD:

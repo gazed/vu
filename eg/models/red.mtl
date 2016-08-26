@@ -1,8 +1,8 @@
 # Blender MTL File: 'None'
 # Material Count: 1
 newmtl red
-Ns 0
-Ka 0.0 0.0 0.0
+Ns 20.0
+Ka 0.2 0.2 0.2
 Kd 0.8 0.6 0.2
 Ks 0.8 0.8 0.8
 d 1

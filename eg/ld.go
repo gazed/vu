@@ -3,6 +3,8 @@
 
 package main
 
+// Controls: NA
+
 import (
 	"fmt"
 
@@ -13,12 +15,9 @@ import (
 	"github.com/gazed/vu/render/gl"
 )
 
-// ld loads a mesh model that has been exported from another tool -
-// in this case an .obj file from Blender. It is testing the vu/load package
-// with the key line being:
-//	      meshes, _ := ldr.Obj("monkey")
+// ld loads a mesh model that has been exported from another tool.
+// A OBJ file from Blender is used to test the vu/load package.
 // This example renders using OpenGL from package vu/render/gl.
-//
 // See other examples use of the vu:Pov interface for a much easier way
 // to load and render models when done as part of the vu engine.
 func ld() {
@@ -43,6 +42,7 @@ type ldtag struct {
 	mvp64     *lin.M4    // scratch for transform calculations.
 	mvp       render.Mvp // transform matrix for rendering.
 	faceCount int32
+	loc       load.Locator
 }
 
 // update handles user input
@@ -64,10 +64,10 @@ func (ld *ldtag) initScene() {
 	ld.persp = lin.NewM4()
 	ld.mvp64 = lin.NewM4()
 	ld.mvp = render.NewMvp()
+	ld.loc = load.NewLocator()
 	gl.Init()
-	ldr := load.NewLoader()
-	meshes, _ := ldr.Obj("monkey")
-	mesh := meshes[0]
+	mesh := &load.MshData{}
+	mesh.Load("monkey", ld.loc)
 	ld.faceCount = int32(len(mesh.F))
 
 	// Gather the one scene into this one vertex array object.
@@ -106,13 +106,10 @@ func (ld *ldtag) initScene() {
 
 // initShader compiles shaders and links them into a shader program.
 func (ld *ldtag) initShader() {
-	shader := "monkey"
-	loader := load.NewLoader()
-	vsrc, verr := loader.Vsh(shader)
-	fsrc, ferr := loader.Fsh(shader)
-	if verr == nil && ferr == nil {
+	shader := &load.ShdData{}
+	if err := shader.Load("monkey", ld.loc); err == nil {
 		ld.shaders = gl.CreateProgram()
-		if err := gl.BindProgram(ld.shaders, vsrc, fsrc); err != nil {
+		if err := gl.BindProgram(ld.shaders, shader.Vsh, shader.Fsh); err != nil {
 			fmt.Printf("Failed to create program: %s\n", err)
 		}
 		ld.mvpref = gl.GetUniformLocation(ld.shaders, "mvpm")

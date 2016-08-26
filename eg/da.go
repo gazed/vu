@@ -3,6 +3,12 @@
 
 package main
 
+// Controls:
+//   WS    : move camera            : forward back
+//   AD    : spin camera            : left right
+//   B     : drop more spheres
+//   Sp    : add velocity to cue ball
+
 import (
 	"github.com/gazed/vu/audio/al"
 )

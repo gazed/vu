@@ -3,6 +3,12 @@
 
 package main
 
+// Controls:
+//   Tab   : flip orientation
+//   Lm    : show mouse hit
+//   WASD  : move hex grid          : up left down right
+//   ZX    : scale hex grid         : bigger smaller
+
 import (
 	"fmt"
 	"log"
@@ -26,18 +32,16 @@ func hx() {
 
 // Encapsulate example specific data with a unique "tag".
 type hxtag struct {
-	cam    vu.Camera // Fixed camera.
-	ww, wh int       // window size.
-	hg     *hexGrid  // scales and positions the hexes.
-	flat   bool      // flat or pointy grid orientation. Start off pointy.
+	cam  vu.Camera // Fixed camera.
+	hg   *hexGrid  // scales and positions the hexes.
+	flat bool      // flat or pointy grid orientation. Start off pointy.
 }
 
 // Create is the engine callback for initial asset creation.
 func (hx *hxtag) Create(eng vu.Eng, s *vu.State) {
-	hx.ww, hx.wh = s.W, s.H
 	hx.cam = eng.Root().NewCam()
 	hx.cam.SetUI()
-	hx.cam.SetOrthographic(0, float64(hx.ww), 0, float64(hx.wh), 0, 50)
+	hx.cam.SetOrthographic(0, float64(s.W), 0, float64(s.H), 0, 50)
 
 	// center hex tile.
 	hx.hg = newHexGrid(eng.Root().NewPov())
@@ -74,7 +78,6 @@ func (hx *hxtag) Create(eng vu.Eng, s *vu.State) {
 // Update is the regular engine callback.
 func (hx *hxtag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 	if in.Resized {
-		hx.ww, hx.wh = s.W, s.H
 		hx.cam.SetOrthographic(0, float64(s.W), 0, float64(s.H), 0, 50)
 	}
 	hx.hg.updateLabels(in.Ut) // handle grid changes from last update.
@@ -98,7 +101,7 @@ func (hx *hxtag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 			hx.hg.move(-1, 0)
 		case press == vu.KD:
 			hx.hg.move(1, 0)
-		case press == vu.KF && down == 1:
+		case press == vu.KTab && down == 1:
 			hx.hg.flipOrientation()
 		case press == vu.KLm && down == 1:
 			t := hx.hg.hit(in.Mx, in.My)
@@ -238,25 +241,25 @@ func (hg *hexGrid) hit(mx, my int) (t *hexTile) {
 
 // FUTURE: replace above hit test with exact hit. See:
 //   http://www.playchilla.com/how-to-check-if-a-point-is-inside-a-hexagon
-// public function isInside(pos:Vec2Const):Boolean {
+//   public function isInside(pos:Vec2Const):Boolean {
 //    const q2x:Number = Math.abs(pos.x - _center.x);  // transform the test point locally and to quadrant 2
 //    const q2y:Number = Math.abs(pos.y - _center.y);  // transform the test point locally and to quadrant 2
 //    if (q2x > _hori || q2y > _vert*2) return false;  // bounding test (since q2 is in quadrant 2 only 2 tests are needed)
 //
 //    // finally the dot product can be reduced to this due to the hexagon symmetry
 //    return 2 * _vert * _hori - _vert * q2x - _hori * q2y >= 0;
-// }
+//   }
 //
 // Also consider/see:
 //   http://www.redblobgames.com/grids/hexagons/implementation.html
-// FractionalHex pixel_to_hex(Layout layout, Point p) {
+//   FractionalHex pixel_to_hex(Layout layout, Point p) {
 //     const Orientation& M = layout.orientation; // flat or pointy layout.
 //     Point pt = Point((p.x - layout.origin.x) / layout.size.x,
 //                      (p.y - layout.origin.y) / layout.size.y);
 //     double q = M.b0 * pt.x + M.b1 * pt.y;
 //     double r = M.b2 * pt.x + M.b3 * pt.y;
 //     return FractionalHex(q, r, -q - r);
-// }
+//   }
 
 // hexGrid playing surface.
 // =============================================================================

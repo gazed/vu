@@ -1,4 +1,4 @@
-// Copyright © 2013-2015 Galvanized Logic Inc.
+// Copyright © 2013-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package load
@@ -11,56 +11,45 @@ import (
 	"strings"
 )
 
-// MtlData holds color and alpha information.
-// It is intended for populating rendered models.
-type MtlData struct {
-	KaR, KaG, KaB float32 // Ambient color.
-	KdR, KdG, KdB float32 // Diffuse color.
-	KsR, KsG, KsB float32 // Specular color.
-	Tr            float32 // Transparency
-}
-
-// Load a Wavefront .mtl file which is a text representation of one
-// or more material descriptions.  See the file format specification at:
+// Mtl loads a Wavefront MTL file which is a text representation of one
+// or more material descriptions. See the MTL file format specification at:
 //    https://en.wikipedia.org/wiki/Wavefront_.obj_file#File_format
 //    http://web.archive.org/web/20080813073052/
 //    http://paulbourke.net/dataformats/mtl/
-func (l *loader) mtl(name string) (data *MtlData, err error) {
-	mtl := &MtlData{}
-	var file io.ReadCloser
-	if file, err = l.getResource(l.dir[mod], name+".mtl"); err != nil {
-		return mtl, fmt.Errorf("could not open %s %s", name+".mtl", err)
-	}
-	defer file.Close()
+// The Reader r is expected to be opened and closed by the caller.
+// A successful import overwrites the data in MtlData.
+func Mtl(r io.Reader, d *MtlData) error {
 	var f1, f2, f3 float32
-	reader := bufio.NewReader(file)
+	reader := bufio.NewReader(r)
 	line, e1 := reader.ReadString('\n')
 	for ; e1 == nil; line, e1 = reader.ReadString('\n') {
 		tokens := strings.Split(line, " ")
 		switch tokens[0] {
 		case "Ka": // ambient
 			if _, e := fmt.Sscanf(line, "Ka %f %f %f", &f1, &f2, &f3); e != nil {
-				return mtl, fmt.Errorf("could not parse ambient values %s", e)
+				return fmt.Errorf("could not parse ambient values %s", e)
 			}
-			mtl.KaR, mtl.KaG, mtl.KaB = f1, f2, f3
+			d.KaR, d.KaG, d.KaB = f1, f2, f3
 		case "Kd": // diffuse
 			if _, e := fmt.Sscanf(line, "Kd %f %f %f", &f1, &f2, &f3); e != nil {
-				return mtl, fmt.Errorf("could not parse diffuse values %s", e)
+				return fmt.Errorf("could not parse diffuse values %s", e)
 			}
-			mtl.KdR, mtl.KdG, mtl.KdB = f1, f2, f3
+			d.KdR, d.KdG, d.KdB = f1, f2, f3
 		case "Ks": // specular
 			if _, e := fmt.Sscanf(line, "Ks %f %f %f", &f1, &f2, &f3); e != nil {
-				return mtl, fmt.Errorf("could not parse specular values %s", e)
+				return fmt.Errorf("could not parse specular values %s", e)
 			}
-			mtl.KsR, mtl.KsG, mtl.KsB = f1, f2, f3
+			d.KsR, d.KsG, d.KsB = f1, f2, f3
 		case "d": // transparency
 			a, _ := strconv.ParseFloat(strings.TrimSpace(tokens[1]), 32)
-			mtl.Tr = float32(a)
+			d.Alpha = float32(a)
+		case "Ns": // specular exponent
+			ns, _ := strconv.ParseFloat(strings.TrimSpace(tokens[1]), 32)
+			d.Ns = float32(ns)
 		case "newmtl": // material name
-		case "Ns": // specular exponent - scaler. Ignored for now.
 		case "Ni": // optical density - scaler. Ignored for now.
 		case "illum": // illumination model - int. Ignored for now.
 		}
 	}
-	return mtl, nil
+	return nil
 }

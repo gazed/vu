@@ -3,6 +3,12 @@
 
 package main
 
+// Controls:
+//   WASD  : move model             : forward left back right
+//   =-    : adjust boxes           : attach detach
+//   0-5   : change cube size
+//   P     : print number of cubes
+
 import (
 	"log"
 	"sort"
@@ -88,7 +94,7 @@ func (sg *sgtag) resize(width, height int) {
 // User actions.
 func (sg *sgtag) stats(i *vu.Input, down int) {
 	if down == 1 {
-		log.Printf("Health %d", sg.tr.health())
+		log.Printf("Cubes %d", sg.tr.health())
 	}
 }
 func (sg *sgtag) left(i *vu.Input, down int)    { sg.tr.top.Spin(0, sg.dt*sg.spin, 0) }

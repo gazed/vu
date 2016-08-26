@@ -3,6 +3,10 @@
 
 package main
 
+// Controls:
+//   key   : highlight key press
+//   mouse : highlight mouse click
+
 import (
 	"log"
 

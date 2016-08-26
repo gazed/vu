@@ -161,7 +161,7 @@ func (os *nativeOs) createDisplay(title string, x, y, width, height int) {
 	os.nl.setSize(x, y, width, height)
 	os.nr.display = os.nl.display()
 	if os.nr.display == 0 {
-		log.Printf("vu/device.native:createDisplay failed.")
+		log.Printf("device.native:createDisplay failed.")
 	}
 }
 
@@ -173,7 +173,7 @@ func (os *nativeOs) dispose() { os.nl.displayDispose(os.nr) }
 func (os *nativeOs) createShell() {
 	os.nr.shell = os.nl.shell(os.nr)
 	if os.nr.shell == 0 {
-		log.Printf("vu/device.native:createShell failed.")
+		log.Printf("device.native:createShell failed.")
 	}
 }
 
@@ -202,7 +202,7 @@ func (os *nativeOs) createContext(depth, alpha int) {
 	os.nl.setAlphaBufferSize(alpha)
 	os.nr.context = os.nl.context(os.nr)
 	if os.nr.context == 0 {
-		log.Printf("vu/device.native:createContext failed.")
+		log.Printf("device.native:createContext failed.")
 	}
 }
 

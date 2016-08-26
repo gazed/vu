@@ -1,16 +1,16 @@
 // Copyright © 2014-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
-package land
+package synth
 
 import (
 	"testing"
 )
 
 func TestSameSeed(t *testing.T) {
-	n0 := newNoise(123)
-	n1 := newNoise(123)
-	if n0.generate2D(0, 0) != n1.generate2D(0, 0) {
+	n0 := newSimplex(123)
+	n1 := newSimplex(123)
+	if n0.Gen2D(0, 0) != n1.Gen2D(0, 0) {
 		t.Error("Two generators with the same seed should produce the same result")
 	}
 }
@@ -28,15 +28,15 @@ func TestSameSeed(t *testing.T) {
 
 // How long does creating a single random noise value take.
 func BenchmarkNoise2D(b *testing.B) {
-	n := newNoise(123)
+	n := newSimplex(123)
 	for cnt := 0; cnt < b.N; cnt++ {
-		n.generate2D(10, 10)
+		n.Gen2D(10, 10)
 	}
 }
 
 func BenchmarkNoise3D(b *testing.B) {
-	n := newNoise(123)
+	n := newSimplex(123)
 	for cnt := 0; cnt < b.N; cnt++ {
-		n.generate3D(10, 10, 10)
+		n.Gen3D(10, 10, 10)
 	}
 }

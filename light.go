@@ -42,6 +42,6 @@ func (l *light) SetColor(r, g, b float64) Light {
 // toDraw sets all the data references and uniform data needed
 // by the rendering layer.
 func (l *light) toDraw(d render.Draw, px, py, pz float64) {
-	d.SetFloats("l", float32(px), float32(py), float32(pz), 1)
-	d.SetFloats("ld", float32(l.r), float32(l.g), float32(l.b))
+	d.SetFloats("lp", float32(px), float32(py), float32(pz))    // position
+	d.SetFloats("lc", float32(l.r), float32(l.g), float32(l.b)) // color
 }

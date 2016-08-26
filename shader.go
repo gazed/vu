@@ -92,6 +92,9 @@ var shaderLibrary = map[string]func() (vsh, fsh []string){
 	"gouraud": gouraudShader,
 	"phong":   phongShader,
 	"uv":      uvShader,
+	"uvc":     uvcShader,
+	"bump":    bumpShader,
+	"nmap":    nmapShader,
 	"bb":      bbShader,
 	"bbr":     bbrShader,
 	"anim":    animShader,
@@ -172,17 +175,16 @@ func diffuseShader() (vsh, fsh []string) {
 		"",
 		"uniform mat4  mvpm;",  // model view projection matrix
 		"uniform mat4  mvm;",   // model view matrix
-		"uniform mat3  nm;",    // normal matrix
-		"uniform vec4  l;",     // light position in camera space.
-		"uniform vec3  ld;",    // light source intensity.
+		"uniform vec3  lp;",    // light position in world space.
+		"uniform vec3  lc;",    // light color.
 		"uniform vec3  kd;",    // material diffuse color.
 		"uniform float alpha;", // transparency
 		"out     vec4  v_c;",   // vertex color
 		"void main() {",
-		"   vec4 vpos = vec4(in_v, 1.0);",
-		"   vec3 norm = normalize(nm * in_n);", // Convert normal and position to eye coords
-		"   vec3 lightDirection = normalize(vec3(l - mvm*vpos));",
-		"   vec3 color = ld * kd * max(dot(lightDirection, norm), 0.0);",
+		"   vec4 vpos = vec4(in_v, 1.0);",                    // vertex in model space.
+		"   vec3 nm = normalize((mvm * vec4(in_n, 0)).xyz);", // unit normal in world space.
+		"   vec3 lightDir = normalize(lp - vec3(mvm*vpos));",
+		"   vec3 color = lc * kd * max(dot(lightDir, nm), 0.0);",
 		"   v_c = vec4(color, alpha);",  // pass on the amount of diffuse light.
 		"   gl_Position = mvpm * vpos;", // pass on the transformed vertex position
 		"}",
@@ -212,35 +214,32 @@ func gouraudShader() (vsh, fsh []string) {
 		"layout(location=0) in vec3 in_v;", // verticies
 		"layout(location=1) in vec3 in_n;", // vertex normals
 		"",
-		"uniform mat4  mvpm;",           // model view projection matrix
-		"uniform mat4  mvm;",            // model view matrix
-		"uniform mat3  nm;",             // normal matrix
-		"uniform vec4  l;",              // untransformed light position
-		"uniform vec3  ld;",             // light source intensity
-		"uniform vec3  ka;",             // material ambient value
-		"uniform vec3  kd;",             // material diffuse value
-		"uniform vec3  ks;",             // material specular value
-		"uniform float alpha;",          // transparency
-		"const   vec3  la = vec3(0.3);", // FUTURE make la a uniform.
-		"const   vec3  ls = vec3(0.4);", // FUTURE make ls a uniform.
-		"const   float shine = 8.0;",    // FUTURE make shine a uniform.
-		"out     vec4  v_c;",            // vertex color
+		"uniform mat4  mvpm;",  // model view projection matrix
+		"uniform mat4  mvm;",   // model view matrix
+		"uniform vec3  lp;",    // light position in world space
+		"uniform vec3  lc;",    // light color
+		"uniform vec3  ka;",    // material ambient value
+		"uniform vec3  kd;",    // material diffuse value
+		"uniform vec3  ks;",    // material specular value
+		"uniform float ns;",    // material specular exponent
+		"uniform float alpha;", // transparency
+		"out     vec4  v_c;",   // vertex color
 		"void main() {",
-		"   vec4 vpos = vec4(in_v, 1.0);",
-		"   vec3 norm = normalize(nm * in_n);",
-		"   vec4 eyeCoords = mvm * vpos;",
-		"   vec3 s = normalize(vec3(l - eyeCoords));",
-		"   vec3 v = normalize(-eyeCoords.xyz);",
-		"   vec3 r = reflect(-s, norm);",
-		"   vec3 ambient = la * ka;",
-		"   float sDotN = max( dot(s,norm), 0.0 );",
-		"   vec3 diffuse = ld * kd * sDotN;",
+		"   vec4 vmod = vec4(in_v, 1.0);",                    // vertex in model space.
+		"   vec3 nm = normalize((mvm * vec4(in_n, 0)).xyz);", // unit normal in world space.
+		"   vec4 vworld = mvm * vmod;",                       // vertex in world space
+		"   vec3 s = normalize(lp - vworld.xyz);",            // light vector
+		"   vec3 v = normalize(-vworld.xyz);",                // view vector
+		"   vec3 r = reflect(-s, nm);",                       // light vec reflected around normal.
+		"   vec3 ambient = lc * ka;",
+		"   float sDotN = max( dot(s, nm), 0.0 );",
+		"   vec3 diffuse = lc * kd * sDotN;",
 		"   vec3 spec = vec3(0.0);",
 		"   if (sDotN > 0.0)",
-		"      spec = ls * ks * pow( max( dot(r,v), 0.0 ), shine );",
+		"      spec = lc * ks * pow( max( dot(r,v), 0.0 ), ns );",
 		"   vec3 color = ambient + diffuse + spec;", // combine all the values.
 		"   v_c = vec4(color, alpha);",              // pass on the vertex color
-		"   gl_Position = mvpm * vpos;",             // pass on the transformed vertex
+		"   gl_Position = mvpm * vmod;",             // pass on the transformed vertex
 		"}",
 	}
 	fsh = []string{
@@ -269,42 +268,39 @@ func phongShader() (vsh, fsh []string) {
 		"",
 		"uniform mat4  mvpm;", // model view projection matrix
 		"uniform mat4  mvm;",  // model view matrix
-		"uniform mat3  nm;",   // normal matrix
-		"uniform vec4  l;",    // untransformed light position
-		"out   vec3  v_n;",    // vertex color
+		"uniform vec3  lp;",   // light position in world space.
+		"out   vec3  v_n;",    // vertex normal
 		"out   vec3  v_s;",    // vector from vertex to light.
 		"out   vec3  v_e;",    // vertex eye position.
 		"void main() {",
-		"   vec4 vpos = vec4(in_v, 1.0);",
-		"   vec4 eyeCoords = mvm * vpos;",
-		"   v_n = normalize(nm * in_n);",
-		"   v_s = normalize(vec3(l - eyeCoords));",
-		"   v_e = normalize(-eyeCoords.xyz);",
-		"   gl_Position = mvpm * vpos;", // pass on the transformed vertex position",
+		"   vec4 vmod = vec4(in_v, 1.0);",                // vertex in model space.
+		"   vec4 vworld = mvm * vmod;",                   // vertex in world space
+		"   v_s = normalize(lp - vworld.xyz);",           // light vector
+		"   v_e = normalize(-vworld.xyz);",               // view vector
+		"   v_n = normalize((mvm * vec4(in_n, 0)).xyz);", // unit normal in world space.
+		"   gl_Position = mvpm * vmod;",                  // vertex in clip space",
 		"}",
 	}
 	fsh = []string{
 		"#version 330",
-		"in      vec3  v_n;",            // interpolated normal
-		"in      vec3  v_s;",            // interpolated vector from vertex to light.
-		"in      vec3  v_e;",            // interpolated vector from eye to vertex.
-		"uniform vec3  ld;",             // light source intensity
-		"uniform vec3  ka;",             // material ambient value
-		"uniform vec3  ks;",             // material specular value
-		"uniform vec3  kd;",             // material diffuse value
-		"uniform float alpha;",          // transparency
-		"const   vec3  la = vec3(0.3);", // FUTURE make la a uniform.
-		"const   vec3  ls = vec3(0.4);", // FUTURE make ls a uniform.
-		"const   float shine = 8.0;",    // FUTURE make shine a uniform.
-		"out     vec4  ffc;",            // final fragment color
+		"in      vec3  v_n;",   // interpolated normal
+		"in      vec3  v_s;",   // interpolated vector from vertex to light.
+		"in      vec3  v_e;",   // interpolated vector from eye to vertex.
+		"uniform vec3  lc;",    // light color
+		"uniform vec3  ka;",    // material ambient value
+		"uniform vec3  ks;",    // material specular value
+		"uniform vec3  kd;",    // material diffuse value
+		"uniform float alpha;", // transparency
+		"uniform float ns;",    // material specular exponent
+		"out     vec4  ffc;",   // final fragment color
 		"void main() {",
 		"   vec3 r = reflect(-v_s, v_n);",
 		"   float sDotN = max( dot(v_s,v_n), 0.0 );",
-		"   vec3 ambient = la * ka;",
-		"   vec3 diffuse = ld * kd * sDotN;",
+		"   vec3 ambient = lc * ka;",
+		"   vec3 diffuse = lc * kd * sDotN;",
 		"   vec3 spec = vec3(0.0);",
 		"   if (sDotN > 0.0)",
-		"      spec = ls * ks * pow( max( dot(r,v_e), 0.0 ), shine);",
+		"      spec = lc * ks * pow( max( dot(r,v_e), 0.0 ), ns);",
 		"   vec3 color = ambient + diffuse + spec;", // combine all the values.
 		"   ffc = vec4(color, alpha);",              // final fragment color
 		"}",
@@ -336,8 +332,171 @@ func uvShader() (vsh, fsh []string) {
 		"out     vec4      ffc;",   // final fragment color
 		"void main() {",
 		"   ffc = texture(uv, t_uv);",
-		"   ffc.a = ffc.a*alpha;",
+		"   ffc.a *= alpha;",
 		"}",
+	}
+	return vsh, fsh
+}
+
+// ===========================================================================
+
+// uvcShader handles a single texture and incorporates a single color.
+func uvcShader() (vsh, fsh []string) {
+	vsh, _ = uvShader()
+	fsh = []string{
+		"#version 330",
+		"in      vec2      t_uv;",
+		"uniform sampler2D uv;",
+		"uniform vec3      kd;",    // material diffuse value
+		"uniform float     alpha;", // transparency
+		"out     vec4      ffc;",   // final fragment color
+		"void main() {",
+		"   ffc = texture(uv, t_uv);",
+		"   ffc.xyz += kd;",
+		"   ffc.a *= alpha;",
+		"}",
+	}
+	return vsh, fsh
+}
+
+// ===========================================================================
+
+// non-tangent based bump map code based on Vu uv shader and
+// concepts from http://www.swiftless.com/tutorials/glsl/8_bump_mapping.html
+func bumpShader() (vsh, fsh []string) {
+	vsh = []string{
+		"#version 330",
+		"layout(location=0) in vec3 in_v;", // verticies
+		"layout(location=2) in vec2 in_t;", // texture coordinates
+		"uniform               mat4 mvpm;", // projection * model_view
+		"out                   vec2 t_uv;", // pass uv coordinates through
+		"void main() {",
+		"   gl_Position = mvpm * vec4(in_v, 1.0);", // transformed vertex
+		"   t_uv = in_t;",                          // uv coordinates
+		"}",
+	}
+	fsh = []string{
+		"#version 330",
+		"in      vec2      t_uv;", // uv coordinates
+		"uniform sampler2D uv;",   // model texture
+		"uniform sampler2D uv1;",  // texture with normals
+		"out     vec4      ffc;",  // final fragment color
+		"void main() {",
+		"   vec3 normal = normalize(texture(uv1, t_uv).rgb * 2.0 - 1.0);", // Normal from texture.
+		"   vec3 light_pos = normalize(vec3(1.0, 1.0, 1.5));",             // Fixed light position.
+		"   float diffuse = max(dot(normal, light_pos), 0.0);",            // Calculate the lighting diffuse value
+		"   vec3 color = diffuse * texture(uv, t_uv).rgb;",                // Color from model texture.
+		"   ffc = vec4(color, 1.0);",                                      // Color of current pixel
+		"}",
+	}
+	return vsh, fsh
+}
+
+// ===========================================================================
+
+// nmap is a tangent based normal map shader based on code and concepts from
+//   http://www.thetenthplanet.de/archives/1180
+// Generating the cotangent transform for each pixel Avoids the need to
+// send tangent information for each vertex.
+func nmapShader() (vsh, fsh []string) {
+	vsh = []string{
+		"#version 330 core",
+		"layout(location = 0) in vec3 in_v;", // vertex position in modelspace
+		"layout(location = 1) in vec3 in_n;", // vertex normal in modespace
+		"layout(location = 2) in vec2 in_t;", // vertex uv texture coordinates
+		"",
+		"uniform mat4 mvpm;", // modelViewProject matrix for clipspace transform.
+		"uniform mat4 mvm;",  // modelView matrix (and 3x3 normal matrix). Local -> view space.
+		"uniform vec3 lp;",   // directional light.
+		"out vec2 t_uv;",     // vertex texture coords
+		"out vec3 v_n;",      // vertex normal
+		"out vec3 v_l;",      // light to vertex vector
+		"out vec3 v_v;",      // view vector: ie: camera to vertex
+		"",
+		"void main() {",
+		"	vec4 vmod = vec4(in_v, 1.0);", // vertex in local model space.
+		"	vec4 vcam = mvm * vmod;", // vertex in camera view space
+		"	v_l = normalize(lp - vcam.xyz);", // normalized vertex to light vector
+		"	v_v = -vcam.xyz;", // non-normalized vertex view vector in view space
+		"   v_n = (mvm * vec4(in_n, 0)).xyz;", // non-normalized vertex normal in view space.
+		"   t_uv = in_t;",                     // vertex UV texture coordinates.
+		"   gl_Position = mvpm * vmod;",       // vertex position in clip space.
+		"}",
+	}
+
+	// Fragment shader based on http://www.thetenthplanet.de/archives/1180
+	// cotangent_frame creates the cotangent frame necessary to
+	// map from the cotangent space to world space. Note that the
+	// GLSL methods used are only available in the fragment shader.
+	// Parameters:",
+	//   N  : the interpolated vertex normal in world space
+	//   p  : the reverse view vector in world space
+	//   tuv: texture coordinates
+	//
+	// perturb_normal transforms a normal from cotangent space
+	// Note original code handles different normal map texture encodings.
+	//   map = map * 255./127. - 128./127.;      #ifdef WITH_NORMALMAP_UNSIGNED
+	//   map.z = sqrt(1. - dot(map.xy, map.xy)); #ifdef WITH_NORMALMAP_2CHANNEL
+	//   map.y = -map.y;                         #ifdef WITH_NORMALMAP_GREEN_UP
+	// Parameters:
+	//   N  : the interpolated vertex normal in world space
+	//   V  : the view vector in world space
+	//   tuv: texture coordinates
+	fsh = []string{
+		"#version 330 core",
+		"in vec2 t_uv;",          // vertex texture coords
+		"in vec3 v_n;",           // non-normalized vertex normal
+		"in vec3 v_v;",           // non-normalized view vector
+		"in vec3 v_l;",           // normalized light to vertex vector
+		"uniform sampler2D uv;",  // base diffuse color
+		"uniform sampler2D uv1;", // normal map texture in tangent space
+		"uniform sampler2D uv2;", // specular texture
+		"uniform vec3      lc;",  // light color
+		"uniform vec3      ka;",  // material ambient color
+		"uniform vec3      kd;",  // material diffuse color
+		"uniform vec3      ks;",  // material specular color
+		"uniform float     ns;",  // material specular shininess.
+		"out vec4 ffc;",
+		"",
+		"mat3 cotangent_frame( vec3 N, vec3 p, vec2 tuv ) {",
+		"", // get edge vectors of the pixel triangle
+		"    vec3 dp1 = dFdx( p );",
+		"    vec3 dp2 = dFdy( p );",
+		"    vec2 duv1 = dFdx( tuv );",
+		"    vec2 duv2 = dFdy( tuv );",
+		"", // solve the linear system
+		"    vec3 dp2perp = cross( dp2, N );",
+		"    vec3 dp1perp = cross( N, dp1 );",
+		"    vec3 T = dp2perp * duv1.x + dp1perp * duv2.x;",
+		"    vec3 B = dp2perp * duv1.y + dp1perp * duv2.y;",
+		"", // construct a scale-invariant frame
+		"    float invmax = inversesqrt( max( dot(T,T), dot(B,B) ) );",
+		"    return mat3( T * invmax, B * invmax, N );",
+		"}",
+		"vec3 perturb_normal( vec3 N, vec3 V, vec2 tuv ) {",
+		"    vec3 map = texture(uv1, tuv).xyz;",       // perturbed normal in cotangent space
+		"    map = map * 255./127. - 128./127.;",      // #ifdef WITH_NORMALMAP_UNSIGNED
+		"    mat3 TBN = cotangent_frame(N, -V, tuv);", // cotangent to world space transform
+		"    return normalize(TBN * map);",            // perturbed normal in world space
+		"}",
+		"void main() {",
+		"    vec3 normal = normalize(v_n);",
+		"    normal = perturb_normal(normal, v_v, t_uv);", // normal in view space.
+		"    vec3 nv_v = normalize(v_v);",
+		"    vec3 ambient = lc * ka;",
+		"    float intensity = max(dot(v_l, normal), 0.0);",
+		"    vec3 diffuse = lc * kd * intensity;",
+		"", // Blinn-Phong half vector.
+		"    vec3 halfDir = normalize(v_l + nv_v);",
+		"    float specAngle = max(dot(halfDir, normal), 0.0);",
+		"    float specFac = pow(clamp(specAngle, 0.0, 1.0), ns);",
+		"    vec3 smap = texture(uv2, t_uv).rgb;",
+		"    vec3 specular = lc * ks * smap * specFac;",
+		"", // Combine into final fragment color.
+		"    vec3 base = texture(uv, t_uv).rgb;",                   // pure texture color.
+		"    vec3 color = ambient*base + diffuse*base + specular;", // combine all the values.
+		"    ffc = vec4(color, 1.0);",                              // final fragment color
+		" }",
 	}
 	return vsh, fsh
 }

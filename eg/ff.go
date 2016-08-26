@@ -3,6 +3,9 @@
 
 package main
 
+// Controls:
+//   Sp    : pause while pressed
+
 import (
 	"log"
 	"math"

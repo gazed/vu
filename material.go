@@ -12,6 +12,7 @@ type material struct {
 	kd     rgb     // Diffuse color of the material.
 	ka     rgb     // Ambient color of the material.
 	ks     rgb     // Specular color of the material.
+	ns     float32 // Specular sharpness.
 	tr     float32 // Transparency (alpha, dissolve) for the material.
 	loaded bool    // True if data has been set.
 }
@@ -32,11 +33,12 @@ func (m *material) bid() uint64   { return m.tag }  // does not need binding.
 // setMaterial creates a new material identified by name.
 // Color can be provided, but if they're not, then the
 // default color is fully transparent black.
-func (m *material) setMaterial(kd, ka, ks *rgb, tr float32) {
+func (m *material) setMaterial(kd, ka, ks *rgb, tr, ns float32) {
 	m.kd.R, m.kd.G, m.kd.B = kd.R, kd.G, kd.B
 	m.ks.R, m.ks.G, m.ks.B = ks.R, ks.G, ks.B
 	m.ka.R, m.ka.G, m.ka.B = ka.R, ka.G, ka.B
 	m.tr = tr
+	m.ns = ns
 	m.loaded = true
 }
 

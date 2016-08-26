@@ -1,4 +1,4 @@
-// Copyright © 2014-2015 Galvanized Logic Inc.
+// Copyright © 2014-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package load
@@ -9,9 +9,9 @@ import (
 
 // Uses vu/eg resource directories.
 func TestLoadIqm(t *testing.T) {
-	load := newLoader().setDir(mod, "../eg/models")
-	if iqm, err := load.iqm("mrfixit"); err != nil && len(iqm.V) > 0 {
-		// if iqm, err := load.iqm("rat"); err != nil && len(iqm.V) > 0 {
+	m := &ModData{}
+	err := m.Load("rat", NewLocator().Dir("IQM", "../eg/models"))
+	if err != nil || len(m.V) <= 0 {
 		t.Error(err)
 	}
 }

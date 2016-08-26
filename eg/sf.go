@@ -3,6 +3,8 @@
 
 package main
 
+// Controls: NA
+
 import (
 	"fmt"
 	"time"
@@ -92,13 +94,10 @@ func (sf *sftag) initScene() {
 	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, int64(len(sf.faces)), gl.Pointer(&(sf.faces[0])), gl.STATIC_DRAW)
 
 	// create texture and shaders after all the data has been set up.
-	shader := "fire"
-	loader := load.NewLoader()
-	vsrc, verr := loader.Vsh(shader)
-	fsrc, ferr := loader.Fsh(shader)
-	if verr == nil && ferr == nil {
+	shader := &load.ShdData{}
+	if err := shader.Load("fire", load.NewLocator()); err == nil {
 		sf.shaders = gl.CreateProgram()
-		if err := gl.BindProgram(sf.shaders, vsrc, fsrc); err != nil {
+		if err := gl.BindProgram(sf.shaders, shader.Vsh, shader.Fsh); err != nil {
 			fmt.Printf("Failed to create program: %s\n", err)
 		}
 		sf.mvpref = gl.GetUniformLocation(sf.shaders, "mvpm")

@@ -3,6 +3,11 @@
 
 package main
 
+// Controls:
+//   WSQE  : move camera            : forward back left right
+//   AD    : spin camera            : left right
+//   1-9,0 : select level           : larger with higher num. 0 is 10
+
 import (
 	"fmt"
 	"log"
@@ -236,6 +241,7 @@ func (rl *rltag) setLevel(eng vu.Eng, keyCode int) {
 	rl.arrow = rl.flr.arrow
 }
 
+// newText is a utility method for creating a new text label.
 func (rl *rltag) newText(parent vu.Pov, gap int) vu.Model {
 	text := parent.NewPov().SetLocation(10, 0, float64(-rl.wh+40+gap*24))
 	text.Spin(-90, 0, 0) // orient to the X-Z plane.

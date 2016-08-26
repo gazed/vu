@@ -90,7 +90,8 @@ LRESULT CALLBACK gs_wnd_proc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         }
         case WM_KEYDOWN:
         case WM_KEYUP:
-        case WM_SYSKEYUP: // needed for releases of system messages like keyup for V in ALT-V.
+        case WM_SYSKEYDOWN: // mod keys can mask regular keys.
+        case WM_SYSKEYUP:   // needed for releases of system messages like keyup for V in ALT-V.
         {
             long key = wParam;
 
@@ -98,6 +99,12 @@ LRESULT CALLBACK gs_wnd_proc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             if (key == VK_SHIFT || key == VK_CONTROL || key == VK_MENU || key == VK_LWIN || key == VK_RWIN) {
                 return 0;
             }
+			if (msg == WM_SYSKEYUP) {
+				msg = WM_KEYUP;
+			}
+			if (msg == WM_SYSKEYDOWN) {
+				msg = WM_KEYDOWN;
+			}
             gs_write_urge(msg, key, 0);
             return 0;
         }

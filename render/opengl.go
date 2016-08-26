@@ -165,10 +165,6 @@ func (gc *opengl) bindUniforms(d *draw) {
 			gc.bindUniform(ref, x4, 1, d.dbm.Pointer())
 		case "pm":
 			gc.bindUniform(ref, x4, 1, d.pm.Pointer())
-		case "nm":
-			// normal matrix as subset of model-view.
-			d.nm.m3(d.mv) // Only valid for uniform scaling.
-			gc.bindUniform(ref, x3, 1, d.nm.Pointer())
 		case "uv":
 			gc.useTexture(ref, 0, d.texs[0].tid)
 		case "uv0":

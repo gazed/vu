@@ -3,6 +3,8 @@
 
 package main
 
+// Controls: NA
+
 import (
 	"fmt"
 	"math"
@@ -139,13 +141,10 @@ func (tag *trtag) initScene() {
 
 // initShader compiles shaders and links them into a shader program.
 func (tag *trtag) initShader() {
-	shader := "basic"
-	loader := load.NewLoader()
-	vsrc, verr := loader.Vsh(shader)
-	fsrc, ferr := loader.Fsh(shader)
-	if verr == nil && ferr == nil {
+	shader := &load.ShdData{}
+	if err := shader.Load("basic", load.NewLocator()); err == nil {
 		tag.shaders = gl.CreateProgram()
-		if err := gl.BindProgram(tag.shaders, vsrc, fsrc); err != nil {
+		if err := gl.BindProgram(tag.shaders, shader.Vsh, shader.Fsh); err != nil {
 			fmt.Printf("Failed to create program: %s\n", err)
 		}
 		tag.mvpRef = gl.GetUniformLocation(tag.shaders, "mvpm")

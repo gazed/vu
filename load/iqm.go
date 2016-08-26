@@ -1,11 +1,10 @@
-// Copyright © 2014-2015 Galvanized Logic Inc.
+// Copyright © 2014-2016 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package load
 
 // IQM: Inter-Quake Model format.
-// A binary format for 3D models that includes skeletal animation. See:
-//    http://sauerbraten.org/iqm
+// A binary format for 3D models that includes skeletal animation:
 //    http://www.opengl.org/wiki/Skeletal_Animation
 //    http://content.gpwiki.org/index.php?title=OpenGL:Tutorials:Basic_Bones_System
 
@@ -18,74 +17,26 @@ import (
 	"github.com/gazed/vu/math/lin"
 )
 
-// IqData is model data from IQM files.
-// It is intended for populating animated models.
-type IqData struct {
-	Name string // Data name from IQM file.
-
-	// Mesh and Texture data create the static model.
-	V        []float32   // Vertex positions.  Arranged as [][3]float32
-	N        []float32   // Vertex normals.    Arranged as [][3]float32
-	X        []float32   // Vertex tangents.   Arranged as [][2]float32
-	T        []float32   // Vertex tex coords. Arranged as [][2]float32
-	F        []uint16    // Triangle Faces.    Arranged as [][3]uint16
-	Textures []IqTexture // One or more model textures
-
-	// Optional animation data. Blend indicies indicate which vertex
-	// is influenced by which joint, up to 4 joints per vertex. Blend
-	// weights gives the amount of influence of a joint on a vertex.
-	Anims  []IqAnim  // One or more animations.
-	B      []byte    // Vertex blend indicies. Arranged as [][4]byte
-	W      []byte    // Vertex blend weights.  Arranged as [][4]byte
-	Joints []int32   // Joint parent information for each joint.
-	Frames []*lin.M4 // Animation transforms: [NumFrames][NumJoints].
-}
-
-// IqTexture allows a model to have multiple textures. The named texture
-// resource affects triangle faces from F0 to F0+FN. Expected to be used
-// as part of IqData.
-type IqTexture struct {
-	Name   string // Name of the texture resource.
-	F0, Fn uint32 // First triangle face index and number of triangle faces.
-}
-
-// IqAnim allows a model to have multiple animations. The named animation
-// affects frames from F0 to F0+FN. Expected to be used as part of IqData.
-type IqAnim struct {
-	Name   string  // Name of the animation
-	F0, Fn uint32  // First frame, number of frames.
-	Rate   float32 // Frames per second.
-}
-
-// =============================================================================
-
-// iqm loads binary inter-quake model format files.
-func (l *loader) iqm(filename string) (iqd *IqData, err error) {
-	iqd = &IqData{Textures: []IqTexture{}}
-	var file io.ReadCloser
-	if file, err = l.getResource(l.dir[mod], filename+".iqm"); err == nil {
-		defer file.Close()
-		return l.loadIqm(file, iqd)
-	}
-	return
-}
-
-// loadIqm reads a valid IQM file into an IqData structure.
-func (l *loader) loadIqm(file io.ReadCloser, iqd *IqData) (*IqData, error) {
+// Iqm loads an Inter-Quake model IQM file into ModData.
+// IQM is A binary format for 3D models that includes skeletal animation.
+// See: http://sauerbraten.org/iqm. This loader has been tested against
+// a subset of the full specification.
+// The Reader r is expected to be opened and closed by the caller.
+func Iqm(r io.Reader, d *ModData) error {
 	hdr := &iqmheader{}
-	if err := binary.Read(file, binary.LittleEndian, hdr); err != nil {
-		return iqd, fmt.Errorf("Invalid .iqm file: %s", err)
+	if err := binary.Read(r, binary.LittleEndian, hdr); err != nil {
+		return fmt.Errorf("Invalid .iqm file: %s", err)
 	}
 
 	// sanity check the data.
 	if !bytes.Equal(iqmMagic, hdr.Magic[:]) {
-		return iqd, fmt.Errorf("Invalid .iqm header magic: %s", string(hdr.Magic[:]))
+		return fmt.Errorf("Invalid .iqm header magic: %s", string(hdr.Magic[:]))
 	}
 	if hdr.Version != 2 {
-		return iqd, fmt.Errorf("Expecting .iqm version 2, got : %d", hdr.Version)
+		return fmt.Errorf("Expecting .iqm version 2, got : %d", hdr.Version)
 	}
 	if hdr.Filesize > (16 << 20) {
-		return iqd, fmt.Errorf("Not loading .iqm files bigger than 16MB")
+		return fmt.Errorf("Not loading .iqm files bigger than 16MB")
 	}
 
 	// Get the data into memory. Not all readers return all the data in one shot.
@@ -94,9 +45,9 @@ func (l *loader) loadIqm(file io.ReadCloser, iqd *IqData) (*IqData, error) {
 	data := make([]byte, dataSize)
 	inbuff := make([]byte, dataSize)
 	for bytesRead < dataSize {
-		inbytes, readErr := file.Read(inbuff)
+		inbytes, readErr := r.Read(inbuff)
 		if readErr != nil {
-			return iqd, fmt.Errorf("Corrupt .iqm file")
+			return fmt.Errorf("Corrupt .iqm file")
 		}
 		for cnt := 0; cnt < inbytes; cnt++ {
 			data[bytesRead] = inbuff[cnt]
@@ -104,21 +55,25 @@ func (l *loader) loadIqm(file io.ReadCloser, iqd *IqData) (*IqData, error) {
 		}
 	}
 	if bytesRead != dataSize {
-		return iqd, fmt.Errorf("Invalid .iqm file")
+		return fmt.Errorf("Invalid .iqm file")
 	}
 	scratch := &scratch{}
 	if hdr.NumMeshes > 0 {
-		if err := l.loadIqmMeshes(hdr, data, iqd, scratch); err != nil {
-			return iqd, err
+		if err := loadIqmMeshes(hdr, data, d, scratch); err != nil {
+			return err
 		}
 	}
 	if hdr.NumAnims > 0 {
-		if err := l.loadIqmAnims(hdr, data, iqd, scratch); err != nil {
-			return iqd, err
+		if err := loadIqmAnims(hdr, data, d, scratch); err != nil {
+			return err
 		}
 	}
-	return iqd, nil
+	return nil
 }
+
+// public inteface
+// =============================================================================
+// internal implementation for loading IQM files.
 
 // scratch is temporary memory for loading a single model.
 // The data is initialized in loadIqmMeshes, used in loadIqmAnims
@@ -130,7 +85,7 @@ type scratch struct {
 
 // loadIqmMeshes parses the vertex data from the file data
 // into the IqData structure.
-func (l *loader) loadIqmMeshes(hdr *iqmheader, data []byte, iqd *IqData, scr *scratch) (err error) {
+func loadIqmMeshes(hdr *iqmheader, data []byte, mod *ModData, scr *scratch) (err error) {
 	buff := bytes.NewReader(data)
 
 	// Get all the text labels referenced by other structures. Index the
@@ -162,26 +117,26 @@ func (l *loader) loadIqmMeshes(hdr *iqmheader, data []byte, iqd *IqData, scr *sc
 		}
 		switch va.Type {
 		case iQMPOSITION:
-			iqd.V = make([]float32, va.Size*hdr.NumVertexes)
-			err = l.readVertexData(data, va, iQMFLOAT, 3, iqd.V)
+			mod.V = make([]float32, va.Size*hdr.NumVertexes)
+			err = readVertexData(data, va, iQMFLOAT, 3, mod.V)
 		case iQMNORMAL:
-			iqd.N = make([]float32, va.Size*hdr.NumVertexes)
-			err = l.readVertexData(data, va, iQMFLOAT, 3, iqd.N)
+			mod.N = make([]float32, va.Size*hdr.NumVertexes)
+			err = readVertexData(data, va, iQMFLOAT, 3, mod.N)
 		case iQMTANGENT:
-			iqd.X = make([]float32, va.Size*hdr.NumVertexes)
-			err = l.readVertexData(data, va, iQMFLOAT, 4, iqd.X)
+			mod.X = make([]float32, va.Size*hdr.NumVertexes)
+			err = readVertexData(data, va, iQMFLOAT, 4, mod.X)
 		case iQMTEXCOORD:
-			iqd.T = make([]float32, va.Size*hdr.NumVertexes)
-			err = l.readVertexData(data, va, iQMFLOAT, 2, iqd.T)
+			mod.T = make([]float32, va.Size*hdr.NumVertexes)
+			err = readVertexData(data, va, iQMFLOAT, 2, mod.T)
 
 		// Indexes and weights are sent to the GPU as bytes in order
 		// to reduce the amount of data transferred.
 		case iQMBLENDINDEXES:
-			iqd.B = make([]byte, va.Size*hdr.NumVertexes)
-			err = l.readVertexData(data, va, iQMUBYTE, 4, iqd.B)
+			mod.Blends = make([]byte, va.Size*hdr.NumVertexes)
+			err = readVertexData(data, va, iQMUBYTE, 4, mod.Blends)
 		case iQMBLENDWEIGHTS:
-			iqd.W = make([]byte, va.Size*hdr.NumVertexes)
-			err = l.readVertexData(data, va, iQMUBYTE, 4, iqd.W)
+			mod.Weights = make([]byte, va.Size*hdr.NumVertexes)
+			err = readVertexData(data, va, iQMUBYTE, 4, mod.Weights)
 			// Note: blend weights are normalized to 0-1 floats on GPU transfer.
 		}
 		if err != nil {
@@ -195,9 +150,9 @@ func (l *loader) loadIqmMeshes(hdr *iqmheader, data []byte, iqd *IqData, scr *sc
 	if err = binary.Read(buff, binary.LittleEndian, faces); err != nil {
 		return fmt.Errorf("Invalid .iqm triangles %s", err)
 	}
-	iqd.F = make([]uint16, 3*hdr.NumTriangles)
+	mod.F = make([]uint16, 3*hdr.NumTriangles)
 	for cnt := 0; cnt < len(faces); cnt++ {
-		iqd.F[cnt] = uint16(faces[cnt])
+		mod.F[cnt] = uint16(faces[cnt])
 	}
 
 	// Multiple meshes mean means that multiple textures are used for this model.
@@ -207,16 +162,16 @@ func (l *loader) loadIqmMeshes(hdr *iqmheader, data []byte, iqd *IqData, scr *sc
 		if err = binary.Read(buff, binary.LittleEndian, msh); err != nil {
 			return fmt.Errorf("Invalid .iqm file: %s", err)
 		}
-		itex := IqTexture{}
+		itex := TexMap{}
 		itex.Name = scr.labels[msh.Material] // Name of the mesh resource.
 		itex.F0, itex.Fn = msh.FirstTriangle, msh.NumTriangles
-		iqd.Textures = append(iqd.Textures, itex)
+		mod.TMap = append(mod.TMap, itex)
 	}
 	return nil
 }
 
 // readVertexData reads and validates a set of vertex data from an IQM file.
-func (l *loader) readVertexData(data []byte, va *iqmvertexarray, dtype, dspan uint32, outData interface{}) (err error) {
+func readVertexData(data []byte, va *iqmvertexarray, dtype, dspan uint32, outData interface{}) (err error) {
 	if va.Format != dtype || va.Size != dspan {
 		return fmt.Errorf("Invalid .iqm vertex data array")
 	}
@@ -228,9 +183,8 @@ func (l *loader) readVertexData(data []byte, va *iqmvertexarray, dtype, dspan ui
 	return nil
 }
 
-// loadIqmAnims parses the animation data from the file data into the
-// IqData structure.
-func (l *loader) loadIqmAnims(hdr *iqmheader, data []byte, iqd *IqData, scr *scratch) (err error) {
+// loadIqmAnims parses the animation data from the file data.
+func loadIqmAnims(hdr *iqmheader, data []byte, mod *ModData, scr *scratch) (err error) {
 	if hdr.NumPoses != hdr.NumJoints {
 		return fmt.Errorf("Invalid .iqm joints %d must equal poses %d", hdr.NumJoints, hdr.NumPoses)
 	}
@@ -242,12 +196,12 @@ func (l *loader) loadIqmAnims(hdr *iqmheader, data []byte, iqd *IqData, scr *scr
 	if err = binary.Read(buff, binary.LittleEndian, jnts); err != nil {
 		return fmt.Errorf("Invalid .iqm file: %s", err)
 	}
-	iqd.Joints = make([]int32, hdr.NumJoints)
+	mod.Joints = make([]int32, hdr.NumJoints)
 
 	// process the joint base transforms using an intermediate form.
 	basePoses := []*transform{}
 	for cnt, j := range jnts {
-		iqd.Joints[cnt] = j.Parent // save the joint parent data
+		mod.Joints[cnt] = j.Parent // save the joint parent data
 
 		// FUTURE: use joint names as attachment points where the convention
 		//         is to have "attachment" in the joint name, and not have
@@ -259,7 +213,7 @@ func (l *loader) loadIqmAnims(hdr *iqmheader, data []byte, iqd *IqData, scr *scr
 		s := &lin.V3{X: float64(j.Scale[0]), Y: float64(j.Scale[1]), Z: float64(j.Scale[2])}
 		basePoses = append(basePoses, &transform{t, r, s})
 	}
-	l.createBaseFrames(iqd, basePoses, scr)
+	createBaseFrames(mod, basePoses, scr)
 
 	// Get the per frame pose data.
 	buff.Seek(int64(hdr.OfsPoses-iqmheaderSize), 0)
@@ -275,12 +229,12 @@ func (l *loader) loadIqmAnims(hdr *iqmheader, data []byte, iqd *IqData, scr *scr
 		return fmt.Errorf("Invalid .iqm animations %s", err)
 	}
 	for _, adata := range animData {
-		anim := IqAnim{}
+		anim := Movement{}
 		anim.Name = scr.labels[adata.Name]
 		anim.F0 = adata.FirstFrame
 		anim.Fn = adata.NumFrames
 		anim.Rate = adata.Framerate
-		iqd.Anims = append(iqd.Anims, anim)
+		mod.Movements = append(mod.Movements, anim)
 	}
 
 	// Get the animation frames.
@@ -292,25 +246,25 @@ func (l *loader) loadIqmAnims(hdr *iqmheader, data []byte, iqd *IqData, scr *scr
 
 	// Generate the final animation frames from base poses and frame poses.
 	pt := &transform{&lin.V3{}, &lin.Q{}, &lin.V3{}} // pose transform
-	iqd.Frames = make([]*lin.M4, hdr.NumFrames*hdr.NumPoses)
+	mod.Frames = make([]*lin.M4, hdr.NumFrames*hdr.NumPoses)
 	fcnt := 0
 	for frame := 0; frame < int(hdr.NumFrames); frame++ {
 		for pose := 0; pose < int(hdr.NumPoses); pose++ {
 			p := poses[pose]
-			pt.t.X, fcnt = l.getPoseChannel(&p, frameData, fcnt, 0, 0x01)
-			pt.t.Y, fcnt = l.getPoseChannel(&p, frameData, fcnt, 1, 0x02)
-			pt.t.Z, fcnt = l.getPoseChannel(&p, frameData, fcnt, 2, 0x04)
-			pt.q.X, fcnt = l.getPoseChannel(&p, frameData, fcnt, 3, 0x08)
-			pt.q.Y, fcnt = l.getPoseChannel(&p, frameData, fcnt, 4, 0x10)
-			pt.q.Z, fcnt = l.getPoseChannel(&p, frameData, fcnt, 5, 0x20)
-			pt.q.W, fcnt = l.getPoseChannel(&p, frameData, fcnt, 6, 0x40)
-			pt.s.X, fcnt = l.getPoseChannel(&p, frameData, fcnt, 7, 0x80)
-			pt.s.Y, fcnt = l.getPoseChannel(&p, frameData, fcnt, 8, 0x100)
-			pt.s.Z, fcnt = l.getPoseChannel(&p, frameData, fcnt, 9, 0x200)
+			pt.t.X, fcnt = getPoseChannel(&p, frameData, fcnt, 0, 0x01)
+			pt.t.Y, fcnt = getPoseChannel(&p, frameData, fcnt, 1, 0x02)
+			pt.t.Z, fcnt = getPoseChannel(&p, frameData, fcnt, 2, 0x04)
+			pt.q.X, fcnt = getPoseChannel(&p, frameData, fcnt, 3, 0x08)
+			pt.q.Y, fcnt = getPoseChannel(&p, frameData, fcnt, 4, 0x10)
+			pt.q.Z, fcnt = getPoseChannel(&p, frameData, fcnt, 5, 0x20)
+			pt.q.W, fcnt = getPoseChannel(&p, frameData, fcnt, 6, 0x40)
+			pt.s.X, fcnt = getPoseChannel(&p, frameData, fcnt, 7, 0x80)
+			pt.s.Y, fcnt = getPoseChannel(&p, frameData, fcnt, 8, 0x100)
+			pt.s.Z, fcnt = getPoseChannel(&p, frameData, fcnt, 9, 0x200)
 
 			// Combine all the data into a animation ready frame transform matrix.
 			cnt := frame*int(hdr.NumPoses) + pose
-			iqd.Frames[cnt] = l.genFrame(scr, pt, pose, int(hdr.NumPoses), int(p.Parent))
+			mod.Frames[cnt] = genFrame(scr, pt, pose, int(hdr.NumPoses), int(p.Parent))
 		}
 	}
 	return nil
@@ -318,7 +272,7 @@ func (l *loader) loadIqmAnims(hdr *iqmheader, data []byte, iqd *IqData, scr *scr
 
 // getPoseChannel is a helper method that builds per-frame pose animation
 // transform from a compressed/sparse format.
-func (l *loader) getPoseChannel(p *iqmpose, fdata []uint16, fcnt, index int, mask uint32) (float64, int) {
+func getPoseChannel(p *iqmpose, fdata []uint16, fcnt, index int, mask uint32) (float64, int) {
 	channel := float64(p.Channeloffset[index])
 	if p.Channelmask&mask == mask {
 		channel += float64(fdata[fcnt]) * float64(p.Channelscale[index])
@@ -330,7 +284,7 @@ func (l *loader) getPoseChannel(p *iqmpose, fdata []uint16, fcnt, index int, mas
 // createBaseFrames constructs the joint transform base-pose matricies.
 // These are temporary structures used later in genFrame to prepare the
 // per-frame animation data.
-func (l *loader) createBaseFrames(iqd *IqData, poses []*transform, scr *scratch) {
+func createBaseFrames(mod *ModData, poses []*transform, scr *scratch) {
 	i3 := lin.NewM3()                                   // scratch
 	vx, vy, vz := lin.NewV3(), lin.NewV3(), lin.NewV3() // scratch
 	numJoints := len(poses)
@@ -359,7 +313,7 @@ func (l *loader) createBaseFrames(iqd *IqData, poses []*transform, scr *scratch)
 		scr.inversebaseframe[cnt] = i4
 
 		// Combine the joint transforms and inverse transform with the parent transform.
-		parent := iqd.Joints[cnt]
+		parent := mod.Joints[cnt]
 		if parent >= 0 {
 			// childBasePose * parentBasePose
 			scr.baseframe[cnt].Mult(scr.baseframe[cnt], scr.baseframe[parent])
@@ -376,7 +330,7 @@ func (l *loader) createBaseFrames(iqd *IqData, poses []*transform, scr *scratch)
 //    (parentPose * parentInverseBasePose) * (parentBasePose * childPose * childInverseBasePose) =>
 //    parentPose * (parentInverseBasePose * parentBasePose) * childPose * childInverseBasePose =>
 //    parentPose * childPose * childInverseBasePose
-func (l *loader) genFrame(scr *scratch, pt *transform, pcnt, numPoses, parent int) *lin.M4 {
+func genFrame(scr *scratch, pt *transform, pcnt, numPoses, parent int) *lin.M4 {
 	pt.q.Unit()
 	m4 := lin.NewM4().SetQ(pt.q)
 	m4.Transpose(m4).ScaleSM(pt.s.X, pt.s.Y, pt.s.Z)       // apply scale before rotation.
