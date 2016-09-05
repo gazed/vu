@@ -35,7 +35,7 @@ func sg() {
 
 // Globally unique "tag" that encapsulates example specific data.
 type sgtag struct {
-	cam    vu.Camera
+	cam    *vu.Camera
 	tr     *trooper
 	run    float64
 	spin   float64
@@ -52,7 +52,7 @@ func (sg *sgtag) Create(eng vu.Eng, s *vu.State) {
 	sg.spin = 270 // spin so many degrees in one second.
 	sg.cam = eng.Root().NewCam()
 	sg.cam.SetPerspective(60, float64(800)/float64(600), 0.1, 50)
-	sg.cam.SetLocation(0, 0, 6)
+	sg.cam.SetAt(0, 0, 6)
 	sg.tr = newTrooper(eng, 1)
 
 	// initialize the reactions
@@ -71,7 +71,7 @@ func (sg *sgtag) Create(eng vu.Eng, s *vu.State) {
 		vu.K5:     func(i *vu.Input, down int) { sg.setTr(down, 5) },
 		vu.KP:     sg.stats,
 	}
-	eng.SetColor(0.1, 0.1, 0.1, 1.0)
+	eng.Set(vu.Color(0.1, 0.1, 0.1, 1.0))
 }
 func (sg *sgtag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 	sg.dt = in.Dt
@@ -99,8 +99,8 @@ func (sg *sgtag) stats(i *vu.Input, down int) {
 }
 func (sg *sgtag) left(i *vu.Input, down int)    { sg.tr.top.Spin(0, sg.dt*sg.spin, 0) }
 func (sg *sgtag) right(i *vu.Input, down int)   { sg.tr.top.Spin(0, sg.dt*-sg.spin, 0) }
-func (sg *sgtag) back(i *vu.Input, down int)    { sg.tr.top.Move(0, 0, sg.dt*sg.run, sg.cam.Lookxz()) }
-func (sg *sgtag) forward(i *vu.Input, down int) { sg.tr.top.Move(0, 0, sg.dt*-sg.run, sg.cam.Lookxz()) }
+func (sg *sgtag) back(i *vu.Input, down int)    { sg.tr.top.Move(0, 0, sg.dt*sg.run, sg.cam.Look) }
+func (sg *sgtag) forward(i *vu.Input, down int) { sg.tr.top.Move(0, 0, sg.dt*-sg.run, sg.cam.Look) }
 func (sg *sgtag) attach(i *vu.Input, down int)  { sg.tr.attach() }
 func (sg *sgtag) detach(i *vu.Input, down int)  { sg.tr.detach() }
 func (sg *sgtag) setTr(down, lvl int) {
@@ -115,10 +115,10 @@ func (sg *sgtag) setTr(down, lvl int) {
 // that is replicated 1 or more times depending on the health of the trooper.
 type trooper struct {
 	eng    vu.Eng
-	top    vu.Pov
-	neo    vu.Pov // un-injured trooper
-	center vu.Pov // center always represented as one piece
-	bits   []box  // injured troopers have panels and edge cubes.
+	top    *vu.Pov
+	neo    *vu.Pov // un-injured trooper
+	center *vu.Pov // center always represented as one piece
+	bits   []box   // injured troopers have panels and edge cubes.
 	lvl    int
 	mid    int // level entry number of cells.
 }
@@ -218,7 +218,7 @@ func (tr *trooper) addCenter() {
 		scale := float64(tr.lvl-1) * cubeSize * 0.9 // leave a gap.
 		tr.center = tr.top.NewPov()
 		tr.center.SetScale(scale, scale, scale)
-		tr.center.NewModel("alpha").LoadMesh("box").LoadMat("transparent_red")
+		tr.center.NewModel("alpha", "msh:box", "mat:transparent_red")
 	}
 }
 
@@ -258,7 +258,7 @@ func (tr *trooper) detach() {
 func (tr *trooper) merge() {
 	tr.trash()
 	tr.neo = tr.top.NewPov()
-	tr.neo.NewModel("alpha").LoadMesh("box").LoadMat("blue")
+	tr.neo.NewModel("alpha", "msh:box", "mat:blue")
 	tr.addCenter()
 }
 
@@ -369,16 +369,16 @@ func (c *cbox) box() *cbox { return c }
 // blocks group 0 or more cubes into the center of one of the troopers
 // six sides.
 type block struct {
-	part  vu.Pov  // each panel is its own part.
+	part  *vu.Pov // each panel is its own part.
 	lvl   int     // used to scale slab.
-	slab  vu.Pov  // un-injured panel is a single piece.
+	slab  *vu.Pov // un-injured panel is a single piece.
 	cubes []*cube // injured panels are made of cubes.
 	cbox
 }
 
 // newBlock creates a panel with no cubes.  The cubes are added later using
 // panel.addCube().
-func newBlock(part vu.Pov, x, y, z float64, level int) *block {
+func newBlock(part *vu.Pov, x, y, z float64, level int) *block {
 	b := &block{}
 	b.part = part.NewPov()
 	b.lvl = level
@@ -435,8 +435,8 @@ func (b *block) removeCell() {
 func (b *block) merge() {
 	b.trash()
 	b.slab = b.part.NewPov()
-	b.slab.SetLocation(b.cx, b.cy, b.cz)
-	b.slab.NewModel("alpha").LoadMesh("box").LoadMat("blue")
+	b.slab.SetAt(b.cx, b.cy, b.cz)
+	b.slab.NewModel("alpha", "msh:box", "mat:blue")
 	scale := float64(b.lvl-1) * b.csize
 	if (b.cx > b.cy && b.cx > b.cz) || (b.cx < b.cy && b.cx < b.cz) {
 		b.slab.SetScale(b.csize, scale, scale)
@@ -466,17 +466,17 @@ func (b *block) trash() {
 // as to their current number of cells which is between 0 (nothing visible),
 // 1-7 (partial) and 8 (merged).
 type cube struct {
-	part    vu.Pov   // each cube is its own set.
-	cells   []vu.Pov // max 8 cells per cube.
-	centers csort    // precalculated center location of each cell.
+	part    *vu.Pov   // each cube is its own set.
+	cells   []*vu.Pov // max 8 cells per cube.
+	centers csort     // precalculated center location of each cell.
 	cbox
 }
 
 // newCube's are often started with 1 corner, 2 edges, or 4 bottom side pieces.
-func newCube(tr vu.Pov, x, y, z, cubeSize float64) *cube {
+func newCube(tr *vu.Pov, x, y, z, cubeSize float64) *cube {
 	c := &cube{}
 	c.part = tr.NewPov()
-	c.cells = []vu.Pov{}
+	c.cells = []*vu.Pov{}
 	c.cx, c.cy, c.cz, c.csize = x, y, z, cubeSize
 	c.ccnt, c.cmax = 0, 8
 	c.mergec = func() { c.merge() }
@@ -514,8 +514,8 @@ func (c *cube) panelSort(rx, ry, rz float64, startCount int) {
 func (c *cube) addCell() {
 	center := c.centers[c.ccnt-1]
 	cell := c.part.NewPov()
-	cell.SetLocation(center.X, center.Y, center.Z)
-	cell.NewModel("alpha").LoadMesh("box").LoadMat("green")
+	cell.SetAt(center.X, center.Y, center.Z)
+	cell.NewModel("alpha", "msh:box", "mat:green")
 	scale := c.csize * 0.40 // leave a gap (0.5 for no gap).
 	cell.SetScale(scale, scale, scale)
 	c.cells = append(c.cells, cell)
@@ -534,8 +534,8 @@ func (c *cube) removeCell() {
 func (c *cube) merge() {
 	c.trash()
 	cell := c.part.NewPov()
-	cell.SetLocation(c.cx, c.cy, c.cz)
-	cell.NewModel("alpha").LoadMesh("box").LoadMat("green")
+	cell.SetAt(c.cx, c.cy, c.cz)
+	cell.NewModel("alpha", "msh:box", "mat:green")
 	scale := c.csize - (c.csize * 0.15) // leave a gap (just c.csize for no gap)
 	cell.SetScale(scale, scale, scale)
 	c.cells = append(c.cells, cell)

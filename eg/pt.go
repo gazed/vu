@@ -38,19 +38,19 @@ func pt() {
 
 // pttag is the  unique "tag" to encapsulate the demo specific data.
 type pttag struct {
-	cam2 vu.Camera           // 2D camera for textures and shape parameters.
+	cam2 *vu.Camera          // 2D camera for textures and shape parameters.
 	sn   *synth.SimplexNoise // main component of interesting textures.
 
 	// controls for editing simplex noise parameters.
-	row    int      // controls which parameter is being edited.
-	rowbg  vu.Pov   // hilight for the editing shape values.
-	mag    float64  // shape parameter editing amount.
-	mindex int      // controls amount of change when editing.
-	labels []vu.Pov // indexed by F, G, L, O
-	amount vu.Pov   // show parameter editing amount value.
+	row    int       // controls which parameter is being edited.
+	rowbg  *vu.Pov   // hilight for the editing shape values.
+	mag    float64   // shape parameter editing amount.
+	mindex int       // controls amount of change when editing.
+	labels []*vu.Pov // indexed by F, G, L, O
+	amount *vu.Pov   // show parameter editing amount value.
 
 	// memory for generating the images.
-	tex   []vu.Pov       // models to display the generated textures.
+	tex   []*vu.Pov      // models to display the generated textures.
 	imgs  []*image.NRGBA // separate texture images for each model.
 	data  [][]float64    // placeholder for generated noise data.
 	vdata [][]float64    // generated voronoi data.
@@ -67,8 +67,7 @@ type pttag struct {
 // Create is the startup asset creation.
 func (pt *pttag) Create(eng vu.Eng, s *vu.State) {
 	scene2 := eng.Root().NewPov()
-	pt.cam2 = scene2.NewCam()
-	pt.cam2.SetUI()
+	pt.cam2 = scene2.NewCam().SetUI()
 	pt.resize(s.W, s.H)
 	pt.mag = 0.01 // default edit value.
 
@@ -86,30 +85,30 @@ func (pt *pttag) Create(eng vu.Eng, s *vu.State) {
 	}
 
 	// hiliting the selected shape parameters.
-	pt.rowbg = scene2.NewPov().SetLocation(130, 110, 0).SetScale(55, 20, 0)
-	pt.rowbg.NewModel("alpha").LoadMesh("icon").LoadMat("transparent_blue")
+	pt.rowbg = scene2.NewPov().SetAt(130, 110, 0).SetScale(55, 20, 0)
+	pt.rowbg.NewModel("alpha", "msh:icon", "mat:transparent_blue")
 
 	// billboard to display generated texture.
 	scale := 256.0
-	tex := eng.Root().NewPov().SetLocation(600, 200, 0).SetScale(scale, scale, 0)
-	tex.NewModel("uv").LoadMesh("icon").NewTex("gen0")
+	tex := eng.Root().NewPov().SetAt(600, 200, 0).SetScale(scale, scale, 0)
+	tex.NewModel("uv", "msh:icon").Make("tex:gen0")
 	pt.tex = append(pt.tex, tex)
 
 	// display the individual texture algorithms...
-	tex = eng.Root().NewPov().SetLocation(100, 500, 0).SetScale(128, 128, 0)
-	tex.NewModel("uv").LoadMesh("icon").NewTex("fn1")
+	tex = eng.Root().NewPov().SetAt(100, 500, 0).SetScale(128, 128, 0)
+	tex.NewModel("uv", "msh:icon").Make("tex:fn1")
 	pt.tex = append(pt.tex, tex)
-	tex = eng.Root().NewPov().SetLocation(250, 500, 0).SetScale(128, 128, 0)
-	tex.NewModel("uv").LoadMesh("icon").NewTex("fn2")
+	tex = eng.Root().NewPov().SetAt(250, 500, 0).SetScale(128, 128, 0)
+	tex.NewModel("uv", "msh:icon").Make("tex:fn2")
 	pt.tex = append(pt.tex, tex)
-	tex = eng.Root().NewPov().SetLocation(400, 500, 0).SetScale(128, 128, 0)
-	tex.NewModel("uv").LoadMesh("icon").NewTex("fn3")
+	tex = eng.Root().NewPov().SetAt(400, 500, 0).SetScale(128, 128, 0)
+	tex.NewModel("uv", "msh:icon").Make("tex:fn3")
 	pt.tex = append(pt.tex, tex)
-	tex = eng.Root().NewPov().SetLocation(550, 500, 0).SetScale(128, 128, 0)
-	tex.NewModel("uv").LoadMesh("icon").NewTex("fn4")
+	tex = eng.Root().NewPov().SetAt(550, 500, 0).SetScale(128, 128, 0)
+	tex.NewModel("uv", "msh:icon").Make("tex:fn4")
 	pt.tex = append(pt.tex, tex)
-	tex = eng.Root().NewPov().SetLocation(700, 500, 0).SetScale(128, 128, 0)
-	tex.NewModel("uv").LoadMesh("icon").NewTex("fn5")
+	tex = eng.Root().NewPov().SetAt(700, 500, 0).SetScale(128, 128, 0)
+	tex.NewModel("uv", "msh:icon").Make("tex:fn5")
 	pt.tex = append(pt.tex, tex)
 
 	// group the majority of the generation functions.
@@ -122,35 +121,35 @@ func (pt *pttag) Create(eng vu.Eng, s *vu.State) {
 	// Display the texture parameters.
 	left := 50.0
 	font := "lucidiaSu18"
-	pt.labels = []vu.Pov{nil, nil, nil, nil}
-	pt.labels[F] = scene2.NewPov().SetLocation(left, 120, 0)
-	pt.labels[F].NewModel("uv").AddTex(font + "White").LoadFont(font)
-	pt.labels[G] = scene2.NewPov().SetLocation(left, 100, 0)
-	pt.labels[G].NewModel("uv").AddTex(font + "White").LoadFont(font)
-	pt.labels[L] = scene2.NewPov().SetLocation(left, 80, 0)
-	pt.labels[L].NewModel("uv").AddTex(font + "White").LoadFont(font)
-	pt.labels[O] = scene2.NewPov().SetLocation(left, 60, 0)
-	pt.labels[O].NewModel("uv").AddTex(font + "White").LoadFont(font)
-	pt.amount = scene2.NewPov().SetLocation(left+120, 0, 0)
-	pt.amount.NewModel("uv").AddTex(font + "White").LoadFont(font)
+	pt.labels = []*vu.Pov{nil, nil, nil, nil}
+	pt.labels[F] = scene2.NewPov().SetAt(left, 120, 0)
+	pt.labels[F].NewLabel("uv", font, font+"White")
+	pt.labels[G] = scene2.NewPov().SetAt(left, 100, 0)
+	pt.labels[G].NewLabel("uv", font, font+"White")
+	pt.labels[L] = scene2.NewPov().SetAt(left, 80, 0)
+	pt.labels[L].NewLabel("uv", font, font+"White")
+	pt.labels[O] = scene2.NewPov().SetAt(left, 60, 0)
+	pt.labels[O].NewLabel("uv", font, font+"White")
+	pt.amount = scene2.NewPov().SetAt(left+120, 0, 0)
+	pt.amount.NewLabel("uv", font, font+"White")
 	pt.positionLabels()
 	pt.updateLabels()
 
 	// initialize the images: main composite image and...
-	pt.genTex(pt.texture)                   // 1: noise image
-	pt.tex[1].Model().SetImg(0, pt.imgs[1]) //
-	pt.fillOne(pt.data, pt.sinx)            // 2: sin image
-	pt.flatColor(pt.data, pt.imgs[2])       //
-	pt.tex[2].Model().SetImg(0, pt.imgs[2]) //
-	pt.fillOne(pt.data, pt.radial)          // 3: radial image
-	pt.flatColor(pt.data, pt.imgs[3])       //
-	pt.tex[3].Model().SetImg(0, pt.imgs[3]) //
-	pt.fillVoronoi(pt.vdata)                // 4: voronoi image
-	pt.flatColor(pt.vdata, pt.imgs[4])      //
-	pt.tex[4].Model().SetImg(0, pt.imgs[4]) //
-	pt.fillOne(pt.data, pt.smoke)           // 5: smoke image
-	pt.flatColor(pt.data, pt.imgs[5])       //
-	pt.tex[5].Model().SetImg(0, pt.imgs[5]) //
+	pt.genTex(pt.texture)                    // 1: noise image
+	pt.tex[1].Model().Tex(0).Set(pt.imgs[1]) //
+	pt.fillOne(pt.data, pt.sinx)             // 2: sin image
+	pt.flatColor(pt.data, pt.imgs[2])        //
+	pt.tex[2].Model().Tex(0).Set(pt.imgs[2]) //
+	pt.fillOne(pt.data, pt.radial)           // 3: radial image
+	pt.flatColor(pt.data, pt.imgs[3])        //
+	pt.tex[3].Model().Tex(0).Set(pt.imgs[3]) //
+	pt.fillVoronoi(pt.vdata)                 // 4: voronoi image
+	pt.flatColor(pt.vdata, pt.imgs[4])       //
+	pt.tex[4].Model().Tex(0).Set(pt.imgs[4]) //
+	pt.fillOne(pt.data, pt.smoke)            // 5: smoke image
+	pt.flatColor(pt.data, pt.imgs[5])        //
+	pt.tex[5].Model().Tex(0).Set(pt.imgs[5]) //
 }
 
 // Update is the regular engine callback.
@@ -369,15 +368,15 @@ func (pt *pttag) genTex(fns []func(x, y float64) float64) {
 	} else {
 		pt.flatColor(pt.data, pt.imgs[0])
 	}
-	pt.tex[0].Model().SetImg(0, pt.imgs[0])
+	pt.tex[0].Model().Tex(0).Set(pt.imgs[0])
 
 	// regenerate the noise images affected by a parameter change.
 	pt.fillOne(pt.data, pt.land)
 	pt.flatColor(pt.data, pt.imgs[1])
-	pt.tex[1].Model().SetImg(0, pt.imgs[1])
+	pt.tex[1].Model().Tex(0).Set(pt.imgs[1])
 	pt.fillOne(pt.data, pt.smoke)
 	pt.flatColor(pt.data, pt.imgs[5])
-	pt.tex[5].Model().SetImg(0, pt.imgs[5])
+	pt.tex[5].Model().Tex(0).Set(pt.imgs[5])
 }
 
 // =============================================================================
@@ -386,26 +385,26 @@ func (pt *pttag) genTex(fns []func(x, y float64) float64) {
 // positionLabels updates the row highlight and the
 // edit amount to match the parameter row that has focus.
 func (pt *pttag) positionLabels() {
-	x, _, z := pt.rowbg.Location()
-	pt.rowbg.SetLocation(x, float64(130-pt.row*20), z)
-	x, _, z = pt.amount.Location()
-	pt.amount.SetLocation(x, float64(120-pt.row*20), z)
+	x, _, z := pt.rowbg.At()
+	pt.rowbg.SetAt(x, float64(130-pt.row*20), z)
+	x, _, z = pt.amount.At()
+	pt.amount.SetAt(x, float64(120-pt.row*20), z)
 }
 
 // updateLabels regenerates the labels for the parameter labels.
 func (pt *pttag) updateLabels() {
 	s := fmt.Sprintf("Freq = %5.3f", pt.sn.F)
-	pt.labels[F].Model().SetPhrase(s)
+	pt.labels[F].Model().SetStr(s)
 	s = fmt.Sprintf("Gain = %5.3f", pt.sn.G)
-	pt.labels[G].Model().SetPhrase(s)
+	pt.labels[G].Model().SetStr(s)
 	s = fmt.Sprintf("Lac   = %5.3f", pt.sn.L)
-	pt.labels[L].Model().SetPhrase(s)
+	pt.labels[L].Model().SetStr(s)
 	s = fmt.Sprintf("Oct   = %5d", pt.sn.O)
-	pt.labels[O].Model().SetPhrase(s)
+	pt.labels[O].Model().SetStr(s)
 
 	// show the magnitude when changing param amounts.
 	s = fmt.Sprintf("+/-   %3.2f", pt.mag)
-	pt.amount.Model().SetPhrase(s)
+	pt.amount.Model().SetStr(s)
 }
 
 // =============================================================================

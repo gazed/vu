@@ -25,7 +25,7 @@ type shader struct {
 	// Vertex layout data and uniform expectations are discovered from the
 	// shader source. This can be verified later against available data.
 	layouts  map[string]uint32 // Expected buffer data locations.
-	uniforms map[string]int32  // Expected uniform data.
+	uniforms map[string]int32  // Expected uniform GPU references.
 }
 
 // newShader creates a new shader.

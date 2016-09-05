@@ -15,7 +15,7 @@ import (
 // The map of keys and mouse buttons that are currently pressed also
 // include how long they have been pressed in update ticks. A negative
 // value indicates a key release, upon which the total down duration can
-// be calculated using the down duration less the RELEASED timestamp.
+// be calculated using the down duration less the KeyReleased timestamp.
 type Input struct {
 	Mx, My  int         // Current mouse location.
 	Down    map[int]int // Keys, buttons with down duration ticks.

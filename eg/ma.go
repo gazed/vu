@@ -31,16 +31,16 @@ func ma() {
 
 // Globally unique "tag" that encapsulates example specific data.
 type matag struct {
-	top    vu.Pov
-	cam    vu.Camera // 3D model
-	ui     vu.Camera // 2D user interface.
-	title  vu.Model  // Animation information display.
-	names  []string  // All loaded model names.
-	models []vu.Pov  // All loaded models.
-	model  vu.Pov    // Currently selected model.
-	index  int       // Index of currently selected model.
-	run    float64   // Camera movement speed.
-	spin   float64   // Camera spin speed.
+	top    *vu.Pov
+	cam    *vu.Camera // 3D model
+	ui     *vu.Camera // 2D user interface.
+	title  *vu.Pov    // Animation information display.
+	names  []string   // All loaded model names.
+	models []*vu.Pov  // All loaded models.
+	model  *vu.Pov    // Currently selected model.
+	index  int        // Index of currently selected model.
+	run    float64    // Camera movement speed.
+	spin   float64    // Camera spin speed.
 }
 
 // Create is the engine callback for initial asset creation.
@@ -48,7 +48,7 @@ func (ma *matag) Create(eng vu.Eng, s *vu.State) {
 	ma.top = eng.Root().NewPov()
 	ma.cam = ma.top.NewCam()
 	ma.cam.SetPerspective(60, float64(800)/float64(600), 0.1, 50)
-	ma.cam.SetLocation(0, 3, 10)
+	ma.cam.SetAt(0, 3, 10)
 
 	// load any available IQM models. The loaded model data is fed to
 	// the animation capable shader "anim".
@@ -58,30 +58,27 @@ func (ma *matag) Create(eng vu.Eng, s *vu.State) {
 		if modelFile == "runner" {
 			pov.SetScale(-3, 3, 3) // Runner is a bit small.
 		}
-		pov.Spin(-90, 0, 0)   // Have the model face the camera.
-		pov.SetVisible(false) // Hide initially.
+		pov.Spin(-90, 0, 0) // Have the model face the camera.
+		pov.Cull = true     // Hide initially.
 
 		// Most IQ* files are expected to be animated.
 		// Use a "uv" shader to handle IQ* files without animations.
-		pov.NewModel("anim").LoadAnim(modelFile)
+		pov.NewAnimator("anim", modelFile)
 		ma.models = append(ma.models, pov)
 		ma.names = append(ma.names, modelFile)
 	}
 	ma.model = ma.models[ma.index] // should always have at least one.
-	ma.model.SetVisible(true)
+	ma.model.Cull = false
 
 	// Have a lighter default background.
-	eng.SetColor(0.15, 0.15, 0.15, 1)
+	eng.Set(vu.Color(0.15, 0.15, 0.15, 1))
 
 	// Create a banner to show the model name.
 	top2D := eng.Root().NewPov()
-	ma.ui = top2D.NewCam()
-	ma.ui.SetUI()
+	ma.ui = top2D.NewCam().SetUI()
 	ma.ui.SetOrthographic(0, float64(s.W), 0, float64(s.H), 0, 10)
-	title := top2D.NewPov()
-	title.SetLocation(10, 5, 0)
-	ma.title = title.NewModel("uv").AddTex("lucidiaSu22White").LoadFont("lucidiaSu22")
-	ma.title.SetPhrase(" ")
+	ma.title = top2D.NewPov().SetAt(10, 5, 0)
+	ma.title.NewLabel("uv", "lucidiaSu22", "lucidiaSu22White")
 }
 
 // Update is the recurring callback to update state based on user actions.
@@ -95,9 +92,9 @@ func (ma *matag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 	for press, down := range in.Down {
 		switch press {
 		case vu.KW:
-			ma.cam.Move(0, 0, dt*run, ma.cam.Lookxz())
+			ma.cam.Move(0, 0, dt*run, ma.cam.Look)
 		case vu.KS:
-			ma.cam.Move(0, 0, dt*-run, ma.cam.Lookxz())
+			ma.cam.Move(0, 0, dt*-run, ma.cam.Look)
 		case vu.KA:
 			ma.model.Spin(0, 0, 5)
 		case vu.KD:
@@ -106,13 +103,13 @@ func (ma *matag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 			if down == 1 {
 
 				// switch to the next loaded model.
-				ma.model.SetVisible(false)
+				ma.model.Cull = true
 				ma.index = ma.index + 1
 				if ma.index >= len(ma.models) {
 					ma.index = 0
 				}
 				ma.model = ma.models[ma.index]
-				ma.model.SetVisible(true)
+				ma.model.Cull = false
 			}
 		case vu.K0, vu.K1, vu.K2, vu.K3, vu.K4, vu.K5, vu.K6, vu.K7, vu.K8, vu.K9:
 			if down == 1 {
@@ -150,14 +147,14 @@ func (ma *matag) showAction() {
 		index, frame, maxFrames := ma.model.Model().Action()
 		name := names[index]
 		stats := fmt.Sprintf("[%d] %s %d/%d", index, name, frame, maxFrames)
-		ma.title.SetPhrase(ma.names[ma.index] + ":" + stats)
+		ma.title.Model().SetStr(ma.names[ma.index] + ":" + stats)
 	}
 }
 
 // iqmodel groups the 3D assets with the file name of the model file.
 type iqmodel struct {
-	title string // IQ file name.
-	tr    vu.Pov // loaded IQ 3D model.
+	title string  // IQ file name.
+	tr    *vu.Pov // loaded IQ 3D model.
 }
 
 // modelFiles returns the names of the IQE/IQM files in the models directory.

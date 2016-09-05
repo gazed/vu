@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/gazed/vu"
-	"github.com/gazed/vu/math/lin"
 )
 
 // cr, collision resolution, demonstrates simulated physics by having balls bounce
@@ -32,37 +31,36 @@ func cr() {
 
 // Globally unique "tag" that encapsulates example specific data.
 type crtag struct {
-	top     vu.Pov
-	cam     vu.Camera
-	striker vu.Pov // Move to hit other items.
+	top     *vu.Pov
+	cam     *vu.Camera
+	striker *vu.Pov // Move to hit other items.
 }
 
 // Create is the engine callback for initial asset creation.
 func (cr *crtag) Create(eng vu.Eng, s *vu.State) {
 	cr.top = eng.Root().NewPov()
-	sun := cr.top.NewPov().SetLocation(0, 10, 10)
+	sun := cr.top.NewPov().SetAt(0, 10, 10)
 	sun.NewLight().SetColor(0.8, 0.8, 0.8)
 	cr.cam = cr.top.NewCam()
 	cr.cam.SetPerspective(60, float64(800)/float64(600), 0.1, 500)
-	cr.cam.SetLocation(0, 10, 25)
+	cr.cam.SetAt(0, 10, 25)
 
 	// load the static slab.
-	slab := cr.top.NewPov().SetScale(50, 50, 50).SetLocation(0, -25, 0)
+	slab := cr.top.NewPov().SetScale(50, 50, 50).SetAt(0, -25, 0)
 	slab.NewBody(vu.NewBox(25, 25, 25))
 	slab.SetSolid(0, 0.4)
-	slab.NewModel("diffuse").LoadMesh("box").LoadMat("gray")
+	slab.NewModel("diffuse", "msh:box", "mat:gray")
 
 	// create a single moving body.
 	cr.striker = cr.top.NewPov()
-	cr.striker.SetLocation(15, 15, 0) // -5, 15, -3
-	useBalls := true                  // Flip to use boxes instead of spheres.
+	cr.striker.SetAt(15, 15, 0)
+	useBalls := true // Flip to use boxes instead of spheres.
 	if useBalls {
 		cr.getBall(cr.striker)
 	} else {
 		cr.getBox(cr.striker)
-		cr.striker.SetRotation(&lin.Q{X: 0.1825742, Y: 0.3651484, Z: 0.5477226, W: 0.7302967})
 	}
-	cr.striker.Model().SetColor(rand.Float64(), rand.Float64(), rand.Float64())
+	cr.striker.Model().SetUniform("kd", rand.Float64(), rand.Float64(), rand.Float64())
 
 	// create a block of physics bodies.
 	cubeSize := 3
@@ -76,7 +74,7 @@ func (cr *crtag) Create(eng vu.Eng, s *vu.State) {
 				lx := float64(2*i + startX)
 				ly := float64(20 + 2*k + startY)
 				lz := float64(2*j + startZ)
-				bod.SetLocation(lx, ly, lz)
+				bod.SetAt(lx, ly, lz)
 				if useBalls {
 					cr.getBall(bod)
 				} else {
@@ -87,7 +85,7 @@ func (cr *crtag) Create(eng vu.Eng, s *vu.State) {
 	}
 
 	// set non default engine state.
-	eng.SetColor(0.15, 0.15, 0.15, 1)
+	eng.Set(vu.Color(0.15, 0.15, 0.15, 1))
 	rand.Seed(time.Now().UTC().UnixNano())
 }
 
@@ -102,20 +100,20 @@ func (cr *crtag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 	for press := range in.Down {
 		switch press {
 		case vu.KW:
-			cr.cam.Move(0, 0, dt*-run, cr.cam.Lookxz())
+			cr.cam.Move(0, 0, dt*-run, cr.cam.Look)
 		case vu.KS:
-			cr.cam.Move(0, 0, dt*run, cr.cam.Lookxz())
+			cr.cam.Move(0, 0, dt*run, cr.cam.Look)
 		case vu.KA:
-			cr.cam.AdjustYaw(dt * spin)
+			cr.cam.SetYaw(cr.cam.Yaw + spin*dt)
 		case vu.KD:
-			cr.cam.AdjustYaw(dt * -spin)
+			cr.cam.SetYaw(cr.cam.Yaw - spin*dt)
 		case vu.KB:
 			ball := cr.top.NewPov()
-			ball.SetLocation(-2.5+rand.Float64(), 15, -1.5-rand.Float64())
+			ball.SetAt(-2.5+rand.Float64(), 15, -1.5-rand.Float64())
 			ball.NewBody(vu.NewSphere(1))
 			ball.SetSolid(1, 0.9)
-			m := ball.NewModel("gouraud").LoadMesh("sphere").LoadMat("red")
-			m.SetColor(rand.Float64(), rand.Float64(), rand.Float64())
+			m := ball.NewModel("gouraud", "msh:sphere", "mat:red")
+			m.SetUniform("kd", rand.Float64(), rand.Float64(), rand.Float64())
 		case vu.KSpace:
 			body := cr.striker.Body()
 			body.Push(-2.5, 0, -0.5)
@@ -124,16 +122,16 @@ func (cr *crtag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 }
 
 // getBall creates a visible sphere physics body.
-func (cr *crtag) getBall(p vu.Pov) {
+func (cr *crtag) getBall(p *vu.Pov) {
 	p.NewBody(vu.NewSphere(1))
 	p.SetSolid(1, 0.5)
-	p.NewModel("gouraud").LoadMesh("sphere").LoadMat("red")
+	p.NewModel("gouraud", "msh:sphere", "mat:red")
 }
 
 // getBox creates a visible box physics body.
-func (cr *crtag) getBox(p vu.Pov) {
+func (cr *crtag) getBox(p *vu.Pov) {
 	p.SetScale(2, 2, 2)
 	p.NewBody(vu.NewBox(1, 1, 1))
 	p.SetSolid(1, 0)
-	p.NewModel("gouraud").LoadMesh("box").LoadMat("red")
+	p.NewModel("gouraud", "msh:box", "mat:red")
 }

@@ -3,13 +3,26 @@
 
 package vu
 
-// FUTURE: create 3D fonts from system fonts on the fly or
-//         make a separate tool like:
+// FUTURE: create 3D fonts from system fonts on the fly
+//         or make a separate tool like:
 //         http://www.angelcode.com/products/bmfont/
 
 import (
 	"github.com/gazed/vu/render"
 )
+
+// Labeler is a Model that displays a small text phrase. The Model
+// combines a quad mesh, font mapping data, and a bitmapped font texture
+// to display a string. Controlling a Labeler amounts to setting the
+// string value and centering it using its width in pixels.
+type Labeler interface {
+	SetStr(text string) // Set the string to display.
+	StrWidth() int      // Width in screen pixels, 0 if not loaded.
+}
+
+// Labeler
+// =============================================================================
+// font is font mapping data needed by Labeler.
 
 // font is an optional part of a rendered Model.
 // font holds a single bitmapped font. It knows how to pull individual
@@ -84,9 +97,9 @@ func (f *font) setPhrase(m *mesh, phrase string) (width int) {
 			fb = append(fb, i0, i0+1, i0+3, i0+1, i0+2, i0+3)
 		}
 	}
-	m.initData(0, 3, render.StaticDraw, false).setData(0, vb)
-	m.initData(2, 2, render.StaticDraw, false).setData(2, tb)
-	m.initFaces(render.StaticDraw).setFaces(fb)
+	m.InitData(0, 3, render.StaticDraw, false).SetData(0, vb)
+	m.InitData(2, 2, render.StaticDraw, false).SetData(2, tb)
+	m.InitFaces(render.StaticDraw).SetFaces(fb)
 	f.vb = vb // reuse the allocated memory.
 	f.tb = tb //   ""
 	f.fb = fb //   ""

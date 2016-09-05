@@ -47,12 +47,18 @@ func (n *noise) Play(index int) {
 	if n.loaded && index >= 0 && index < len(n.snds) {
 		snd := n.snds[index]
 		if p, ok := n.eng.povs[n.eid]; ok {
-			x, y, z := p.Location()
+			x, y, z := p.At()
 			go func(sid uint64, x, y, z float64) {
 				n.eng.machine <- &playSound{sid: sid, x: x, y: y, z: z}
 			}(snd.sid, x, y, z)
 		}
 	}
+}
+
+func (n *noise) queueLoads(requests []*loadReq) []*loadReq {
+	requests = append(requests, n.loads...)
+	n.loads = n.loads[:0]
+	return requests
 }
 
 // noise

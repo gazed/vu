@@ -20,8 +20,8 @@ import (
 // There are three render frames. One for updating, the other two for
 // rendering with interpolation.
 type scene struct {
-	scene []*pov // flattened pov hiearchy updated each frame.
-	white *light // default light.
+	scene []*Pov // flattened pov hiearchy updated each frame.
+	white *Light // default light.
 
 	// Multiple render pass support.
 	pass         *layer  // default disabled render pass layer.
@@ -41,7 +41,7 @@ type scene struct {
 // newScene is expected to be called once by engine on startup.
 func newScene() *scene {
 	s := &scene{}
-	s.scene = []*pov{}   // updated each frame
+	s.scene = []*Pov{}   // updated each frame
 	s.pass = &layer{}    // default render target.
 	s.white = newLight() // default light.
 	s.mv = &lin.M4{}
@@ -79,17 +79,17 @@ func (sm *scene) init(eng *engine) {
 // The frame memory is recycled in that the Draw records are lazy allocated
 // and reused each update.  Note len(frame) is the number of draw calls
 // for the most recently prepared frame.
-func (sm *scene) snapshot(eng *engine, frame []render.Draw) []render.Draw {
-	frame = frame[:0]       // resize keeping underlying memory.
+func (sm *scene) snapshot(eng *engine, f frame) frame {
+	f = f[:0]               // resize keeping underlying memory.
 	sm.scene = sm.scene[:0] // ditto.
 	if root := eng.root(); root != nil {
 		cam, _ := eng.cams[root.eid]
 		sm.renDraws, sm.renVerts = 0, 0
 		sm.scene = sm.updateScene(eng, 0, cam, root, sm.scene)
-		frame = sm.updateFrame(eng, sm.scene, frame)
+		f = sm.updateFrame(eng, sm.scene, f)
 	}
-	render.SortDraws(frame)
-	return frame
+	render.SortDraws(f)
+	return f
 }
 
 // updateScene recursively turns the Pov hierarchy into a flat list using
@@ -98,13 +98,13 @@ func (sm *scene) snapshot(eng *engine, frame []render.Draw) []render.Draw {
 // easily processed into draw calls for the render frame.
 // Note that the render layer target is updated on the camera here so that
 // it affects the relevant children, and not others.
-func (sm *scene) updateScene(eng *engine, rt uint32, cam *camera, p *pov, scene []*pov) []*pov {
-	if p.visible {
+func (sm *scene) updateScene(eng *engine, rt uint32, cam *Camera, p *Pov, scene []*Pov) []*Pov {
+	if !p.Cull {
 		culled := false // process children that aren't culled.
 
 		// only calculate distance for visible models.
 		if _, ok := eng.models[p.eid]; ok && cam != nil {
-			px, py, pz := sm.sceneLocation(p, cam.depth)
+			px, py, pz := sm.sceneLocation(p, cam.Depth)
 			p.toc = cam.Distance(px, py, pz) // may not make sense for 2D screen objects.
 			if culled = cam.isCulled(px, py, pz); !culled {
 				scene = append(scene, p)
@@ -134,19 +134,19 @@ func (sm *scene) updateScene(eng *engine, rt uint32, cam *camera, p *pov, scene 
 // sceneLocation returns the location in world space for a 3D object,
 // and in screen space for a 2D object. Assumes that a 3D objects model
 // matrix has been updated.
-func (sm *scene) sceneLocation(p *pov, is3D bool) (px, py, pz float64) {
+func (sm *scene) sceneLocation(p *Pov, is3D bool) (px, py, pz float64) {
 	if is3D {
 		vec := sm.v0.SetS(0, 0, 0, 1)
 		vec.MultvM(vec, p.mm)      // Parents location incorporated into mm.
 		return vec.X, vec.Y, vec.Z // 3D world space.
 	}
-	return p.Location() // 2D screen pixel space for UI culling.
+	return p.At() // 2D screen pixel space for UI culling.
 }
 
 // updateFrame prepares for rendering by converting a sequenced list
 // of Pov's into render system draw call requests.
-func (sm *scene) updateFrame(eng *engine, viewed []*pov, frame []render.Draw) []render.Draw {
-	var cam *camera                // default nil camera.
+func (sm *scene) updateFrame(eng *engine, viewed []*Pov, f frame) frame {
+	var cam *Camera                // default nil camera.
 	light := sm.white              // Default light.
 	lwx, lwy, lwz := 0.0, 0.0, 0.0 // Light world position.
 
@@ -160,7 +160,7 @@ func (sm *scene) updateFrame(eng *engine, viewed []*pov, frame []render.Draw) []
 		if l, ok := eng.lights[p.eid]; ok {
 			light = l
 			if cam != nil {
-				lx, ly, lz := p.Location()
+				lx, ly, lz := p.At()
 				vec := sm.v0.SetS(lx, ly, lz, 1)
 				vec.MultvM(vec, cam.vm)
 				lwx, lwy, lwz = vec.X, vec.Y, vec.Z
@@ -170,7 +170,7 @@ func (sm *scene) updateFrame(eng *engine, viewed []*pov, frame []render.Draw) []
 		// render all models with loaded assets.
 		if model, ok := eng.models[p.eid]; ok && model.loaded() {
 			if model.msh != nil && len(model.msh.vdata) > 0 {
-				var draw *render.Draw
+				var draw **render.Draw
 
 				// optionally render model shadowmap from light position.
 				// Its a sun light so no need to account for orientation.
@@ -182,7 +182,7 @@ func (sm *scene) updateFrame(eng *engine, viewed []*pov, frame []render.Draw) []
 					sm.mvp.Mult(sm.mv, sm.shadowMap.vp)           // model-view-projection
 
 					// render the model using the shadow map "depth" shader.
-					if frame, draw = sm.getDraw(frame); draw != nil {
+					if f, draw = sm.getDraw(f); draw != nil {
 						sm.toDraw(*draw, p, cam, model, sm.shadowMap.bid)
 						shd := model.shd
 						model.shd = sm.shadowShader
@@ -196,10 +196,10 @@ func (sm *scene) updateFrame(eng *engine, viewed []*pov, frame []render.Draw) []
 				}
 
 				// render model normally from camera position.
-				if frame, draw = sm.getDraw(frame); draw != nil {
+				if f, draw = sm.getDraw(f); draw != nil {
 					sm.toDraw(*draw, p, cam, model, cam.target)
 					model.toDraw(*draw, p.mm)
-					light.toDraw(*draw, lwx, lwy, lwz)
+					drawLight(*draw, light, lwx, lwy, lwz)
 
 					// capture statistics.
 					sm.renDraws++                           // models rendered.
@@ -210,19 +210,19 @@ func (sm *scene) updateFrame(eng *engine, viewed []*pov, frame []render.Draw) []
 			}
 		}
 	}
-	return frame
+	return f
 }
 
 // toDraw sets the render data needed for a single draw call.
 // The data is copied into a render.Draw instance. One of the key jobs
 // of this method is to put each draw request into a particular
 // render bucket so that they are drawn in order once sorted.
-func (sm *scene) toDraw(d render.Draw, p *pov, cam *camera, m *model, rt uint32) {
+func (sm *scene) toDraw(d *render.Draw, p *Pov, cam *Camera, m *model, rt uint32) {
 	d.SetMv(sm.mv.Mult(p.mm, cam.vm))    // model-view
 	d.SetMvp(sm.mvp.Mult(sm.mv, cam.pm)) // model-view-projection
 	d.SetPm(cam.pm)                      // projection only.
 	d.SetScale(p.Scale())
-	d.SetTag(p.eid)
+	d.Tag = p.eid
 
 	// Set the drawing order hints. Overlay trumps transparency since 2D overlay
 	// objects can't be sorted by distance anyways.
@@ -230,12 +230,12 @@ func (sm *scene) toDraw(d render.Draw, p *pov, cam *camera, m *model, rt uint32)
 	switch {
 	case m.castShadow && rt > 0:
 		bucket = render.DepthPass // pre-passes first.
-	case cam.overlay > 0:
-		bucket = cam.overlay // OVERLAY draw last.
+	case cam.Overlay > 0:
+		bucket = cam.Overlay // OVERLAY draw last.
 	case m.alpha < 1:
 		bucket = render.Transparent // sort and draw after opaque.
 	}
-	depth := cam.depth && m.depth // both must be true for depth rendering.
+	depth := cam.Depth && m.depth // both must be true for depth rendering.
 	tocam := 0.0
 	if depth {
 		tocam = p.toc
@@ -251,16 +251,16 @@ func (sm *scene) toDraw(d render.Draw, p *pov, cam *camera, m *model, rt uint32)
 // getDraw returns a render.Draw. The frame is grown as needed and draw
 // instances are reused if available. Every frame value up to cap(frame)
 // is expected to have already been allocated.
-func (sm *scene) getDraw(frame []render.Draw) (f []render.Draw, d *render.Draw) {
-	size := len(frame)
+func (sm *scene) getDraw(f frame) (frame, **render.Draw) {
+	size := len(f)
 	switch {
-	case size == cap(frame):
-		frame = append(frame, render.NewDraw())
-	case size < cap(frame): // use previously allocated.
-		frame = frame[:size+1]
-		if frame[size] == nil {
-			frame[size] = render.NewDraw()
+	case size == cap(f):
+		f = append(f, render.NewDraw())
+	case size < cap(f): // use previously allocated.
+		f = f[:size+1]
+		if f[size] == nil {
+			f[size] = render.NewDraw()
 		}
 	}
-	return frame, &frame[size]
+	return f, &f[size]
 }

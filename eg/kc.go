@@ -30,41 +30,37 @@ func kc() {
 
 // Globally unique "tag" that encapsulates example specific data.
 type kctag struct {
-	ui        vu.Camera   // 2D user interface.
-	kb        vu.Pov      // Keyboard image.
-	focus     vu.Pov      // Hilights first pressed key.
+	ui        *vu.Camera  // 2D user interface.
+	kb        *vu.Pov     // Keyboard image.
+	focus     *vu.Pov     // Hilights first pressed key.
 	positions map[int]pos // Screen position for each key.
 }
 
 // Create is the startup asset creation.
 func (kc *kctag) Create(eng vu.Eng, s *vu.State) {
 	top := eng.Root().NewPov()
-	kc.ui = top.NewCam()
-	kc.ui.SetUI()
+	kc.ui = top.NewCam().SetUI()
 	kc.positions = kc.keyPositions()
 
 	// Create the keyboard image.
-	kc.kb = top.NewPov().SetScale(900, 255, 0).SetLocation(450, 100+85, 0)
-	kc.kb.NewModel("uv").LoadMesh("icon").AddTex("keyboard")
+	kc.kb = top.NewPov().SetScale(900, 255, 0).SetAt(450, 100+85, 0)
+	kc.kb.NewModel("uv", "msh:icon", "tex:keyboard")
 
 	// Pressed key focus
 	kc.focus = top.NewPov().SetScale(50, 50, 0)
-	kc.focus.NewModel("uv").LoadMesh("icon").AddTex("particle")
+	kc.focus.NewModel("uv", "msh:icon", "tex:particle")
 
 	// Place the key symbols over the keys.
-	font := "lucidiaSu18"
-	fontColor := "lucidiaSu18Black"
 	for code, key := range kc.positions { // map key is key code, map value is key struct
 		if char := vu.Keysym(code); char > 0 {
 			cx, cy := key.location()
-			letter := top.NewPov().SetLocation(cx, cy, 0)
-			model := letter.NewModel("uv")
-			model.AddTex(fontColor).LoadFont(font).SetPhrase(string(char))
+			letter := top.NewPov().SetAt(cx, cy, 0)
+			letter.NewLabel("uv", "lucidiaSu18", "lucidiaSu18Black").SetStr(string(char))
 		}
 	}
 
 	// Have a lighter default background.
-	eng.SetColor(0.45, 0.45, 0.45, 1)
+	eng.Set(vu.Color(0.45, 0.45, 0.45, 1))
 	kc.resize(s.W, s.H)
 }
 
@@ -75,12 +71,12 @@ func (kc *kctag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 	}
 
 	// hilight the first pressed key.
-	kc.focus.SetVisible(false)
+	kc.focus.Cull = true
 	for press := range in.Down {
-		kc.focus.SetVisible(true)
+		kc.focus.Cull = false
 		position := kc.positions[press]
 		cx, cy := position.location()
-		kc.focus.SetLocation(cx+6, cy+10, 0)
+		kc.focus.SetAt(cx+6, cy+10, 0)
 		break
 	}
 }

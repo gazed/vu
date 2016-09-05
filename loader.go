@@ -98,12 +98,6 @@ func (l *loader) returnAssets(assets []*loadReq) {
 	l.loaded <- assets
 }
 
-// queueLoads is called on the engine processing goroutine.
-// The models are loaded and returned by calling loadQueued.
-func (l *loader) queueLoads(loadRequests []*loadReq) {
-	l.loads = append(l.loads, loadRequests...)
-}
-
 // loadQueued is called on the engine processing goroutine
 // to send the load requests off for loading. Load requests
 // are batched into small chunks so the loader can return
@@ -149,12 +143,10 @@ func (l *loader) loadSound(s *sound) (*sound, error) {
 // importSound transfers audio data loaded from disk to the sound object.
 func (l *loader) importSound(s *sound) error {
 	snd := &load.SndData{}
-	if err := snd.Load(s.name, l.loc); err == nil {
-		a := snd.Attrs
-		s.data.Set(a.Channels, a.SampleBits, a.Frequency, a.DataSize, snd.Data)
-	} else {
+	if err := snd.Load(s.name, l.loc); err != nil {
 		return fmt.Errorf("loader.loadSound: could not load %s %s", s.label(), err)
 	}
+	transferSound(snd, s)
 	return nil
 }
 
@@ -230,21 +222,10 @@ func (l *loader) bindMesh(m *mesh) error {
 // importMesh transfers data loaded from disk to the render object.
 func (l *loader) importMesh(m *mesh) error {
 	msh := &load.MshData{}
-	if err := msh.Load(m.name, l.loc); err == nil {
-		if len(msh.V) <= 0 || len(msh.F) <= 0 {
-			return fmt.Errorf("Minimally need vertex and face data for %s", m.name)
-		}
-		m.initData(0, 3, render.StaticDraw, false).setData(0, msh.V)
-		if len(msh.N) > 0 {
-			m.initData(1, 3, render.StaticDraw, false).setData(1, msh.N)
-		}
-		if len(msh.T) > 0 {
-			m.initData(2, 2, render.StaticDraw, false).setData(2, msh.T)
-		}
-		m.initFaces(render.StaticDraw).setFaces(msh.F)
-	} else {
+	if err := msh.Load(m.name, l.loc); err != nil {
 		return fmt.Errorf("loader.loadMesh: could not load %s %s", m.name, err)
 	}
+	transferMesh(msh, m)
 	return nil
 }
 
@@ -277,7 +258,7 @@ func (l *loader) importTexture(t *texture) error {
 	if err != nil {
 		return fmt.Errorf("loader.loadTexture: could not load %s %s", t.name, err)
 	}
-	t.set(img.Img)
+	t.Set(img.Img)
 	return nil
 }
 
@@ -301,10 +282,7 @@ func (l *loader) loadMaterial(m *material) (*material, error) {
 func (l *loader) importMaterial(m *material) error {
 	mtl := &load.MtlData{}
 	if err := mtl.Load(m.label(), l.loc); err == nil {
-		kd := &rgb{mtl.KdR, mtl.KdG, mtl.KdB}
-		ka := &rgb{mtl.KaR, mtl.KaG, mtl.KaB}
-		ks := &rgb{mtl.KsR, mtl.KsG, mtl.KsB}
-		m.setMaterial(kd, ka, ks, mtl.Alpha, mtl.Ns)
+		transferMaterial(mtl, m)
 		return nil
 	}
 	return fmt.Errorf("loader.loadMaterial: could not load %s", m.name)
@@ -329,14 +307,10 @@ func (l *loader) loadFont(f *font) (*font, error) {
 // importFont transfers data loaded from disk to the render object.
 func (l *loader) importFont(f *font) error {
 	fnt := &load.FntData{}
-	if err := fnt.Load(f.label(), l.loc); err == nil {
-		f.setSize(fnt.W, fnt.H)
-		for _, ch := range fnt.Chars {
-			f.addChar(ch.Char, ch.X, ch.Y, ch.W, ch.H, ch.Xo, ch.Yo, ch.Xa)
-		}
-	} else {
+	if err := fnt.Load(f.label(), l.loc); err != nil {
 		return fmt.Errorf("loader.loadFont: could not load %s %s", f.label(), err)
 	}
+	transferFont(fnt, f)
 	return nil
 }
 
@@ -392,38 +366,7 @@ func (l *loader) importAnim(a *animation, m *mesh) (texs []*texture, err error) 
 	if err = mod.Load(a.name, l.loc); err != nil {
 		return nil, err
 	}
-
-	// Use the loaded data to initialize a render.Model
-	// Vertex position data and face data must be present.
-	// All other buffers are optional, but need T, B, W for animation.
-	m.initData(0, 3, render.StaticDraw, false).setData(0, mod.V)
-	m.initFaces(render.StaticDraw).setFaces(mod.F)
-	if len(mod.N) > 0 {
-		m.initData(1, 3, render.StaticDraw, false).setData(1, mod.N)
-	}
-	if len(mod.T) > 0 {
-		m.initData(2, 2, render.StaticDraw, false).setData(2, mod.T)
-	}
-	if len(mod.Blends) > 0 {
-		m.initData(4, 4, render.StaticDraw, false).setData(4, mod.Blends)
-	}
-	if len(mod.Weights) > 0 {
-		m.initData(5, 4, render.StaticDraw, true).setData(5, mod.Weights)
-	}
-
-	// Store the animation data.
-	if len(mod.Frames) > 0 {
-		moves := []movement{}
-		for _, ia := range mod.Movements {
-			movement := movement{
-				name: ia.Name,
-				f0:   int(ia.F0),
-				fn:   int(ia.Fn),
-				rate: float64(ia.Rate)}
-			moves = append(moves, movement)
-		}
-		a.setData(mod.Frames, mod.Joints, moves)
-	}
+	transferAnim(mod, m, a)
 
 	// Get model textures. There may be more than one.
 	// Convention: use texture names based on the animation name.
@@ -493,6 +436,73 @@ type loadReq struct {
 }
 
 // loadReq
+// =============================================================================
+// utility transfer methods to move data from the load system to the engine.
+
+// transferMesh moves data from the loading system to the engine instance.
+func transferMesh(data *load.MshData, m *mesh) {
+	m.InitData(0, 3, render.StaticDraw, false).SetData(0, data.V)
+	m.InitFaces(render.StaticDraw).SetFaces(data.F)
+	if len(data.N) > 0 {
+		m.InitData(1, 3, render.StaticDraw, false).SetData(1, data.N)
+	}
+	if len(data.T) > 0 {
+		m.InitData(2, 2, render.StaticDraw, false).SetData(2, data.T)
+	}
+	m.loaded = true
+}
+
+// transferMaterial moves data from the loading system to the engine instance.
+func transferMaterial(data *load.MtlData, m *material) {
+	m.kd.R, m.kd.G, m.kd.B = data.KdR, data.KdG, data.KdB
+	m.ks.R, m.ks.G, m.ks.B = data.KsR, data.KsG, data.KsB
+	m.ka.R, m.ka.G, m.ka.B = data.KaR, data.KaG, data.KaB
+	m.tr = data.Alpha
+	m.ns = data.Ns
+	m.loaded = true
+}
+
+// transferSound moves data from the loading system to the engine instance.
+func transferSound(data *load.SndData, s *sound) {
+	a := data.Attrs
+	s.data.Set(a.Channels, a.SampleBits, a.Frequency, a.DataSize, data.Data)
+}
+
+// transferFont moves data from the loading system to the engine instance.
+func transferFont(data *load.FntData, f *font) {
+	f.setSize(data.W, data.H)
+	for _, ch := range data.Chars {
+		f.addChar(ch.Char, ch.X, ch.Y, ch.W, ch.H, ch.Xo, ch.Yo, ch.Xa)
+	}
+}
+
+// transferAnim moves data from the loading system to the engine instance.
+// Animation data is a combination of mesh data and animation data.
+func transferAnim(data *load.ModData, m *mesh, a *animation) {
+	transferMesh(&data.MshData, m)
+	if len(data.Blends) > 0 {
+		m.InitData(4, 4, render.StaticDraw, false).SetData(4, data.Blends)
+	}
+	if len(data.Weights) > 0 {
+		m.InitData(5, 4, render.StaticDraw, true).SetData(5, data.Weights)
+	}
+
+	// Store the animation data.
+	if len(data.Frames) > 0 {
+		moves := []movement{}
+		for _, ia := range data.Movements {
+			movement := movement{
+				name: ia.Name,
+				f0:   int(ia.F0),
+				fn:   int(ia.Fn),
+				rate: float64(ia.Rate)}
+			moves = append(moves, movement)
+		}
+		a.setData(data.Frames, data.Joints, moves)
+	}
+}
+
+// utility transfer methods.
 // =============================================================================
 // cache
 

@@ -7,11 +7,22 @@ import (
 	"image"
 )
 
-// texture is an optional, but very common, part of a rendered Model.
-// texture deals with 2D pictures that are mapped onto objects.
+// Tex is an texture. An optional, but very common, part of a rendered Model.
+// Texture deals with 2D pictures that are mapped onto objects.
 // Texture data is copied to the graphics card. One or more
 // Textures can be associated with a Model and consumed by a Shader.
-// Models can have more than one texture. In this case the f0, fn
+type Tex interface {
+	Set(img image.Image) // Replace image, nil values ignored.
+	Img() image.Image    // Get image, nil if invalid index.
+	SetRepeat(on bool)   // True for Repeat, otherwise Clamp.
+}
+
+// Tex
+// =============================================================================
+// texture implements Tex
+
+// texture manages the link between loaded texture assets and textures
+// bound to the GPU. When models have more than one texture the f0, fn
 // fields are used to indicate which model faces apply to this texture.
 type texture struct {
 	name   string      // Unique name of the texture.
@@ -37,10 +48,9 @@ func (t *texture) label() string { return t.name }                  // asset nam
 func (t *texture) aid() uint64   { return t.tag }                   // asset type and name.
 func (t *texture) bid() uint64   { return tex + uint64(t.tid)<<32 } // asset type and bind ref.
 
-// set texture image data and render attributes.
-func (t *texture) set(img image.Image) {
-	t.img = img
-	t.bound = false
-	t.loaded = true
+// Public to satisfy Tex interface.
+func (t *texture) Img() image.Image { return t.img }
+func (t *texture) Set(img image.Image) {
+	t.img, t.bound, t.loaded = img, false, true
 }
-func (t *texture) setRepeat(on bool) { t.repeat = on }
+func (t *texture) SetRepeat(on bool) { t.repeat = on }

@@ -31,10 +31,10 @@ func ps() {
 
 // Globally unique "tag" for this example.
 type pstag struct {
-	cam     vu.Camera  // scene camera.
+	cam     *vu.Camera // scene camera.
 	random  *rand.Rand // Random number generator.
-	effects []vu.Pov   // Particle effects.
-	effect  vu.Pov     // Active particle effect.
+	effects []*vu.Pov  // Particle effects.
+	effect  *vu.Pov    // Active particle effect.
 	index   int        // Active particle effect counter.
 
 	// live particles are recalculated each update and
@@ -48,37 +48,37 @@ func (ps *pstag) Create(eng vu.Eng, s *vu.State) {
 	ps.random = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
 	ps.cam = eng.Root().NewCam()
 	ps.cam.SetPerspective(60, float64(800)/float64(600), 0.1, 50)
-	ps.cam.SetLocation(0, 0, 2.5)
+	ps.cam.SetAt(0, 0, 2.5)
 
 	// A GPU/shader based particle example using a particle shader.
 	gpu := eng.Root().NewPov()
-	gpu.SetVisible(false)
-	m := gpu.NewModel("particle").AddTex("particle")
-	m.NewMesh("gpu").SetDrawMode(vu.Points).SetDepth(false)
+	gpu.Cull = true
+	m := gpu.NewModel("particle", "tex:particle")
+	m.Make("msh:gpu").Set(vu.DrawMode(vu.Points), vu.SetDepth(false))
 	ps.makeParticles(m)
 	ps.effects = append(ps.effects, gpu)
 
 	// A CPU/shader based particle example using an effect shader.
 	cpu := eng.Root().NewPov()
-	cpu.SetVisible(false)
-	m = cpu.NewModel("effect").AddTex("particle").SetDrawMode(vu.Points)
+	cpu.Cull = true
+	m = cpu.NewModel("effect", "tex:particle").Set(vu.DrawMode(vu.Points))
 	m.SetEffect(ps.fall, 250)
 	ps.effects = append(ps.effects, cpu)
 
 	// A colorful exhaust attempt.
 	// FUTURE: update textures to look like engine exhaust.
-	jet := eng.Root().NewPov().SetLocation(0, -1, 0)
-	jet.SetVisible(false)
-	m = jet.NewModel("exhaust").AddTex("exhaust").SetDrawMode(vu.Points)
+	jet := eng.Root().NewPov().SetAt(0, -1, 0)
+	jet.Cull = true
+	m = jet.NewModel("exhaust", "tex:exhaust").Set(vu.DrawMode(vu.Points))
 	m.SetEffect(ps.vent, 40)
 	ps.effects = append(ps.effects, jet)
 
 	// Make the first particle effect visible to kick things off.
 	ps.effect = ps.effects[ps.index]
-	ps.effect.SetVisible(true)
+	ps.effect.Cull = false
 
 	// Non default engine state. Have a lighter default background.
-	eng.SetColor(0.15, 0.15, 0.15, 1)
+	eng.Set(vu.Color(0.15, 0.15, 0.15, 1))
 }
 
 // Update is the engine frequent user-input/state-update callback.
@@ -92,22 +92,22 @@ func (ps *pstag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 	for press, down := range in.Down {
 		switch press {
 		case vu.KW:
-			ps.cam.Move(0, 0, dt*-run, ps.cam.Lookxz())
+			ps.cam.Move(0, 0, dt*-run, ps.cam.Look)
 		case vu.KS:
-			ps.cam.Move(0, 0, dt*run, ps.cam.Lookxz())
+			ps.cam.Move(0, 0, dt*run, ps.cam.Look)
 		case vu.KA:
 			ps.effect.Spin(0, dt*spin, 0)
 		case vu.KD:
 			ps.effect.Spin(0, dt*-spin, 0)
 		case vu.KTab:
 			if down == 1 {
-				ps.effect.SetVisible(false) // switch to the next effect.
+				ps.effect.Cull = true // switch to the next effect.
 				ps.index = ps.index + 1
 				if ps.index >= len(ps.effects) {
 					ps.index = 0
 				}
 				ps.effect = ps.effects[ps.index]
-				ps.effect.SetVisible(true)
+				ps.effect.Cull = false
 			}
 		}
 	}
@@ -133,8 +133,8 @@ func (ps *pstag) makeParticles(m vu.Model) {
 		vv[index+2] = ps.random.Float32() - 0.5 // z
 		index += 3
 	}
-	m.InitMesh(0, 3, render.StaticDraw, false).SetMeshData(0, vv)
-	m.InitMesh(1, 1, render.StaticDraw, false).SetMeshData(1, vt)
+	m.Mesh().InitData(0, 3, render.StaticDraw, false).SetData(0, vv)
+	m.Mesh().InitData(1, 1, render.StaticDraw, false).SetData(1, vt)
 }
 
 // fall is a CPU particle position updater. It lets particles drift downwards

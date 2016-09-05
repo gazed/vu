@@ -35,7 +35,7 @@ type Renderer interface {
 	BindShader(vsh, fsh []string, uniforms map[string]int32,
 		layouts map[string]uint32) (program uint32, err error)
 	BindTexture(tid *uint32, img image.Image, repeat bool) (err error)
-	Render(d Draw) // Render bound data and textures with bound shaders.
+	Render(d *Draw) // Render bound data and textures with bound shaders.
 
 	// BindFrame creates a framebuffer object with an associated texture.
 	//   buf : DEPTH_BUFF, for depth, or IMAGE_BUFF, for color and depth.

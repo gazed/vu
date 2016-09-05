@@ -33,10 +33,10 @@ func tt() {
 
 // Globally unique "tag" that encapsulates example specific data.
 type toTex struct {
-	cam0   vu.Camera // Camera for rendering monkey to texture scene.
-	monkey vu.Pov    // Allow user to spin monkey.
-	cam1   vu.Camera // Camera for rendering texture frame.
-	frame  vu.Pov    // Allow user to spin frame.
+	cam0   *vu.Camera // Camera for rendering monkey to texture scene.
+	monkey *vu.Pov    // Allow user to spin monkey.
+	cam1   *vu.Camera // Camera for rendering texture frame.
+	frame  *vu.Pov    // Allow user to spin frame.
 }
 
 // Create is the startup asset creation.
@@ -46,18 +46,18 @@ func (tt *toTex) Create(eng vu.Eng, s *vu.State) {
 	scene0 := eng.Root().NewPov()
 	tt.cam0 = scene0.NewCam()
 	scene0.NewLayer() // render scene to texture.
-	background := scene0.NewPov().SetLocation(0, 0, -10).SetScale(100, 100, 1)
-	background.NewModel("uv").LoadMesh("icon").AddTex("wall")
-	tt.monkey = scene0.NewPov().SetLocation(0, 0, -5)
-	tt.monkey.NewModel("monkey").LoadMesh("monkey").LoadMat("gray")
+	background := scene0.NewPov().SetAt(0, 0, -10).SetScale(100, 100, 1)
+	background.NewModel("uv", "msh:icon", "tex:wall")
+	tt.monkey = scene0.NewPov().SetAt(0, 0, -5)
+	tt.monkey.NewModel("monkey", "msh:monkey", "mat:gray")
 
 	// create a scene consisting of a single quad. The quad will display
 	// the rendered texture from scene0. The texture image is flipped from
 	// normal so reorient it using flipped texture coordinates in flipboard.
 	scene1 := eng.Root().NewPov()
 	tt.cam1 = scene1.NewCam()
-	tt.frame = scene1.NewPov().SetLocation(0, 0, -0.5).SetScale(0.25, 0.25, 0.25)
-	model := tt.frame.NewModel("uv").LoadMesh("flipboard")
+	tt.frame = scene1.NewPov().SetAt(0, 0, -0.5).SetScale(0.25, 0.25, 0.25)
+	model := tt.frame.NewModel("uv", "msh:flipboard")
 	model.UseLayer(scene0.Layer()) // use rendered texture from scene0.
 
 	// set camera perspectives and default background color.

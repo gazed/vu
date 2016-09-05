@@ -30,10 +30,10 @@ func sm() {
 
 // Globally unique "tag" that encapsulates example specific data.
 type smtag struct {
-	sun    vu.Pov
-	cube   vu.Pov
-	sphere vu.Pov
-	cam    vu.Camera
+	sun    *vu.Pov
+	cube   *vu.Pov
+	sphere *vu.Pov
+	cam    *vu.Camera
 }
 
 // Create is the startup asset creation.
@@ -42,25 +42,24 @@ func (sm *smtag) Create(eng vu.Eng, s *vu.State) {
 	sm.cam = scene.NewCam()
 
 	// need a light for shadows.
-	sm.sun = scene.NewPov().SetLocation(0, 0, 0)
+	sm.sun = scene.NewPov().SetAt(0, 0, 0)
 	sm.sun.NewLight().SetColor(0.8, 0.8, 0.8)
 
 	// create a scene that will render a shadow map.
 	sm.cam = scene.NewCam()
-	sm.cam.SetLocation(0, 0, 10)
+	sm.cam.SetAt(0, 0, 10)
 	sm.cam.SetPerspective(60, float64(s.W)/float64(s.H), 0.1, 50)
 
 	// create a few objects that cast shadows.
-	sm.cube = scene.NewPov().SetLocation(-1, -1, -4)
-	sm.cube.NewModel("gouraud").LoadMesh("box").LoadMat("gray").CastShadow()
+	sm.cube = scene.NewPov().SetAt(-1, -1, -4)
+	sm.cube.NewModel("gouraud", "msh:box", "mat:gray").Set(vu.CastShadow())
 	sm.cube.Spin(45, 45, 0)
-	sm.sphere = scene.NewPov().SetLocation(1, 1, -4)
-	sm.sphere.NewModel("gouraud").LoadMesh("sphere").LoadMat("red").CastShadow()
+	sm.sphere = scene.NewPov().SetAt(1, 1, -4)
+	sm.sphere.NewModel("gouraud", "msh:sphere", "mat:red").Set(vu.CastShadow())
 
 	// create a ground block to show shadows.
-	ground := scene.NewPov().SetLocation(0, 0, -20).SetScale(50, 50, 5)
-	model := ground.NewModel("shadow").LoadMesh("box").LoadMat("gray").HasShadows()
-	model.AddTex("tile")
+	ground := scene.NewPov().SetAt(0, 0, -20).SetScale(50, 50, 5)
+	ground.NewModel("shadow", "msh:box", "mat:gray", "tex:tile").Set(vu.HasShadows())
 }
 
 // Update is the regular engine callback.

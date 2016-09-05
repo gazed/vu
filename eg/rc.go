@@ -30,37 +30,37 @@ func rc() {
 
 // Globally unique "tag" for this example.
 type rctag struct {
-	cam    vu.Camera // main 3D camera.
-	ui     vu.Camera // 2D overlay camera.
-	fsize  float64   // floor size in world space units.
-	gsize  float64   // grid size: number visible/virtual tiles in floor image.
-	ww, wh int       // window dimensions.
-	floor  vu.Pov    // plane for raycast testing
-	hilite vu.Pov    // tracks which tile is currently selected.
-	s0, s1 vu.Pov    // spheres for raycast testing.
-	s2, s3 vu.Pov    // spheres for raycast testing.
-	banner vu.Pov    // shows selected grid locations.
+	cam    *vu.Camera // main 3D camera.
+	ui     *vu.Camera // 2D overlay camera.
+	fsize  float64    // floor size in world space units.
+	gsize  float64    // grid size: number visible/virtual tiles in floor image.
+	ww, wh int        // window dimensions.
+	floor  *vu.Pov    // plane for raycast testing
+	hilite *vu.Pov    // tracks which tile is currently selected.
+	s0, s1 *vu.Pov    // spheres for raycast testing.
+	s2, s3 *vu.Pov    // spheres for raycast testing.
+	banner *vu.Pov    // shows selected grid locations.
 }
 
 // Create is the engine callback for initial asset creation.
 func (rc *rctag) Create(eng vu.Eng, s *vu.State) {
 	top := eng.Root().NewPov()
 	rc.cam = top.NewCam()
-	rc.cam.SetPitch(45)            // Tilt the camera and
-	rc.cam.SetLocation(0, -14, 14) // ...point directly at 0, 0, 0
-	rc.gsize = 32                  // 4x8 ie. image is 4x4 grid, tile.obj is oversampled by 8.
+	rc.cam.SetPitch(45)      // Tilt the camera and
+	rc.cam.SetAt(0, -14, 14) // ...point directly at 0, 0, 0
+	rc.gsize = 32            // 4x8 ie. image is 4x4 grid, tile.obj is oversampled by 8.
 
 	// The ray cast target is a plane displaying the image of a 32x32 grid.
-	rc.fsize = 10.0                               // 2x2 plane to 20x20 plane.
-	rc.floor = top.NewPov()                       // create the floor.
-	rc.floor.NewBody(vu.NewPlane(0, 0, -1))       // the floors ray intersect shape.
-	rc.floor.SetScale(rc.fsize, rc.fsize, 0)      // scale the model to fsize.
-	m := rc.floor.NewModel("uv").LoadMesh("tile") // put the image on the floor.
-	m.AddTex("tile").SetTexMode(0, vu.TexRepeat)
+	rc.fsize = 10.0                                      // 2x2 plane to 20x20 plane.
+	rc.floor = top.NewPov()                              // create the floor.
+	rc.floor.NewBody(vu.NewPlane(0, 0, -1))              // the floors ray intersect shape.
+	rc.floor.SetScale(rc.fsize, rc.fsize, 0)             // scale the model to fsize.
+	m := rc.floor.NewModel("uv", "msh:tile", "tex:tile") // put the image on the floor.
+	m.Tex(0).SetRepeat(true)
 
 	// create a selected tile tracker.
 	rc.hilite = top.NewPov().SetScale(0.625, 0.625, 0.001) // scale to cover a single tile.
-	rc.hilite.NewModel("uv").LoadMesh("icon").AddTex("image")
+	rc.hilite.NewModel("uv", "msh:icon", "tex:image")
 
 	// Put spheres at the floor corners.
 	rc.s0 = rc.makeSphere(top, 10, 10, 0, 1, 0, 0)
@@ -70,28 +70,26 @@ func (rc *rctag) Create(eng vu.Eng, s *vu.State) {
 
 	// Add a banner to show the currently selected grid location.
 	top2D := eng.Root().NewPov()
-	rc.ui = top2D.NewCam()
-	rc.ui.SetUI()
+	rc.ui = top2D.NewCam().SetUI()
 	rc.banner = top2D.NewPov()
-	rc.banner.SetLocation(100, 100, 0)
-	rc.banner.SetVisible(false)
-	m = rc.banner.NewModel("uv").AddTex("lucidiaSu22White")
-	m.LoadFont("lucidiaSu22").SetPhrase("Overlay Text")
+	rc.banner.SetAt(100, 100, 0)
+	rc.banner.Cull = true
+	rc.banner.NewLabel("uv", "lucidiaSu22", "lucidiaSu22White").SetStr("Overlay Text")
 
 	// set non default engine state.
-	eng.SetColor(0.2, 0.2, 0.2, 1.0)
+	eng.Set(vu.Color(0.2, 0.2, 0.2, 1.0))
 	rc.resize(s.W, s.H)
 }
 
 // makeSphere creates a sphere at the given x, y, z location and with
 // the given r, g, b color.
-func (rc *rctag) makeSphere(parent vu.Pov, x, y, z float64, r, g, b float32) vu.Pov {
+func (rc *rctag) makeSphere(parent *vu.Pov, x, y, z float64, r, g, b float32) *vu.Pov {
 	sz := 0.5
 	sp := parent.NewPov()
 	sp.NewBody(vu.NewSphere(sz))
-	sp.SetLocation(x, y, z)
+	sp.SetAt(x, y, z)
 	sp.SetScale(sz, sz, sz)
-	model := sp.NewModel("solid").LoadMesh("sphere")
+	model := sp.NewModel("solid", "msh:sphere")
 	model.SetUniform("kd", r, g, b)
 	return sp
 }
@@ -126,7 +124,7 @@ func (rc *rctag) resize(ww, wh int) {
 func (rc *rctag) raycast(mx, my int) {
 	rx, ry, rz := rc.cam.Ray(mx, my, rc.ww, rc.wh)
 	ray := vu.NewRay(rx, ry, rz)
-	ray.World().SetLoc(rc.cam.Location()) // camera is ray origin.
+	ray.World().SetLoc(rc.cam.At()) // camera is ray origin.
 
 	// collide the ray with the plane and get the world-space contact point on hit.
 	if hit, x, y, z := vu.Cast(ray, rc.floor.Body()); hit {
@@ -137,25 +135,24 @@ func (rc *rctag) raycast(mx, my int) {
 		if x >= bot.X && x <= top.X && y >= bot.Y && y <= top.Y {
 
 			// place a marker where the mouse hit.
-			rc.hilite.SetLocation(x, y, z)
-			rc.hilite.SetVisible(true)
-
-			rc.banner.SetVisible(true)
+			rc.hilite.SetAt(x, y, z)
+			rc.hilite.Cull = false
+			rc.banner.Cull = false
 			if model := rc.banner.Model(); model != nil {
 				// adjust and display grid coordinates. Map x, y to 0:31
 				xsize, ysize := top.X-bot.X, top.Y-bot.Y
 				gx := int(((x * 2 / xsize) + 1) / 2 * rc.gsize)
 				gy := int(((y * 2 / ysize) + 1) / 2 * rc.gsize)
-				model.SetPhrase(fmt.Sprintf("%d:%d", gx, gy))
+				model.SetStr(fmt.Sprintf("%d:%d", gx, gy))
 			}
 		} else {
-			rc.hilite.SetVisible(false) // missed the grid.
-			rc.banner.SetVisible(false)
+			rc.hilite.Cull = true // missed the grid.
+			rc.banner.Cull = true
 		}
 	} else {
 		println("missed plane")
-		rc.hilite.SetVisible(false) // missed the plane entirely.
-		rc.banner.SetVisible(false)
+		rc.hilite.Cull = true // missed the plane entirely.
+		rc.banner.Cull = true
 	}
 }
 
@@ -164,8 +161,8 @@ func (rc *rctag) raycast(mx, my int) {
 func (rc *rctag) hovercast(mx, my int) {
 	rx, ry, rz := rc.cam.Ray(mx, my, rc.ww, rc.wh)
 	ray := vu.NewRay(rx, ry, rz)
-	ray.World().SetLoc(rc.cam.Location())
-	parts := []vu.Pov{rc.s0, rc.s1, rc.s2, rc.s3}
+	ray.World().SetLoc(rc.cam.At())
+	parts := []*vu.Pov{rc.s0, rc.s1, rc.s2, rc.s3}
 	colors := []rgb{{1, 0, 0}, {0, 1, 0}, {0, 0, 1}, {1, 1, 0}}
 	for cnt, p := range parts {
 		if hit, _, _, _ := vu.Cast(ray, p.Body()); hit {

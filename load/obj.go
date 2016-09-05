@@ -190,6 +190,9 @@ func obj2MshData(name string, odata *objData, faces []face, data *MshData) (err 
 			data.F = append(data.F, uint16(vmap[vertexIndex]))
 		}
 	}
+	if len(data.V) <= 0 || len(data.F) <= 0 {
+		return fmt.Errorf("Minimally need vertex and face data for %s", name)
+	}
 	return err
 }
 

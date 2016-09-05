@@ -30,18 +30,6 @@ func (m *material) label() string { return m.name } // asset name
 func (m *material) aid() uint64   { return m.tag }  // asset type and name.
 func (m *material) bid() uint64   { return m.tag }  // does not need binding.
 
-// setMaterial creates a new material identified by name.
-// Color can be provided, but if they're not, then the
-// default color is fully transparent black.
-func (m *material) setMaterial(kd, ka, ks *rgb, tr, ns float32) {
-	m.kd.R, m.kd.G, m.kd.B = kd.R, kd.G, kd.B
-	m.ks.R, m.ks.G, m.ks.B = ks.R, ks.G, ks.B
-	m.ka.R, m.ka.G, m.ka.B = ka.R, ka.G, ka.B
-	m.tr = tr
-	m.ns = ns
-	m.loaded = true
-}
-
 // material
 // ===========================================================================
 // rgb
@@ -59,6 +47,4 @@ type rgb struct {
 
 // isBlack returns true if all of the color are zero.
 // This may indicate the material has not be set.
-func (c *rgb) isBlack() bool {
-	return c.R == 0 && c.G == 0 && c.B == 0
-}
+func (c *rgb) isBlack() bool { return c.R == 0 && c.G == 0 && c.B == 0 }

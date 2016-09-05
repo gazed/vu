@@ -9,14 +9,25 @@ import (
 	"github.com/gazed/vu/math/lin"
 )
 
-// animation is part of the rigged model animation system.
-// It is exposed through Model where it is optional.
-// An animation is a sequence of positions (frames) for the joints of a model
-// where the position of each model vertex can be affected by up to 4 joints.
-// Animation data is independent of any given instance, thus making Animation
-// safe to cache and reference by multiple models.
-// Animation data may contain more than one animation sequence (movement).
+// Animator is a Model that can have multiple animated actions.
+// Actions are indexed from 0.
 //
+// An animated model is a rigged model animation system. An animation
+// is a sequence of positions (frames) for the joints (bones) of a model
+// where the position of each vertex can be affected by up to 4 joints.
+// Animation data is independent of any given instance, thus making it
+// safe to cache and be referenced by multiple models. Animation data
+// may contain more than one animation sequence (action).
+type Animator interface {
+	Animate(action, frame int) bool        // Return true if available.
+	Action() (action, frame, maxFrame int) // Current movement info.
+	Actions() []string                     // Animation sequence names.
+}
+
+// Animator
+// =============================================================================
+// animation underlyes Animator and is controlled through Model.
+
 // animation contains the animation data and the knowledge for transforming
 // animation data into a specific pose that is sent to the graphics card.
 type animation struct {

@@ -62,12 +62,12 @@ type particleEffect struct {
 // is allocated. Return *particleEffect to allow testing without having to cast.
 func newParticleEffect(m *model, pe ParticleEffect, maxParticles int) *particleEffect {
 	if m.msh == nil {
-		m.NewMesh("cpu")
+		m.newMesh("cpu")
 		m.msh.loaded = true // mesh data will be set on update.
 	}
 	floatsPerVertex, floatsPerData := 3, 2
-	m.InitMesh(0, uint32(floatsPerVertex), render.DynamicDraw, false)
-	m.InitMesh(1, uint32(floatsPerData), render.DynamicDraw, false)
+	m.Mesh().InitData(0, uint32(floatsPerVertex), render.DynamicDraw, false)
+	m.Mesh().InitData(1, uint32(floatsPerData), render.DynamicDraw, false)
 
 	// Allocate the maximum number of particles.
 	particles := []*Particle{}
@@ -91,7 +91,7 @@ func (e *particleEffect) update(m *model, dt float64) {
 		e.pd = append(e.pd, p.Index, p.Alive)
 	}
 	if len(e.pv) > 0 {
-		m.SetMeshData(0, e.pv)
-		m.SetMeshData(1, e.pd)
+		m.Mesh().SetData(0, e.pv)
+		m.Mesh().SetData(1, e.pd)
 	}
 }

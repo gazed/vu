@@ -39,24 +39,24 @@ func ss() {
 
 // superShape is the  unique "tag" to encapsulate the demo specific data.
 type superShape struct {
-	cam3   vu.Camera // 3D camera for 3D shapes.
-	cam2   vu.Camera // 2D camera for 2D shapes and shape parameters.
-	m2D    vu.Pov    // model to render the generated 2D shape.
-	m3D    vu.Pov    // model to render the generated 3D shape.
-	vb     []float32 // reusable vertex buffer to create models.
-	fb     []uint16  // reusable face buffer to create models.
-	nb     []float32 // reusable normal buffer to create models.
-	row    int       // controls which shape value is being edited.
-	rowbg  vu.Pov    // background row hilight for the editing shape values.
-	orig   []float64 // original shape values.
-	mag    float64   // shape parameter editing amount.
-	mindex int       // which magnitude for editing parameters.
-	show3D bool      // toggle between 2D and 3D visualization.
+	cam3   *vu.Camera // 3D camera for 3D shapes.
+	cam2   *vu.Camera // 2D camera for 2D shapes and shape parameters.
+	m2D    *vu.Pov    // model to render the generated 2D shape.
+	m3D    *vu.Pov    // model to render the generated 3D shape.
+	vb     []float32  // reusable vertex buffer to create models.
+	fb     []uint16   // reusable face buffer to create models.
+	nb     []float32  // reusable normal buffer to create models.
+	row    int        // controls which shape value is being edited.
+	rowbg  *vu.Pov    // background row hilight for the editing shape values.
+	orig   []float64  // original shape values.
+	mag    float64    // shape parameter editing amount.
+	mindex int        // which magnitude for editing parameters.
+	show3D bool       // toggle between 2D and 3D visualization.
 
 	// control the shape using different values for the parameters.
 	shape  *synth.Form // superformula shape.
-	labels []vu.Pov    // indexed by M, N1, N2, N3, A, B
-	amount vu.Pov      // show parameter editing amount value.
+	labels []*vu.Pov   // indexed by M, N1, N2, N3, A, B
+	amount *vu.Pov     // show parameter editing amount value.
 }
 
 // Create is the startup asset creation.
@@ -64,50 +64,49 @@ func (ss *superShape) Create(eng vu.Eng, s *vu.State) {
 	scene3 := eng.Root().NewPov()
 	ss.cam3 = scene3.NewCam()
 	scene2 := eng.Root().NewPov()
-	ss.cam2 = scene2.NewCam()
-	ss.cam2.SetUI()
+	ss.cam2 = scene2.NewCam().SetUI()
 	ss.resize(s.W, s.H)
 	ss.orig = []float64{0, 1, 1, 1}
 	ss.mag = 0.1 // default edit amount.
 
 	// hiliting the selected shape parameters.
-	ss.rowbg = scene2.NewPov().SetLocation(115, 110, 0).SetScale(55, 20, 0)
-	ss.rowbg.NewModel("alpha").LoadMesh("icon").LoadMat("transparent_blue")
+	ss.rowbg = scene2.NewPov().SetAt(115, 110, 0).SetScale(55, 20, 0)
+	ss.rowbg.NewModel("alpha", "msh:icon", "mat:transparent_blue")
 
 	// mesh for 2D shapes.
 	scale := 100.0
 	ss.shape = synth.NewForm()
-	ss.m2D = eng.Root().NewPov().SetLocation(400, 300, 0).SetScale(scale, scale, 0)
-	ss.m2D.NewModel("solid").NewMesh("gen2d").SetDrawMode(vu.Lines)
-	ss.m2D.Model().SetUniform("kd", 1, 1, 1) // line color.
-	ss.m2D.SetVisible(!ss.show3D)
+	ss.m2D = eng.Root().NewPov().SetAt(400, 300, 0).SetScale(scale, scale, 0)
+	ss.m2D.NewModel("solid").Make("msh:gen2d")
+	ss.m2D.Model().Set(vu.DrawMode(vu.Lines)).SetUniform("kd", 1, 1, 1)
+	ss.m2D.Cull = ss.show3D
 	ss.genSquare(ss.m2D.Model()) // use hand generated model to start.
 
 	// mesh for 3D shapes.
 	// debug with .SetDrawMode(vu.Points) and "solid" shader.
-	ss.m3D = scene3.NewPov().SetLocation(0, 0, -8).SetScale(2.5, 2.5, 2.5)
-	ss.m3D.NewModel("gouraud").NewMesh("gen3d").LoadMat("blue")
+	ss.m3D = scene3.NewPov().SetAt(0, 0, -8).SetScale(2.5, 2.5, 2.5)
+	ss.m3D.NewModel("gouraud", "mat:blue").Make("msh:gen3d")
 	ss.genSquare(ss.m3D.Model()) // use hand generated model to start.
-	ss.m3D.SetVisible(ss.show3D)
+	ss.m3D.Cull = !ss.show3D
 
 	// Display the shape parameters.
 	left := 50.0
 	font := "lucidiaSu18"
-	ss.labels = []vu.Pov{nil, nil, nil, nil, nil, nil, nil}
-	ss.labels[M] = scene2.NewPov().SetLocation(left, 120, 0)
-	ss.labels[M].NewModel("uv").AddTex(font + "White").LoadFont(font)
-	ss.labels[N1] = scene2.NewPov().SetLocation(left, 100, 0)
-	ss.labels[N1].NewModel("uv").AddTex(font + "White").LoadFont(font)
-	ss.labels[N2] = scene2.NewPov().SetLocation(left, 80, 0)
-	ss.labels[N2].NewModel("uv").AddTex(font + "White").LoadFont(font)
-	ss.labels[N3] = scene2.NewPov().SetLocation(left, 60, 0)
-	ss.labels[N3].NewModel("uv").AddTex(font + "White").LoadFont(font)
-	ss.labels[A] = scene2.NewPov().SetLocation(left, 40, 0)
-	ss.labels[A].NewModel("uv").AddTex(font + "White").LoadFont(font)
-	ss.labels[B] = scene2.NewPov().SetLocation(left, 20, 0)
-	ss.labels[B].NewModel("uv").AddTex(font + "White").LoadFont(font)
-	ss.amount = scene2.NewPov().SetLocation(left+120, 0, 0)
-	ss.amount.NewModel("uv").AddTex(font + "White").LoadFont(font)
+	ss.labels = []*vu.Pov{nil, nil, nil, nil, nil, nil, nil}
+	ss.labels[M] = scene2.NewPov().SetAt(left, 120, 0)
+	ss.labels[M].NewLabel("uv", font, font+"White")
+	ss.labels[N1] = scene2.NewPov().SetAt(left, 100, 0)
+	ss.labels[N1].NewLabel("uv", font, font+"White")
+	ss.labels[N2] = scene2.NewPov().SetAt(left, 80, 0)
+	ss.labels[N2].NewLabel("uv", font, font+"White")
+	ss.labels[N3] = scene2.NewPov().SetAt(left, 60, 0)
+	ss.labels[N3].NewLabel("uv", font, font+"White")
+	ss.labels[A] = scene2.NewPov().SetAt(left, 40, 0)
+	ss.labels[A].NewLabel("uv", font, font+"White")
+	ss.labels[B] = scene2.NewPov().SetAt(left, 20, 0)
+	ss.labels[B].NewLabel("uv", font, font+"White")
+	ss.amount = scene2.NewPov().SetAt(left+120, 0, 0)
+	ss.amount.NewLabel("uv", font, font+"White")
 	ss.positionLabels()
 	ss.updateLabels()
 }
@@ -173,11 +172,11 @@ func (ss *superShape) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 		case press == vu.KD:
 			ss.m3D.Spin(0, 2, 0)
 		case press == vu.KW:
-			x, y, z := ss.m3D.Location()
-			ss.m3D.SetLocation(x, y, z-0.2)
+			x, y, z := ss.m3D.At()
+			ss.m3D.SetAt(x, y, z-0.2)
 		case press == vu.KS:
-			x, y, z := ss.m3D.Location()
-			ss.m3D.SetLocation(x, y, z+0.2)
+			x, y, z := ss.m3D.At()
+			ss.m3D.SetAt(x, y, z+0.2)
 
 		// switch between 2D and 3D visualization.
 		case press == vu.KTab && down == 1:
@@ -246,8 +245,8 @@ func (ss *superShape) precanned(index int) {
 // genShape recreates the shape based on the current shape parameters.
 // It uses 2D or 3D shape methods based on the current display mode.
 func (ss *superShape) genShape() {
-	ss.m3D.SetVisible(ss.show3D)
-	ss.m2D.SetVisible(!ss.show3D)
+	ss.m3D.Cull = !ss.show3D
+	ss.m2D.Cull = ss.show3D
 	if ss.show3D {
 		ss.gen3DShape(ss.m3D.Model())
 	} else {
@@ -273,8 +272,8 @@ func (ss *superShape) gen2DShape(model vu.Model) {
 	ss.vb, ss.fb = vb, fb
 
 	// reset the mesh data with the generated data.
-	model.InitMesh(0, 3, vu.DynamicDraw, false).SetMeshData(0, vb)
-	model.InitFaces(vu.DynamicDraw).SetFaces(fb)
+	model.Mesh().InitData(0, 3, vu.DynamicDraw, false).SetData(0, vb)
+	model.Mesh().InitFaces(vu.DynamicDraw).SetFaces(fb)
 }
 
 // gen3DShape runs the superformula using planar coordinate sampling and
@@ -352,9 +351,9 @@ func (ss *superShape) gen3DShape(model vu.Model) {
 	ss.updateNormals()
 
 	// reset the mesh data with the generated data.
-	model.InitMesh(0, 3, vu.DynamicDraw, false).SetMeshData(0, vb)
-	model.InitMesh(1, 3, vu.DynamicDraw, false).SetMeshData(1, nb)
-	model.InitFaces(vu.DynamicDraw).SetFaces(fb)
+	model.Mesh().InitData(0, 3, vu.DynamicDraw, false).SetData(0, vb)
+	model.Mesh().InitData(1, 3, vu.DynamicDraw, false).SetData(1, nb)
+	model.Mesh().InitFaces(vu.DynamicDraw).SetFaces(fb)
 }
 
 // updateNormals is called to process ss.vb and ss.nb.
@@ -397,30 +396,30 @@ func (ss *superShape) normalize(a, b, c float32) (na, nb, nc float32) {
 // positionLabels updates the row highlight and the
 // edit amount to match the parameter row that has focus.
 func (ss *superShape) positionLabels() {
-	x, _, z := ss.rowbg.Location()
-	ss.rowbg.SetLocation(x, float64(130-ss.row*20), z)
-	x, _, z = ss.amount.Location()
-	ss.amount.SetLocation(x, float64(120-ss.row*20), z)
+	x, _, z := ss.rowbg.At()
+	ss.rowbg.SetAt(x, float64(130-ss.row*20), z)
+	x, _, z = ss.amount.At()
+	ss.amount.SetAt(x, float64(120-ss.row*20), z)
 }
 
 // updateLabels regenerates the labels for the parameter labels.
 func (ss *superShape) updateLabels() {
 	s := fmt.Sprintf("m  = %5.4f", ss.shape.M)
-	ss.labels[M].Model().SetPhrase(s)
+	ss.labels[M].Model().SetStr(s)
 	s = fmt.Sprintf("n1 = %5.4f", ss.shape.N1)
-	ss.labels[N1].Model().SetPhrase(s)
+	ss.labels[N1].Model().SetStr(s)
 	s = fmt.Sprintf("n2 = %5.4f", ss.shape.N2)
-	ss.labels[N2].Model().SetPhrase(s)
+	ss.labels[N2].Model().SetStr(s)
 	s = fmt.Sprintf("n3 = %5.4f", ss.shape.N3)
-	ss.labels[N3].Model().SetPhrase(s)
+	ss.labels[N3].Model().SetStr(s)
 	s = fmt.Sprintf("a   = %5.4f", ss.shape.A)
-	ss.labels[A].Model().SetPhrase(s)
+	ss.labels[A].Model().SetStr(s)
 	s = fmt.Sprintf("b   = %5.4f", ss.shape.B)
-	ss.labels[B].Model().SetPhrase(s)
+	ss.labels[B].Model().SetStr(s)
 
 	// show the magnitude when changing param amounts.
 	s = fmt.Sprintf("+/-   %3.1f", ss.mag)
-	ss.amount.Model().SetPhrase(s)
+	ss.amount.Model().SetStr(s)
 }
 
 // genSquare is an example of manually creating a square using lines.
@@ -436,8 +435,8 @@ func (ss *superShape) genSquare(m vu.Model) {
 	vb = append(vb, 0.5, 0.5, 0.0)   // 2
 	vb = append(vb, -0.5, 0.5, 0.0)  // 3
 	fb = append(fb, 0, 1, 1, 2, 2, 3, 3, 0)
-	m.InitMesh(0, 3, vu.DynamicDraw, false).SetMeshData(0, vb)
-	m.InitFaces(vu.DynamicDraw).SetFaces(fb)
+	m.Mesh().InitData(0, 3, vu.DynamicDraw, false).SetData(0, vb)
+	m.Mesh().InitFaces(vu.DynamicDraw).SetFaces(fb)
 }
 
 // Indicies for super forumula parameters.

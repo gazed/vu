@@ -83,39 +83,34 @@ func (gc *opengl) Enable(attribute uint32, enabled bool) {
 //           • use interleaved vertex data.
 //           • uniform buffers http://www.opengl.org/wiki/Uniform_Buffer_Object.
 //           • ... lots more possibilities... leave your fav here.
-func (gc *opengl) Render(dr Draw) {
-	d, ok := dr.(*draw)
-	if !ok || d == nil {
-		return
-	}
-
+func (gc *opengl) Render(d *Draw) {
 	// switch state only if necessary.
-	if gc.depthTest != d.depth {
-		if d.depth {
+	if gc.depthTest != d.Depth {
+		if d.Depth {
 			gl.Enable(gl.DEPTH_TEST)
 		} else {
 			gl.Disable(gl.DEPTH_TEST)
 		}
-		gc.depthTest = d.depth
+		gc.depthTest = d.Depth
 	}
 
 	// switch render framebuffer only if necessary. The framebuffer
 	// is used to render to a texture associated with a framebuffer.
-	if gc.fbo != d.fbo {
-		gl.BindFramebuffer(gl.FRAMEBUFFER, d.fbo)
-		if d.fbo == 0 {
+	if gc.fbo != d.Fbo {
+		gl.BindFramebuffer(gl.FRAMEBUFFER, d.Fbo)
+		if d.Fbo == 0 {
 			gl.Viewport(0, 0, gc.vw, gc.vh)
 		} else {
 			gl.Clear(gl.DEPTH_BUFFER_BIT)
 			gl.Viewport(0, 0, 1024, 1024) // size convention for framebuffer texture.
 		}
-		gc.fbo = d.fbo
+		gc.fbo = d.Fbo
 	}
 
 	// switch shaders only if necessary.
-	if gc.shader != d.shader {
-		gl.UseProgram(d.shader)
-		gc.shader = d.shader
+	if gc.shader != d.Shader {
+		gl.UseProgram(d.Shader)
+		gc.shader = d.Shader
 	}
 
 	// Ask the model to bind its provisioned uniforms.
@@ -123,20 +118,20 @@ func (gc *opengl) Render(dr Draw) {
 	gc.bindUniforms(d)
 
 	// bind the data buffers and render.
-	gl.BindVertexArray(d.vao)
-	switch d.mode {
+	gl.BindVertexArray(d.Vao)
+	switch d.Mode {
 	case Lines:
 		gl.PolygonMode(gl.FRONT_AND_BACK, gl.LINE)
-		gl.DrawElements(gl.LINES, d.numFaces, gl.UNSIGNED_SHORT, 0)
+		gl.DrawElements(gl.LINES, d.FaceCnt, gl.UNSIGNED_SHORT, 0)
 		gl.PolygonMode(gl.FRONT_AND_BACK, gl.FILL)
 	case Points:
 		gl.Enable(gl.PROGRAM_POINT_SIZE)
-		gl.DrawArrays(gl.POINTS, 0, d.numVerts)
+		gl.DrawArrays(gl.POINTS, 0, d.VertCnt)
 		gl.Disable(gl.PROGRAM_POINT_SIZE)
 	case Triangles:
-		if len(d.texs) > 1 && d.texs[0].fn > 0 {
+		if len(d.Texs) > 1 && d.Texs[0].fn > 0 {
 			// Multiple textures on one model specify which verticies they apply to.
-			for _, tex := range d.texs {
+			for _, tex := range d.Texs {
 				// Use the same texture unit and sampler. Just update which
 				// image is being sampled.
 				gl.BindTexture(gl.TEXTURE_2D, tex.tid)
@@ -147,72 +142,66 @@ func (gc *opengl) Render(dr Draw) {
 			}
 		} else {
 			// Single textures are handled with a standard bindUniforms
-			gl.DrawElements(gl.TRIANGLES, d.numFaces, gl.UNSIGNED_SHORT, 0)
+			gl.DrawElements(gl.TRIANGLES, d.FaceCnt, gl.UNSIGNED_SHORT, 0)
 		}
 	}
 }
 
 // bindUniforms links model data to the uniforms discovered
 // in the model shader.
-func (gc *opengl) bindUniforms(d *draw) {
-	for key, ref := range d.uniforms {
+func (gc *opengl) bindUniforms(d *Draw) {
+	for key, ref := range d.Uniforms {
 		switch key {
 		case "mvpm":
-			gc.bindUniform(ref, x4, 1, d.mvp.Pointer())
+			gc.bindUniform(ref, x4, 1, d.Mvp.Pointer())
 		case "mvm":
-			gc.bindUniform(ref, x4, 1, d.mv.Pointer())
+			gc.bindUniform(ref, x4, 1, d.Mv.Pointer())
 		case "dbm":
-			gc.bindUniform(ref, x4, 1, d.dbm.Pointer())
+			gc.bindUniform(ref, x4, 1, d.Dbm.Pointer())
 		case "pm":
-			gc.bindUniform(ref, x4, 1, d.pm.Pointer())
+			gc.bindUniform(ref, x4, 1, d.Pm.Pointer())
 		case "uv":
-			gc.useTexture(ref, 0, d.texs[0].tid)
+			gc.useTexture(ref, 0, d.Texs[0].tid)
 		case "uv0":
-			gc.useTexture(ref, 0, d.texs[0].tid)
+			gc.useTexture(ref, 0, d.Texs[0].tid)
 		case "uv1":
-			gc.useTexture(ref, 1, d.texs[1].tid)
+			gc.useTexture(ref, 1, d.Texs[1].tid)
 		case "uv2":
-			gc.useTexture(ref, 2, d.texs[2].tid)
+			gc.useTexture(ref, 2, d.Texs[2].tid)
 		case "uv3":
-			gc.useTexture(ref, 3, d.texs[3].tid)
+			gc.useTexture(ref, 3, d.Texs[3].tid)
 		case "uv4":
-			gc.useTexture(ref, 4, d.texs[4].tid)
+			gc.useTexture(ref, 4, d.Texs[4].tid)
 		case "uv5":
-			gc.useTexture(ref, 5, d.texs[5].tid)
+			gc.useTexture(ref, 5, d.Texs[5].tid)
 		case "uv6":
-			gc.useTexture(ref, 6, d.texs[6].tid)
+			gc.useTexture(ref, 6, d.Texs[6].tid)
 		case "uv7":
-			gc.useTexture(ref, 7, d.texs[7].tid)
+			gc.useTexture(ref, 7, d.Texs[7].tid)
 		case "uv8":
-			gc.useTexture(ref, 8, d.texs[8].tid)
+			gc.useTexture(ref, 8, d.Texs[8].tid)
 		case "uv9":
-			gc.useTexture(ref, 9, d.texs[9].tid)
+			gc.useTexture(ref, 9, d.Texs[9].tid)
 		case "uv10":
-			gc.useTexture(ref, 10, d.texs[10].tid)
+			gc.useTexture(ref, 10, d.Texs[10].tid)
 		case "uv11":
-			gc.useTexture(ref, 11, d.texs[11].tid)
+			gc.useTexture(ref, 11, d.Texs[11].tid)
 		case "uv12":
-			gc.useTexture(ref, 12, d.texs[12].tid)
+			gc.useTexture(ref, 12, d.Texs[12].tid)
 		case "uv13":
-			gc.useTexture(ref, 13, d.texs[13].tid)
+			gc.useTexture(ref, 13, d.Texs[13].tid)
 		case "uv14":
-			gc.useTexture(ref, 14, d.texs[14].tid)
+			gc.useTexture(ref, 14, d.Texs[14].tid)
 		case "sm":
-			gc.useTexture(ref, 15, d.shtex) // always use 15 for shadow maps.
-		case "scale":
-			gc.bindUniform(ref, f3, 1, d.scale.x, d.scale.y, d.scale.z)
-		case "alpha":
-			gc.bindUniform(ref, f1, 1, d.alpha)
-		case "time":
-			gc.bindUniform(ref, f1, 1, d.time)
+			gc.useTexture(ref, 15, d.Shtex) // always use 15 for shadow maps.
 		case "bpos": // bone position animation data.
-			if d.pose != nil && len(d.pose) > 0 {
-				gc.bindUniform(ref, x34, len(d.pose), d.pose[0].Pointer())
+			if d.Pose != nil && len(d.Pose) > 0 {
+				gc.bindUniform(ref, x34, len(d.Pose), d.Pose[0].Pointer())
 			}
 		default:
-			// bind non-standard float based uniforms.
-			// known examples are "l", "ld", "kd", "ks", "ka"
-			if floats, ok := d.floats[key]; ok {
+			// bind individual float based uniforms.
+			// eg: "alpha", "time", "l", "ld", "kd", "ks", "ka"
+			if floats, ok := d.Floats[key]; ok {
 				switch len(floats) {
 				case 1:
 					gc.bindUniform(ref, f1, 1, floats[0])

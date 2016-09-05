@@ -2,7 +2,7 @@
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 // Package vu - virtual universe, provides 3D application support. Vu wraps
-// subsystems like rendering, physics, data loading, audio, etc. to provide
+// subsystems like rendering, physics, asset loading, audio, etc. to provide
 // higher level functionality that includes:
 //    • Transform graphs and composite objects.
 //    • Timestepped update/render loop.
@@ -21,7 +21,7 @@ package vu
 // Overview: this file contains the main thread "machine" which is
 // controlled by the "engine" state updater. Machine communicates with
 // the hardware devices while engine communicates with the application.
-//    User <- application <-> engine <-> machine <-> devices <- User
+//    User -> devices <-> machine <-> engine <-> application -> User
 //
 // Concurrency design is based on "Share memory by communicating"
 //     http://golang.org/doc/codewalk/sharemem
@@ -44,8 +44,8 @@ import (
 // App interface. New is expected to be called one time on application startup.
 //    app  : application callback handler.
 //    name : window title.
-//    wx,wy: bottom left window position.
-//    ww,wh: window width and height.
+//    wx,wy: bottom left window position in screen pixels.
+//    ww,wh: window width and height in screen pixels.
 func New(app App, name string, wx, wy, ww, wh int) (err error) {
 	m := &machine{} // main thread and device facing handler.
 	if app == nil {
@@ -73,14 +73,14 @@ func New(app App, name string, wx, wy, ww, wh int) (err error) {
 	m.gc.Viewport(ww, wh)
 	m.dev.Open()
 	m.input = m.dev.Update()
-	m.frame1 = []render.Draw{} // Previous render frame.
-	m.frame0 = []render.Draw{} // Most recent render frame.
+	m.frame1 = frame{} // Previous render frame.
+	m.frame0 = frame{} // Most recent render frame.
 
 	// Start the application facing loop for state updates.
 	// Run the device facing loop for rendering and user input polling.
 	m.reqs = make(chan msg)
 	m.stop = make(chan bool)
-	m.uf = make(chan []render.Draw)
+	m.uf = make(chan frame)
 	go runEngine(app, wx, wy, ww, wh, m.reqs, m.uf, m.stop)
 	m.run()            // underlying device polling and rendering.
 	defer m.shutdown() // ensure shutdown happens no matter what.
@@ -97,7 +97,7 @@ const (
 	StaticDraw  = render.StaticDraw  // Data created once and rendered many times.
 	DynamicDraw = render.DynamicDraw // Data is continually being updated.
 
-	// Per-part rendering constants for Model.SetDrawMode.
+	// Per-model rendering constants for Model DrawMode option.
 	Triangles = render.Triangles // Triangles are the norm.
 	Points    = render.Points    // Used for particle effects.
 	Lines     = render.Lines     // Used for drawing squares and boxes.
@@ -106,25 +106,15 @@ const (
 	// is key down ticks minus KeyReleased. See App.Update.
 	KeyReleased = device.KeyReleased
 
-	// Texture rendering directives for Model.SetTexMode()
-	TexRepeat = iota // Repeat texture when UV greater than 1.
-	TexClamp         // Clamp to texture edge.
-
-	// 3D Direction constants. Primarily used for panning or rotating a camera.
-	// See Camera.Spin.
-	XAxis // Affect only the X axis.
-	YAxis // Affect only the Y axis.
-	ZAxis // Affect only the Z axis.
-
-	// Application created and controlled objects associated with the transform
-	// hierarchy. See Pov.Dispose.
-	PovNode  // Transform hierarchy node and 3D location:orientation.
-	PovModel // Rendered model attached to a Pov.
-	PovBody  // Physics body attached to a Pov.
-	PovCam   // Camera attached to a Pov.
-	PovNoise // Sound attached to a Pov.
-	PovLight // Light attached to a Pov.
-	PovLayer // Render pass layer attached to a Pov.
+	// Application created and controlled objects associated with
+	// the transform hierarchy. See Pov.Dispose.
+	PovNode  = iota // Transform hierarchy node, 3D location:orientation.
+	PovModel        // Rendered model attached to a Pov.
+	PovBody         // Physics body attached to a Pov.
+	PovCam          // Camera attached to a Pov.
+	PovNoise        // Sound attached to a Pov.
+	PovLight        // Light attached to a Pov.
+	PovLayer        // Render pass layer attached to a Pov.
 )
 
 // vu
@@ -136,18 +126,18 @@ const (
 // run from the main thread -- this is enforced by those aforementioned API's.
 // Machine process requests from the application facing engine class.
 type machine struct {
-	gc     render.Renderer    // Graphics card interface layer.
-	dev    device.Device      // Os specific window and rendering context.
-	ac     audio.Audio        // Audio card interface layer.
-	input  *device.Pressed    // Latest user keyboard and mouse input.
-	frame1 []render.Draw      // Previous render frame.
-	frame0 []render.Draw      // Most recent render frame.
-	uf     chan []render.Draw // pass back frame for updating.
-	reqs   chan msg           // Requests from the application loop.
-	stop   chan bool          // Used to shutdown the engine.
+	gc     render.Renderer // Graphics card interface layer.
+	dev    device.Device   // Os specific window and rendering context.
+	ac     audio.Audio     // Audio card interface layer.
+	input  *device.Pressed // Latest user keyboard and mouse input.
+	frame1 frame           // Previous render frame.
+	frame0 frame           // Most recent render frame.
+	uf     chan frame      // pass back frame for updating.
+	reqs   chan msg        // Requests from the application loop.
+	stop   chan bool       // Used to shutdown the engine.
 
-	// Counts keeps track of the number of faces and verticies for
-	// each successfully bound mesh.
+	// Counts keeps track of the number of faces and verticies
+	// for each successfully bound mesh.
 	counts map[uint32]*meshCount
 }
 
@@ -219,10 +209,10 @@ func (m *machine) shutdown() {
 func (m *machine) render(r *renderFrame) {
 
 	// update the previous and current render frames with a new frame.
-	if r.frame != nil && len(r.frame) > 0 {
+	if r.fr != nil && len(r.fr) > 0 {
 		updateFrame := m.frame1 // return this frame to be updated.
 		m.frame1 = m.frame0     // previous frame.
-		m.frame0 = r.frame      // new frame.
+		m.frame0 = r.fr         // new frame.
 		m.uf <- updateFrame     // return frame for updating.
 	}
 
@@ -230,11 +220,11 @@ func (m *machine) render(r *renderFrame) {
 	//         for render requests between frame updates.
 	m.gc.Clear()
 	for _, drawing := range m.frame0 {
-		if drawing.Vao() > 0 {
+		if drawing.Vao > 0 {
 			m.setCounts(drawing)
 			m.gc.Render(drawing)
 		} else {
-			log.Printf("machine.render: bad mesh vao %d", drawing.Vao())
+			log.Printf("machine.render: bad mesh vao %d", drawing.Vao)
 		}
 	}
 	m.dev.SwapBuffers()
@@ -257,11 +247,11 @@ func (m *machine) refreshAppData(data *appData) {
 // setCounts ensures the draw frame has the most recent number of
 // verticies and faces. The objects may have been updated after the
 // draw object was created by the engine.
-func (m *machine) setCounts(d render.Draw) {
-	if cnts, ok := m.counts[d.Vao()]; ok {
+func (m *machine) setCounts(d *render.Draw) {
+	if cnts, ok := m.counts[d.Vao]; ok {
 		d.SetCounts(cnts.faces, cnts.verticies)
 	} else {
-		log.Printf("machine.setCounts: must have mesh counts %d", d.Vao())
+		log.Printf("machine.setCounts: must have mesh counts %d", d.Vao)
 	}
 }
 
@@ -322,13 +312,6 @@ func (m *machine) bind(bd *bindData) {
 	}
 }
 
-// meshCount is used by bind to track the latest number
-// of faces and verticies bound for a mesh.
-type meshCount struct {
-	faces     int // number of faces last bound.
-	verticies int // number of verticies last bound.
-}
-
 // release figures out what data to release based on the releaseData type.
 func (m *machine) release(rd *releaseData) {
 	switch d := rd.data.(type) {
@@ -385,6 +368,9 @@ func (m *machine) vet(name string, x0, y0, width, height int) (n string, x, y, w
 // The struct type is the message and the struct fields carry the data.
 type msg interface{}
 
+// frame is a bunch of draw data.
+type frame []*render.Draw
+
 // appData contains both user input and engine state passed to the
 // application. A single copy, owned by the engine, is created on startup.
 type appData struct {
@@ -418,9 +404,9 @@ type bindData struct {
 // to be created by the engine update loop and processed by the
 // vu machine.
 type renderFrame struct {
-	interp float64       // Fraction between 0 and 1.
-	frame  []render.Draw // May be empty.
-	ut     uint64        // Counter for debugging.
+	fr     frame   // May be empty.
+	interp float64 // Fraction between 0 and 1.
+	ut     uint64  // Counter for debugging.
 }
 
 // placeListener locates the sounds listener in world space.
@@ -463,4 +449,13 @@ func catchErrors() {
 		log.Printf("Panic %s: %s Shutting down.", r, debug.Stack())
 		os.Exit(-1)
 	}
+}
+
+// =============================================================================
+
+// meshCount is used by bind to track the latest number
+// of faces and verticies bound for a mesh.
+type meshCount struct {
+	faces     int // number of faces last bound.
+	verticies int // number of verticies last bound.
 }

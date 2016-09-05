@@ -3,45 +3,16 @@
 
 package vu
 
-import (
-	"github.com/gazed/vu/render"
-)
-
-// Light is attached to a Pov to give the light a position in world space.
-// It is used by shaders to interact with a models material values.
-// Light is defaulted to white 1,1,1. Valid r,g,b color values
-// are between 0 and 1.
-type Light interface {
-	Color() (r, g, b float64)       // Get light color.
-	SetColor(r, g, b float64) Light // Set light color.
-}
-
-// Light
-// =============================================================================
-// light implements Light.
-
-// light is used to set shader uniform values.
-// Primarily shaders that care about lighting.
-type light struct {
-	r, g, b float64 // light color.
+// Light is used by shaders to interact with a models material values.
+// Light is attached to a Pov to give it a position in world space.
+// Light is defaulted to white 1,1,1. Valid R,G,B color values
+// are from 0 to 1.
+type Light struct {
+	R, G, B float64 // Red, Green, Blue values range from 0 to 1.
 }
 
 // newLight creates a white light.
-func newLight() *light {
-	l := &light{r: 1, g: 1, b: 1}
-	return l
-}
+func newLight() *Light { return &Light{R: 1, G: 1, B: 1} }
 
-// Implement Light interface.
-func (l *light) Color() (r, g, b float64) { return l.r, l.g, l.b }
-func (l *light) SetColor(r, g, b float64) Light {
-	l.r, l.g, l.b = r, g, b
-	return l
-}
-
-// toDraw sets all the data references and uniform data needed
-// by the rendering layer.
-func (l *light) toDraw(d render.Draw, px, py, pz float64) {
-	d.SetFloats("lp", float32(px), float32(py), float32(pz))    // position
-	d.SetFloats("lc", float32(l.r), float32(l.g), float32(l.b)) // color
-}
+// SetColor is a convenience method for changing the light color.
+func (l *Light) SetColor(r, g, b float64) { l.R, l.G, l.B = r, g, b }

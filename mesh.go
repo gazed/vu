@@ -7,17 +7,41 @@ import (
 	"github.com/gazed/vu/render"
 )
 
-// mesh is an optional, but very common, part of a rendered Model.
-// mesh holds 3D model data in a format that is easily consumed by a rendering
+// Mesh is an optional, but very common, part of a rendered Model.
+// Mesh holds 3D model data in a format that is easily consumed by a rendering
 // layer. The data consists of one or more sets of per-vertex data points and
 // how the vertex positions are organized into shapes like triangles or lines.
+//
+// Meshes are generally loaded from assets, but can also be created/generated.
+// Mesh data is closely tied to a given shader. When generating and refreshing
+// vertex data note that InitData must be called once and SetData is called as
+// needed to refresh. Data parameters are:
+//    lloc     : layout location is the shader input reference.
+//    span     : indicates the number of data points per vertex.
+//    usage    : StaticDraw or DynamicDraw.
+//    normalize: true to convert data to the 0->1 range.
+// Some vertex shader data conventions are:
+//    Vertex positions lloc=0 span=3_floats_per_vertex.
+//    Vertex normals   lloc=1 span=3_floats_per_vertex.
+//    UV tex coords    lloc=2 span=2_floats_per_vertex.
+//    Color            lloc=3 span=4_floats_per_vertex.
+// Note each data buffer must refer to the same number of verticies,
+// and the number of verticies in one mesh must be less than 65,000.
+type Mesh interface {
+	InitData(lloc, span, usage uint32, normalize bool) Mesh
+	SetData(lloc uint32, data interface{}) // Only works after InitData
+	InitFaces(usage uint32) Mesh           // Defaults to StaticDraw
+	SetFaces(data []uint16)                // Indicies to vertex positions.
+}
+
+// Mesh
+// =============================================================================
+// mesh implements Mesh
+
 // A mesh is expected to be referenced by multiple models and thus does not
 // contain any instance information like location or scale. A mesh is most
 // often created by the asset pipeline from disk based files that were in turn
 // created by tools like Blender.
-//
-// Note each data buffer must refer to the same number of verticies,
-// and the number of verticies in one mesh must be less than 65,000.
 type mesh struct {
 	name   string // Unique mesh name.
 	tag    uint64 // name and type as a number.
@@ -43,8 +67,8 @@ func (m *mesh) label() string { return m.name }                  // asset name
 func (m *mesh) aid() uint64   { return m.tag }                   // asset type and name.
 func (m *mesh) bid() uint64   { return msh + uint64(m.vao)<<32 } // asset type and bind ref.
 
-// initData creates a vertex data buffer.
-func (m *mesh) initData(lloc, span, usage uint32, normalize bool) *mesh {
+// InitData creates a vertex data buffer.
+func (m *mesh) InitData(lloc, span, usage uint32, normalize bool) Mesh {
 	if _, ok := m.vdata[lloc]; !ok {
 		vd := render.NewVertexData(lloc, span, usage, normalize)
 		m.vdata[lloc] = vd
@@ -52,25 +76,27 @@ func (m *mesh) initData(lloc, span, usage uint32, normalize bool) *mesh {
 	return m
 }
 
-// setData stores data in the specified vertex buffer.
-func (m *mesh) setData(lloc uint32, data interface{}) {
+// SetData stores data in the specified vertex buffer.
+func (m *mesh) SetData(lloc uint32, data interface{}) {
 	if _, ok := m.vdata[lloc]; ok {
 		m.vdata[lloc].Set(data)
 		m.loaded = true
+		m.bound = false
 	}
 }
 
-// initFaces creates a triangle face index buffer.
-func (m *mesh) initFaces(usage uint32) *mesh {
+// InitFaces creates a triangle face index buffer.
+func (m *mesh) InitFaces(usage uint32) Mesh {
 	if m.faces == nil {
 		m.faces = render.NewFaceData(usage)
 	}
 	return m
 }
 
-// setFaces stores data for a triangle face index buffer.
-func (m *mesh) setFaces(data []uint16) {
+// SetFaces stores data for a triangle face index buffer.
+func (m *mesh) SetFaces(data []uint16) {
 	if m.faces != nil {
 		m.faces.Set(data)
+		m.bound = false
 	}
 }

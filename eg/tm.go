@@ -29,11 +29,11 @@ func tm() {
 
 // Encapsulate example specific data with a unique "tag".
 type tmtag struct {
-	cam     vu.Camera
+	cam     *vu.Camera
 	gm      vu.Model    // visible surface model
-	ground  vu.Pov      // visible surface.
-	coast   vu.Pov      // shallow water plane.
-	ocean   vu.Pov      // deep water plane.
+	ground  *vu.Pov     // visible surface.
+	coast   *vu.Pov     // shallow water plane.
+	ocean   *vu.Pov     // deep water plane.
 	world   synth.Land  // height map generation.
 	surface vu.Surface  // data structure used to create land.
 	evo     [][]float64 // used for evolution experiments.
@@ -43,7 +43,7 @@ type tmtag struct {
 func (tm *tmtag) Create(eng vu.Eng, s *vu.State) {
 	tm.cam = eng.Root().NewCam()
 	tm.cam.SetOrthographic(0, float64(s.W), 0, float64(s.H), 0, 50)
-	sun := eng.Root().NewPov().SetLocation(0, 5, 0)
+	sun := eng.Root().NewPov().SetAt(0, 5, 0)
 	sun.NewLight().SetColor(0.4, 0.7, 0.9)
 
 	// create the world surface.
@@ -79,20 +79,19 @@ func (tm *tmtag) Create(eng vu.Eng, s *vu.State) {
 
 	// Add a rendering component for the surface data.
 	scale := 10.0
-	tm.ground = eng.Root().NewPov().SetLocation(0, -300, -10).SetScale(scale, scale, 1)
-	tm.gm = tm.ground.NewModel("land").AddTex("land")
-	tm.gm.LoadMat("tint").SetUniform("ratio", textureRatio)
-	tm.gm.NewMesh("land")
+	tm.ground = eng.Root().NewPov().SetAt(0, -300, -10).SetScale(scale, scale, 1)
+	tm.gm = tm.ground.NewModel("land", "tex:land", "mat:tint")
+	tm.gm.Make("msh:land").SetUniform("ratio", textureRatio)
 	tm.surface.Update(tm.gm, 0, 0)
 
 	// Add water planes.
 	tm.ocean = eng.Root().NewPov()
-	tm.ocean.SetLocation(256, 0, -10.5)
+	tm.ocean.SetAt(256, 0, -10.5)
 	tm.ocean.SetScale(float64(s.W), float64(s.H), 1)
-	tm.ocean.NewModel("alpha").LoadMesh("plane").LoadMat("blue")
-	tm.coast = eng.Root().NewPov().SetLocation(256, 0, -10)
+	tm.ocean.NewModel("alpha", "msh:plane", "mat:blue")
+	tm.coast = eng.Root().NewPov().SetAt(256, 0, -10)
 	tm.coast.SetScale(float64(s.W), float64(s.H), 1)
-	tm.coast.NewModel("alpha").LoadMesh("plane").LoadMat("transparent_blue")
+	tm.coast.NewModel("alpha", "msh:plane", "mat:transparent_blue")
 	return
 }
 

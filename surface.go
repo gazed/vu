@@ -202,10 +202,10 @@ func (s *surface) Update(m Model, xoff, yoff int) {
 			nb = append(nb, norms[x+1][y+1].x, norms[x+1][y+1].y, norms[x+1][y+1].z)
 		}
 	}
-	m.InitMesh(0, 3, DynamicDraw, false).SetMeshData(0, vb)
-	m.InitMesh(1, 3, DynamicDraw, false).SetMeshData(1, nb)
-	m.InitMesh(2, 4, DynamicDraw, false).SetMeshData(2, tb)
-	m.InitFaces(DynamicDraw).SetFaces(fb)
+	m.Mesh().InitData(0, 3, DynamicDraw, false).SetData(0, vb)
+	m.Mesh().InitData(1, 3, DynamicDraw, false).SetData(1, nb)
+	m.Mesh().InitData(2, 4, DynamicDraw, false).SetData(2, tb)
+	m.Mesh().InitFaces(DynamicDraw).SetFaces(fb)
 }
 
 type xyz struct{ x, y, z float32 } // temporary structure for generating normals.

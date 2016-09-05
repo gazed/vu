@@ -26,8 +26,8 @@ func TestRay(t *testing.T) {
 // Test a ray cast with perspective inverse and angled view inverse.
 func TestAngledRay(t *testing.T) {
 	cam, ww, wh := initScene()
-	cam.AdjustPitch(45)
-	cam.SetLocation(0, -15, 15)
+	cam.SetPitch(cam.Pitch + 45)
+	cam.SetAt(0, -15, 15)
 	rx, ry, rz := cam.Ray(ww/2, wh/2, ww, wh) // center of screen.
 	ex, ey, ez := 0.0, 0.7071068, -0.7071068
 	if !lin.Aeq(rx, ex) || !lin.Aeq(ry, ey) || !lin.Aeq(rz, ez) {
@@ -53,7 +53,7 @@ func TestRayRatios(t *testing.T) {
 // Test perspective and view inverses.
 func TestInverses(t *testing.T) {
 	cam, _, _ := initScene()
-	cam.AdjustPitch(45)
+	cam.SetPitch(cam.Pitch + 45)
 	cam.Move(0, -15, 15, cam.Lookat())
 
 	// the inverses multiplied with non-inverses should be the identity matrix.
@@ -80,7 +80,7 @@ func TestInverseVp(t *testing.T) {
 func TestRoundTrip(t *testing.T) {
 	cam, _, _ := initScene()
 	cx, cy, cz := 0.0, 0.0, 14.0 // camera location to
-	cam.SetLocation(cx, cy, cz)  // ...point directly at 0, 0, 0
+	cam.SetAt(cx, cy, cz)        // ...point directly at 0, 0, 0
 
 	// Create the matricies to go between clip and world space.
 	toClip := lin.NewM4().Mult(cam.vm, cam.pm)
@@ -107,7 +107,7 @@ func TestRoundTrip(t *testing.T) {
 func TestRayWithSpin(t *testing.T) {
 	cam, _, _ := initScene()
 	cx, cy, cz := 0.0, -10.0, 14.0             // camera location to
-	cam.SetLocation(cx, cy, cz)                // ...point directly at 0, 0, 0
+	cam.SetAt(cx, cy, cz)                      // ...point directly at 0, 0, 0
 	cam.SetPitch(lin.Deg(math.Atan(-cy / cz))) // 35.53768 degrees
 	plane := NewPlane(0, 0, -1)
 
@@ -152,7 +152,7 @@ func TestRayWithSpin(t *testing.T) {
 func TestScreen(t *testing.T) {
 	cam, _, _ := initScene()
 	cx, cy, cz := 0.0, 0.0, 14.0 // camera location to
-	cam.SetLocation(cx, cy, cz)  // ...point directly at 0, 0, 0
+	cam.SetAt(cx, cy, cz)        // ...point directly at 0, 0, 0
 
 	// center of the world should give the center of the screen.
 	px, py, pz := 0.0, 0.0, 0.0
@@ -165,7 +165,7 @@ func TestScreen(t *testing.T) {
 // test utility methods.
 
 // initScene creats a scene with an initialized perspective matrix.
-func initScene() (c *camera, ww, wh int) {
+func initScene() (c *Camera, ww, wh int) {
 	c = newCamera()
 	ww, wh = 1280, 800
 	fov, ratio, near, far := 30.0, float64(ww)/float64(wh), 0.1, 500.0

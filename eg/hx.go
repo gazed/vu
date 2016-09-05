@@ -32,15 +32,14 @@ func hx() {
 
 // Encapsulate example specific data with a unique "tag".
 type hxtag struct {
-	cam  vu.Camera // Fixed camera.
-	hg   *hexGrid  // scales and positions the hexes.
-	flat bool      // flat or pointy grid orientation. Start off pointy.
+	cam  *vu.Camera // Fixed camera.
+	hg   *hexGrid   // scales and positions the hexes.
+	flat bool       // flat or pointy grid orientation. Start off pointy.
 }
 
 // Create is the engine callback for initial asset creation.
 func (hx *hxtag) Create(eng vu.Eng, s *vu.State) {
-	hx.cam = eng.Root().NewCam()
-	hx.cam.SetUI()
+	hx.cam = eng.Root().NewCam().SetUI()
 	hx.cam.SetOrthographic(0, float64(s.W), 0, float64(s.H), 0, 50)
 
 	// center hex tile.
@@ -71,8 +70,8 @@ func (hx *hxtag) Create(eng vu.Eng, s *vu.State) {
 
 	// create the hilite marker last so it appears on top.
 	hx.hg.hilite = hx.hg.models.NewPov()
-	hx.hg.hilite.NewModel("uv").LoadMesh("icon").AddTex("halo")
-	hx.hg.hilite.SetVisible(false)
+	hx.hg.hilite.NewModel("uv", "msh:icon", "tex:halo")
+	hx.hg.hilite.Cull = true
 }
 
 // Update is the regular engine callback.
@@ -117,10 +116,10 @@ func (hx *hxtag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 
 // hexGrid represents a playing surface composed of hex tiles.
 type hexGrid struct {
-	labels vu.Pov // root for the hex labels.
-	models vu.Pov // root for the hex models.
-	hilite vu.Pov // hilite the selected hex tile.
-	flat   bool   // flat or pointy grid orientation. Start off pointy.
+	labels *vu.Pov // root for the hex labels.
+	models *vu.Pov // root for the hex models.
+	hilite *vu.Pov // hilite the selected hex tile.
+	flat   bool    // flat or pointy grid orientation. Start off pointy.
 
 	// kludge to handle the fact that labels lag behind other model
 	// changes. The hex model world positions are updated after the
@@ -133,9 +132,9 @@ type hexGrid struct {
 
 // newHexGrid is expected to be called once on startup to create
 // a single hexGrid instance.
-func newHexGrid(root vu.Pov) *hexGrid {
+func newHexGrid(root *vu.Pov) *hexGrid {
 	hg := &hexGrid{labels: root}
-	hg.models = root.NewPov().SetLocation(400, 300, 0).SetScale(128, 128, 0)
+	hg.models = root.NewPov().SetAt(400, 300, 0).SetScale(128, 128, 0)
 	hg.tiles = map[uint64]*hexTile{}
 	hg.labelsDirty = true
 	return hg
@@ -164,8 +163,8 @@ func (hg *hexGrid) setScale(s float64) {
 // move repositions the grid of hexes. The parameters are
 // relative to the current location.
 func (hg *hexGrid) move(x, y int) {
-	bx, by, _ := hg.models.Location()
-	hg.models.SetLocation(bx+float64(x), by+float64(y), 0)
+	bx, by, _ := hg.models.At()
+	hg.models.SetAt(bx+float64(x), by+float64(y), 0)
 	hg.labelsDirty = true
 }
 
@@ -176,18 +175,18 @@ func (hg *hexGrid) flipOrientation() {
 	if hg.flat {
 		for _, t := range hg.tiles {
 			hx, hy := t.hex.ToFlat(size)
-			t.model.SetLocation(hx, hy, 0)
+			t.model.SetAt(hx, hy, 0)
 			t.model.Spin(0, 0, 30)
 		}
 	} else {
 		for _, t := range hg.tiles {
 			hx, hy := t.hex.ToPointy(size)
-			t.model.SetLocation(hx, hy, 0)
+			t.model.SetAt(hx, hy, 0)
 			t.model.Spin(0, 0, -30)
 		}
 	}
 	hg.labelsDirty = true
-	hg.hilite.SetVisible(false)
+	hg.hilite.Cull = true
 }
 
 // updateLabels is a kludge to update labels in the Update
@@ -205,17 +204,17 @@ func (hg *hexGrid) updateLabels(ut uint64) {
 // The highlite mark is turned off if t is nil.
 func (hg *hexGrid) mark(t *hexTile) {
 	if t != nil {
-		x, y, z := t.model.Location()
-		hg.hilite.SetLocation(x, y, z+0.1)
-		hg.hilite.SetVisible(true)
+		x, y, z := t.model.At()
+		hg.hilite.SetAt(x, y, z+0.1)
+		hg.hilite.Cull = false
 	} else {
-		hg.hilite.SetVisible(false)
+		hg.hilite.Cull = true
 	}
 }
 
 // spinMark adds some animation to the currently selected tile.
 func (hg *hexGrid) spinMark() {
-	if hg.hilite != nil && hg.hilite.Visible() {
+	if hg.hilite != nil && !hg.hilite.Cull {
 		hg.hilite.Spin(0, 0, 2)
 	}
 }
@@ -268,25 +267,25 @@ func (hg *hexGrid) hit(mx, my int) (t *hexTile) {
 // hexTile represents a hex on the screen.
 type hexTile struct {
 	hex   *grid.Hex // location in hex cubic grid coordinates.
-	label vu.Pov    // optional tile label centered on tile.
-	model vu.Pov    // tile model with texture.
+	label *vu.Pov   // optional tile label centered on tile.
+	model *vu.Pov   // tile model with texture.
 }
 
 // newHexTile creates a single hex for the given grid location.
-func newHexTile(root, board vu.Pov, q, r int32) *hexTile {
+func newHexTile(root, board *vu.Pov, q, r int32) *hexTile {
 	t := &hexTile{}
 	t.hex = grid.NewHex(q, r)
 
 	// A hex image is in a square that overlaps adjacent squares.
 	hx, hy := t.hex.ToPointy(0.52) // greater than 0.5 for a gap between hexes.
-	t.model = board.NewPov().SetLocation(hx, hy, 0)
-	t.model.NewModel("uv").LoadMesh("icon").AddTex("hextile")
+	t.model = board.NewPov().SetAt(hx, hy, 0)
+	t.model.NewModel("uv", "msh:icon", "tex:hextile")
 
 	// labels use a different parent pov so they are not scaled with the board
 	font := "lucidiaSu22"
 	t.label = root.NewPov()
-	label := t.label.NewModel("uv").AddTex(font + "White").LoadFont(font)
-	label.SetPhrase(fmt.Sprintf("%d %d %d", t.hex.Q, t.hex.R, t.hex.S))
+	label := t.label.NewLabel("uv", font, font+"White")
+	label.SetStr(fmt.Sprintf("%d %d %d", t.hex.Q, t.hex.R, t.hex.S))
 	return t
 }
 
@@ -297,6 +296,6 @@ func (t *hexTile) id() uint64 { return t.hex.ID() }
 // as their associated hex model.
 func (t *hexTile) updateLabel() {
 	wx, wy, _ := t.model.World()
-	textWidth := float64(t.label.Model().PhraseWidth())
-	t.label.SetLocation(wx-textWidth*0.5, wy-11, 0)
+	textWidth := float64(t.label.Model().StrWidth())
+	t.label.SetAt(wx-textWidth*0.5, wy-11, 0)
 }

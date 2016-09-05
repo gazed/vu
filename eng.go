@@ -10,7 +10,6 @@ import (
 
 	"github.com/gazed/vu/math/lin"
 	"github.com/gazed/vu/physics"
-	"github.com/gazed/vu/render"
 )
 
 // Eng provides support for a 3D application conforming to the App interface.
@@ -22,27 +21,21 @@ type Eng interface {
 	Shutdown()     // Stop the engine and free allocated resources.
 	Reset()        // Put the engine back to its initial state.
 	State() *State // Query engine state. State updated per tick.
-	Root() Pov     // Single root of the transform hierarchy.
+	Root() *Pov    // Single root of the transform hierarchy.
 
-	// Requests to change engine state.
-	SetColor(r, g, b, a float32)      // Set background clear color.
-	ShowCursor(show bool)             // Hide or show the cursor.
-	SetCursorAt(x, y int)             // Put cursor at the window pixel x,y.
-	Enable(attr uint32, enabled bool) // Enable/disable render attributes.
-	ToggleFullScreen()                // Flips full screen and windowed mode.
-	Mute(mute bool)                   // Toggle sound volume.
-	SetVolume(zeroToOne float64)      // Set sound volume.
-	SetGravity(g float64)             // Change the gravity constant.
+	// Set changes engine wide attributes. It accepts one or more
+	// functions that take an EngAttr parameter, ie: vu.Color(0,0,0).
+	Set(...EngAttr) // Update one or more engine attributes.
 
 	// Collide checks for collision between two bodies independent
 	// of the solver and without updating the the bodies locations.
-	Collide(a, b physics.Body) bool
+	Collide(a, b physics.Body) bool // Return true if a,b colliding.
 
 	// Timing is updated each processing loop. The returned update
 	// times can flucuate and should be averaged over multiple calls.
-	Usage() *Timing                // Per update loop performance metrics.
-	Modelled() (models, verts int) // Total render models and verticies.
-	Rendered() (models, verts int) // Rendered models and verticies.
+	Usage() *Timing              // Per update loop performance metrics.
+	Modelled() (mods, verts int) // Total render models and verticies.
+	Rendered() (mods, verts int) // Rendered models and verticies.
 }
 
 // App is the application callback interface to the engine. It is implemented
@@ -56,7 +49,7 @@ type App interface {
 	// Update is called many times a second after the initial call to Create.
 	//    i : user input refreshed prior to each call.
 	//    s : engine state refreshed prior to each call.
-	Update(eng Eng, i *Input, s *State) // Process user input.
+	Update(eng Eng, i *Input, s *State) // Process user input, update state.
 }
 
 // Eng and App interfaces.
@@ -72,32 +65,32 @@ type App interface {
 //     A scene manager for rendering frames.
 // Engine expects to be started as a go-routine using the runEngine method.
 type engine struct {
-	alive   bool               // True until application decides otherwise.
-	machine chan msg           // Communicate with device loop.
-	stop    chan bool          // Closed or any value means stop the engine.
-	data    *appData           // Combination user input and application state.
-	scene   *scene             // Scene manager. Creates render frames.
-	frame   []render.Draw      // update frame for next frame.
-	oframe  chan []render.Draw // old frame returned from machine.
-	physics physics.Physics    // Physics manager. Handles forces, collisions.
+	alive   bool            // True until application decides otherwise.
+	machine chan msg        // Communicate with device loop.
+	stop    chan bool       // Closed or any value means stop the engine.
+	data    *appData        // Combination user input and application state.
+	scene   *scene          // Scene manager. Creates render frames.
+	frame   frame           // update frame for next frame.
+	oframe  chan frame      // old frame returned from machine.
+	physics physics.Physics // Physics manager. Handles forces, collisions.
 
 	// Asset manager. Handles loading assets concurrently.
 	loader *loader         // Asset manager.
 	loaded chan []*loadReq // Receive loaded models and noises.
 
 	// Sounds are heard by the sound listener at an app set pov.
-	soundListener *pov    // Current location of the sound listener.
+	soundListener *Pov    // Current location of the sound listener.
 	sx, sy, sz    float64 // Last location of the sound listener.
 
 	// Group the application entities by component.
 	// All entities are Pov (location:orientation) based.
 	eid    uint64                  // Next entity id.
-	povs   map[uint64]*pov         // Entity transforms.
-	cams   map[uint64]*camera      // Camera components.
+	povs   map[uint64]*Pov         // Entity transforms.
+	cams   map[uint64]*Camera      // Camera components.
 	models map[uint64]*model       // Visible components.
-	lights map[uint64]*light       // Light components.
+	lights map[uint64]*Light       // Light components.
 	noises map[uint64]*noise       // Audible components.
-	layers map[uint64]*layer       // (Pre) Render pass components.
+	layers map[uint64]*layer       // (pre) Render-pass components.
 	bodies map[uint64]physics.Body // Non-colliding physic components.
 	solids map[uint64]physics.Body // Colliding physic components.
 	bods   []physics.Body          // Set from solids each update.
@@ -110,7 +103,7 @@ func newEngine(machine chan msg) *engine {
 	eng := &engine{alive: true, machine: machine}
 	eng.data = newAppData()
 	eng.times = &Timing{}
-	eng.frame = []render.Draw{}
+	eng.frame = frame{}
 	eng.Reset()
 
 	// helpers that create and update state.
@@ -142,7 +135,7 @@ const (
 // allows the application to initiate object creation for rendering and
 // to consume user input from device polling.
 func runEngine(app App, wx, wy, ww, wh int,
-	machine chan msg, ofr chan []render.Draw, stop chan bool) {
+	machine chan msg, ofr chan frame, stop chan bool) {
 	defer catchErrors()
 	eng := newEngine(machine)
 	go eng.loader.runLoader()
@@ -197,11 +190,11 @@ func runEngine(app App, wx, wy, ww, wh int,
 			// ie: State state = currentState*interpolation + previousState * (1.0 - interpolation);
 			interpolation := updateTimer.Seconds() / dt.Seconds()
 			if len(eng.frame) > 0 {
-				eng.machine <- &renderFrame{frame: eng.frame, interp: interpolation, ut: ut}
+				eng.machine <- &renderFrame{fr: eng.frame, interp: interpolation, ut: ut}
 				eng.frame = <-eng.oframe  // immediately get next render frame
 				eng.frame = eng.frame[:0] // ... and mark it as unpreprepared.
 			} else {
-				eng.machine <- &renderFrame{frame: nil, interp: interpolation, ut: ut}
+				eng.machine <- &renderFrame{fr: nil, interp: interpolation, ut: ut}
 			}
 			renderTimer = renderTimer % rt // drop extra render time.
 		}
@@ -260,14 +253,8 @@ func (eng *engine) communicate() {
 				if m, ok := req.data.(*model); ok {
 					m.mat = a
 					if m.alpha == 1.0 {
-						m.alpha = a.tr // Copy values so they can be set per model.
+						m.alpha = float64(a.tr) // Copy values so they can be set per model.
 					}
-					if m.kd.isBlack() {
-						m.kd = a.kd // Copy values so they can be set per model.
-					}
-					m.ks = a.ks // Can't currently be overridden on model.
-					m.ka = a.ka // ditto
-					m.ns = a.ns // ditto
 				}
 			case *sound:
 				if n, ok := req.data.(*noise); ok {
@@ -311,9 +298,9 @@ func (eng *engine) update(app App, dt time.Duration, ut uint64) {
 	// per tick processing. Per-ticks include animated models,
 	// particle effects, surfaces, phrases, ...
 	if eng.alive {
-		eng.updateModels(dts)                // load and bind updated data.
-		eng.placeModels(eng.root(), lin.M4I) // update all transforms.
-		eng.updateSoundListener()            // reposition sound listener.
+		eng.updateModels(dts)
+		eng.updateTransforms(eng.root(), lin.M4I)
+		eng.updateSoundListener()
 	}
 }
 
@@ -322,18 +309,19 @@ func (eng *engine) update(app App, dt time.Duration, ut uint64) {
 // and any updated models generate data rebind requests.
 func (eng *engine) updateModels(dts float64) {
 	for eid, m := range eng.models {
-		if len(m.loads) > 0 { // load model assets if necessary.
-			eng.loader.queueLoads(m.loads)
-			m.loads = m.loads[:0]
-		} else if m.loaded() {
+
+		// load model assets if necessary.
+		requested := false
+		eng.loader.loads, requested = m.queueLoads(eng.loader.loads)
+		if !requested && m.loaded() {
 			// Handle model data changes from either the Application or
 			// from effects, phrase updates, and animations.
 
 			// handle any data updates with rebind requests.
-			if pv, ok := eng.povs[eid]; ok && pv.visible {
+			if p, ok := eng.povs[eid]; ok && !p.Cull {
 				if m.effect != nil {
-					// udpate and rebind particle effects which can
-					// change mesh data.
+					// udpate and rebind particle effects first since
+					// they change mesh data and then need rebinding.
 					m.effect.update(m, dt.Seconds())
 				}
 				if !m.msh.bound {
@@ -355,30 +343,27 @@ func (eng *engine) updateModels(dts float64) {
 		}
 	}
 	for _, n := range eng.noises {
-		if len(n.loads) > 0 { // load noise sounds if necessary.
-			eng.loader.queueLoads(n.loads)
-			n.loads = n.loads[:0]
-		}
+		eng.loader.loads = n.queueLoads(eng.loader.loads)
 	}
 	eng.loader.loadQueued()
 }
 
-// placeModels walks the transform hierarchy updating all the model
+// updateTransforms walks the transform hierarchy updating all the model
 // transforms. This is called before rendering passes are done.
-func (eng *engine) placeModels(p *pov, parent *lin.M4) {
-	p.mm.SetQ(p.rot.Inv(p.at.Rot)) // invert model rotation.
-	p.mm.ScaleSM(p.Scale())        // scale is applied first (on left of rotation)
-	l := p.at.Loc
+func (eng *engine) updateTransforms(p *Pov, parent *lin.M4) {
+	p.mm.SetQ(p.rot.Inv(p.T.Rot)) // invert model rotation.
+	p.mm.ScaleSM(p.S.GetS())      // scale is applied first (on left of rotation)
+	l := p.T.Loc
 	p.mm.TranslateMT(l.X, l.Y, l.Z) // translate is applied last (on right of rotation).
 	p.mm.Mult(p.mm, parent)         // model transform + parent transform
 	for _, child := range p.children {
-		eng.placeModels(child, p.mm) // recursive traversal.
+		eng.updateTransforms(child, p.mm) // recursive traversal.
 	}
 }
 
 // updateSoundListener checks and updates the sound listeners location.
 func (eng *engine) updateSoundListener() {
-	x, y, z := eng.soundListener.Location()
+	x, y, z := eng.soundListener.At()
 	if x != eng.sx || y != eng.sy || z != eng.sz {
 		eng.sx, eng.sy, eng.sz = x, y, z
 		go func(x, y, z float64) {
@@ -424,10 +409,10 @@ func (eng *engine) Shutdown() {
 // engine back in a clean state without restarting.
 func (eng *engine) Reset() {
 	eng.dispose(eng.root(), PovNode)
-	eng.povs = map[uint64]*pov{}
-	eng.cams = map[uint64]*camera{}
+	eng.povs = map[uint64]*Pov{}
+	eng.cams = map[uint64]*Camera{}
 	eng.models = map[uint64]*model{}
-	eng.lights = map[uint64]*light{}
+	eng.lights = map[uint64]*Light{}
 	eng.layers = map[uint64]*layer{}
 	eng.noises = map[uint64]*noise{}
 	eng.bodies = map[uint64]physics.Body{}
@@ -451,12 +436,12 @@ func (eng *engine) genid() uint64 {
 }
 
 // Implement Eng interface. Returns the top of the transform hierarchy.
-func (eng *engine) Root() Pov { return eng.root() }
+func (eng *engine) Root() *Pov { return eng.root() }
 
 // pov entities.
-func (eng *engine) root() *pov { return eng.povs[1] }
-func (eng *engine) newPov(p Pov) Pov {
-	if parent, ok := p.(*pov); ok && parent != nil {
+func (eng *engine) root() *Pov { return eng.povs[1] }
+func (eng *engine) newPov(parent *Pov) *Pov {
+	if parent != nil {
 		p := newPov(eng, eng.genid())
 		eng.povs[p.eid] = p
 		p.parent = parent
@@ -467,37 +452,37 @@ func (eng *engine) newPov(p Pov) Pov {
 }
 
 // camera entities.
-func (eng *engine) cam(p Pov) Camera {
-	if pv, ok := p.(*pov); ok && pv != nil {
-		if cam, ok := eng.cams[pv.eid]; ok {
+func (eng *engine) cam(p *Pov) *Camera {
+	if p != nil {
+		if cam, ok := eng.cams[p.eid]; ok {
 			return cam
 		}
 	}
 	return nil
 }
-func (eng *engine) newCam(p Pov) Camera {
-	if pv, ok := p.(*pov); ok && pv != nil {
+func (eng *engine) newCam(p *Pov) *Camera {
+	if p != nil {
 		c := newCamera()
-		eng.cams[pv.eid] = c
+		eng.cams[p.eid] = c
 		return c
 	}
 	return nil
 }
 
 // model entities.
-func (eng *engine) model(p Pov) Model {
-	if pv, ok := p.(*pov); ok && pv != nil {
-		if model, ok := eng.models[pv.eid]; ok {
+func (eng *engine) model(p *Pov) Model {
+	if p != nil {
+		if model, ok := eng.models[p.eid]; ok {
 			return model
 		}
 	}
 	return nil
 }
-func (eng *engine) newModel(p Pov, shader string) Model {
-	if pv, ok := p.(*pov); ok && pv != nil {
-		if _, ok := eng.models[pv.eid]; !ok {
-			m := newModel(shader)
-			eng.models[pv.eid] = m
+func (eng *engine) newModel(p *Pov, shader string, assets ...string) Model {
+	if p != nil {
+		if _, ok := eng.models[p.eid]; !ok {
+			m := newModel(shader, assets...)
+			eng.models[p.eid] = m
 			return m
 		}
 	}
@@ -505,19 +490,19 @@ func (eng *engine) newModel(p Pov, shader string) Model {
 }
 
 // light entities.
-func (eng *engine) light(p Pov) Light {
-	if pv, ok := p.(*pov); ok && pv != nil {
-		if l, ok := eng.lights[pv.eid]; ok {
+func (eng *engine) light(p *Pov) *Light {
+	if p != nil {
+		if l, ok := eng.lights[p.eid]; ok {
 			return l
 		}
 	}
 	return nil
 }
-func (eng *engine) newLight(p Pov) Light {
-	if pv, ok := p.(*pov); ok && pv != nil {
-		if _, ok := eng.lights[pv.eid]; !ok {
+func (eng *engine) newLight(p *Pov) *Light {
+	if p != nil {
+		if _, ok := eng.lights[p.eid]; !ok {
 			l := newLight()
-			eng.lights[pv.eid] = l
+			eng.lights[p.eid] = l
 			return l
 		}
 	}
@@ -525,20 +510,20 @@ func (eng *engine) newLight(p Pov) Light {
 }
 
 // snap shot entities.
-func (eng *engine) layer(p Pov) Layer {
-	if pv, ok := p.(*pov); ok && pv != nil {
-		if l, ok := eng.layers[pv.eid]; ok {
+func (eng *engine) layer(p *Pov) Layer {
+	if p != nil {
+		if l, ok := eng.layers[p.eid]; ok {
 			return l
 		}
 	}
 	return nil
 }
-func (eng *engine) newLayer(p Pov, attr int) Layer {
-	if pv, ok := p.(*pov); ok && pv != nil {
-		if _, ok := eng.layers[pv.eid]; !ok {
+func (eng *engine) newLayer(p *Pov, attr int) Layer {
+	if p != nil {
+		if _, ok := eng.layers[p.eid]; !ok {
 			l := newLayer(attr)
 			eng.loader.bindLayer(l) // synchronously create and bind a fbo.
-			eng.layers[pv.eid] = l
+			eng.layers[p.eid] = l
 			return l
 		}
 	}
@@ -546,22 +531,22 @@ func (eng *engine) newLayer(p Pov, attr int) Layer {
 }
 
 // body: physics entities.
-func (eng *engine) body(p Pov) physics.Body {
-	if pv, ok := p.(*pov); ok && pv != nil {
-		if body, ok := eng.bodies[pv.eid]; ok {
+func (eng *engine) body(p *Pov) physics.Body {
+	if p != nil {
+		if body, ok := eng.bodies[p.eid]; ok {
 			return body
 		}
-		if body, ok := eng.solids[pv.eid]; ok {
+		if body, ok := eng.solids[p.eid]; ok {
 			return body
 		}
 	}
 	return nil
 }
-func (eng *engine) newBody(p Pov, b physics.Body) physics.Body {
-	if pv, ok := p.(*pov); ok && pv != nil {
-		if _, ok := eng.bodies[pv.eid]; !ok {
-			b.SetWorld(pv.at)
-			eng.bodies[pv.eid] = b
+func (eng *engine) newBody(p *Pov, b physics.Body) physics.Body {
+	if p != nil {
+		if _, ok := eng.bodies[p.eid]; !ok {
+			b.SetWorld(p.T)
+			eng.bodies[p.eid] = b
 			return b
 		}
 	}
@@ -569,30 +554,30 @@ func (eng *engine) newBody(p Pov, b physics.Body) physics.Body {
 }
 
 // solid: physics entities.
-func (eng *engine) setSolid(p Pov, mass, bounce float64) {
-	if pv, ok := p.(*pov); ok && pv != nil {
-		if b, okb := eng.bodies[pv.eid]; okb {
+func (eng *engine) setSolid(p *Pov, mass, bounce float64) {
+	if p != nil {
+		if b, okb := eng.bodies[p.eid]; okb {
 			b.SetMaterial(mass, bounce)
-			eng.solids[pv.eid] = b
-			delete(eng.bodies, pv.eid)
+			eng.solids[p.eid] = b
+			delete(eng.bodies, p.eid)
 		}
 	}
 }
 
 // noise: audio entities.
-func (eng *engine) noise(p Pov) Noise {
-	if pv, ok := p.(*pov); ok && pv != nil {
-		if noise, ok := eng.noises[pv.eid]; ok {
+func (eng *engine) noise(p *Pov) Noise {
+	if p != nil {
+		if noise, ok := eng.noises[p.eid]; ok {
 			return noise
 		}
 	}
 	return nil
 }
-func (eng *engine) newNoise(p Pov) Noise {
-	if pv, ok := p.(*pov); ok && pv != nil {
-		if _, ok := eng.noises[pv.eid]; !ok {
-			n := newNoise(eng, pv.eid)
-			eng.noises[pv.eid] = n
+func (eng *engine) newNoise(p *Pov) Noise {
+	if p != nil {
+		if _, ok := eng.noises[p.eid]; !ok {
+			n := newNoise(eng, p.eid)
+			eng.noises[p.eid] = n
 			return n
 		}
 	}
@@ -601,9 +586,9 @@ func (eng *engine) newNoise(p Pov) Noise {
 
 // There is always only one listener. It is associated with the root pov
 // by default. This changes the listener location to the given pov.
-func (eng *engine) setListener(p Pov) {
-	if pv, ok := p.(*pov); ok && pv != nil {
-		eng.soundListener = pv
+func (eng *engine) setListener(p *Pov) {
+	if p != nil {
+		eng.soundListener = p
 	}
 }
 
@@ -611,8 +596,8 @@ func (eng *engine) setListener(p Pov) {
 // removing entities from the Pov hierarchy and from the eng entity manager,
 // yet keeps them in the cache and bound on the GPU/Snd devices. Applications
 // often "dispose" parts of the Pov hierarchy only to (re)use the underlying
-// data again. Likely need another method/parm for the application to indicate
-// data that is to be completely "unloaded".
+// data again. Likely need another API for the application to indicate data
+// that is to be completely "unloaded".
 //
 // Note: cached objects know about "loaded" and must be kept in sync
 // if device bound data is changed.
@@ -620,49 +605,49 @@ func (eng *engine) setListener(p Pov) {
 // dispose discards the given pov component or the entire pov and all
 // its components. Each call recalculates the currently loaded set
 // of assets.
-func (eng *engine) dispose(p Pov, component int) {
-	if pv, ok := p.(*pov); ok && pv != nil {
+func (eng *engine) dispose(p *Pov, component int) {
+	if p != nil {
 		switch component {
 		case PovBody:
-			delete(eng.bodies, pv.eid)
-			delete(eng.solids, pv.eid)
+			delete(eng.bodies, p.eid)
+			delete(eng.solids, p.eid)
 		case PovCam:
-			delete(eng.cams, pv.eid)
+			delete(eng.cams, p.eid)
 		case PovModel:
-			if m, ok := eng.models[pv.eid]; ok {
+			if m, ok := eng.models[p.eid]; ok {
 				eng.disposeModel(m)
-				delete(eng.models, pv.eid)
+				delete(eng.models, p.eid)
 			}
 		case PovNoise:
-			if n, ok := eng.noises[pv.eid]; ok {
+			if n, ok := eng.noises[p.eid]; ok {
 				eng.disposeNoise(n)
-				delete(eng.noises, pv.eid)
+				delete(eng.noises, p.eid)
 			}
 		case PovLight:
-			delete(eng.lights, pv.eid)
+			delete(eng.lights, p.eid)
 		case PovLayer:
-			if l, ok := eng.layers[pv.eid]; ok {
+			if l, ok := eng.layers[p.eid]; ok {
 				eng.disposeLayer(l)
-				delete(eng.layers, pv.eid)
+				delete(eng.layers, p.eid)
 			}
 		case PovNode:
-			eng.disposePov(pv)
+			eng.disposePov(p)
 		}
 	}
 }
 
 // disposePov chops this transform and all of its children out
 // of the transform hierarchy. All associated objects are disposed.
-func (eng *engine) disposePov(pv *pov) {
-	delete(eng.povs, pv.eid)
-	eng.dispose(pv, PovCam)
-	eng.dispose(pv, PovBody)
-	eng.dispose(pv, PovModel)
-	eng.dispose(pv, PovNoise)
-	if pv.parent != nil {
-		pv.parent.remChild(pv) // remove the one back reference that matters.
+func (eng *engine) disposePov(p *Pov) {
+	delete(eng.povs, p.eid)
+	eng.dispose(p, PovCam)
+	eng.dispose(p, PovBody)
+	eng.dispose(p, PovModel)
+	eng.dispose(p, PovNoise)
+	if p.parent != nil {
+		p.parent.remChild(p) // remove the one back reference that matters.
 	}
-	for _, child := range pv.children {
+	for _, child := range p.children {
 		child.parent = nil    // avoid unnecessary removing of back references
 		eng.disposePov(child) // ... since childs parent is being deleted.
 	}
@@ -713,43 +698,16 @@ func (eng *engine) Rendered() (models, verts int) {
 	return eng.scene.renDraws, eng.scene.renVerts
 }
 
-// Eng interface implementation to handle requests
-// for changing engine state.
-func (eng *engine) SetColor(r, g, b, a float32) {
-	go func(r, g, b, a float32) {
-		eng.machine <- &setColor{r: r, g: g, b: b, a: a}
-	}(r, g, b, a)
-}
-func (eng *engine) ShowCursor(show bool) {
-	go func(show bool) { eng.machine <- &showCursor{enable: show} }(show)
-}
-func (eng *engine) SetCursorAt(x, y int) {
-	go func(x, y int) { eng.machine <- &setCursor{cx: x, cy: y} }(x, y)
-}
-func (eng *engine) Enable(attr uint32, enabled bool) {
-	go func(attr uint32, enabled bool) {
-		eng.machine <- &enableAttr{attr: attr, enable: enabled}
-	}(attr, enabled)
-}
-func (eng *engine) ToggleFullScreen() {
-	go func() { eng.machine <- &toggleScreen{} }()
-}
-func (eng *engine) Mute(mute bool) {
-	gain := 1.0
-	if mute {
-		gain = 0.0
+// Set one or more engine attributes.
+func (eng *engine) Set(attrs ...EngAttr) {
+	for _, attr := range attrs {
+		attr(eng)
 	}
-	go func(gain float64) { eng.machine <- &setVolume{gain: gain} }(gain)
-}
-func (eng *engine) SetVolume(zeroToOne float64) {
-	go func(gain float64) { eng.machine <- &setVolume{gain: zeroToOne} }(zeroToOne)
 }
 
 // engine
 // ===========================================================================
 // expose/wrap physics shapes.
-
-func (eng *engine) SetGravity(g float64) { eng.physics.SetGravity(g) }
 
 // Collide checks if two bodies are intersecting independent of the solver
 // and without updating the the bodies locations.
@@ -797,4 +755,81 @@ func NewPlane(nx, ny, nz float64) physics.Body {
 // x, y, z is valid when hit is true.
 func Cast(ray, b physics.Body) (hit bool, x, y, z float64) {
 	return physics.Cast(ray, b)
+}
+
+// engine physics
+// ===========================================================================
+// engine attributes reeduces the eng API footprint using functional options:
+//    http://dave.cheney.net/2014/10/17/functional-options-for-friendly-apis
+//    https://commandcenter.blogspot.ca/2014/01/self-referential-functions-and-design.html
+// See eng_test notes about slowness. Usable on engine since the messages are
+// being sent across a channel. Currently the messages are blocking.
+
+// EngAttr defines an engine attribute that can be used in Eng.Set().
+type EngAttr func(Eng)
+
+// Color sets the background window clear color.
+// Engine attribute expected to be used in Eng.Set().
+func Color(r, g, b, a float32) EngAttr {
+	return func(e Eng) {
+		e.(*engine).machine <- &setColor{r: r, g: g, b: b, a: a}
+	}
+}
+
+// CursorOn hides or shows the cursor.
+// Engine attribute expected to be used in Eng.Set().
+func CursorOn(show bool) EngAttr {
+	return func(e Eng) {
+		e.(*engine).machine <- &showCursor{enable: show}
+	}
+}
+
+// CursorAt places the cursor at the window pixel x,y.
+// Engine attribute expected to be used in Eng.Set().
+func CursorAt(x, y int) EngAttr {
+	return func(e Eng) {
+		e.(*engine).machine <- &setCursor{cx: x, cy: y}
+	}
+}
+
+// On enables/disables render attributes like Blend, CullFace, etc...
+// Engine attribute expected to be used in Eng.Set().
+func On(attr uint32, enabled bool) EngAttr {
+	return func(e Eng) {
+		e.(*engine).machine <- &enableAttr{attr: attr, enable: enabled}
+	}
+}
+
+// ToggleFullScreen flips full screen and windowed mode.
+// Engine attribute expected to be used in Eng.Set().
+func ToggleFullScreen() EngAttr {
+	return func(e Eng) { e.(*engine).machine <- &toggleScreen{} }
+}
+
+// Mute toggles the sound volume.
+// Engine attribute expected to be used in Eng.Set().
+func Mute(mute bool) EngAttr {
+	gain := 1.0
+	if mute {
+		gain = 0.0
+	}
+	return func(e Eng) {
+		e.(*engine).machine <- &setVolume{gain: gain}
+	}
+}
+
+// Volume sets the sound volume.
+// Engine attribute expected to be used in Eng.Set().
+func Volume(zeroToOne float64) EngAttr {
+	return func(e Eng) {
+		e.(*engine).machine <- &setVolume{gain: zeroToOne}
+	}
+}
+
+// Gravity changes the physics gravity constant.
+// Engine attribute expected to be used in Eng.Set().
+func Gravity(g float64) EngAttr {
+	return func(e Eng) {
+		e.(*engine).physics.SetGravity(g)
+	}
 }

@@ -47,7 +47,6 @@ func main() {
 		{"sg", "sg: Scene Graph", sg},
 		{"cr", "cr: Collision Resolution", cr},
 		{"tm", "tm: Terrain Map", tm},
-		{"fm", "fm: Form Layout", fm},
 		{"ps", "ps: Particle System", ps},
 		{"rc", "rc: Ray Cast", rc},
 		{"ma", "ma: Model Animation", ma},

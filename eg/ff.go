@@ -31,15 +31,15 @@ func ff() {
 
 // Globally unique "tag" that encapsulates example specific data.
 type fftag struct {
-	top     vu.Pov    // transform hierarchy root.
-	chasers []*chaser // map chasers.
-	goal    vu.Pov    // chasers goal.
-	mmap    vu.Pov    // allows the main map to be moved around.
-	cam     vu.Camera // how its drawn on the minimap.
-	msize   int       // map width and height.
-	spots   []int     // unique ids of open spots.
-	plan    grid.Grid // the floor layout.
-	flow    grid.Flow // the flow field.
+	top     *vu.Pov    // transform hierarchy root.
+	chasers []*chaser  // map chasers.
+	goal    *vu.Pov    // chasers goal.
+	mmap    *vu.Pov    // allows the main map to be moved around.
+	cam     *vu.Camera // how its drawn on the minimap.
+	msize   int        // map width and height.
+	spots   []int      // unique ids of open spots.
+	plan    grid.Grid  // the floor layout.
+	flow    grid.Flow  // the flow field.
 }
 
 // Create is the engine callback for initial asset creation.
@@ -48,10 +48,9 @@ func (ff *fftag) Create(eng vu.Eng, s *vu.State) {
 
 	// create the overlay
 	ff.top = eng.Root().NewPov()
-	ff.cam = ff.top.NewCam()
-	ff.cam.SetUI()
+	ff.cam = ff.top.NewCam().SetUI()
 	ff.mmap = ff.top.NewPov().SetScale(10, 10, 0)
-	ff.mmap.SetLocation(30, 30, 0)
+	ff.mmap.SetAt(30, 30, 0)
 
 	// populate the map
 	ff.msize = 69
@@ -62,8 +61,8 @@ func (ff *fftag) Create(eng vu.Eng, s *vu.State) {
 		for y := 0; y < height; y++ {
 			if ff.plan.IsOpen(x, y) {
 				block := ff.mmap.NewPov()
-				block.SetLocation(float64(x), float64(y), 0)
-				block.NewModel("uv").LoadMesh("icon").AddTex("wall")
+				block.SetAt(float64(x), float64(y), 0)
+				block.NewModel("uv", "msh:icon", "tex:wall")
 				ff.spots = append(ff.spots, ff.id(x, y))
 			}
 		}
@@ -75,12 +74,12 @@ func (ff *fftag) Create(eng vu.Eng, s *vu.State) {
 		ff.chasers = append(ff.chasers, newChaser(ff.mmap))
 	}
 	ff.goal = ff.mmap.NewPov()
-	ff.goal.NewModel("uv").LoadMesh("icon").AddTex("goal")
+	ff.goal.NewModel("uv", "msh:icon", "tex:goal")
 	ff.flow = grid.NewFlow(ff.plan) // flow field for the given plan.
 	ff.resetLocations()
 
 	// set non default engine state.
-	eng.SetColor(0.15, 0.15, 0.15, 1)
+	eng.Set(vu.Color(0.15, 0.15, 0.15, 1))
 	ff.resize(s.W, s.H)
 }
 
@@ -111,11 +110,11 @@ func (ff *fftag) resetLocations() {
 		spot := ff.spots[rand.Intn(len(ff.spots))] // get open location.
 		chaser.gx, chaser.gy = ff.at(spot)         // get map location.
 		chaser.nx, chaser.ny = chaser.gx, chaser.gy
-		chaser.pov.SetLocation(float64(chaser.gx), float64(chaser.gy), 0)
+		chaser.pov.SetAt(float64(chaser.gx), float64(chaser.gy), 0)
 	}
 	spot := ff.spots[rand.Intn(len(ff.spots))]
 	goalx, goaly := ff.at(spot)
-	ff.goal.SetLocation(float64(goalx), float64(goaly), 0)
+	ff.goal.SetAt(float64(goalx), float64(goaly), 0)
 
 	// create the flow field based on the given goal.
 	ff.flow.Create(goalx, goaly)
@@ -136,23 +135,23 @@ func (ff *fftag) resize(w, h int) {
 // chasers move from grid location to grid location until they
 // reach the goal.
 type chaser struct {
-	pov    vu.Pov // actual location.
-	gx, gy int    // old grid location.
-	nx, ny int    // next grid location.
-	cx, cy int    // optional center to avoid when moving.
+	pov    *vu.Pov // actual location.
+	gx, gy int     // old grid location.
+	nx, ny int     // next grid location.
+	cx, cy int     // optional center to avoid when moving.
 }
 
 // chaser moves towards a goal.
-func newChaser(parent vu.Pov) *chaser {
+func newChaser(parent *vu.Pov) *chaser {
 	c := &chaser{}
 	c.pov = parent.NewPov()
-	c.pov.NewModel("uv").LoadMesh("icon").AddTex("token")
+	c.pov.NewModel("uv", "msh:icon", "tex:token")
 	return c
 }
 
 // move the chaser a bit closer to its goal.
 func (c *chaser) move(flow grid.Flow) (moved bool) {
-	sx, sy, _ := c.pov.Location() // actual screen location.
+	sx, sy, _ := c.pov.At() // actual screen location.
 	atx := math.Abs(float64(sx-float64(c.nx))) < 0.05
 	aty := math.Abs(float64(sy-float64(c.ny))) < 0.05
 	if atx && aty { // reached next location.
@@ -166,7 +165,7 @@ func (c *chaser) move(flow grid.Flow) (moved bool) {
 		}
 		moved = true
 		c.nx, c.ny = c.gx+nx, c.gy+ny
-		c.pov.SetLocation(float64(c.gx), float64(c.gy), 0)
+		c.pov.SetAt(float64(c.gx), float64(c.gy), 0)
 
 		// check if the chaser path should go around a corner.
 		c.cx, c.cy = 0, 0
@@ -211,7 +210,7 @@ func (c *chaser) move(flow grid.Flow) (moved bool) {
 			if !aty {
 				sy += float64(c.ny-c.gy) * speed
 			}
-			c.pov.SetLocation(sx, sy, 0)
+			c.pov.SetAt(sx, sy, 0)
 		} else {
 			// move in a straight line.
 			if !atx {
@@ -230,7 +229,7 @@ func (c *chaser) move(flow grid.Flow) (moved bool) {
 			}
 			radius := 1.0
 			sx, sy = float64(c.cx)+dx*radius, float64(c.cy)+dy*radius
-			c.pov.SetLocation(sx, sy, 0)
+			c.pov.SetAt(sx, sy, 0)
 		}
 	}
 	return moved

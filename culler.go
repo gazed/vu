@@ -7,13 +7,13 @@ import (
 	"github.com/gazed/vu/math/lin"
 )
 
-// Cull reduces the number of items sent for rendering.
+// Culler reduces the number of items sent for rendering.
 // It is attached to a Camera.
-type Cull interface {
+type Culler interface {
 
 	// Culled returns true if a model represented by point, px, py, pz
 	// should be culled using the given camera.
-	Culled(cam Camera, px, py, pz float64) bool
+	Culled(cam *Camera, px, py, pz float64) bool
 }
 
 // =============================================================================
@@ -21,7 +21,7 @@ type Cull interface {
 // NewFrontCull returns a culler that keeps objects in a radius directly
 // in front of the camera. Objects behind the camera and far away from
 // the camera are culled.
-func NewFrontCull(r float64) Cull {
+func NewFrontCull(r float64) Culler {
 	if r < 0 {
 		r = 0
 	}
@@ -37,9 +37,9 @@ type frontCull struct {
 
 // Culler implmentation.
 // Project the part location back along the lookat vector.
-func (fc *frontCull) Culled(cam Camera, px, py, pz float64) bool {
+func (fc *frontCull) Culled(cam *Camera, px, py, pz float64) bool {
 	fudgeFactor := float64(0.8) // don't move all the way up.
-	cx, cy, cz := lin.MultSQ(0, 0, -fc.radius*fudgeFactor, cam.Lookat())
+	cx, cy, cz := lin.MultSQ(0, 0, -fc.radius*fudgeFactor, cam.at.Rot)
 	px, py, pz = px-cx, py-cy, pz-cz // move part location back.
 	toc := cam.Distance(px, py, pz)  // cull if outside radius.
 	return toc > fc.rr
@@ -50,7 +50,7 @@ func (fc *frontCull) Culled(cam Camera, px, py, pz float64) bool {
 // NewRadiusCull returns a culler that removes objects outside a given
 // radius from the camera. Can be used for show objects around a camera
 // for top down minimaps.
-func NewRadiusCull(r float64) Cull {
+func NewRadiusCull(r float64) Culler {
 	if r < 0 {
 		r = 0
 	}
@@ -64,7 +64,7 @@ type radiusCull struct {
 
 // Culler implmentation. True if the given location is
 // within the culler radius of the camera.
-func (rc *radiusCull) Culled(cam Camera, px, py, pz float64) bool {
+func (rc *radiusCull) Culled(cam *Camera, px, py, pz float64) bool {
 	toc := cam.Distance(px, py, pz)
 	return toc > rc.rr
 }

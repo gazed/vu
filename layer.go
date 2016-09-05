@@ -14,6 +14,9 @@ import (
 // Layer is used to render to a 1024x1024 sized frame buffer based texture.
 // A layer represents the output of an extra render pass where objects drawn
 // to this off screen texture are used as input for a later render pass.
+//
+// Layers are created, associated with one Pov, and used by a Model at
+// a potentially different Pov.
 type Layer interface{}
 
 // Layer
@@ -27,7 +30,7 @@ type Layer interface{}
 type layer struct {
 	bid  uint32   // Framebuffer id. Default 0 for default framebuffer.
 	db   uint32   // Depth renderbuffer.
-	attr int      // What type of layer. Full IMAGE or SHADOW_MAP.
+	attr int      // What type of layer. DepthBuffer or ImageBuffer.
 	vp   *lin.M4  // light view-projection layer transform.
 	bm   *lin.M4  // bias matrix.
 	tex  *texture // place holder for rendered texture. Created on GPU.

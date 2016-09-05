@@ -32,35 +32,34 @@ func lt() {
 
 // Globally unique "tag" that encapsulates example specific data.
 type lttag struct {
-	cam3D vu.Camera // 3D main scene camera.
-	sun   vu.Pov    // Light node in Pov hierarchy.
-	box   vu.Pov    // Normal mapped box.
+	cam3D *vu.Camera // 3D main scene camera.
+	sun   *vu.Pov    // Light node in Pov hierarchy.
+	box   *vu.Pov    // Normal mapped box.
 }
 
 // Create is the engine callback for initial asset creation.
 func (lt *lttag) Create(eng vu.Eng, s *vu.State) {
 	top := eng.Root().NewPov()
 	lt.cam3D = top.NewCam()
-	lt.cam3D.SetLocation(0.5, 2, 0.5)
-	lt.sun = top.NewPov().SetLocation(0, 2.5, -1.75).SetScale(0.05, 0.05, 0.05)
+	lt.cam3D.SetAt(0.5, 2, 0.5)
+	lt.sun = top.NewPov().SetAt(0, 2.5, -1.75).SetScale(0.05, 0.05, 0.05)
 	lt.sun.NewLight().SetColor(0.5, 0.5, 0.5)
 
 	// Model at the light position.
-	lt.sun.NewModel("solid").LoadMesh("sphere").LoadMat("red")
+	lt.sun.NewModel("solid", "msh:sphere", "mat:red")
 
 	// Create solid spheres to test the lighting shaders.
-	c4 := top.NewPov().SetLocation(-0.5, 2, -2).SetScale(0.25, 0.25, 0.25)
-	c4.NewModel("diffuse").LoadMesh("sphere").LoadMat("blue")
-	c5 := top.NewPov().SetLocation(0.5, 2, -2).SetScale(0.25, 0.25, 0.25)
-	c5.NewModel("gouraud").LoadMesh("sphere").LoadMat("red")
-	c6 := top.NewPov().SetLocation(1.5, 2, -2).SetScale(0.25, 0.25, 0.25)
-	c6.NewModel("phong").LoadMesh("sphere").LoadMat("blue")
+	c4 := top.NewPov().SetAt(-0.5, 2, -2).SetScale(0.25, 0.25, 0.25)
+	c5 := top.NewPov().SetAt(0.5, 2, -2).SetScale(0.25, 0.25, 0.25)
+	c6 := top.NewPov().SetAt(1.5, 2, -2).SetScale(0.25, 0.25, 0.25)
+	c4.NewModel("diffuse", "msh:sphere", "mat:blue")
+	c5.NewModel("gouraud", "msh:sphere", "mat:red")
+	c6.NewModel("phong", "msh:sphere", "mat:blue")
 
 	// Angle a large flat box with normal map lighting behind the spheres.
-	lt.box = top.NewPov().SetLocation(0, 2, -10)
+	lt.box = top.NewPov().SetAt(0, 2, -10)
 	lt.box.SetScale(5, 5, 5).Spin(45, 45, 0)
-	lt.box.NewModel("nmap").LoadMesh("box").LoadMat("tile")
-	lt.box.Model().AddTex("tile").AddTex("tile_nrm").AddTex("tile_spec")
+	lt.box.NewModel("nmap", "msh:box", "mat:tile", "tex:tile", "tex:tile_nrm", "tex:tile_spec")
 	lt.resize(s.W, s.H)
 }
 

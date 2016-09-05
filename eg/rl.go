@@ -43,7 +43,7 @@ type rltag struct {
 	ww, wh int            // Window size
 	floors map[int]*floor // The random grid
 	flr    *floor         // The current floor.
-	arrow  vu.Pov         // Camera/player minimap marker.
+	arrow  *vu.Pov        // Camera/player minimap marker.
 
 	// timing values.
 	renders int           // number of renders.
@@ -56,7 +56,7 @@ func (rl *rltag) Create(eng vu.Eng, s *vu.State) {
 	rl.ww, rl.wh = 800, 600
 	rl.floors = make(map[int]*floor)
 	rl.setLevel(eng, vu.K1)
-	eng.SetColor(0.15, 0.15, 0.15, 1)
+	eng.Set(vu.Color(0.15, 0.15, 0.15, 1))
 	return
 }
 
@@ -83,23 +83,23 @@ func (rl *rltag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 	for press, down := range in.Down {
 		switch press {
 		case vu.KW:
-			rl.flr.cam.Move(0, 0, moveDelta*-run, rl.flr.cam.Lookxz())
-			rl.arrow.SetLocation(rl.flr.cam.Location())
+			rl.flr.cam.Move(0, 0, moveDelta*-run, rl.flr.cam.Look)
+			rl.arrow.SetAt(rl.flr.cam.At())
 		case vu.KS:
-			rl.flr.cam.Move(0, 0, moveDelta*run, rl.flr.cam.Lookxz())
-			rl.arrow.SetLocation(rl.flr.cam.Location())
+			rl.flr.cam.Move(0, 0, moveDelta*run, rl.flr.cam.Look)
+			rl.arrow.SetAt(rl.flr.cam.At())
 		case vu.KQ:
-			rl.flr.cam.Move(moveDelta*-run, 0, 0, rl.flr.cam.Lookxz())
-			rl.arrow.SetLocation(rl.flr.cam.Location())
+			rl.flr.cam.Move(moveDelta*-run, 0, 0, rl.flr.cam.Look)
+			rl.arrow.SetAt(rl.flr.cam.At())
 		case vu.KE:
-			rl.flr.cam.Move(moveDelta*run, 0, 0, rl.flr.cam.Lookxz())
-			rl.arrow.SetLocation(rl.flr.cam.Location())
+			rl.flr.cam.Move(moveDelta*run, 0, 0, rl.flr.cam.Look)
+			rl.arrow.SetAt(rl.flr.cam.At())
 		case vu.KA:
-			rl.flr.cam.AdjustYaw(dt * spin)
-			rl.arrow.SetRotation(rl.flr.cam.Lookxz())
+			rl.flr.cam.SetYaw(rl.flr.cam.Yaw + spin*dt)
+			rl.arrow.SetView(rl.flr.cam.Look)
 		case vu.KD:
-			rl.flr.cam.AdjustYaw(dt * -spin)
-			rl.arrow.SetRotation(rl.flr.cam.Lookxz())
+			rl.flr.cam.SetYaw(rl.flr.cam.Yaw - spin*dt)
+			rl.arrow.SetView(rl.flr.cam.Look)
 		case vu.K1, vu.K2, vu.K3, vu.K4, vu.K5, vu.K6, vu.K7, vu.K8, vu.K9, vu.K0:
 			if down == 1 {
 				rl.setLevel(eng, press)
@@ -112,8 +112,8 @@ func (rl *rltag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 	renModels, renVerts := eng.Rendered()
 	modelStats := fmt.Sprintf("%d  models    culled to %d", allModels, renModels)
 	vertexStats := fmt.Sprintf("%d verticies culled to %d", allVerts, renVerts)
-	rl.flr.modelStats.SetPhrase(modelStats)
-	rl.flr.vertexStats.SetPhrase(vertexStats)
+	rl.flr.modelStats.SetStr(modelStats)
+	rl.flr.vertexStats.SetStr(vertexStats)
 
 	// http://stackoverflow.com/questions/87304/calculating-frames-per-second-in-a-game
 	t := eng.Usage()
@@ -124,7 +124,7 @@ func (rl *rltag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 		fps := float64(rl.renders) / rl.elapsed.Seconds()
 		update := rl.update.Seconds() / 50.0 * 1000
 		timings := fmt.Sprintf("FPS %2.2f Update %3.2fms", fps, update)
-		rl.flr.times.SetPhrase(timings)
+		rl.flr.times.SetStr(timings)
 		rl.renders = 0
 		rl.elapsed = 0
 		rl.update = 0
@@ -143,20 +143,20 @@ func (rl *rltag) resize(ww, wh int) {
 // floor tracks all the information for a given level.
 type floor struct {
 	layout grid.Grid // the floor structure.
-	top    vu.Pov    // top of floor transform hierarchy.
+	top    *vu.Pov   // top of floor transform hierarchy.
 
 	// 3D scene.
-	plan  vu.Pov    // how its drawn.
-	arrow vu.Pov    // cam minimap location.
-	cam   vu.Camera // main 3D camera.
+	plan  *vu.Pov    // how its drawn.
+	arrow *vu.Pov    // cam minimap location.
+	cam   *vu.Camera // main 3D camera.
 
 	// 2D user interface including timing stats.
-	ui          vu.Camera // overlay 2D camera.
-	mmap        vu.Pov    // how its drawn on the minimap.
-	mapPart     vu.Pov    // allows the minimap to be moved around.
-	modelStats  vu.Model  // Show some render statistics.
-	vertexStats vu.Model  // Show some render statistics.
-	times       vu.Model  // Show some render statistics.
+	ui          *vu.Camera // overlay 2D camera.
+	mmap        *vu.Pov    // how its drawn on the minimap.
+	mapPart     *vu.Pov    // allows the minimap to be moved around.
+	modelStats  vu.Labeler // Show some render statistics.
+	vertexStats vu.Labeler // Show some render statistics.
+	times       vu.Labeler // Show some render statistics.
 }
 
 // setLevel switches to the indicated level.
@@ -192,19 +192,18 @@ func (rl *rltag) setLevel(eng vu.Eng, keyCode int) {
 		flr.top = eng.Root().NewPov()
 		flr.plan = flr.top.NewPov()
 		flr.cam = flr.plan.NewCam()
-		flr.cam.SetLocation(1, 0, -1)
+		flr.cam.SetAt(1, 0, -1)
 		flr.cam.SetPerspective(60, float64(rl.ww)/float64(rl.wh), 0.1, 50)
-		flr.cam.SetCull(vu.NewFrontCull(10))
+		flr.cam.Cull = vu.NewFrontCull(10)
 
 		// create the overlay
 		flr.mmap = flr.top.NewPov()
-		flr.ui = flr.mmap.NewCam()
-		flr.ui.SetUI()
-		flr.ui.SetView(vu.XzXy)
+		flr.ui = flr.mmap.NewCam().SetUI()
+		flr.ui.Vt = vu.XzXy
 		flr.ui.SetOrthographic(0, float64(rl.ww), 0, float64(rl.wh), 0, 20)
 		flr.mapPart = flr.mmap.NewPov()
 		flr.mapPart.SetScale(7.5, 7.5, 7.5)
-		flr.mapPart.SetLocation(20, 0, -20)
+		flr.mapPart.SetAt(20, 0, -20)
 
 		// display some rendering statistics.
 		flr.modelStats = rl.newText(flr.mmap, 0)
@@ -219,33 +218,31 @@ func (rl *rltag) setLevel(eng vu.Eng, keyCode int) {
 		for x := 0; x < width; x++ {
 			for y := 0; y < height; y++ {
 				if flr.layout.IsOpen(x, y) {
-					block := flr.mapPart.NewPov().SetLocation(float64(x), 0, float64(-y))
-					block.NewModel("alpha").LoadMesh("cube").LoadMat("transparent_gray")
+					block := flr.mapPart.NewPov().SetAt(float64(x), 0, float64(-y))
+					block.NewModel("alpha", "msh:cube", "mat:transparent_gray")
 				} else {
-					block := flr.plan.NewPov().SetLocation(float64(x), 0, float64(-y))
-					block.NewModel("uv").LoadMesh("box").AddTex("tile")
+					block := flr.plan.NewPov().SetAt(float64(x), 0, float64(-y))
+					block.NewModel("uv", "msh:box", "tex:tile")
 				}
 			}
 		}
-		flr.arrow = flr.mapPart.NewPov().SetLocation(flr.cam.Location())
-		flr.arrow.NewModel("solid").LoadMesh("arrow").LoadMat("transparent_blue")
+		flr.arrow = flr.mapPart.NewPov().SetAt(flr.cam.At())
+		flr.arrow.NewModel("solid", "msh:arrow", "mat:transparent_blue")
 		rl.floors[keyCode] = flr
 	}
 	if rl.flr != nil {
-		rl.flr.plan.SetVisible(false)
-		rl.flr.mmap.SetVisible(false)
+		rl.flr.plan.Cull = true
+		rl.flr.mmap.Cull = true
 	}
 	rl.flr = rl.floors[keyCode]
-	rl.flr.plan.SetVisible(true)
-	rl.flr.mmap.SetVisible(true)
+	rl.flr.plan.Cull = false
+	rl.flr.mmap.Cull = false
 	rl.arrow = rl.flr.arrow
 }
 
 // newText is a utility method for creating a new text label.
-func (rl *rltag) newText(parent vu.Pov, gap int) vu.Model {
-	text := parent.NewPov().SetLocation(10, 0, float64(-rl.wh+40+gap*24))
+func (rl *rltag) newText(parent *vu.Pov, gap int) vu.Labeler {
+	text := parent.NewPov().SetAt(10, 0, float64(-rl.wh+40+gap*24))
 	text.Spin(-90, 0, 0) // orient to the X-Z plane.
-	m := text.NewModel("uv").AddTex("lucidiaSu16White").LoadFont("lucidiaSu16")
-	m.SetPhrase(" ")
-	return m
+	return text.NewLabel("uv", "lucidiaSu16", "lucidiaSu16White")
 }
