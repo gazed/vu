@@ -24,7 +24,6 @@ Less essential, but potentially more fun packages are:
 
 * [eg](http://godoc.org/github.com/gazed/vu/eg) Examples that both demonstrate and validate the vu engine.
 * [ai](http://godoc.org/github.com/gazed/vu/ai) Behaviour Tree for autonomous units.
-* [form](http://godoc.org/github.com/gazed/vu/form) 2D GUI layout helper.
 * [grid](http://godoc.org/github.com/gazed/vu/grid) Grid based random level generators. A-star and flow field pathfinding.
 * [synth](http://godoc.org/github.com/gazed/vu/synth) Procedural generation utilities.
 
