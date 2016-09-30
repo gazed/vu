@@ -3,11 +3,6 @@
 
 package main
 
-// Controls:
-//   WS    : move camera            : forward back
-//   AD    : spin camera            : left right
-//    T    : shut down
-
 import (
 	"log"
 
@@ -17,6 +12,11 @@ import (
 // bb tests the engines handling of billboards, banners and fonts as
 // well as combining multiple textures using shaders. Different 3D text
 // types are created to show the possibilities for including text in games.
+//
+// CONTROLS:
+//   WS    : move camera            : forward back
+//   AD    : spin camera            : left right
+//    T    : shut down
 func bb() {
 	bb := &bbtag{}
 	if err := vu.New(bb, "Billboarding & Banners", 400, 100, 800, 600); err != nil {
@@ -48,6 +48,7 @@ func (bb *bbtag) Create(eng vu.Eng, s *vu.State) {
 	c4 := top.NewPov().SetAt(0.5, 2, -1).SetScale(0.25, 0.25, 0.25)
 	model := c4.NewModel("spinball", "msh:billboard")
 	model.Load("tex:core", "tex:core", "tex:halo", "tex:halo")
+	model.ClampTex("core").ClampTex("halo")
 	model.SetAlpha(0.4)
 
 	// Try banner text with the 3D scene perspective camera.

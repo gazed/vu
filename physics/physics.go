@@ -53,8 +53,9 @@ package physics
 // is to simulate real-life conditions like air resistance and gravity,
 // or the lack thereof.
 type Physics interface {
-	SetGravity(gravity float64) // Default is 10m/s.
-	SetMargin(margin float64)   // Default is 0.04.
+	// Set changes engine wide attributes. It accepts one or more
+	// functions that take an PhysAttr parameter, ie: physics.Gravity(0).
+	Set(...PhysAttr) // Update one or more engine attributes.
 
 	// Step the physics simulation one tiny bit forward. This is expected
 	// to be called regularly from the main engine loop. At the end of
@@ -135,10 +136,6 @@ func (px *physics) Step(bodies []Body, timestep float64) {
 	px.updateBodyLocations(bodies, timestep)
 	px.clearForces(bodies)
 }
-
-// Physics interface implementation.
-func (px *physics) SetGravity(gravity float64)        { px.gravity = gravity }
-func (px *physics) SetMargin(collisionMargin float64) { margin = collisionMargin }
 
 // predictBodyLocations applies motion to moving/awake bodies as if there
 // was nothing else around.
@@ -275,6 +272,32 @@ func (px *physics) Collide(a, b Body) (hit bool) {
 	_, _, manifold := algorithm(aa, bb, px.mf0)
 	return len(manifold) > 0
 }
+
+// Set one or more engine attributes.
+func (px *physics) Set(attrs ...PhysAttr) {
+	for _, attr := range attrs {
+		attr(px)
+	}
+}
+
+// =============================================================================
+
+// PhysAttr defines a physics attribute that can be used in Physics.Set().
+type PhysAttr func(Physics)
+
+// Gravity changes the physics gravity constant.
+// Attribute expected to be used in Physics.Set().
+func Gravity(g float64) PhysAttr {
+	return func(p Physics) { p.(*physics).gravity = g }
+}
+
+// SetMargin is set so that close enough objects are reported as colliding.
+// Its default value is 0.04. It is an attribute to be used in Physics.Set().
+func SetMargin(collisionMargin float64) PhysAttr {
+	return func(p Physics) { margin = collisionMargin }
+}
+
+// =============================================================================
 
 // Cast checks if a ray r intersects the given Form f, giving back the
 // nearest point of intersection if there is one. The point of contact

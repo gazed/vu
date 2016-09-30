@@ -3,11 +3,6 @@
 
 package main
 
-// Controls:
-//   WASD  : move the light position: forward left back right
-//   ZX    : move light position    : up down
-//   LaRa  : spin the cube          : left right.
-
 import (
 	"log"
 
@@ -22,6 +17,11 @@ import (
 // Note the use of the box.obj model that needs 24 verticies to get
 // proper lighting on each face. Also note how many more verticies are
 // necessary for the sphere.obj model.
+//
+// CONTROLS:
+//   WASD  : move the light position: forward left back right
+//   ZX    : move light position    : up down
+//   LaRa  : spin the cube          : left right.
 func lt() {
 	lt := &lttag{}
 	if err := vu.New(lt, "Lighting", 400, 100, 800, 600); err != nil {

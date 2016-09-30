@@ -3,12 +3,14 @@
 
 package vu
 
+// eng.go holds all the component managers and runs application state updates.
+//        This is the main user facing class.
+// DESIGN: keep small by delegating application requests to the components.
+
 import (
 	"log"
-	"math"
 	"time"
 
-	"github.com/gazed/vu/math/lin"
 	"github.com/gazed/vu/physics"
 )
 
@@ -23,25 +25,22 @@ type Eng interface {
 	State() *State // Query engine state. State updated per tick.
 	Root() *Pov    // Single root of the transform hierarchy.
 
+	// Physics returns the vu/physics system manager.
+	Physics() physics.Physics // Allows setting of physics attributes.
+
 	// Set changes engine wide attributes. It accepts one or more
 	// functions that take an EngAttr parameter, ie: vu.Color(0,0,0).
 	Set(...EngAttr) // Update one or more engine attributes.
 
-	// Collide checks for collision between two bodies independent
-	// of the solver and without updating the the bodies locations.
-	Collide(a, b physics.Body) bool // Return true if a,b colliding.
-
-	// Timing is updated each processing loop. The returned update
-	// times can flucuate and should be averaged over multiple calls.
-	Usage() *Timing              // Per update loop performance metrics.
-	Modelled() (mods, verts int) // Total render models and verticies.
-	Rendered() (mods, verts int) // Rendered models and verticies.
+	// Timing gives application feedback. It is updated each processing loop.
+	// The returned update times should be averaged over multiple calls.
+	Usage() *Timing // Per update loop performance metrics.
 }
 
 // App is the application callback interface to the engine. It is implemented
 // by the application and registered once on engine creation as follows:
 //     err := vu.New(app, "Title", 0, 0, 800, 600) // Reg. app in new Eng.
-// Note that it is safe to call Eng methods from goroutines.
+// The App communicates with the engine using the Eng methods.
 type App interface {
 	Create(eng Eng, s *State) // Called once after successful startup.
 
@@ -65,53 +64,82 @@ type App interface {
 //     A scene manager for rendering frames.
 // Engine expects to be started as a go-routine using the runEngine method.
 type engine struct {
-	alive   bool            // True until application decides otherwise.
-	machine chan msg        // Communicate with device loop.
-	stop    chan bool       // Closed or any value means stop the engine.
-	data    *appData        // Combination user input and application state.
-	scene   *scene          // Scene manager. Creates render frames.
-	frame   frame           // update frame for next frame.
-	oframe  chan frame      // old frame returned from machine.
-	physics physics.Physics // Physics manager. Handles forces, collisions.
+	alive bool     // True until application decides otherwise.
+	data  *appData // Combination user input and application state.
 
-	// Asset manager. Handles loading assets concurrently.
-	loader *loader         // Asset manager.
-	loaded chan []*loadReq // Receive loaded models and noises.
+	// Communicate with the vu device goroutine.
+	machine   chan msg   // Communicate with device loop.
+	bindReply chan error // Receive machine bind responses.
+	stop      chan bool  // Closed or any value to stop machine.
 
-	// Sounds are heard by the sound listener at an app set pov.
-	soundListener *Pov    // Current location of the sound listener.
-	sx, sy, sz    float64 // Last location of the sound listener.
+	// Communicate with the asset load manager goroutine.
+	load     chan map[aid]string // Request asset load.
+	loaded   chan map[aid]asset  // Receive newly loaded assets.
+	stopLoad chan bool           // Send or close to stop loader.
 
-	// Group the application entities by component.
+	// Application entities are grouped into components.
 	// All entities are Pov (location:orientation) based.
-	eid    uint64                  // Next entity id.
-	povs   map[uint64]*Pov         // Entity transforms.
-	cams   map[uint64]*Camera      // Camera components.
-	models map[uint64]*model       // Visible components.
-	lights map[uint64]*Light       // Light components.
-	noises map[uint64]*noise       // Audible components.
-	layers map[uint64]*layer       // (pre) Render-pass components.
-	bodies map[uint64]physics.Body // Non-colliding physic components.
-	solids map[uint64]physics.Body // Colliding physic components.
-	bods   []physics.Body          // Set from solids each update.
-	times  *Timing                 // Loop timing statistics.
+	ids    *eids   // Entity id manager.
+	povs   *povs   // Entity transform component.
+	cams   *cams   // Camera component.
+	models *models // Visible component.
+	bodies *bodies // Physic component.
+	frames *frames // Render component.
+	sounds *sounds // Audio component.
+	lights *lights // Light component.
+	layers *layers // Pre-render-pass component
+	times  *Timing // Update loop timing statistics.
 }
 
 // newEngine is expected to be called once on startup
 // from the runEngine() method.
 func newEngine(machine chan msg) *engine {
 	eng := &engine{alive: true, machine: machine}
+	eng.ids = &eids{}
 	eng.data = newAppData()
+	eng.povs = newPovs()
 	eng.times = &Timing{}
-	eng.frame = frame{}
-	eng.Reset()
+	eng.Reset() // allocate data components.
 
-	// helpers that create and update state.
-	eng.physics = physics.NewPhysics()
-	eng.loaded = make(chan []*loadReq)
-	eng.loader = newLoader(eng.loaded, machine)
-	eng.scene = newScene()
+	// init comunications with the load goroutine.
+	eng.load = make(chan map[aid]string)
+	eng.loaded = make(chan map[aid]asset)
+	eng.stopLoad = make(chan bool)
+
+	// used to synchronize bind requests with the machine.
+	eng.bindReply = make(chan error)
 	return eng
+}
+
+// Reset removes all entities and sets the engine back to
+// its initial state. This allows the application to put the
+// engine back in a clean state without restarting.
+func (eng *engine) Reset() {
+	if eng.root() != nil {
+		eng.disposePov(eng.root().id)
+	}
+	eng.ids.reset()
+	eng.povs.reset()
+	eng.povs.create(eng, eng.ids.create(), nil) // root
+	eng.cams = newCams()
+	eng.models = newModels(eng)
+	eng.lights = newLights()
+	eng.layers = newLayers(eng)
+	eng.sounds = newSounds(eng)
+	eng.sounds.setListener(eng.povs.get(0))
+	eng.bodies = newBodies()
+	eng.frames = newFrames()
+}
+
+// Shutdown is a user request to close down the engine.
+// Expected to be called once on Application exit.
+func (eng *engine) Shutdown() {
+	eng.alive = false
+	eng.disposePov(eng.root().id)
+	if eng.machine != nil {
+		eng.stopLoad <- true
+		eng.machine <- &shutdown{}
+	}
 }
 
 // main application loop timing constants.
@@ -135,17 +163,17 @@ const (
 // allows the application to initiate object creation for rendering and
 // to consume user input from device polling.
 func runEngine(app App, wx, wy, ww, wh int,
-	machine chan msg, ofr chan frame, stop chan bool) {
+	machine chan msg, draw chan frame, stop chan bool) {
 	defer catchErrors()
 	eng := newEngine(machine)
-	go eng.loader.runLoader()
-	eng.oframe = ofr
+	go runLoader(eng.machine, eng.load, eng.loaded, eng.stopLoad)
+	eng.frames.draw = draw
 	eng.stop = stop
 	eng.data.state.setScreen(wx, wy, ww, wh)
 	app.Create(eng, eng.data.state)
-	eng.scene.init(eng)
-	ut := uint64(0)         // kick off initial update...
-	eng.update(app, dt, ut) // queue the initial load asset requests.
+	eng.layers.enableShadows() // Call before other load requests.
+	ut := uint64(0)            // kick off initial update...
+	eng.update(app, dt, ut)    // queue the initial load asset requests.
 
 	// Initialize timers and kick off the main control timing loop.
 	loopStart := time.Now()
@@ -172,7 +200,7 @@ func runEngine(app App, wx, wy, ww, wh int,
 			// Perform the update, preparing the next render frame.
 			eng.update(app, dt, ut) // Update state, physics, etc.
 			if eng.alive {          // Application may have quit.
-				eng.frame = eng.scene.snapshot(eng, eng.frame)
+				eng.frames.drawFrame(eng)
 			}
 
 			// Reset and start counting times for the next update.
@@ -189,13 +217,7 @@ func runEngine(app App, wx, wy, ww, wh int,
 			// Interpolation is the fraction of unused delta time between 0 and 1.
 			// ie: State state = currentState*interpolation + previousState * (1.0 - interpolation);
 			interpolation := updateTimer.Seconds() / dt.Seconds()
-			if len(eng.frame) > 0 {
-				eng.machine <- &renderFrame{fr: eng.frame, interp: interpolation, ut: ut}
-				eng.frame = <-eng.oframe  // immediately get next render frame
-				eng.frame = eng.frame[:0] // ... and mark it as unpreprepared.
-			} else {
-				eng.machine <- &renderFrame{fr: nil, interp: interpolation, ut: ut}
-			}
+			eng.frames.render(eng.machine, interpolation, ut)
 			renderTimer = renderTimer % rt // drop extra render time.
 		}
 		eng.communicate() // process go-routine messages.
@@ -208,65 +230,13 @@ func runEngine(app App, wx, wy, ww, wh int,
 func (eng *engine) communicate() {
 	select {
 	case <-eng.stop: // closed channels return 0
-		eng.loader.shutdown() // Tell the loader to stop.
-		return                // Device/window has closed.
-	case loaded := <-eng.loaded:
-		for _, req := range loaded {
-			if req.err != nil {
-				log.Printf("load error: %s", req.err)
-				continue
-			}
-			switch a := req.a.(type) {
-			case *mesh:
-				if m, ok := req.data.(*model); ok {
-					m.msh = a
-				}
-			case *texture:
-				if m, ok := req.data.(*model); ok {
-					if req.index < len(m.texs) {
-						m.texs[req.index] = a
-					}
-				}
-			case *shader:
-				if m, ok := req.data.(*model); ok {
-					m.shd = a
-				}
-			case *font:
-				if m, ok := req.data.(*model); ok {
-					m.fnt = a
-					m.fnt.loaded = true
-					if len(m.phrase) > 0 {
-						m.phraseWidth = m.fnt.setPhrase(m.msh, m.phrase)
-					}
-				}
-			case *animation:
-				if m, ok := req.data.(*model); ok {
-					m.anm = a
-					m.msh = req.msh
-					if req.index < len(m.texs) && len(req.texs) > 0 {
-						m.texs[req.index] = req.texs[0]
-					}
-					m.nFrames = a.maxFrames(0)
-					m.pose = make([]lin.M4, len(a.joints))
-				}
-			case *material:
-				if m, ok := req.data.(*model); ok {
-					m.mat = a
-					if m.alpha == 1.0 {
-						m.alpha = float64(a.tr) // Copy values so they can be set per model.
-					}
-				}
-			case *sound:
-				if n, ok := req.data.(*noise); ok {
-					n.snds[req.index] = a
-					n.loaded = true
-				}
-			default:
-				log.Printf("engine: unknown asset type %T", a)
-			}
-		}
+		eng.stopLoad <- true // Tell the loader to stop.
+		return               // Device/window has closed.
+	case assets := <-eng.loaded:
+		eng.models.finishLoads(assets)
+		eng.sounds.finishLoads(assets)
 	default:
-		// no channels to process.
+		// don't block when there are no channels to process.
 	}
 }
 
@@ -282,12 +252,8 @@ func (eng *engine) update(app App, dt time.Duration, ut uint64) {
 	state := eng.data.state // Engine state has been refreshed.
 	dts := dt.Seconds()     // delta time as float.
 
-	// Run physics on all the bodies; adjusting location and orientation.
-	eng.bods = eng.bods[:0] // reset keeping capacity.
-	for _, bod := range eng.solids {
-		eng.bods = append(eng.bods, bod)
-	}
-	eng.physics.Step(eng.bods, dts)
+	// update the location and orientation of any physics bodies.
+	eng.bodies.stepVelocities(eng, dts) // Marks povs as dirty.
 
 	// Have the application adjust any or all state before rendering.
 	input.Dt = dts                // how long to get back to here.
@@ -298,77 +264,10 @@ func (eng *engine) update(app App, dt time.Duration, ut uint64) {
 	// per tick processing. Per-ticks include animated models,
 	// particle effects, surfaces, phrases, ...
 	if eng.alive {
-		eng.updateModels(dts)
-		eng.updateTransforms(eng.root(), lin.M4I)
-		eng.updateSoundListener()
-	}
-}
-
-// updateModels processes any ongoing model updates like animated models
-// and CPU particle effects. Any new models are sent off for loading
-// and any updated models generate data rebind requests.
-func (eng *engine) updateModels(dts float64) {
-	for eid, m := range eng.models {
-
-		// load model assets if necessary.
-		requested := false
-		eng.loader.loads, requested = m.queueLoads(eng.loader.loads)
-		if !requested && m.loaded() {
-			// Handle model data changes from either the Application or
-			// from effects, phrase updates, and animations.
-
-			// handle any data updates with rebind requests.
-			if p, ok := eng.povs[eid]; ok && !p.Cull {
-				if m.effect != nil {
-					// udpate and rebind particle effects first since
-					// they change mesh data and then need rebinding.
-					m.effect.update(m, dt.Seconds())
-				}
-				if !m.msh.bound {
-					eng.rebind(m.msh)
-					m.msh.bound = true
-				}
-				for _, tex := range m.texs {
-					if !tex.bound {
-						eng.rebind(tex)
-						tex.bound = true
-					}
-				}
-				if m.anm != nil {
-					// animations update the bone position matricies.
-					// These are bound as uniforms at draw time.
-					m.animate(dts)
-				}
-			}
-		}
-	}
-	for _, n := range eng.noises {
-		eng.loader.loads = n.queueLoads(eng.loader.loads)
-	}
-	eng.loader.loadQueued()
-}
-
-// updateTransforms walks the transform hierarchy updating all the model
-// transforms. This is called before rendering passes are done.
-func (eng *engine) updateTransforms(p *Pov, parent *lin.M4) {
-	p.mm.SetQ(p.rot.Inv(p.T.Rot)) // invert model rotation.
-	p.mm.ScaleSM(p.S.GetS())      // scale is applied first (on left of rotation)
-	l := p.T.Loc
-	p.mm.TranslateMT(l.X, l.Y, l.Z) // translate is applied last (on right of rotation).
-	p.mm.Mult(p.mm, parent)         // model transform + parent transform
-	for _, child := range p.children {
-		eng.updateTransforms(child, p.mm) // recursive traversal.
-	}
-}
-
-// updateSoundListener checks and updates the sound listeners location.
-func (eng *engine) updateSoundListener() {
-	x, y, z := eng.soundListener.At()
-	if x != eng.sx || y != eng.sy || z != eng.sz {
-		eng.sx, eng.sy, eng.sz = x, y, z
-		go func(x, y, z float64) {
-			eng.machine <- &placeListener{x: x, y: y, z: z}
-		}(x, y, z)
+		eng.models.refresh(dts) // check for new load requests.
+		eng.sounds.refresh()    // check for new load requests.
+		eng.povs.updateWorldTransforms()
+		eng.sounds.repositionSoundListener()
 	}
 }
 
@@ -383,214 +282,76 @@ func (eng *engine) release(rd *releaseData) { eng.machine <- rd }
 // Note that rebinding mesh, texture, and sound does not change
 // any model data, it just updates the data on the graphics or audio
 // card. This way the model can continue to be rendered while the
-// data is being rebound (the binding goroutine is the same as the
-// render goroutine, so it is doing one or the other).
-func (eng *engine) rebind(data interface{}) {
-	bindReply := make(chan error)
-	eng.machine <- &bindData{data: data, reply: bindReply} // request bind.
-	if err := <-bindReply; err != nil {                    // wait for bind.
+// data is being rebound: the binding goroutine is the same as the
+// render goroutine, so it is doing one or the other.
+func (eng *engine) rebind(assets []asset) {
+	eng.machine <- &bindData{data: assets, reply: eng.bindReply} // request binds.
+	if err := <-eng.bindReply; err != nil {                      // wait for binds.
 		log.Printf("%s", err)
 	}
 }
 
-// Shutdown is a user request to close down the engine.
-// Expected to be called once on Application exit.
-func (eng *engine) Shutdown() {
-	eng.alive = false
-	eng.dispose(eng.root(), PovNode)
-	if eng.machine != nil {
-		eng.loader.shutdown()
-		eng.machine <- &shutdown{}
-	}
+// submitLoadReqs is called on the engine processing goroutine to send
+// the load requests off for loading. A new go routine is started so
+// that engine is not blocked while the load request waits for processing.
+func (eng *engine) submitLoadReqs(reqs map[aid]string) {
+	go func(load chan map[aid]string, reqs map[aid]string) {
+		load <- reqs
+	}(eng.load, reqs)
 }
 
-// Reset removes all entities and sets the engine back to
-// its initial state. This allows the application to put the
-// engine back in a clean state without restarting.
-func (eng *engine) Reset() {
-	eng.dispose(eng.root(), PovNode)
-	eng.povs = map[uint64]*Pov{}
-	eng.cams = map[uint64]*Camera{}
-	eng.models = map[uint64]*model{}
-	eng.lights = map[uint64]*Light{}
-	eng.layers = map[uint64]*layer{}
-	eng.noises = map[uint64]*noise{}
-	eng.bodies = map[uint64]physics.Body{}
-	eng.solids = map[uint64]physics.Body{}
-	eng.eid = 1                              // 0 invalid, 1 used for root.
-	eng.povs[eng.eid] = newPov(eng, eng.eid) // root
-	eng.soundListener = eng.povs[eng.eid]
+// clampTex requests a texture to be non-repeating.
+// Expected to be called once when setting up a texture.
+func (eng *engine) clampTex(tid uint32) {
+	eng.machine <- &clampTex{tid: tid}
 }
 
 // State provides access to current engine state.
 func (eng *engine) State() *State { return eng.data.state }
 
-// genid returns the next unique entity id. It craps out and
-// starts returning 0 after generating all possible ids.
-func (eng *engine) genid() uint64 {
-	if eng.eid == math.MaxUint64 {
-		return 0
-	}
-	eng.eid++ // first valid id is 1.
-	return eng.eid
-}
-
 // Implement Eng interface. Returns the top of the transform hierarchy.
 func (eng *engine) Root() *Pov { return eng.root() }
 
-// pov entities.
-func (eng *engine) root() *Pov { return eng.povs[1] }
+// Implement Eng interface. Returns the physics instance.
+func (eng *engine) Physics() physics.Physics { return eng.bodies.physics }
+
+// pov entities. newPov can only be called from an existing Pov
+// so parent is never nil.
 func (eng *engine) newPov(parent *Pov) *Pov {
-	if parent != nil {
-		p := newPov(eng, eng.genid())
-		eng.povs[p.eid] = p
-		p.parent = parent
-		parent.children = append(parent.children, p)
-		return p
-	}
-	return nil
+	return eng.povs.create(eng, eng.ids.create(), parent)
 }
+func (eng *engine) root() *Pov { return eng.povs.get(0) }
 
 // camera entities.
-func (eng *engine) cam(p *Pov) *Camera {
-	if p != nil {
-		if cam, ok := eng.cams[p.eid]; ok {
-			return cam
-		}
-	}
-	return nil
-}
-func (eng *engine) newCam(p *Pov) *Camera {
-	if p != nil {
-		c := newCamera()
-		eng.cams[p.eid] = c
-		return c
-	}
-	return nil
-}
+func (eng *engine) cam(id eid) *Camera    { return eng.cams.get(id) }
+func (eng *engine) newCam(id eid) *Camera { return eng.cams.create(id) }
 
 // model entities.
-func (eng *engine) model(p *Pov) Model {
-	if p != nil {
-		if model, ok := eng.models[p.eid]; ok {
-			return model
-		}
-	}
-	return nil
-}
-func (eng *engine) newModel(p *Pov, shader string, assets ...string) Model {
-	if p != nil {
-		if _, ok := eng.models[p.eid]; !ok {
-			m := newModel(shader, assets...)
-			eng.models[p.eid] = m
-			return m
-		}
-	}
-	return nil
+func (eng *engine) model(id eid) Model { return eng.models.get(id) }
+func (eng *engine) newModel(id eid, shader string, assets ...string) Model {
+	return eng.models.create(id, shader, assets...)
 }
 
 // light entities.
-func (eng *engine) light(p *Pov) *Light {
-	if p != nil {
-		if l, ok := eng.lights[p.eid]; ok {
-			return l
-		}
-	}
-	return nil
-}
-func (eng *engine) newLight(p *Pov) *Light {
-	if p != nil {
-		if _, ok := eng.lights[p.eid]; !ok {
-			l := newLight()
-			eng.lights[p.eid] = l
-			return l
-		}
-	}
-	return nil
-}
+func (eng *engine) light(id eid) *Light    { return eng.lights.get(id) }
+func (eng *engine) newLight(id eid) *Light { return eng.lights.create(id) }
 
-// snap shot entities.
-func (eng *engine) layer(p *Pov) Layer {
-	if p != nil {
-		if l, ok := eng.layers[p.eid]; ok {
-			return l
-		}
-	}
-	return nil
-}
-func (eng *engine) newLayer(p *Pov, attr int) Layer {
-	if p != nil {
-		if _, ok := eng.layers[p.eid]; !ok {
-			l := newLayer(attr)
-			eng.loader.bindLayer(l) // synchronously create and bind a fbo.
-			eng.layers[p.eid] = l
-			return l
-		}
-	}
-	return nil
-}
+// layer render pass entities.
+func (eng *engine) layer(id eid) Layer              { return eng.layers.get(id) }
+func (eng *engine) newLayer(id eid, attr int) Layer { return eng.layers.create(id, attr) }
 
 // body: physics entities.
-func (eng *engine) body(p *Pov) physics.Body {
-	if p != nil {
-		if body, ok := eng.bodies[p.eid]; ok {
-			return body
-		}
-		if body, ok := eng.solids[p.eid]; ok {
-			return body
-		}
-	}
-	return nil
+func (eng *engine) body(id eid) physics.Body { return eng.bodies.get(id) }
+func (eng *engine) newBody(id eid, b physics.Body, p *Pov) physics.Body {
+	return eng.bodies.create(id, b, p.T)
 }
-func (eng *engine) newBody(p *Pov, b physics.Body) physics.Body {
-	if p != nil {
-		if _, ok := eng.bodies[p.eid]; !ok {
-			b.SetWorld(p.T)
-			eng.bodies[p.eid] = b
-			return b
-		}
-	}
-	return nil
+func (eng *engine) setSolid(id eid, mass, bounce float64) {
+	eng.bodies.solidify(id, mass, bounce)
 }
 
-// solid: physics entities.
-func (eng *engine) setSolid(p *Pov, mass, bounce float64) {
-	if p != nil {
-		if b, okb := eng.bodies[p.eid]; okb {
-			b.SetMaterial(mass, bounce)
-			eng.solids[p.eid] = b
-			delete(eng.bodies, p.eid)
-		}
-	}
-}
-
-// noise: audio entities.
-func (eng *engine) noise(p *Pov) Noise {
-	if p != nil {
-		if noise, ok := eng.noises[p.eid]; ok {
-			return noise
-		}
-	}
-	return nil
-}
-func (eng *engine) newNoise(p *Pov) Noise {
-	if p != nil {
-		if _, ok := eng.noises[p.eid]; !ok {
-			n := newNoise(eng, p.eid)
-			eng.noises[p.eid] = n
-			return n
-		}
-	}
-	return nil
-}
-
-// There is always only one listener. It is associated with the root pov
-// by default. This changes the listener location to the given pov.
-func (eng *engine) setListener(p *Pov) {
-	if p != nil {
-		eng.soundListener = p
-	}
-}
+// sound: audio entities.
+func (eng *engine) addSound(id eid, name string) { eng.sounds.create(id, name) }
+func (eng *engine) playSound(id eid, index int)  { eng.sounds.play(id, index) }
 
 // FUTURE: cleaning up resources is not complete. Dispose currently means
 // removing entities from the Pov hierarchy and from the eng entity manager,
@@ -605,98 +366,41 @@ func (eng *engine) setListener(p *Pov) {
 // dispose discards the given pov component or the entire pov and all
 // its components. Each call recalculates the currently loaded set
 // of assets.
-func (eng *engine) dispose(p *Pov, component int) {
-	if p != nil {
-		switch component {
-		case PovBody:
-			delete(eng.bodies, p.eid)
-			delete(eng.solids, p.eid)
-		case PovCam:
-			delete(eng.cams, p.eid)
-		case PovModel:
-			if m, ok := eng.models[p.eid]; ok {
-				eng.disposeModel(m)
-				delete(eng.models, p.eid)
-			}
-		case PovNoise:
-			if n, ok := eng.noises[p.eid]; ok {
-				eng.disposeNoise(n)
-				delete(eng.noises, p.eid)
-			}
-		case PovLight:
-			delete(eng.lights, p.eid)
-		case PovLayer:
-			if l, ok := eng.layers[p.eid]; ok {
-				eng.disposeLayer(l)
-				delete(eng.layers, p.eid)
-			}
-		case PovNode:
-			eng.disposePov(p)
-		}
+func (eng *engine) dispose(id eid, component int) {
+	switch component {
+	case PovBody:
+		eng.bodies.dispose(id)
+	case PovCam:
+		eng.cams.dispose(id)
+	case PovModel:
+		eng.models.dispose(id)
+	case PovSound:
+		eng.sounds.dispose(id)
+	case PovLight:
+		eng.lights.dispose(id)
+	case PovLayer:
+		eng.layers.dispose(id)
+	case PovNode:
+		eng.disposePov(id)
 	}
 }
 
 // disposePov chops this transform and all of its children out
 // of the transform hierarchy. All associated objects are disposed.
-func (eng *engine) disposePov(p *Pov) {
-	delete(eng.povs, p.eid)
-	eng.dispose(p, PovCam)
-	eng.dispose(p, PovBody)
-	eng.dispose(p, PovModel)
-	eng.dispose(p, PovNoise)
-	if p.parent != nil {
-		p.parent.remChild(p) // remove the one back reference that matters.
-	}
-	for _, child := range p.children {
-		child.parent = nil    // avoid unnecessary removing of back references
-		eng.disposePov(child) // ... since childs parent is being deleted.
-	}
-}
-
-// disposeModel releases any references to assets.
-func (eng *engine) disposeModel(m *model) {
-	m.msh = nil
-	m.shd = nil
-	m.anm = nil
-	m.fnt = nil
-	m.mat = nil
-	m.texs = []*texture{} // garbage collect all old textures.
-}
-
-// disposeNoise releases references to assets.
-func (eng *engine) disposeNoise(n *noise) {
-	n.snds = []*sound{} // garbage collect the old sounds.
-}
-
-// disposeLayer removes the render pass layer, if any, from the given entity.
-// No complaints if there is no layer at the given entity. This is safe to
-// remove from the GPU since it is not cached/shared.
-func (eng *engine) disposeLayer(l *layer) {
-	eng.release(&releaseData{data: l}) // dispose of the framebuffer.
+func (eng *engine) disposePov(id eid) {
+	eng.povs.dispose(id)
+	eng.cams.dispose(id)
+	eng.bodies.dispose(id)
+	eng.models.dispose(id)
+	eng.sounds.dispose(id)
+	eng.lights.dispose(id)
+	eng.layers.dispose(id)
 }
 
 // Usage returns numbers collected each time through the
 // main processing loop. This allows the application to get
 // a sense of time usage.
 func (eng *engine) Usage() *Timing { return eng.times }
-
-// Modelled returns the total number of models and the total
-// number of verticies for all models.
-func (eng *engine) Modelled() (models, verts int) {
-	models = len(eng.models)
-	for _, m := range eng.models {
-		if m.msh != nil && len(m.msh.vdata) > 0 {
-			verts += m.msh.vdata[0].Len()
-		}
-	}
-	return models, verts
-}
-
-// Rendered returns the number of models and the number
-// of verticies rendered in the last rendering pass.
-func (eng *engine) Rendered() (models, verts int) {
-	return eng.scene.renDraws, eng.scene.renVerts
-}
 
 // Set one or more engine attributes.
 func (eng *engine) Set(attrs ...EngAttr) {
@@ -708,12 +412,6 @@ func (eng *engine) Set(attrs ...EngAttr) {
 // engine
 // ===========================================================================
 // expose/wrap physics shapes.
-
-// Collide checks if two bodies are intersecting independent of the solver
-// and without updating the the bodies locations.
-func (eng *engine) Collide(a, b physics.Body) bool {
-	return eng.physics.Collide(a, b)
-}
 
 // NewBox creates a box shaped physics body located at the origin.
 // The box size is given by the half-extents so that actual size
@@ -830,6 +528,6 @@ func Volume(zeroToOne float64) EngAttr {
 // Engine attribute expected to be used in Eng.Set().
 func Gravity(g float64) EngAttr {
 	return func(e Eng) {
-		e.(*engine).physics.SetGravity(g)
+		e.(*engine).bodies.physics.Set(physics.Gravity(g))
 	}
 }

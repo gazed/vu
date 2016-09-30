@@ -3,11 +3,6 @@
 
 package main
 
-// Controls:
-//   WSQE  : move camera            : forward back left right
-//   AD    : spin camera            : left right
-//   1-9,0 : select level           : larger with higher num. 0 is 10
-
 import (
 	"fmt"
 	"log"
@@ -30,6 +25,11 @@ import (
 // This is the one example that displays and tests statistics that can
 // be queried from the vu engine. Note that concurrent loading is also
 // visible, especially with the higher numbers corresponding to larger grids.
+//
+// CONTROLS:
+//   WSQE  : move camera            : forward back left right
+//   AD    : spin camera            : left right
+//   1-9,0 : select level           : larger with higher num. 0 is 10
 func rl() {
 	rl := &rltag{}
 	if err := vu.New(rl, "Random Levels", 400, 100, 800, 600); err != nil {
@@ -108,15 +108,15 @@ func (rl *rltag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 	}
 
 	// show some stats to see the effectiveness of culling.
-	allModels, allVerts := eng.Modelled()
-	renModels, renVerts := eng.Rendered()
+	t := eng.Usage()
+	allModels, allVerts := t.Modelled(eng)
+	renModels, renVerts := t.Rendered(eng)
 	modelStats := fmt.Sprintf("%d  models    culled to %d", allModels, renModels)
 	vertexStats := fmt.Sprintf("%d verticies culled to %d", allVerts, renVerts)
 	rl.flr.modelStats.SetStr(modelStats)
 	rl.flr.vertexStats.SetStr(vertexStats)
 
 	// http://stackoverflow.com/questions/87304/calculating-frames-per-second-in-a-game
-	t := eng.Usage()
 	rl.elapsed += t.Elapsed
 	rl.update += t.Update
 	rl.renders += t.Renders
@@ -208,7 +208,7 @@ func (rl *rltag) setLevel(eng vu.Eng, keyCode int) {
 		// display some rendering statistics.
 		flr.modelStats = rl.newText(flr.mmap, 0)
 		flr.vertexStats = rl.newText(flr.mmap, 1)
-		flr.times = rl.newText(flr.mmap, 2)
+		flr.times = rl.newText(flr.mmap, 2).SetStr(" ")
 
 		// populate the scenes
 		lsize := gridSizes[keyCode]

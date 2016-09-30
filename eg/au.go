@@ -3,8 +3,6 @@
 
 package main
 
-// Controls: NA
-
 import (
 	"log"
 	"time"
@@ -16,8 +14,9 @@ import (
 // au demonstrates basic audio library, vu/audio/al, capabilities.
 // It checks that OpenAL is installed and the bindings are working
 // by loading and playing a sound.
-//
 // See the vu:Pov interface when using sound with the vu engine.
+//
+// CONTROLS: NA
 func au() {
 	al.Init() // map the bindings to the OpenAL dynamic library.
 

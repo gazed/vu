@@ -50,7 +50,7 @@ void gs_scroll(long display, float *x_delta, float *y_delta) {
     *x_delta = 0;
     *y_delta = 0;
     NSEvent *event = [(id)display currentEvent];
-    if (NSScrollWheel == [event type]) {
+    if (NSEventTypeScrollWheel== [event type]) {
         *x_delta = [event deltaX];
         *y_delta = [event deltaY];
     }
@@ -100,7 +100,7 @@ static void createMenus(NSApplication *display)
     [[m addItemWithTitle:@"Enter Full Screen"
                   action:@selector(toggleFullScreen:)
            keyEquivalent:@"f"]
-        setKeyEquivalentModifierMask:NSControlKeyMask | NSCommandKeyMask];
+        setKeyEquivalentModifierMask:NSEventModifierFlagControl | NSEventModifierFlagCommand];
 }
 
 // Global state used to track window events. Set when a window event occurs,
@@ -155,7 +155,7 @@ void gs_display_dispose(long display) {
 // Create the window.
 long createShell(long display) {
     NSRect frame = NSMakeRect( defaults.gs_ShellX, defaults.gs_ShellY, defaults.gs_ShellWidth, defaults.gs_ShellHeight );
-    unsigned int styleMask = NSTitledWindowMask | NSClosableWindowMask | NSMiniaturizableWindowMask | NSResizableWindowMask;
+    unsigned int styleMask = NSWindowStyleMaskTitled| NSWindowStyleMaskClosable |NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskResizable;
     NSWindow *window = [[NSWindow alloc]
         initWithContentRect:frame
                   styleMask:styleMask
@@ -230,7 +230,7 @@ void gs_read_dispatch(long display, GSEvent *urge) {
         // meaningfull events such as window focus or resize events.
         NSEvent *event =
             [(id)display
-            nextEventMatchingMask:NSAnyEventMask
+            nextEventMatchingMask:NSEventMaskAny
                         untilDate:nil
                            inMode:NSDefaultRunLoopMode
                           dequeue:YES];
@@ -248,7 +248,7 @@ void gs_read_dispatch(long display, GSEvent *urge) {
             }
 
             // keep key modifiers updated.
-            urge->mods = (long) ([event modifierFlags] & NSDeviceIndependentModifierFlagsMask);
+            urge->mods = (long) ([event modifierFlags] & NSEventModifierFlagDeviceIndependentFlagsMask);
         }
     }
 
@@ -277,7 +277,7 @@ unsigned char gs_shell_alive(long shell) {
 // to gs_toggle_fullscreen.
 unsigned char gs_fullscreen(long display) {
     NSWindow *window = [(id)display mainWindow];
-    return (([window styleMask] & NSFullScreenWindowMask) == NSFullScreenWindowMask);
+    return (([window styleMask] & NSWindowStyleMaskFullScreen) == NSWindowStyleMaskFullScreen);
 }
 
 // Flip full screen mode. Must be called after starting processing

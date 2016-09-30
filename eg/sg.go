@@ -3,12 +3,6 @@
 
 package main
 
-// Controls:
-//   WASD  : move model             : forward left back right
-//   =-    : adjust boxes           : attach detach
-//   0-5   : change cube size
-//   P     : print number of cubes
-
 import (
 	"log"
 	"sort"
@@ -22,9 +16,14 @@ import (
 // location, orientation and having it affect the sub-parts. Sg also tests adding
 // and removing parts from a scene graph. Note that transparency sorting is
 // handled automatically by the engine.
-//
 // This example has a bit more code due to playing around with what can best
 // be described as merging and splitting voxels.
+//
+// CONTROLS:
+//   WASD  : move model             : forward left back right
+//   =-    : adjust boxes           : attach detach
+//   0-5   : change cube size
+//   P     : print number of cubes
 func sg() {
 	sg := &sgtag{}
 	if err := vu.New(sg, "Scene Graph", 400, 100, 800, 600); err != nil {

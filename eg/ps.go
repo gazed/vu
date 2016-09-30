@@ -3,11 +3,6 @@
 
 package main
 
-// Controls:
-//   Tab   : switch effect
-//   WS    : move camera            : forward back
-//   AD    : spin model             : left right
-
 import (
 	"log"
 	"math/rand"
@@ -21,6 +16,11 @@ import (
 // particle system with support provided by vu/Effect. The CPU particles
 // need an update method - see fall and vent below. The GPU-based particles
 // are updated by the shader code.
+//
+// CONTROLS:
+//   Tab   : switch effect
+//   WS    : move camera            : forward back
+//   AD    : spin model             : left right
 func ps() {
 	ps := &pstag{}
 	if err := vu.New(ps, "Particle System", 400, 100, 800, 600); err != nil {

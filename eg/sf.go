@@ -3,8 +3,6 @@
 
 package main
 
-// Controls: NA
-
 import (
 	"fmt"
 	"time"
@@ -23,9 +21,10 @@ import (
 //       http://glsl.heroku.com
 // The real star of this demo is found in ./source/fire.fsh. Kudos to @301z
 // and the other contributors to shadertoy and heroku.
-//
 // This example renders using OpenGL calls from package vu/render/gl.
 // See other examples and vu/shader.go for engine supported shaders in action.
+//
+// CONTROLS: NA
 func sf() {
 	sf := new(sftag)
 	dev := device.New("Shader Fire", 400, 100, 500, 500)

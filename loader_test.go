@@ -8,7 +8,7 @@ import (
 )
 
 func TestStringHash(t *testing.T) {
-	expecting := uint64(3088560132)
+	expecting := uint32(3088560132)
 	if hash := stringHash("hudbg"); hash != expecting {
 		t.Errorf("Expecting %d, got %d", expecting, hash)
 	}

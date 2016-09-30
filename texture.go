@@ -3,6 +3,13 @@
 
 package vu
 
+// texture.go
+// FUTURE: some textures are used both as repeating and not-repeating.
+//         Currently the texture needs to be loaded twice so that one
+//         can be marked as repeating.
+//         Look at setting repeat texture attribute as part of the draw
+//         call so that the texture data can be reused.
+
 import (
 	"image"
 )
@@ -13,8 +20,6 @@ import (
 // Textures can be associated with a Model and consumed by a Shader.
 type Tex interface {
 	Set(img image.Image) // Replace image, nil values ignored.
-	Img() image.Image    // Get image, nil if invalid index.
-	SetRepeat(on bool)   // True for Repeat, otherwise Clamp.
 }
 
 // Tex
@@ -25,13 +30,10 @@ type Tex interface {
 // bound to the GPU. When models have more than one texture the f0, fn
 // fields are used to indicate which model faces apply to this texture.
 type texture struct {
-	name   string      // Unique name of the texture.
-	tag    uint64      // Name and type as a number.
-	img    image.Image // Texture data.
-	tid    uint32      // Graphics card texture identifier.
-	repeat bool        // Repeat the texture when UV greater than 1.
-	bound  bool        // False if the data needs rebinding.
-	loaded bool        // True if data has been set.
+	name string      // Unique name of the texture.
+	tag  aid         // Name and type as a number.
+	img  image.Image // Texture data.
+	tid  uint32      // Graphics card texture identifier.
 
 	// First face index and number of faces.
 	// Used for multiple uv textures for the same model.
@@ -40,17 +42,30 @@ type texture struct {
 
 // newTexture allocates space for a texture object.
 func newTexture(name string) *texture {
-	return &texture{name: name, tag: tex + stringHash(name)<<32}
+	return &texture{name: name, tag: assetID(tex, name)}
 }
 
-// label, aid, and bid are used to uniquely identify assets.
-func (t *texture) label() string { return t.name }                  // asset name
-func (t *texture) aid() uint64   { return t.tag }                   // asset type and name.
-func (t *texture) bid() uint64   { return tex + uint64(t.tid)<<32 } // asset type and bind ref.
+// aid is used to uniquely identify assets.
+func (t *texture) aid() aid      { return t.tag }  // hashed type and name.
+func (t *texture) label() string { return t.name } // asset name
 
 // Public to satisfy Tex interface.
-func (t *texture) Img() image.Image { return t.img }
-func (t *texture) Set(img image.Image) {
-	t.img, t.bound, t.loaded = img, false, true
+func (t *texture) Set(img image.Image) { t.img = img }
+
+// =============================================================================
+// texture
+
+// texid is needed to track textures prior to them being loaded.
+// Currently only needed/used by model.
+type texid struct {
+	name string // Unique name of the asset.
+	id   aid    // Name and type as a number.
 }
-func (t *texture) SetRepeat(on bool) { t.repeat = on }
+
+func newTexid(name string, id aid) *texid {
+	return &texid{name: name, id: id}
+}
+
+// Implement asset interface.
+func (t *texid) aid() aid      { return t.id }   // hashed type and name.
+func (t *texid) label() string { return t.name } // asset name

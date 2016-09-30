@@ -3,6 +3,7 @@
 
 package vu
 
+// font.go encapsulates knowledge for displaying strings on screen.
 // FUTURE: create 3D fonts from system fonts on the fly
 //         or make a separate tool like:
 //         http://www.angelcode.com/products/bmfont/
@@ -16,8 +17,8 @@ import (
 // to display a string. Controlling a Labeler amounts to setting the
 // string value and centering it using its width in pixels.
 type Labeler interface {
-	SetStr(text string) // Set the string to display.
-	StrWidth() int      // Width in screen pixels, 0 if not loaded.
+	SetStr(text string) Labeler // Set the string to display.
+	StrWidth() int              // Width in screen pixels, 0 if not loaded.
 }
 
 // Labeler
@@ -30,11 +31,10 @@ type Labeler interface {
 // for a font. It is combined with a texture (the font bitmapped image)
 // in order to produce displayable strings.
 type font struct {
-	name   string         // Unique id for a glyph set.
-	tag    uint64         // Name and type as a number.
-	w, h   int            // Width and height of the entire font bitmap image.
-	chars  map[rune]*char // The "character" image information.
-	loaded bool
+	name  string         // Unique id for a glyph set.
+	tag   aid            // Name and type as a number.
+	w, h  int            // Width and height of the entire font bitmap image.
+	chars map[rune]*char // The "character" image information.
 
 	// scratch variables reused to create rendered text phrases.
 	vb []float32 // verticies.
@@ -44,16 +44,14 @@ type font struct {
 
 // newFont allocates space for font mapping data.
 func newFont(name string) *font {
-	f := &font{name: name, tag: fnt + stringHash(name)<<32}
+	f := &font{name: name, tag: assetID(fnt, name)}
 	f.chars = map[rune]*char{}
 	return f
 }
 
-// label, aid, and bid are used to uniquely identify assets.
-// Note: aid is the same as bid for CPU local assets.
+// aid is used to uniquely identify assets.
+func (f *font) aid() aid      { return f.tag }  // hashed type and name.
 func (f *font) label() string { return f.name } // asset name
-func (f *font) aid() uint64   { return f.tag }  // asset type and name.
-func (f *font) bid() uint64   { return f.tag }  // does not need binding.
 
 // set font mapping data. Expected to be called by loader
 // as fonts are loaded from disk.

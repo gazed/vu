@@ -3,12 +3,6 @@
 
 package main
 
-// Controls:
-//   Tab   : flip orientation
-//   Lm    : show mouse hit
-//   WASD  : move hex grid          : up left down right
-//   ZX    : scale hex grid         : bigger smaller
-
 import (
 	"fmt"
 	"log"
@@ -22,6 +16,12 @@ import (
 // hx demonstrates hexagonal grids. Its main purpose is to determine
 // which code can be provided generically by the engine (vu/grid.Hex)
 // and which code is application specific (hexGrid, hexTile).
+//
+// CONTROLS:
+//   Tab   : flip orientation
+//   Lm    : show mouse hit
+//   WASD  : move hex grid          : up left down right
+//   ZX    : scale hex grid         : bigger smaller
 func hx() {
 	hx := &hxtag{}
 	if err := vu.New(hx, "Hex Grid", 400, 100, 800, 600); err != nil {

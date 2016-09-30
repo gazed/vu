@@ -3,16 +3,22 @@
 
 package vu
 
+// loader.go
+// FUTURE: benchmark running the file imports on worker goroutines.
+//         This will require tracking outstanding load requests in
+//         loader and tracking load requests waiting for the outstanding
+//         loads. Once imports are done they can be cached and then
+//         matched against outstanding load requests.
+
 import (
 	"fmt"
 	"log"
-	"math"
-	"strconv"
 
 	"github.com/gazed/vu/load"
 	"github.com/gazed/vu/render"
 )
 
+// loader interfaces between the engine models and the load package.
 // loader imports and prepares model and noise data for use.
 // It is expected to be run as a goroutine and thus needs to
 // be initialized with communication channels.
@@ -20,99 +26,109 @@ import (
 // The loader is used internally by the engine to cache and reuse
 // imported data for multiple model and noise instances.
 type loader struct {
-	loads []*loadReq // Collects asset load requests.
+	assets map[aid]string // Track asset existence.
 
 	// loader goroutine communication.
-	loc    load.Locator    // Locates the asset data on disk.
-	cache  cache           // asset cache.
-	stop   chan bool       // shutdown requests.
-	load   chan []*loadReq // asset load requests.
-	loaded chan []*loadReq // loaded asset replies.
-	binder chan msg        // machine loop request channel.
+	loc    load.Locator        // Locates the asset data on disk.
+	cache  cache               // asset cache.
+	stop   chan bool           // shutdown requests.
+	load   chan map[aid]string // asset load requests.
+	loaded chan map[aid]asset  // loaded asset replies.
+	bind   chan msg            // machine loop request channel.
 }
 
 // newLoader is expected to be called once on startup by the engine.
-func newLoader(loaded chan []*loadReq, binder chan msg) *loader {
-	l := &loader{loaded: loaded, binder: binder}
+func newLoader(reqs chan map[aid]string, done chan map[aid]asset,
+	bind chan msg, stop chan bool) *loader {
+	l := &loader{bind: bind, assets: map[aid]string{}}
 	l.loc = load.NewLocator()
 	l.cache = newCache()
-	l.stop = make(chan bool)
-	l.load = make(chan []*loadReq)
+	l.stop = stop
+	l.load = reqs
+	l.loaded = done
 	return l
 }
 
 // runLoader loops forever processing all load requests.
 // It is started once as a goroutine on engine initialization
 // and is stopped when the engine shuts down.
-func (l *loader) runLoader() {
+func runLoader(machine chan msg, load chan map[aid]string,
+	loaded chan map[aid]asset, stop chan bool) {
+	l := newLoader(load, loaded, machine, stop)
 	defer catchErrors()
 	for {
 		select {
-		case <-l.stop: // closed channels return 0
-			return // exit immediately: channel closed.
+		case <-l.stop: // Stop on any value. Closed channels return 0
+			return // exit immediately.
 		case requests := <-l.load:
-			for _, req := range requests {
-				switch a := req.a.(type) {
-				case *mesh:
-					req.a, req.err = l.loadMesh(a)
-				case *texture:
-					req.a, req.err = l.loadTexture(a)
-				case *shader:
-					req.a, req.err = l.loadShader(a)
-				case *font:
-					req.a, req.err = l.loadFont(a)
-				case *animation:
-					msh := newMesh(a.name)
-					if la, lmsh, ltexs := l.loadAnim(a, msh); la != nil && lmsh != nil {
-						req.a = la
-						req.msh = lmsh
-						req.texs = ltexs
+
+			// FUTURE: spawn the load requests off to worker goroutines.
+			assets := map[aid]asset{}
+			for id, name := range requests {
+				a := id.dataType()
+				switch a {
+				case anm:
+					msh := newMesh(name)
+					anm := newAnimation(name)
+					if la, lm := l.loadAnim(anm, msh); la == nil || lm == nil {
+						log.Printf("Animation %s failed to load", name) // dev error.
 					} else {
-						req.a = nil   // return explicit nil for asset interface.
-						req.msh = nil // release mesh on fail.
+						assets[la.aid()] = la
+						assets[lm.aid()] = lm
 					}
-				case *material:
-					req.a, req.err = l.loadMaterial(a)
-				case *sound:
-					req.a, req.err = l.loadSound(a)
+				case msh:
+					if lm, err := l.loadMesh(newMesh(name)); err != nil {
+						log.Printf("Mesh %s failed to load %s", name, err) // dev error.
+					} else {
+						assets[lm.aid()] = lm
+					}
+				case tex:
+					if lt, err := l.loadTexture(newTexture(name)); err != nil {
+						log.Printf("Texture %s failed to load %s", name, err) // dev error.
+					} else {
+						assets[lt.aid()] = lt
+					}
+				case shd:
+					if ls, err := l.loadShader(newShader(name)); err != nil {
+						log.Printf("Shader %s failed to load %s", name, err) // dev error.
+					} else {
+						assets[ls.aid()] = ls
+					}
+				case fnt:
+					if lf, err := l.loadFont(newFont(name)); err != nil {
+						log.Printf("Font %s failed to load %s", name, err) // dev error.
+					} else {
+						assets[lf.aid()] = lf
+					}
+				case mat:
+					if lm, err := l.loadMaterial(newMaterial(name)); err != nil {
+						log.Printf("Material %s failed to load %s", name, err) // dev error.
+					} else {
+						assets[lm.aid()] = lm
+					}
+				case snd:
+					if ls, err := l.loadSound(newSound(name)); err != nil {
+						log.Printf("Sound %s failed to load %s", name, err) // dev error.
+					} else {
+						assets[ls.aid()] = ls
+					}
 				default:
 					log.Printf("loader: unknown request %T", a)
-
 					// FUTURE: handle releaseData requests. See eng.dispose design note.
 				}
 			}
-			go l.returnAssets(requests)
+			l.returnAssets(assets)
 		}
 	}
 }
-
-// loadAssets is the entry point for all load and unload requests.
-// It is expected to be called as a go-routine whereupon it waits
-// for the asset loader to process its request.
-func (l *loader) loadAssets(reqs []*loadReq) { l.load <- reqs }
 
 // returnAssets funnels a group of loaded assets back to the
-// engine loop. The engine loop may be busy so this method,
-// started as a goroutine, waits instead of the loader.
-func (l *loader) returnAssets(assets []*loadReq) {
-	l.loaded <- assets
-}
-
-// loadQueued is called on the engine processing goroutine
-// to send the load requests off for loading. Load requests
-// are batched into small chunks so the loader can return
-// some assets while others are being loaded.
-func (l *loader) loadQueued() {
-	batchSize := 100
-	for len(l.loads) > 0 {
-		if len(l.loads) > batchSize {
-			go l.loadAssets(l.loads[:batchSize])
-			l.loads = l.loads[batchSize:]
-		} else {
-			go l.loadAssets(l.loads)
-			l.loads = []*loadReq{}
-		}
-	}
+// engine loop. The engine loop may be busy so this method
+// starts a goroutine so the loader is not blocked.
+func (l *loader) returnAssets(loaded map[aid]asset) {
+	go func(loaded map[aid]asset) {
+		l.loaded <- loaded
+	}(loaded)
 }
 
 // shutdown is called on the engine processing goroutine
@@ -132,8 +148,8 @@ func (l *loader) loadSound(s *sound) (*sound, error) {
 		return nil, err
 	}
 	bindReply := make(chan error)
-	l.binder <- &bindData{data: s, reply: bindReply} // request bind.
-	if err := <-bindReply; err != nil {              // wait for bind.
+	l.bind <- &bindData{data: s, reply: bindReply} // request bind.
+	if err := <-bindReply; err != nil {            // wait for bind.
 		return nil, err
 	}
 	l.cache.store(s)
@@ -164,11 +180,10 @@ func (l *loader) loadShader(s *shader) (*shader, error) {
 		return nil, err
 	}
 	bindReply := make(chan error)
-	l.binder <- &bindData{data: s, reply: bindReply} // request bind.
-	if err := <-bindReply; err != nil {              // wait for bind.
+	l.bind <- &bindData{data: s, reply: bindReply} // request bind.
+	if err := <-bindReply; err != nil {            // wait for bind.
 		return nil, err
 	}
-	s.bound = true
 	l.cache.store(s)
 	return s, nil
 }
@@ -206,7 +221,6 @@ func (l *loader) loadMesh(m *mesh) (*mesh, error) {
 	if err := l.bindMesh(m); err != nil {
 		return nil, err
 	}
-	m.bound = true
 	l.cache.store(m)
 	return m, nil
 }
@@ -215,8 +229,8 @@ func (l *loader) loadMesh(m *mesh) (*mesh, error) {
 // the mesh data to the GPU.
 func (l *loader) bindMesh(m *mesh) error {
 	bindReply := make(chan error)
-	l.binder <- &bindData{data: m, reply: bindReply} // request bind.
-	return <-bindReply                               // wait for bind.
+	l.bind <- &bindData{data: m, reply: bindReply} // request bind.
+	return <-bindReply                             // wait for bind.
 }
 
 // importMesh transfers data loaded from disk to the render object.
@@ -242,11 +256,10 @@ func (l *loader) loadTexture(t *texture) (*texture, error) {
 		return nil, err
 	}
 	bindReply := make(chan error)
-	l.binder <- &bindData{data: t, reply: bindReply} // request bind.
-	if err := <-bindReply; err != nil {              // wait for bind.
+	l.bind <- &bindData{data: t, reply: bindReply} // request bind.
+	if err := <-bindReply; err != nil {            // wait for bind.
 		return nil, err
 	}
-	t.bound = true
 	l.cache.store(t)
 	return t, nil
 }
@@ -316,76 +329,44 @@ func (l *loader) importFont(f *font) error {
 
 // loadAnim loads an animated model from disk. This will create
 // multiple model assets including a mesh, textures, and animation data.
-func (l *loader) loadAnim(a *animation, m *mesh) (*animation, *mesh, []*texture) {
+func (l *loader) loadAnim(a *animation, m *mesh) (*animation, *mesh) {
 	data := asset(a)
 	if err := l.cache.fetch(&data); err == nil {
 		a = data.(*animation) // got the animation.
 		data := asset(m)      // now load the mesh.
 		if err := l.cache.fetch(&data); err == nil {
 			m = data.(*mesh)
-
-			// load all textures based on the animation name.
-			texs := []*texture{}
-			for cnt := 0; ; cnt++ {
-				tname := a.name + strconv.Itoa(cnt)
-				t := newTexture(tname)
-				data := asset(t) // now load any animation textures.
-				if err := l.cache.fetch(&data); err == nil {
-					texs = append(texs, data.(*texture))
-				} else {
-					break
-				}
-			}
-			return a, m, texs
+			return a, m
 		}
 	}
 
 	// Otherwise the animation and mesh need to be loaded.
 	// Textures are loaded, bound, and cached within importAnim.
-	var texs []*texture
 	var err error
-	if texs, err = l.importAnim(a, m); err != nil {
+	if err = l.importAnim(a, m); err != nil {
 		log.Printf("Animation load %s: %s", a.name, err)
-		return nil, nil, nil // discard load failures
+		return nil, nil // discard load failures
 	}
 
 	// And the mesh needs to be bound.
 	if err := l.bindMesh(m); err != nil {
 		log.Printf("Animation bind %s: %s", m.name, err)
-		return nil, nil, nil // discard bind failures
+		return nil, nil // discard bind failures
 	}
 	l.cache.store(a)
 	l.cache.store(m)
-	return a, m, texs
+	return a, m
 }
 
 // importAnim loads the animation, mesh, and texture for an
 // animated model.
-func (l *loader) importAnim(a *animation, m *mesh) (texs []*texture, err error) {
+func (l *loader) importAnim(a *animation, m *mesh) (err error) {
 	mod := &load.ModData{}
 	if err = mod.Load(a.name, l.loc); err != nil {
-		return nil, err
+		return err
 	}
 	transferAnim(mod, m, a)
-
-	// Get model textures. There may be more than one.
-	// Convention: use texture names based on the animation name.
-	for cnt, itex := range mod.TMap {
-		tname := a.name + strconv.Itoa(cnt)
-		tex := newTexture(tname)
-		if tex, err = l.loadTexture(tex); tex != nil && err == nil {
-			tex.fn, tex.f0 = itex.Fn, itex.F0
-			texs = append(texs, tex)
-		}
-	}
-	return texs, nil
-}
-
-// bindLayer requests a new framebuffer based texture for a view.
-func (l *loader) bindLayer(layer *layer) error {
-	bindReply := make(chan error)
-	l.binder <- &bindData{data: layer, reply: bindReply} // request bind.
-	return <-bindReply                                   // wait for bind.
+	return nil
 }
 
 // release is called when the cached data is no
@@ -449,7 +430,6 @@ func transferMesh(data *load.MshData, m *mesh) {
 	if len(data.T) > 0 {
 		m.InitData(2, 2, render.StaticDraw, false).SetData(2, data.T)
 	}
-	m.loaded = true
 }
 
 // transferMaterial moves data from the loading system to the engine instance.
@@ -459,7 +439,6 @@ func transferMaterial(data *load.MtlData, m *material) {
 	m.ka.R, m.ka.G, m.ka.B = data.KaR, data.KaG, data.KaB
 	m.tr = data.Alpha
 	m.ns = data.Ns
-	m.loaded = true
 }
 
 // transferSound moves data from the loading system to the engine instance.
@@ -507,13 +486,13 @@ func transferAnim(data *load.ModData, m *mesh, a *animation) {
 // cache
 
 // cache reuses loaded assets.
-type cache map[uint64]interface{}
+type cache map[aid]interface{}
 
 // newCache creates a new in-memory cache for loaded items. Expected to be
 // called once during application initialization (since a cache works best
 // when there is only one instance of it :)
 func newCache() cache {
-	return make(map[uint64]interface{})
+	return make(map[aid]interface{})
 }
 
 // fetch retrieves a previously cached data resource using the given name.
@@ -548,41 +527,4 @@ func (c cache) remove(data asset) {
 	if data != nil {
 		delete(c, data.aid())
 	}
-}
-
-// ============================================================================
-// asset
-
-// asset describes any data asset that can uniquely identify itself.
-type asset interface {
-	label() string // Unique identifier set on creation.
-	aid() uint64   // Data type and name combined.
-}
-
-// Data types. Not expected to be used outside of this file.
-// Cached data is reusable, except for model's.
-const (
-	fnt = iota // font
-	shd        // shader
-	mat        // material
-	msh        // mesh
-	tex        // texture
-	snd        // sound
-	anm        // animation
-)
-
-// =============================================================================
-// utility methods.
-
-// stringHash turns a string into a number.
-// Algorithm based on java String.hashCode().
-//     s[0]*31^(n-1) + s[1]*31^(n-2) + ... + s[n-1]
-func stringHash(s string) (h uint64) {
-	bytes := []byte(s)
-	n := len(bytes)
-	hash := uint32(0)
-	for index, b := range bytes {
-		hash += uint32(b) * uint32(math.Pow(31, float64(n-index)))
-	}
-	return uint64(hash)
 }

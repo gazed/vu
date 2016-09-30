@@ -3,8 +3,6 @@
 
 package main
 
-// Controls: NA
-
 import (
 	"image"
 	"image/color"
@@ -26,16 +24,16 @@ import (
 // tracing is a possible (far) future rendering alternative. Ray tracing is
 // sufficiently different from standard rasterization it would likely need
 // its own 3D engine.
-//
 // The code in this example is broken into two sections:
 //    1. OpenGL based code that displays a single texture on a quad mesh.
 //    2. Ray trace code that generates a ray trace image.
-//
 // Some general ray tracing reading ...
 //   http://www.ics.uci.edu/~gopi/CS211B/RayTracing%20tutorial.pdf
 //   http://www.gamasutra.com/blogs/AlexandruVoica/20140318/213148/Practical_techniques_for_ray_tracing_in_games.php?print=1
 //   http://www.igorsevo.com/Article.aspx?article=A+simple+real-time+raytracer+in+CUDA+and+OpenGL
 //   http://www.researchgate.net/publication/220183679_OptiX_A_General_Purpose_Ray_Tracing_Engine
+//
+// CONTROLS: NA
 func rt() {
 	rt := new(rtrace)
 	dev := device.New("Ray Trace", 400, 400, 512, 512)

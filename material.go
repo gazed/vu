@@ -3,32 +3,31 @@
 
 package vu
 
+// material.go handles model surface color data.
+
 // material is used to color a mesh. It specifies the surface color and
 // how the surface is lit. Materials are applied to a rendered model by
 // a shader.
 type material struct {
-	name   string  // Unique matrial name.
-	tag    uint64  // name and type as a number.
-	kd     rgb     // Diffuse color of the material.
-	ka     rgb     // Ambient color of the material.
-	ks     rgb     // Specular color of the material.
-	ns     float32 // Specular sharpness.
-	tr     float32 // Transparency (alpha, dissolve) for the material.
-	loaded bool    // True if data has been set.
+	name string  // Unique matrial name.
+	tag  aid     // name and type as a number.
+	kd   rgb     // Diffuse color of the material.
+	ka   rgb     // Ambient color of the material.
+	ks   rgb     // Specular color of the material.
+	ns   float32 // Specular sharpness.
+	tr   float32 // Transparency (alpha, dissolve) for the material.
 }
 
 // newMaterial allocates space for material values.
 func newMaterial(name string) *material {
-	mat := &material{name: name, tag: mat + stringHash(name)<<32}
+	mat := &material{name: name, tag: assetID(mat, name)}
 	mat.kd.R, mat.kd.G, mat.kd.B, mat.tr = 1, 1, 1, 1
 	return mat
 }
 
-// label, aid, and bid are used to uniquely identify assets.
-// Note: aid is the same as bid for CPU local assets.
+// aid is used to uniquely identify assets.
+func (m *material) aid() aid      { return m.tag }  // hashed type and name.
 func (m *material) label() string { return m.name } // asset name
-func (m *material) aid() uint64   { return m.tag }  // asset type and name.
-func (m *material) bid() uint64   { return m.tag }  // does not need binding.
 
 // material
 // ===========================================================================

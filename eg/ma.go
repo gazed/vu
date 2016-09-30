@@ -3,12 +3,6 @@
 
 package main
 
-// Controls:
-//   WS    : move camera            : forward back
-//   AD    : spin model             : left right
-//   0-9   : select animation
-//   Tab   : switch model
-
 import (
 	"fmt"
 	"io/ioutil"
@@ -21,6 +15,12 @@ import (
 // ma, model animation, is an example of loading and animating a model using
 // skeletel animation. Load any Inter-Quake-Model (IQM) models found in the model
 // directory. This allows the example to function as a model previewer.
+//
+// CONTROLS:
+//   WS    : move camera            : forward back
+//   AD    : spin model             : left right
+//   0-9   : select animation
+//   Tab   : switch model
 func ma() {
 	ma := &matag{}
 	if err := vu.New(ma, "Model Animation", 400, 100, 800, 600); err != nil {
@@ -63,7 +63,7 @@ func (ma *matag) Create(eng vu.Eng, s *vu.State) {
 
 		// Most IQ* files are expected to be animated.
 		// Use a "uv" shader to handle IQ* files without animations.
-		pov.NewAnimator("anim", modelFile)
+		pov.NewModel("anim", "mod:"+modelFile)
 		ma.models = append(ma.models, pov)
 		ma.names = append(ma.names, modelFile)
 	}

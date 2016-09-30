@@ -3,6 +3,7 @@
 
 package vu
 
+// particle.go
 // Note: some particle-system tutorials and articles, in no particular order.
 // Google "opengl particle system". The links demonstrate a wide range
 // of implementation choices.
@@ -14,9 +15,8 @@ package vu
 //    http://ogldev.atspace.co.uk/www/tutorial28/tutorial28.html
 //    http://natureofcode.com/book/chapter-4-particle-systems
 //   *http://stackoverflow.com/questions/17397724/point-sprites-for-particle-system
-// *This last one discusses some excellent technical options.
-//
-// Design considerations hilighted by some of the above:
+//   *This last one discusses some excellent technical options.
+// DESIGN considerations hilighted by some of the above:
 //    o getting/keeping particle data to/on the GPU. This allows more
 //      particles, but moves the particle update programming to the shaders.
 //    o keeping all particles part of a single vao.
@@ -63,7 +63,6 @@ type particleEffect struct {
 func newParticleEffect(m *model, pe ParticleEffect, maxParticles int) *particleEffect {
 	if m.msh == nil {
 		m.newMesh("cpu")
-		m.msh.loaded = true // mesh data will be set on update.
 	}
 	floatsPerVertex, floatsPerData := 3, 2
 	m.Mesh().InitData(0, uint32(floatsPerVertex), render.DynamicDraw, false)

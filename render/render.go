@@ -31,18 +31,19 @@ type Renderer interface {
 	Viewport(width int, height int)  // Set the available screen real estate.
 
 	// Rendering works with uniform values and data bound to the GPU.
-	BindMesh(vao *uint32, vdata map[uint32]Data, fdata Data) (err error)
+	BindMesh(vao *uint32, vdata map[uint32]Data, fdata Data) error
 	BindShader(vsh, fsh []string, uniforms map[string]int32,
 		layouts map[string]uint32) (program uint32, err error)
-	BindTexture(tid *uint32, img image.Image, repeat bool) (err error)
-	Render(d *Draw) // Render bound data and textures with bound shaders.
+	BindTexture(tid *uint32, img image.Image) error
+	SetTextureMode(tid uint32, clamp bool)
+	Render(d *Draw) // Render bound data, textures with bound shaders.
 
 	// BindFrame creates a framebuffer object with an associated texture.
 	//   buf : DEPTH_BUFF, for depth, or IMAGE_BUFF, for color and depth.
 	//   fbo : returned frame buffer object identifier.
 	//   tid : returned texture identifier.
 	//   db  : returned depth buffer render buffer.
-	BindFrame(buf int, fbo, tid, db *uint32) (err error)
+	BindFrame(buf int, fbo, tid, db *uint32) error
 
 	// Releasing frees up previous bound graphics card data.
 	ReleaseMesh(vao uint32)           // Free bound vao reference.
@@ -68,6 +69,7 @@ const (
 	Overlay     // draw last.
 
 	// BindFrame buffer types.
-	DepthBuffer // For depth only.
-	ImageBuffer // For color and depth.
+	DepthBuffer        // For depth only.
+	ImageBuffer        // For color and depth.
+	LayerSize   = 1024 // Render pass texture size.
 )

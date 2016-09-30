@@ -3,9 +3,6 @@
 
 package main
 
-// Controls:
-//   WASD  : move light position    : up left down right
-
 import (
 	"log"
 
@@ -17,9 +14,11 @@ import (
 // and multipass rendering. These are hard shadows. More work has to
 // be done to soften and blur shadows the further away they are from
 // their source.
-//
 // FUTURE: upgrade shader to PCSS ie:
 //   http://developer.download.nvidia.com/whitepapers/2008/PCSS_Integration.pdf
+//
+// CONTROLS:
+//   WASD  : move light position    : up left down right
 func sm() {
 	sm := &smtag{}
 	if err := vu.New(sm, "Shadow Map", 400, 100, 800, 600); err != nil {
@@ -52,14 +51,14 @@ func (sm *smtag) Create(eng vu.Eng, s *vu.State) {
 
 	// create a few objects that cast shadows.
 	sm.cube = scene.NewPov().SetAt(-1, -1, -4)
-	sm.cube.NewModel("gouraud", "msh:box", "mat:gray").Set(vu.CastShadow())
+	sm.cube.NewModel("gouraud", "msh:box", "mat:gray").Set(vu.CastShadow)
 	sm.cube.Spin(45, 45, 0)
 	sm.sphere = scene.NewPov().SetAt(1, 1, -4)
-	sm.sphere.NewModel("gouraud", "msh:sphere", "mat:red").Set(vu.CastShadow())
+	sm.sphere.NewModel("gouraud", "msh:sphere", "mat:red").Set(vu.CastShadow)
 
 	// create a ground block to show shadows.
 	ground := scene.NewPov().SetAt(0, 0, -20).SetScale(50, 50, 5)
-	ground.NewModel("shadow", "msh:box", "mat:gray", "tex:tile").Set(vu.HasShadows())
+	ground.NewModel("shadow", "msh:box", "mat:gray", "tex:tile").Set(vu.HasShadows)
 }
 
 // Update is the regular engine callback.

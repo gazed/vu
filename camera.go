@@ -3,19 +3,24 @@
 
 package vu
 
-// Design notes:
-// See the following for a first person camera example using quaternions:
+// camera.go encapsulates view and projection matricies needed for rendering.
+// DESIGN:
+//   See the following for a first person camera example using quaternions:
 //   http://content.gpwiki.org/index.php/OpenGL:Tutorials:Using_Quaternions_to_represent_rotation
-// One way to implement cameras:
+//   One way to implement cameras:
 //   http://udn.epicgames.com/Three/CameraTechnicalGuide.html
-//
 // For mousepicking See:
-//     http://bookofhook.com/mousepick.pdf
-//     http://antongerdelan.net/opengl/raycasting.html
-//     http://schabby.de/picking-opengl-ray-tracing/
-//     (opengl FAQ Picking 20.0.010)
-//     http://www.opengl.org/archives/resources/faq/technical/selection.htm
-//     http://www.codeproject.com/Articles/625787/Pick-Selection-with-OpenGL-and-OpenCL
+//   http://bookofhook.com/mousepick.pdf
+//   http://antongerdelan.net/opengl/raycasting.html
+//   http://schabby.de/picking-opengl-ray-tracing/
+//   (opengl FAQ Picking 20.0.010)
+//   http://www.opengl.org/archives/resources/faq/technical/selection.htm
+//   http://www.codeproject.com/Articles/625787/Pick-Selection-with-OpenGL-and-OpenCL
+// FUTURE: attach a Camera to a top level Pov and control its location, orientation
+//   through a separate camera controller? Will this make the API easier and
+//   reduce engine code complexity by removing a separate camera transform?
+//   Assign models to a camera until the next camera is found in
+//   the pov hierarchy traversal.
 
 import (
 	"github.com/gazed/vu/math/lin"
@@ -28,9 +33,10 @@ import (
 // the Pov allowing a camera to be positioned independently from the models.
 //
 // Camera combines a location+orientation using separate up/down angle
-// tracking. This allows use as a FPS camera which can limit up/down to a
-// given range, often 180deg. Overal orientation is calculated by combining
-// Pitch and Yaw. Look is for walking cameras, Lookat is for flying cameras.
+// tracking. This allows use as a first-person camera which can limit
+// up/down to a given range, often 180deg. Overall orientation is calculated
+// by combining Pitch and Yaw. Look is for walking cameras, Lookat is for
+// flying cameras.
 type Camera struct {
 	Pitch   float64 // X-axis rotation in degrees.
 	Yaw     float64 // Y-axis rotation in degrees.
@@ -151,9 +157,6 @@ func (c *Camera) Distance(px, py, pz float64) float64 {
 	return float64(dx*dx + dy*dy + dz*dz)
 }
 
-// SetLast is used to set the draw order of UI cameras. Higher is later.
-func (c *Camera) SetLast(index int) { c.Overlay = render.Overlay + index }
-
 // SetUI configures the camera to be 2D: no depth, drawn last.
 func (c *Camera) SetUI() *Camera {
 	c.Overlay = render.Overlay // Draw last.
@@ -235,18 +238,18 @@ func (c *Camera) Screen(wx, wy, wz float64, ww, wh int) (sx, sy int) {
 // rotating the camera by x:degrees really means rotating the world by -x.
 type ViewTransform func(*lin.T, *lin.Q, *lin.M4) *lin.M4
 
-// VP perspective projection transform.
+// VP perspective projection transform used for Camera.Vt.
 func VP(at *lin.T, scr *lin.Q, vm *lin.M4) *lin.M4 {
 	vm.SetQ(at.Rot)
 	return vm.TranslateTM(-at.Loc.X, -at.Loc.Y, -at.Loc.Z)
 }
 
-// VO orthographic projection transform.
+// VO orthographic projection transform used for Camera.Vt.
 func VO(pov *lin.T, scr *lin.Q, vm *lin.M4) *lin.M4 {
 	return vm.Set(lin.M4I).ScaleMS(1, 1, 0)
 }
 
-// XzXy perspective to ortho view transform.
+// XzXy perspective to ortho view transform used for Camera.Vt.
 // Can help transform a 3D map to a 2D overlay.
 func XzXy(at *lin.T, scr *lin.Q, vm *lin.M4) *lin.M4 {
 	rot := scr.SetAa(1, 0, 0, -lin.Rad(90))
@@ -261,3 +264,40 @@ func ivp(at *lin.T, xrot, scr *lin.Q, vm *lin.M4) *lin.M4 {
 	vm.SetQ(rot)
 	return vm.TranslateMT(at.Loc.X, at.Loc.Y, at.Loc.Z)
 }
+
+// =============================================================================
+
+// cams manages all the active Camera instances.
+// There's not many cameras so not much to optimize.
+type cams struct {
+	data map[eid]*Camera // Camera instance data.
+}
+
+// newCams creates the camera component manager and is expected to
+// be called once on startup.
+func newCams() *cams { return &cams{data: map[eid]*Camera{}} }
+
+// get returns the Camera associated with the given entity or nil
+// if there is no camera.
+func (cs *cams) get(id eid) *Camera {
+	if cam, ok := cs.data[id]; ok {
+		return cam
+	}
+	return nil
+}
+
+// create makes a new camera and associates it with the given entity.
+// If there already is a camera for the given entity, nothing is created
+// and the existing camera is returned.
+func (cs *cams) create(id eid) *Camera {
+	if c, ok := cs.data[id]; ok {
+		return c // Don't allow creating over existing camera.
+	}
+	c := newCamera()
+	cs.data[id] = c
+	return c
+}
+
+// dispose removes the camera associated with the given entity.
+// Nothing happens if there is no camera.
+func (cs *cams) dispose(id eid) { delete(cs.data, id) }

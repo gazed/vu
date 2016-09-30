@@ -3,8 +3,6 @@
 
 package main
 
-// Controls: NA
-
 import (
 	"fmt"
 	"math"
@@ -24,8 +22,9 @@ import (
 //   • initScene()  makes the data available to the graphics card.
 //   • initShader() uses render.BindProgram to load and prepare the shader programs.
 //   • drawScene()  is called to render and spin the triangle.
-//
 // Note that the OpenGL go bindings in vu.render/gl have been generated.
+//
+// CONTROLS: NA
 func tr() {
 	tag := &trtag{}
 	dev := device.New("Triangle", 400, 100, 600, 600)

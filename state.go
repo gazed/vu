@@ -3,8 +3,11 @@
 
 package vu
 
+// state.go exposes the engine state needed by applications.
+
 // State is used to communicate current engine wide variable settings.
 // It is refreshed each update and provided to the application.
+// Changing state is done through Eng methods, often Eng.Set().
 type State struct {
 	X, Y, W, H int     // Window lower left corner and size in pixels.
 	R, G, B, A float32 // Background clear color.

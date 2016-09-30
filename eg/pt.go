@@ -3,16 +3,6 @@
 
 package main
 
-// Controls:
-//   Esc   : reset to default values
-//   1-4   : precanned textures
-//   DaUa  : select parameter       : up down
-//   LaRa  : change value           : decrease increase
-//   -=    : change value           : decrease increase
-//   Sh    : change value by x10    : works with LaRa
-//   Alt   : change value by x100   : works with LaRa
-//   CD    : colors                 : enable disable
-
 import (
 	"fmt"
 	"image"
@@ -28,6 +18,16 @@ import (
 // pt is an EXPERIMENTAL example for exploring generated textures.
 // A good explanation of procedurally generated textures can be found at:
 //    http://www.upvector.com/?section=Tutorials&subsection=Intro%20to%20Procedural%20Textures
+//
+// CONTROLS:
+//   Esc   : reset to default values
+//   1-4   : precanned textures
+//   DaUa  : select parameter       : up down
+//   LaRa  : change value           : decrease increase
+//   -=    : change value           : decrease increase
+//   Sh    : change value by x10    : works with LaRa
+//   Alt   : change value by x100   : works with LaRa
+//   CD    : colors                 : enable disable
 func pt() {
 	pt := &pttag{}
 	if err := vu.New(pt, "Procedural Textures", 400, 100, 800, 600); err != nil {
@@ -88,7 +88,7 @@ func (pt *pttag) Create(eng vu.Eng, s *vu.State) {
 	pt.rowbg = scene2.NewPov().SetAt(130, 110, 0).SetScale(55, 20, 0)
 	pt.rowbg.NewModel("alpha", "msh:icon", "mat:transparent_blue")
 
-	// billboard to display generated texture.
+	// uv mapped icon to display generated texture.
 	scale := 256.0
 	tex := eng.Root().NewPov().SetAt(600, 200, 0).SetScale(scale, scale, 0)
 	tex.NewModel("uv", "msh:icon").Make("tex:gen0")
@@ -360,7 +360,7 @@ func (pt *pttag) fillVoronoi(data [][]float64) {
 	}
 }
 
-// genTex generates the texture and sets it on the billboard model.
+// genTex generates the texture and sets it on the icon model.
 func (pt *pttag) genTex(fns []func(x, y float64) float64) {
 	pt.fillCombo(pt.data, fns)
 	if len(pt.colors) > 0 {

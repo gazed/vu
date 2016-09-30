@@ -81,6 +81,7 @@ func (gc *opengl) Enable(attribute uint32, enabled bool) {
 //           • group by vao to avoid switching vao's.
 //           • group by texture to avoid switching textures.
 //           • use interleaved vertex data.
+//           • only rebind uniforms when they have changed.
 //           • uniform buffers http://www.opengl.org/wiki/Uniform_Buffer_Object.
 //           • ... lots more possibilities... leave your fav here.
 func (gc *opengl) Render(d *Draw) {
@@ -102,7 +103,7 @@ func (gc *opengl) Render(d *Draw) {
 			gl.Viewport(0, 0, gc.vw, gc.vh)
 		} else {
 			gl.Clear(gl.DEPTH_BUFFER_BIT)
-			gl.Viewport(0, 0, 1024, 1024) // size convention for framebuffer texture.
+			gl.Viewport(0, 0, LayerSize, LayerSize) // framebuffer texture.
 		}
 		gc.fbo = d.Fbo
 	}
@@ -129,21 +130,7 @@ func (gc *opengl) Render(d *Draw) {
 		gl.DrawArrays(gl.POINTS, 0, d.VertCnt)
 		gl.Disable(gl.PROGRAM_POINT_SIZE)
 	case Triangles:
-		if len(d.Texs) > 1 && d.Texs[0].fn > 0 {
-			// Multiple textures on one model specify which verticies they apply to.
-			for _, tex := range d.Texs {
-				// Use the same texture unit and sampler. Just update which
-				// image is being sampled.
-				gl.BindTexture(gl.TEXTURE_2D, tex.tid)
-				// fn is the number of triangles, 3 indicies per triangle.
-				// f0 is the offset in triangles where each triangle has 3 indicies
-				//    of 2 bytes (uShort) each.
-				gl.DrawElements(gl.TRIANGLES, tex.fn*3, gl.UNSIGNED_SHORT, int64(3*2*tex.f0))
-			}
-		} else {
-			// Single textures are handled with a standard bindUniforms
-			gl.DrawElements(gl.TRIANGLES, d.FaceCnt, gl.UNSIGNED_SHORT, 0)
-		}
+		gl.DrawElements(gl.TRIANGLES, d.FaceCnt, gl.UNSIGNED_SHORT, 0)
 	}
 }
 
@@ -355,7 +342,7 @@ func (gc *opengl) BindShader(vsh, fsh []string, uniforms map[string]int32,
 
 // Renderer implementation.
 // BindTexture makes the texture available on the GPU.
-func (gc *opengl) BindTexture(tid *uint32, img image.Image, repeat bool) (err error) {
+func (gc *opengl) BindTexture(tid *uint32, img image.Image) (err error) {
 	if glerr := gl.GetError(); glerr != gl.NO_ERROR {
 		log.Printf("opengl:bindTexture need to find and fix prior error %X", glerr)
 	}
@@ -382,24 +369,24 @@ func (gc *opengl) BindTexture(tid *uint32, img image.Image, repeat bool) (err er
 	}
 	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, ptr)
 	gl.GenerateMipmap(gl.TEXTURE_2D)
-	gc.setTextureMode(*tid, repeat)
+	gc.SetTextureMode(*tid, false) // no repeat by default.
 	if glerr := gl.GetError(); glerr != gl.NO_ERROR {
 		err = fmt.Errorf("Failed binding texture %d\n", glerr)
 	}
 	return err
 }
 
-// setTextureMode is used to switch to a repeating
-// texture instead of a 1:1 texture mapping.
-func (gc *opengl) setTextureMode(tid uint32, repeat bool) {
+// SetTextureMode is used to switch to a clamped
+// texture instead of a repeating texture.
+func (gc *opengl) SetTextureMode(tid uint32, clamp bool) {
 	gl.BindTexture(gl.TEXTURE_2D, tid)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAX_LEVEL, 7)
-	if repeat {
-		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT)
-		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT)
-	} else {
+	if clamp {
 		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
 		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+	} else {
+		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT)
+		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT)
 	}
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST_MIPMAP_LINEAR)
@@ -409,7 +396,7 @@ func (gc *opengl) setTextureMode(tid uint32, repeat bool) {
 //    http://www.opengl-tutorial.org/intermediate-tutorials/tutorial-14-render-to-texture/
 //    http://www.opengl-tutorial.org/intermediate-tutorials/tutorial-16-shadow-mapping/
 func (gc *opengl) BindFrame(buf int, fbo, tid, db *uint32) (err error) {
-	size := int32(1024)
+	size := int32(LayerSize)
 	gl.GenFramebuffers(1, fbo)
 	gl.BindFramebuffer(gl.FRAMEBUFFER, *fbo)
 

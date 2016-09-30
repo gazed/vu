@@ -3,6 +3,7 @@
 
 package vu
 
+// timing.go
 // FUTURE : lots can be done here, but it needs to be balanced against engine
 //          code clutter. Variations in timing are expected to be mostly
 //          influenced by device capability, ie: mobile devices are less capable
@@ -44,4 +45,16 @@ func (t *Timing) Dump() {
 	e := t.Elapsed.Seconds() * milliseconds
 	u := t.Update.Seconds() * milliseconds
 	fmt.Printf("E:%2.4f U:%2.4f #:%d\n", e, u, t.Renders)
+}
+
+// Modelled returns the total number of models and the total
+// number of verticies for all models.
+func (t *Timing) Modelled(eng Eng) (models, verts int) {
+	return eng.(*engine).models.counts()
+}
+
+// Rendered returns the number of models and the number
+// of verticies rendered in the last rendering pass.
+func (t *Timing) Rendered(eng Eng) (models, verts int) {
+	return eng.(*engine).frames.drawCalls, eng.(*engine).frames.verticies
 }

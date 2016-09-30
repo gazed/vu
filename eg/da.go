@@ -3,12 +3,6 @@
 
 package main
 
-// Controls:
-//   WS    : move camera            : forward back
-//   AD    : spin camera            : left right
-//   B     : drop more spheres
-//   Sp    : add velocity to cue ball
-
 import (
 	"github.com/gazed/vu/audio/al"
 )
@@ -16,6 +10,12 @@ import (
 // Dump the openal binding information. This is a basic audio package test that
 // checks if the underlying OpenAL functions are available. Columns of function
 // names marked [+]:available or [ ]:missing will be written the the console.
+//
+// CONTROLS:
+//   WS    : move camera            : forward back
+//   AD    : spin camera            : left right
+//   B     : drop more spheres
+//   Sp    : add velocity to cue ball
 func da() {
 	al.Dump()
 }

@@ -3,18 +3,6 @@
 
 package main
 
-// Controls:
-//   Esc   : reset to default values
-//   Tab   : toggle 2D 3D shapes
-//   DaUa  : select parameter       : up down
-//   LaRa  : change value           : decrease increase
-//   -=    : change value           : decrease increase
-//   Sh    : change value by x10    : works with LaRa
-//   Alt   : change value by x100   : works with LaRa
-//   WS    : move model             : forward back
-//   AD    : rotate model           : left right
-//   1-9,0 : precanned shapes
-
 import (
 	"fmt"
 	"log"
@@ -29,6 +17,18 @@ import (
 // Lots of information and implementations on the web:
 //    https://en.wikipedia.org/wiki/Superformula
 //    http://paulbourke.net/geometry/supershape/
+//
+// CONTROLS:
+//   Esc   : reset to default values
+//   Tab   : toggle 2D 3D shapes
+//   DaUa  : select parameter       : up down
+//   LaRa  : change value           : decrease increase
+//   -=    : change value           : decrease increase
+//   Sh    : change value by x10    : works with LaRa
+//   Alt   : change value by x100   : works with LaRa
+//   WS    : move model             : forward back
+//   AD    : rotate model           : left right
+//   1-9,0 : precanned shapes
 func ss() {
 	ss := &superShape{}
 	if err := vu.New(ss, "Super Shapes", 400, 100, 800, 600); err != nil {

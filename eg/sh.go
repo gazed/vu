@@ -3,10 +3,6 @@
 
 package main
 
-// Controls:
-//   key   : print out key press info
-//   mouse : print out mouse click info
-
 import (
 	"fmt"
 	"time"
@@ -18,9 +14,11 @@ import (
 // sh is used to test and showcase the vu/device package. Just getting a window
 // to appear demonstrates that the majority of the functionality is working.
 // The remainder of the example dumps keyboard and mouse events showing that
-// user input is being processed.
+// user input is being processed. See vu/device package for more information.
 //
-// See vu/device package for more information.
+// CONTROLS:
+//   key   : print out key press info
+//   mouse : print out mouse click info
 func sh() {
 	sh := &shtag{}
 	dev := device.New("Shell", 400, 100, 800, 600)

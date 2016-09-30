@@ -36,7 +36,7 @@ type Draw struct {
 
 	// Rendering hints.
 	Bucket  int     // Used to sort draws. Lower buckets rendered first.
-	Tocam   float64 // Distance to Camera.
+	Tocam   float64 // Distance to Camera for sorting by distance.
 	Depth   bool    // True to render with depth.
 	Fbo     uint32  // Framebuffer id. 0 for default.
 	FaceCnt int32   // Number of triangles to be rendered.

@@ -3,6 +3,10 @@
 
 package vu
 
+// culler.go encapsulates engine support for culling models prior to render.
+// FUTURE: lots of potential culling depends on transform hierarchy work,
+//         ie: quad-tree's or other spacial organization schemes.
+
 import (
 	"github.com/gazed/vu/math/lin"
 )
@@ -48,8 +52,8 @@ func (fc *frontCull) Culled(cam *Camera, px, py, pz float64) bool {
 // =============================================================================
 
 // NewRadiusCull returns a culler that removes objects outside a given
-// radius from the camera. Can be used for show objects around a camera
-// for top down minimaps.
+// radius from the camera. Can be used to show objects around a camera
+// like top down minimaps.
 func NewRadiusCull(r float64) Culler {
 	if r < 0 {
 		r = 0

@@ -3,9 +3,6 @@
 
 package main
 
-// Controls:
-//   Sp    : pause while pressed
-
 import (
 	"log"
 	"math"
@@ -19,8 +16,10 @@ import (
 // ff demonstrates flow field path finding by having a bunch of chasers and
 // a goal. The goal is randomly reset once all the chasers have reached it.
 // Restarting the example will create a different random grid.
-//
 // See vu/grid/flow.go for more information on flow fields.
+//
+// CONTROLS:
+//   Sp    : pause while pressed
 func ff() {
 	ff := &fftag{}
 	if err := vu.New(ff, "Flow Field", 400, 100, 750, 750); err != nil {

@@ -18,9 +18,9 @@
 //    • WinAPI for Windows windowing and input. See package vu/device.
 package vu
 
-// Overview: this file contains the main thread "machine" which is
-// controlled by the "engine" state updater. Machine communicates with
-// the hardware devices while engine communicates with the application.
+// vu.go contains the main thread, machine, which is controlled by the engine
+// state updater. The vu machine communicates with the hardware devices while
+// the engine communicates with the application:
 //    User -> devices <-> machine <-> engine <-> application -> User
 //
 // Concurrency design is based on "Share memory by communicating"
@@ -80,8 +80,8 @@ func New(app App, name string, wx, wy, ww, wh int) (err error) {
 	// Run the device facing loop for rendering and user input polling.
 	m.reqs = make(chan msg)
 	m.stop = make(chan bool)
-	m.uf = make(chan frame)
-	go runEngine(app, wx, wy, ww, wh, m.reqs, m.uf, m.stop)
+	m.draw = make(chan frame)
+	go runEngine(app, wx, wy, ww, wh, m.reqs, m.draw, m.stop)
 	m.run()            // underlying device polling and rendering.
 	defer m.shutdown() // ensure shutdown happens no matter what.
 	return nil         // report successful termination.
@@ -112,7 +112,7 @@ const (
 	PovModel        // Rendered model attached to a Pov.
 	PovBody         // Physics body attached to a Pov.
 	PovCam          // Camera attached to a Pov.
-	PovNoise        // Sound attached to a Pov.
+	PovSound        // Sound attached to a Pov.
 	PovLight        // Light attached to a Pov.
 	PovLayer        // Render pass layer attached to a Pov.
 )
@@ -132,7 +132,7 @@ type machine struct {
 	input  *device.Pressed // Latest user keyboard and mouse input.
 	frame1 frame           // Previous render frame.
 	frame0 frame           // Most recent render frame.
-	uf     chan frame      // pass back frame for updating.
+	draw   chan frame      // return frame for updating.
 	reqs   chan msg        // Requests from the application loop.
 	stop   chan bool       // Used to shutdown the engine.
 
@@ -168,6 +168,8 @@ func (m *machine) run() {
 				m.gc.Color(t.r, t.g, t.b, t.a)
 			case *enableAttr:
 				m.gc.Enable(t.attr, t.enable)
+			case *clampTex:
+				m.gc.SetTextureMode(t.tid, true)
 			case *toggleScreen:
 				m.dev.ToggleFullScreen()
 			case *setVolume:
@@ -210,10 +212,10 @@ func (m *machine) render(r *renderFrame) {
 
 	// update the previous and current render frames with a new frame.
 	if r.fr != nil && len(r.fr) > 0 {
-		updateFrame := m.frame1 // return this frame to be updated.
-		m.frame1 = m.frame0     // previous frame.
-		m.frame0 = r.fr         // new frame.
-		m.uf <- updateFrame     // return frame for updating.
+		drawFrame := m.frame1 // return this frame to be updated.
+		m.frame1 = m.frame0   // previous frame.
+		m.frame0 = r.fr       // new frame.
+		m.draw <- drawFrame   // return frame for updating.
 	}
 
 	// FUTURE: use interpolation between current and previous frames
@@ -261,10 +263,35 @@ func (m *machine) setCounts(d *render.Draw) {
 func (m *machine) bind(bd *bindData) {
 	switch d := bd.data.(type) {
 	case *mesh:
+		bd.reply <- m.bindOne(d)
+	case *shader:
+		bd.reply <- m.bindOne(d)
+	case *texture:
+		bd.reply <- m.bindOne(d)
+	case *sound:
+		bd.reply <- m.bindOne(d)
+	case *layer:
+		bd.reply <- m.bindOne(d)
+	case []asset:
+		var err error
+		for _, a := range d {
+			if err = m.bindOne(a); err != nil {
+				break
+			}
+		}
+		bd.reply <- err
+	default:
+		bd.reply <- fmt.Errorf("No bindings for %T", d)
+	}
+}
+
+// bindOne handles a single bind request. Expected to be called
+// from bind().
+func (m *machine) bindOne(a asset) error {
+	switch d := a.(type) {
+	case *mesh:
 		err := m.gc.BindMesh(&d.vao, d.vdata, d.faces)
-		if err != nil {
-			bd.reply <- fmt.Errorf("Failed mesh bind %s: %s", d.name, err)
-		} else {
+		if err == nil {
 			cnts, ok := m.counts[d.vao]
 			if !ok {
 				cnts = &meshCount{}
@@ -276,40 +303,20 @@ func (m *machine) bind(bd *bindData) {
 			if d.vdata != nil && len(d.vdata) > 0 {
 				cnts.verticies = d.vdata[0].Len()
 			}
-			bd.reply <- nil
 		}
+		return err
 	case *shader:
 		var err error
 		d.program, err = m.gc.BindShader(d.vsh, d.fsh, d.uniforms, d.layouts)
-		if err != nil {
-			bd.reply <- fmt.Errorf("Failed shader bind %s: %s", d.name, err)
-		} else {
-			bd.reply <- nil
-		}
+		return err
 	case *texture:
-		err := m.gc.BindTexture(&d.tid, d.img, d.repeat)
-		if err != nil {
-			bd.reply <- fmt.Errorf("Failed texture bind %s: %s", d.name, err)
-		} else {
-			bd.reply <- nil
-		}
+		return m.gc.BindTexture(&d.tid, d.img)
 	case *sound:
-		err := m.ac.BindSound(&d.sid, &d.did, d.data)
-		if err != nil {
-			bd.reply <- fmt.Errorf("Failed sound bind %s: %s", d.name, err)
-		} else {
-			bd.reply <- nil
-		}
+		return m.ac.BindSound(&d.sid, &d.did, d.data)
 	case *layer:
-		err := m.gc.BindFrame(d.attr, &d.bid, &d.tex.tid, &d.db)
-		if err != nil {
-			bd.reply <- fmt.Errorf("Failed bind framebuffer %s", err)
-		} else {
-			bd.reply <- nil
-		}
-	default:
-		bd.reply <- fmt.Errorf("No bindings for %T", d)
+		return m.gc.BindFrame(d.attr, &d.bid, &d.tex.tid, &d.db)
 	}
+	return fmt.Errorf("machine:bindOne. unhandled bind request")
 }
 
 // release figures out what data to release based on the releaseData type.
@@ -368,9 +375,6 @@ func (m *machine) vet(name string, x0, y0, width, height int) (n string, x, y, w
 // The struct type is the message and the struct fields carry the data.
 type msg interface{}
 
-// frame is a bunch of draw data.
-type frame []*render.Draw
-
 // appData contains both user input and engine state passed to the
 // application. A single copy, owned by the engine, is created on startup.
 type appData struct {
@@ -394,8 +398,8 @@ type shutdown struct{}
 
 // bindData is a request to send data to the graphics or sound card.
 type bindData struct {
-	data  interface{} // msh, shd, tex, snd
-	reply chan error
+	data  interface{} // 1 or more assets to be bound.
+	reply chan error  // reply with any bind errors on this channel.
 }
 
 // renderFrame requests a render. New render data is supplied after
@@ -430,6 +434,7 @@ type setVolume struct{ gain float64 }
 type setCursor struct{ cx, cy int }
 type showCursor struct{ enable bool }
 type toggleScreen struct{}
+type clampTex struct{ tid uint32 }
 
 // releaseData is used to request the removal a resources associated
 // with one of the following:

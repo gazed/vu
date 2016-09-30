@@ -3,11 +3,6 @@
 
 package main
 
-// Controls: none
-//   WS    : spin frame             : left right
-//   AD    : spin model             : left right
-//   T     : shut down
-
 import (
 	"log"
 
@@ -20,9 +15,13 @@ import (
 //   http://processors.wiki.ti.com/index.php/Render_to_Texture_with_OpenGL_ES
 //   http://in2gpu.com/2014/09/24/render-to-texture-in-opengl/
 //   http://www.lighthouse3d.com/tutorials/opengl_framebuffer_objects/
-//
 // This is another example of multi-pass rendering and can be used for
 // generating live in-game portals.
+//
+// CONTROLS: none
+//   ws    : spin frame             : left right
+//   AD    : spin model             : left right
+//   T     : shut down
 func tt() {
 	tt := &toTex{}
 	if err := vu.New(tt, "Render to Texture", 400, 100, 800, 600); err != nil {
@@ -52,8 +51,8 @@ func (tt *toTex) Create(eng vu.Eng, s *vu.State) {
 	tt.monkey.NewModel("monkey", "msh:monkey", "mat:gray")
 
 	// create a scene consisting of a single quad. The quad will display
-	// the rendered texture from scene0. The texture image is flipped from
-	// normal so reorient it using flipped texture coordinates in flipboard.
+	// the rendered texture from scene0. The texture image is flipped
+	// so reorient it using flipped texture coordinates in flipboard.
 	scene1 := eng.Root().NewPov()
 	tt.cam1 = scene1.NewCam()
 	tt.frame = scene1.NewPov().SetAt(0, 0, -0.5).SetScale(0.25, 0.25, 0.25)

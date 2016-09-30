@@ -3,6 +3,8 @@
 
 package vu
 
+// animation.go encapsulates the manipulation of animated model data.
+
 import (
 	"math"
 
@@ -32,13 +34,12 @@ type Animator interface {
 // animation data into a specific pose that is sent to the graphics card.
 type animation struct {
 	name     string     // unique animation name.
-	tag      uint64     // name and type as a number.
+	tag      aid        // name and type as a number.
 	jointCnt int        // number of joints.
 	frames   []lin.M4   // nFrames*nPoses transform bone positions.
 	joints   []int32    // joint parent indicies.
 	moves    []movement // frames where animations start and end.
 	mnames   []string   // movement names for easy reference.
-	loaded   bool       // True if data has been set.
 
 	// Per-frame scratch value for playing animations.
 	jnt0 *lin.M4 // Reused each update to calculate joint (bone) positions.
@@ -48,16 +49,14 @@ type animation struct {
 // newAnimation allocates space for animation data and the data structures
 // needed to create intermediate poses on the fly.
 func newAnimation(name string) *animation {
-	a := &animation{name: name, tag: anm + stringHash(name)<<32}
+	a := &animation{name: name, tag: assetID(anm, name)}
 	a.jnt0, a.jnt1 = &lin.M4{}, &lin.M4{}
 	return a
 }
 
-// label, aid, and bid are used to uniquely identify assets.
-// Note: aid is the same as bid for CPU local assets like animation.
+// aid is used to uniquely identify assets.
+func (a *animation) aid() aid      { return a.tag }  // hashed type and name.
 func (a *animation) label() string { return a.name } // asset name
-func (a *animation) aid() uint64   { return a.tag }  // asset type and name.
-func (a *animation) bid() uint64   { return a.tag }  // does not need binding.
 
 // setData initializes the animation data that has been processed
 // into a series of frames. SetData is expected to be called once
@@ -78,7 +77,6 @@ func (a *animation) setData(frames []*lin.M4, joints []int32, movements []moveme
 	}
 	a.joints = a.joints[:0]
 	a.joints = append(a.joints, joints...)
-	a.loaded = true
 }
 
 // setRate changes the number of frames per second for the given

@@ -3,10 +3,6 @@
 
 package main
 
-// Controls:
-//   key   : highlight key press
-//   mouse : highlight mouse click
-
 import (
 	"log"
 
@@ -18,8 +14,12 @@ import (
 //
 // Treating the keyboard like a complicated console controller
 // basically means ignoring its ability to input text. Overall
-// a simplification over regular keyboards, but having lot more
+// a simplification over regular keyboards, but having alot more
 // potential controls than a console controller.
+//
+// CONTROLS:
+//   key   : highlight key press
+//   mouse : highlight mouse click
 func kc() {
 	kc := &kctag{}
 	if err := vu.New(kc, "Keyboard Controller", 200, 200, 900, 400); err != nil {

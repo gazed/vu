@@ -3,11 +3,6 @@
 
 package main
 
-// Controls:
-//   WASD  : move the light position: forward left back right
-//   ZX    : move light position    : up down
-//   LaRa  : spin the cube          : left right.
-
 import (
 	"log"
 	"math/rand"
@@ -19,8 +14,12 @@ import (
 // cr, collision resolution, demonstrates simulated physics by having balls bounce
 // on a floor. The neat thing is that after the initial locations have been set
 // the physics simulation handles all subsequent position updates.
-//
 // Set useBalls to false and "go build" to have the demo use cubes.
+//
+// CONTROLS:
+//   WASD  : move the light position: forward left back right
+//   ZX    : move light position    : up down
+//   LaRa  : spin the cube          : left right.
 func cr() {
 	cr := &crtag{}
 	if err := vu.New(cr, "Collision Resolution", 400, 100, 800, 600); err != nil {

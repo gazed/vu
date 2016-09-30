@@ -3,8 +3,6 @@
 
 package main
 
-// Controls: NA
-
 import (
 	"fmt"
 
@@ -17,6 +15,8 @@ import (
 // package test that checks if the underlying OpenGL functions are available.
 // Columns of function names marked [+]:available or [ ]:missing will
 // be written the the console.
+//
+// CONTROLS: NA
 func dg() {
 	app := device.New("Dump", 400, 100, 600, 600)
 	gl.Dump() // gets graphic context to properly bind.

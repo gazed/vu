@@ -3,9 +3,6 @@
 
 package main
 
-// Controls:
-//   Lm    : show mouse hit
-
 import (
 	"fmt"
 	"log"
@@ -20,6 +17,9 @@ import (
 // The key idea with is that mouse screen positioning can be interpreted as
 // interacting with elements of a 3D scene. See vu/camera.go which holds
 // the inverse matricies needed to transform screen space to world space.
+//
+// CONTROLS:
+//   Lm    : show mouse hit
 func rc() {
 	rc := &rctag{}
 	if err := vu.New(rc, "Ray Cast", 400, 100, 800, 600); err != nil {
@@ -51,12 +51,12 @@ func (rc *rctag) Create(eng vu.Eng, s *vu.State) {
 	rc.gsize = 32            // 4x8 ie. image is 4x4 grid, tile.obj is oversampled by 8.
 
 	// The ray cast target is a plane displaying the image of a 32x32 grid.
-	rc.fsize = 10.0                                      // 2x2 plane to 20x20 plane.
-	rc.floor = top.NewPov()                              // create the floor.
-	rc.floor.NewBody(vu.NewPlane(0, 0, -1))              // the floors ray intersect shape.
-	rc.floor.SetScale(rc.fsize, rc.fsize, 0)             // scale the model to fsize.
-	m := rc.floor.NewModel("uv", "msh:tile", "tex:tile") // put the image on the floor.
-	m.Tex(0).SetRepeat(true)
+	rc.fsize = 10.0                                 // 2x2 plane to 20x20 plane.
+	rc.floor = top.NewPov()                         // create the floor.
+	rc.floor.NewBody(vu.NewPlane(0, 0, -1))         // the floors ray intersect shape.
+	rc.floor.SetScale(rc.fsize, rc.fsize, 0)        // scale the model to fsize.
+	rc.floor.NewModel("uv", "msh:tile", "tex:tile") // put the image on the floor.
+	// TODO remove m.RepeatTex("tile")
 
 	// create a selected tile tracker.
 	rc.hilite = top.NewPov().SetScale(0.625, 0.625, 0.001) // scale to cover a single tile.
@@ -150,7 +150,7 @@ func (rc *rctag) raycast(mx, my int) {
 			rc.banner.Cull = true
 		}
 	} else {
-		println("missed plane")
+		log.Printf("Missed plane.")
 		rc.hilite.Cull = true // missed the plane entirely.
 		rc.banner.Cull = true
 	}

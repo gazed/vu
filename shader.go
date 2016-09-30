@@ -3,6 +3,7 @@
 
 package vu
 
+// shader.go
 // FUTURE: enhance design to incorporate/handle HLSL and Vulkan shaders.
 
 import (
@@ -15,12 +16,10 @@ import (
 // to the generic Shader interface.
 type shader struct {
 	name    string   // Unique shader identifier.
-	tag     uint64   // name and type as a number.
+	tag     aid      // name and type as a number.
 	vsh     []string // Vertex shader source, empty if data not loaded.
 	fsh     []string // Fragment shader source, empty if data not loaded.
 	program uint32   // Compiled program reference. Zero if not compiled.
-	bound   bool     // False if the data needs rebinding.
-	loaded  bool     // True if data has been set.
 
 	// Vertex layout data and uniform expectations are discovered from the
 	// shader source. This can be verified later against available data.
@@ -31,16 +30,15 @@ type shader struct {
 // newShader creates a new shader.
 // It needs to be loaded with shader source code and bound to the GPU.
 func newShader(name string) *shader {
-	sh := &shader{name: name, tag: shd + stringHash(name)<<32}
+	sh := &shader{name: name, tag: assetID(shd, name)}
 	sh.layouts = map[string]uint32{}
 	sh.uniforms = map[string]int32{}
 	return sh
 }
 
-// label, aid, and bid are used to uniquely identify assets.
-func (s *shader) label() string { return s.name }                      // asset name
-func (s *shader) aid() uint64   { return s.tag }                       // asset type and name.
-func (s *shader) bid() uint64   { return shd + uint64(s.program)<<32 } // asset type and bind ref.
+// aid is used to uniquely identify assets.
+func (s *shader) aid() aid      { return s.tag }  // hashed type and name.
+func (s *shader) label() string { return s.name } // asset name
 
 // Shader source is scanned for uniforms and vertex buffer information.
 // The uniform references are set on binding and later used by Model
@@ -48,7 +46,6 @@ func (s *shader) bid() uint64   { return shd + uint64(s.program)<<32 } // asset 
 func (s *shader) setSource(vsh, fsh []string) {
 	s.vsh, s.fsh = vsh, fsh
 	s.ensureNewLines()
-	s.loaded = len(s.vsh) > 0 && len(s.fsh) > 0
 }
 
 // stripID is a helper method used by SetSource to parse GLSL
@@ -76,7 +73,6 @@ func (s *shader) ensureNewLines() {
 // shader
 // =============================================================================
 // shaderLibrary - glsl
-
 // DESIGN: Keep the shaders relatively small until there are more/better
 //         debugging tools and ways of handling shader code. Would like
 //         something better (more concise, more robust) than this current

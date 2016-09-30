@@ -3,6 +3,8 @@
 
 package vu
 
+// mesh.go maps mesh data to the GPU and keeps the GPU reference.
+
 import (
 	"github.com/gazed/vu/render"
 )
@@ -12,7 +14,7 @@ import (
 // layer. The data consists of one or more sets of per-vertex data points and
 // how the vertex positions are organized into shapes like triangles or lines.
 //
-// Meshes are generally loaded from assets, but can also be created/generated.
+// Meshes are generally loaded from assets, but can also be generated.
 // Mesh data is closely tied to a given shader. When generating and refreshing
 // vertex data note that InitData must be called once and SetData is called as
 // needed to refresh. Data parameters are:
@@ -43,11 +45,9 @@ type Mesh interface {
 // often created by the asset pipeline from disk based files that were in turn
 // created by tools like Blender.
 type mesh struct {
-	name   string // Unique mesh name.
-	tag    uint64 // name and type as a number.
-	vao    uint32 // GPU reference for the mesh and all buffers.
-	bound  bool   // False if the data needs rebinding.
-	loaded bool   // True if data has been set.
+	name string // Unique mesh name.
+	tag  aid    // name and type as a number.
+	vao  uint32 // GPU reference for the mesh and all buffers.
 
 	// Per-vertex and vertex index data.
 	faces render.Data            // Triangle face indicies.
@@ -57,15 +57,14 @@ type mesh struct {
 // newMesh allocates space for a mesh structure,
 // including space to store buffer data.
 func newMesh(name string) *mesh {
-	m := &mesh{name: name, tag: msh + stringHash(name)<<32}
+	m := &mesh{name: name, tag: assetID(msh, name)}
 	m.vdata = map[uint32]render.Data{}
 	return m
 }
 
-// label, aid, and bid are used to uniquely identify assets.
-func (m *mesh) label() string { return m.name }                  // asset name
-func (m *mesh) aid() uint64   { return m.tag }                   // asset type and name.
-func (m *mesh) bid() uint64   { return msh + uint64(m.vao)<<32 } // asset type and bind ref.
+// aid is used to uniquely identify assets.
+func (m *mesh) aid() aid      { return m.tag }  // hashed type and name.
+func (m *mesh) label() string { return m.name } // asset name
 
 // InitData creates a vertex data buffer.
 func (m *mesh) InitData(lloc, span, usage uint32, normalize bool) Mesh {
@@ -80,8 +79,6 @@ func (m *mesh) InitData(lloc, span, usage uint32, normalize bool) Mesh {
 func (m *mesh) SetData(lloc uint32, data interface{}) {
 	if _, ok := m.vdata[lloc]; ok {
 		m.vdata[lloc].Set(data)
-		m.loaded = true
-		m.bound = false
 	}
 }
 
@@ -97,6 +94,5 @@ func (m *mesh) InitFaces(usage uint32) Mesh {
 func (m *mesh) SetFaces(data []uint16) {
 	if m.faces != nil {
 		m.faces.Set(data)
-		m.bound = false
 	}
 }

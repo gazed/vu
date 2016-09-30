@@ -3,8 +3,6 @@
 
 package main
 
-// Controls: NA
-
 import (
 	"fmt"
 
@@ -20,6 +18,8 @@ import (
 // This example renders using OpenGL from package vu/render/gl.
 // See other examples use of the vu:Pov interface for a much easier way
 // to load and render models when done as part of the vu engine.
+//
+// CONTROLS: NA
 func ld() {
 	ld := &ldtag{}
 	dev := device.New("Load Model", 400, 100, 800, 600)
