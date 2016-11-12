@@ -58,12 +58,10 @@ go build .
 
 * Vu has been built and tested on Windows using gcc from mingw64-bit.
   Mingw64 was installed to c:/mingw64.
-  * Put OpenAL on the gcc library path by copying
-    ``openal-soft-1.15.1-bin/Win64/soft_oal.dll`` to
+  * Put OpenAL on the gcc library path by copying ``OpenAL32.dll`` to
     ``c:/mingw64/x86_64-w64-mingw32/lib/OpenAL32.dll``
-* 64-bit OpenAL may be difficult to locate for Windows machines.
-  Try ``http://kcat.strangesoft.net/openal.html/openal-soft-1.15.1-bin.zip``.
-  * Extract ``Win64/soft_oal.dll`` from the zip to ``c:/Windows/System32/OpenAL32.dll``.
+* 64-bit OpenAL for Windows machines is available at http://openal.org/downloads.
+  Running the OpenAL installer results in a ``c:/Windows/System32/OpenAL32.dll``.
 * Building with Cygwin has not been attempted. It may have special needs.
 
 Limitations
