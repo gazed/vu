@@ -1,7 +1,7 @@
 <!-- Copyright © 2013-2016 Galvanized Logic Inc.                       -->
 <!-- Use is governed by a BSD-style license found in the LICENSE file. -->
 
-#Vu
+# Vu
 
 Vu (Virtual Universe) is an agile 3D engine based on the modern programming
 language Go (Golang). Vu is composed of packages, detailed in [GoDoc](http://godoc.org/github.com/gazed/vu),
