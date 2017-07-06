@@ -39,9 +39,10 @@ func (bb *bbtag) Create(eng vu.Eng, s *vu.State) {
 	bb.cam.SetAt(0.5, 2, 2.5)
 	sun := top.NewPov().SetAt(0, 3, -3)
 	sun.NewLight().SetColor(0.4, 0.7, 0.9)
+	eng.Set(vu.Color(0.3, 0.3, 0.3, 1))
 
 	// Load the floor model.
-	floor := top.NewPov()
+	floor := top.NewPov().SetAt(0, 0, -10)
 	floor.NewModel("gouraud", "msh:floor", "mat:gray")
 
 	// Create a single image from multiple textures using a shader.
@@ -53,12 +54,12 @@ func (bb *bbtag) Create(eng vu.Eng, s *vu.State) {
 
 	// Try banner text with the 3D scene perspective camera.
 	font := "lucidiaSu22"
-	banner := top.NewPov().SetScale(0.1, 0.1, 0.1).SetAt(-10, 3, -15)
-	banner.NewLabel("uv", font, font+"White").SetStr("Floating Text")
+	banner := top.NewPov().SetScale(0.1, 0.1, 0.1).SetAt(-10, 2, -15)
+	banner.NewLabel("txt", font).SetStr("Floating Text")
 
 	// Try billboard banner text with the 3D scene perspective camera.
-	banner = top.NewPov().SetScale(0.025, 0.025, 0.025).SetAt(-10, 2, -15)
-	banner.NewLabel("bb", font, font+"White").SetStr("Billboard Text")
+	banner = top.NewPov().SetScale(0.025, 0.025, 0.025).SetAt(-10, 1, -15)
+	banner.NewLabel("bb", font).SetStr("Billboard Text")
 
 	// Banner text with an ortho overlay.
 	v2D := eng.Root().NewPov()
@@ -66,11 +67,28 @@ func (bb *bbtag) Create(eng vu.Eng, s *vu.State) {
 
 	// 2D static location.
 	banner = v2D.NewPov().SetAt(100, 100, 0)
-	banner.NewLabel("uv", font, font+"White").SetStr("Overlay Text")
+	banner.NewLabel("txt", font).SetStr("Overlay Text")
 
 	// 3D world to 2D screen location.
 	bb.screenText = v2D.NewPov()
-	bb.screenText.NewLabel("uv", font, font+"White").SetStr("Screen Text")
+	bb.screenText.NewLabel("txt", font).SetStr("Screen Text")
+
+	// 3D signed distance field font.
+	sdf := top.NewPov().SetScale(0.1, 0.1, 0.1).SetAt(5, -1, -15)
+	sdf.NewLabel("sdf", "lucidiaSdf").SetStr("SDF")
+	sdf.Model().SetUniform("kd", 1, 1, 0) // set text color.
+
+	// 2D signed distance field font.
+	sdf2D := v2D.NewPov().SetAt(500, 100, 0).SetScale(0.5, 0.5, 1)
+	sdf2D.NewLabel("sdf", "lucidiaSdf").SetStr("SDF Overlay")
+	sdf2D.Model().SetUniform("kd", 0, 1, 1) // set text color.
+
+	// 2D static location with text wrap and txt shader with color.
+	font = "lucidiaSu16"
+	banner = v2D.NewPov().SetAt(100, 200, 0)
+	banner.NewLabel("txt", font).SetWrap(100)
+	banner.Model().SetUniform("kd", 1, 0, 1) // set text color.
+	banner.Model().SetStr("A very long pink overlay string that should wrap over at least 3 lines.")
 	bb.resize(s.W, s.H)
 }
 
@@ -102,7 +120,7 @@ func (bb *bbtag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 		bb.screenText.Cull = true
 	} else {
 		bb.screenText.Cull = false
-		bb.screenText.SetAt(float64(sx), float64(sy), 0)
+		bb.screenText.SetAt(float64(sx), float64(sy)-120, 0)
 	}
 }
 func (bb *bbtag) resize(ww, wh int) {

@@ -78,7 +78,7 @@ func (ma *matag) Create(eng vu.Eng, s *vu.State) {
 	ma.ui = top2D.NewCam().SetUI()
 	ma.ui.SetOrthographic(0, float64(s.W), 0, float64(s.H), 0, 10)
 	ma.title = top2D.NewPov().SetAt(10, 5, 0)
-	ma.title.NewLabel("uv", "lucidiaSu22", "lucidiaSu22White")
+	ma.title.NewLabel("uv", "lucidiaSu22")
 }
 
 // Update is the recurring callback to update state based on user actions.

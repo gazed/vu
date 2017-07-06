@@ -123,15 +123,15 @@ func (pt *pttag) Create(eng vu.Eng, s *vu.State) {
 	font := "lucidiaSu18"
 	pt.labels = []*vu.Pov{nil, nil, nil, nil}
 	pt.labels[F] = scene2.NewPov().SetAt(left, 120, 0)
-	pt.labels[F].NewLabel("uv", font, font+"White")
+	pt.labels[F].NewLabel("txt", font)
 	pt.labels[G] = scene2.NewPov().SetAt(left, 100, 0)
-	pt.labels[G].NewLabel("uv", font, font+"White")
+	pt.labels[G].NewLabel("txt", font)
 	pt.labels[L] = scene2.NewPov().SetAt(left, 80, 0)
-	pt.labels[L].NewLabel("uv", font, font+"White")
+	pt.labels[L].NewLabel("txt", font)
 	pt.labels[O] = scene2.NewPov().SetAt(left, 60, 0)
-	pt.labels[O].NewLabel("uv", font, font+"White")
+	pt.labels[O].NewLabel("txt", font)
 	pt.amount = scene2.NewPov().SetAt(left+120, 0, 0)
-	pt.amount.NewLabel("uv", font, font+"White")
+	pt.amount.NewLabel("txt", font)
 	pt.positionLabels()
 	pt.updateLabels()
 

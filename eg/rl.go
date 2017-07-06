@@ -244,5 +244,5 @@ func (rl *rltag) setLevel(eng vu.Eng, keyCode int) {
 func (rl *rltag) newText(parent *vu.Pov, gap int) vu.Labeler {
 	text := parent.NewPov().SetAt(10, 0, float64(-rl.wh+40+gap*24))
 	text.Spin(-90, 0, 0) // orient to the X-Z plane.
-	return text.NewLabel("uv", "lucidiaSu16", "lucidiaSu16White")
+	return text.NewLabel("txt", "lucidiaSu16")
 }

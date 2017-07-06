@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 )
 
@@ -47,45 +48,60 @@ type locator struct {
 }
 
 // newLocator returns the default Locator implementation and asset
-// directory locations.
+// directory locations. These are conventions for locating zipped assets
+// in different situations.
 func newLocator() *locator {
 	var resources *zip.ReadCloser // packaged resources.
 	programName := os.Args[0]     // qualified path to executable
-	resourceZip := path.Join(path.Dir(programName), "../Resources/resources.zip")
-	if reader, err := zip.OpenReader(resourceZip); err == nil {
-		resources = reader // OSX
+	assetZip := path.Join(path.Dir(programName), "../Resources/assets.zip")
+	if reader, err := zip.OpenReader(assetZip); err == nil {
+		resources = reader // OSX packaged application.
+	} else if reader, err := zip.OpenReader(programName); err == nil {
+		resources = reader // windows non-store exe. Zip with Exe.
 	} else {
-		resourceZip = path.Join(path.Dir(programName), "Resources/resources.zip")
-		if reader, err := zip.OpenReader(resourceZip); err == nil {
+		// windows store app.
+		// use absolute path to executable since relative files
+		// are not located when running as a properly installed appx.
+		// Windows locates apps in
+		//     /c/Program Files/WindowsApps/mangledAppName
+		// data app data in
+		//     ~/AppData/Local/Packages/mangledAppName/LocalCache/...
+		programName = filepath.Dir(os.Args[0]) // executable directory
+		absDir, err0 := filepath.Abs(programName)
+		assetZip = path.Join(absDir, "Assets/assets.zip")
+		if reader, err := zip.OpenReader(assetZip); err0 == nil && err == nil {
 			resources = reader // Windows
-		} else if reader, err := zip.OpenReader(programName); err == nil {
-			resources = reader // Zip appened to executable.
 		}
 	}
+
+	// if resources is still nil then this is likely a debug build
+	// and GetResources below will attempt to read directly from disk.
 	l := &locator{reader: resources}
 	l.dirs = map[string]string{ // default directories for file locations.
-		"OBJ": "models",
-		"IQM": "models",
-		"MTL": "models",
-		"WAV": "audio",
-		"TXT": "source",
-		"VSH": "source",
-		"FSH": "source",
-		"FNT": "source",
-		"PNG": "images",
+		"OBJ":  "models",
+		"IQM":  "models",
+		"MTL":  "models",
+		"WAV":  "audio",
+		"TXT":  "source",
+		"VSH":  "source",
+		"FSH":  "source",
+		"FNT":  "source",
+		"JSON": "source",
+		"PNG":  "images",
 	}
 	return l
-
 }
 
-// GetResource locates the named resource.  This is expected to be used either
+// GetResource locates the named resource. This is expected to be used either
 // in production where the resources have been included with the application,
 // or development where the resources are on disk in the local directory.
 //
 // The caller is responsible for closing the returned file.
 func (l *locator) GetResource(name string) (file io.ReadCloser, err error) {
-	prefix := ""
-	ext := strings.ToUpper(name[len(name)-3:])
+	prefix, ext := "", ""
+	if sep := strings.LastIndexAny(name, "."); sep != -1 {
+		ext = strings.ToUpper(name[sep+1:])
+	}
 	if val, defined := l.dirs[ext]; defined { // optional group lookup.
 		prefix = val
 	}

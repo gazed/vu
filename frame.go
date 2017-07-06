@@ -185,7 +185,10 @@ func (fs *frames) updateFrame(eng *engine, viewed []*Pov, f frame) frame {
 					fs.verticies += model.msh.vdata[0].Len() // verticies rendered stat.
 				}
 			} else {
-				log.Printf("Model has no mesh data... %s", model.Shader())
+				if !model.isEmptyStr() { // ok if empty strings have no mesh.
+					// otherwise the dev should fix empty meshes.
+					log.Printf("Model has no mesh data... %s", model.Shader())
+				}
 			}
 		}
 	}

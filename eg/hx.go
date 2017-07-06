@@ -284,7 +284,7 @@ func newHexTile(root, board *vu.Pov, q, r int32) *hexTile {
 	// labels use a different parent pov so they are not scaled with the board
 	font := "lucidiaSu22"
 	t.label = root.NewPov()
-	label := t.label.NewLabel("uv", font, font+"White")
+	label := t.label.NewLabel("txt", font)
 	label.SetStr(fmt.Sprintf("%d %d %d", t.hex.Q, t.hex.R, t.hex.S))
 	return t
 }
@@ -296,6 +296,6 @@ func (t *hexTile) id() uint64 { return t.hex.ID() }
 // as their associated hex model.
 func (t *hexTile) updateLabel() {
 	wx, wy, _ := t.model.World()
-	textWidth := float64(t.label.Model().StrWidth())
-	t.label.SetAt(wx-textWidth*0.5, wy-11, 0)
+	textWidth, _ := t.label.Model().StrSize()
+	t.label.SetAt(wx-float64(textWidth)*0.5, wy-11, 0)
 }

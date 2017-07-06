@@ -100,9 +100,11 @@ type model struct {
 	pose    []lin.M4   // Pose refreshed each update.
 
 	// Optional font information.
-	fnt         *font  // Optional: font layout data.
-	phrase      string // Initial pre-load phrase.
-	phraseWidth int    // Rendered phrase width in pixels, 0 otherwise.
+	fnt  *font  // Optional: font layout data.
+	str  string // Initial pre-load display string.
+	strw int    // Rendered string width in pixels, 0 otherwise.
+	strh int    // Rendered string height in pixels, 0 otherwise.
+	wrap int    // Optional string wrap in pixels. Used if positive.
 
 	// Rendering attributes.
 	castShadow bool // Model to cast a shadow. Default false.
@@ -234,7 +236,7 @@ func (m *model) ClampTex(textureName string) Model {
 // OrderTex tracks the order of textures for the model.
 // The texture order must match that expected by the shader.
 // Changing a visible texture can be accomplished by switching texture order.
-// Note that texture order needs to be maintained if if there are outstanding
+// Note that texture order needs to be maintained if there are outstanding
 // load requests. This allows apps to load and order textures during the
 // original create.
 func (m *model) OrderTex(name string, i int) {
@@ -281,17 +283,20 @@ func (m *model) UseLayer(l Layer) {
 }
 
 // SetStr changes the text phrase and causes a mesh rebind.
-func (m *model) SetStr(phrase string) Labeler {
-	if len(phrase) > 0 && m.phrase != phrase {
-		m.phrase = phrase // used by loader to set mesh data.
+func (m *model) SetStr(str string) Labeler {
+	if len(str) > 0 && m.str != str {
+		m.str = str // used by loader to set mesh data.
 		m.rebinds = append(m.rebinds, m.msh)
 		if m.fnt != nil {
-			m.phraseWidth = m.fnt.setPhrase(m.msh, m.phrase)
+			m.strw, m.strh = m.fnt.setStr(m.msh, m.str, m.wrap)
 		}
 	}
 	return m
 }
-func (m *model) StrWidth() int { return m.phraseWidth }
+func (m *model) SetWrap(w int) Labeler    { m.wrap = w; return m }
+func (m *model) StrSize() (w, h int)      { return m.strw, m.strh }
+func (m *model) StrColor(r, g, b float64) { m.SetUniform("kd", r, g, b) }
+func (m *model) isEmptyStr() bool         { return m.fnt != nil && m.str == "" }
 
 // SetUniform combines floats values into a slice of float32's
 // that will be passed to the rendering layer and used to set
@@ -561,8 +566,8 @@ func (ms *models) finishLoads(assets map[aid]asset) {
 					delete(m.assets, aid)
 				case *font:
 					m.fnt = at
-					if len(m.phrase) > 0 {
-						m.phraseWidth = m.fnt.setPhrase(m.msh, m.phrase)
+					if len(m.str) > 0 {
+						m.strw, m.strh = m.fnt.setStr(m.msh, m.str, m.wrap)
 					}
 					delete(m.assets, aid)
 				case *animation:

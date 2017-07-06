@@ -1,10 +1,10 @@
-<!-- Copyright © 2013-2016 Galvanized Logic Inc.                       -->
+<!-- Copyright © 2013-2017 Galvanized Logic Inc.                       -->
 <!-- Use is governed by a BSD-style license found in the LICENSE file. -->
 
-#Vu
+# Vu
 
-Vu (Virtual Universe) is an agile 3D engine based on the modern programming
-language Go (Golang). Vu is composed of packages, detailed in [GoDoc](http://godoc.org/github.com/gazed/vu),
+Vu (Virtual Universe) is a 3D engine based on the modern programming language Go (Golang).
+Vu is composed of packages, detailed in [GoDoc](http://godoc.org/github.com/gazed/vu),
 and briefly summarized below.
 
 Sub packages
@@ -26,6 +26,7 @@ Less essential, but potentially more fun packages are:
 * [ai](http://godoc.org/github.com/gazed/vu/ai) Behaviour Tree for autonomous units.
 * [grid](http://godoc.org/github.com/gazed/vu/grid) Grid based random level generators. A-star and flow field pathfinding.
 * [synth](http://godoc.org/github.com/gazed/vu/synth) Procedural generation utilities.
+* [tools/sdf](http://godoc.org/github.com/gazed/vu/tools/sdf) Signed distance field converstion utility.
 
 Installation
 -----

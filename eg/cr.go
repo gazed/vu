@@ -17,9 +17,9 @@ import (
 // Set useBalls to false and "go build" to have the demo use cubes.
 //
 // CONTROLS:
-//   WASD  : move the light position: forward left back right
-//   ZX    : move light position    : up down
-//   LaRa  : spin the cube          : left right.
+//   WASD  : move the camera.
+//   B     : generate new falling spheres.
+//   Space : accellerate the striker sphere.
 func cr() {
 	cr := &crtag{}
 	if err := vu.New(cr, "Collision Resolution", 400, 100, 800, 600); err != nil {

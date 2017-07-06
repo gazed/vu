@@ -55,7 +55,8 @@ func (kc *kctag) Create(eng vu.Eng, s *vu.State) {
 		if char := vu.Keysym(code); char > 0 {
 			cx, cy := key.location()
 			letter := top.NewPov().SetAt(cx, cy, 0)
-			letter.NewLabel("uv", "lucidiaSu18", "lucidiaSu18Black").SetStr(string(char))
+			letter.NewLabel("txt", "lucidiaSu18").SetStr(string(char))
+			letter.Model().StrColor(0, 0, 0)
 		}
 	}
 

@@ -16,9 +16,14 @@ import (
 // combines a quad mesh, font mapping data, and a bitmapped font texture
 // to display a string. Controlling a Labeler amounts to setting the
 // string value and centering it using its width in pixels.
+//
+// Intended for single words or small phrases. Use another methods
+// for large text layouts. The default color is white: 1,1,1.
 type Labeler interface {
 	SetStr(text string) Labeler // Set the string to display.
-	StrWidth() int              // Width in screen pixels, 0 if not loaded.
+	SetWrap(w int) Labeler      // Set the string wrap length in pixels.
+	StrSize() (w, h int)        // Width, Height in pixels, 0 if not loaded.
+	StrColor(r, g, b float64)   // Label color where each value is from 0-1
 }
 
 // Labeler
@@ -61,38 +66,57 @@ func (f *font) addChar(r rune, x, y, w, h, xo, yo, xa int) {
 	f.chars[r] = &char{x, y, w, h, xo, yo, xa, uvs}
 }
 
-// setPhrase creates an image for the given string returning
+// setStr creates an image for the given string returning
 // the verticies, and texture texture (uv) mapping information as
 // a buffer slice.
+//    wrap : optional (positive) width limit before the text wraps.
 //
 // The width in pixels for the resulting string image is returned.
-func (f *font) setPhrase(m *mesh, phrase string) (width int) {
+func (f *font) setStr(m *mesh, str string, wrap int) (sx, sy int) {
 	vb := f.vb[:0] // reset keeping allocated memory.
 	tb := f.tb[:0] //  ""
 	fb := f.fb[:0] //  ""
 
 	// gather and arrange the letters for the phrase.
-	width = 0
-	for cnt, char := range phrase {
-		if c := f.chars[char]; c != nil {
+	width, height, fh, cnt := 0, 0, 0, 0
+	for _, char := range str {
+		c := f.chars[char]
+		switch {
+		case c != nil:
+			fh = c.h // remember font height for wrapping with newlines.
 			tb = append(tb, c.uvcs...)
-
-			// skip spaces.
 			xo, yo := float32(c.xOffset), float32(c.yOffset)
 			if c.w != 0 && c.h != 0 {
 
 				// calculate the x, y positions based on desired locations.
 				vb = append(vb,
-					float32(width)+xo, yo, 0, // upper left
-					float32(c.w+width)+xo, yo, 0, // upper right
-					float32(c.w+width)+xo, float32(c.h)+yo, 0, // lower right
-					float32(width)+xo, float32(c.h)+yo, 0) // lower left
+					float32(width)+xo, float32(-height)+yo, 0, // upper left
+					float32(c.w+width)+xo, float32(-height)+yo, 0, // upper right
+					float32(c.w+width)+xo, float32(c.h-height)+yo, 0, // lower right
+					float32(width)+xo, float32(c.h-height)+yo, 0) // lower left
+
+				// keep track of the max size in pixels.
+				if sx < c.w+width {
+					sx = c.w + width
+				}
+				if sy < c.h+height {
+					sy = c.h + height
+				}
 			}
 			width += c.xAdvance
+			if wrap > 0 && (width > wrap && char == ' ') {
+				width = 0
+				height += c.h
+			}
 
 			// create the triangles indexes referring to the points created above.
 			i0 := uint16(cnt * 4)
 			fb = append(fb, i0, i0+1, i0+3, i0+1, i0+2, i0+3)
+			cnt += 1 // count characters rendered.
+		case char == '\n':
+			// auto wrap at newlines.
+			width = 0
+			height += fh
 		}
 	}
 	m.InitData(0, 3, render.StaticDraw, false).SetData(0, vb)
@@ -101,15 +125,15 @@ func (f *font) setPhrase(m *mesh, phrase string) (width int) {
 	f.vb = vb // reuse the allocated memory.
 	f.tb = tb //   ""
 	f.fb = fb //   ""
-	return width
+	return sx, sy
 }
 
-// uvs calculates the four UV points for one character.  The x,y coordinates
-// are the top left of the character.  Note that the UV's are added to the array
+// uvs calculates the four UV points for one character. The x,y coordinates
+// are the top left of the character. Note that the UV's are added to the array
 // so as to match the order the vertices are created in panel(). This makes
 // the letters appear the right way up rather than flipped.
 //
-// Only expected to be used when loading fonts from disk.
+// Expected to be used for loading fonts from disk.
 func (f *font) uvs(x, y, w, h int) []float32 {
 	uvcs := []float32{
 		float32(x) / float32(f.w),   // lower left

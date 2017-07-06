@@ -16,8 +16,8 @@ void main(void)
    vec2 screenSize = vec2(800, 600);
    vec4 projVoxel = pm * vec4(spriteSize,spriteSize,eyePos.z,eyePos.w);
    vec2 projSize = screenSize * projVoxel.xy / projVoxel.w;
-   gl_PointSize = 0.1 * (projSize.x+projSize.y) * in_d.y;
-   alpha = in_d.y;            // particle transparency.
+   gl_PointSize = 0.1 * (projSize.x+projSize.y); // * in_d.y;
+   alpha = 1.0 - in_d.y;            // particle transparency.
    index = in_d.x;            // particle identifier.
    gl_Position = pm * eyePos; // particle location.
 }

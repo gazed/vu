@@ -87,6 +87,8 @@ var shaderLibrary = map[string]func() (vsh, fsh []string){
 	"diffuse": diffuseShader,
 	"gouraud": gouraudShader,
 	"phong":   phongShader,
+	"sdf":     sdfShader,
+	"txt":     txtShader,
 	"uv":      uvShader,
 	"uvc":     uvcShader,
 	"bump":    bumpShader,
@@ -306,6 +308,81 @@ func phongShader() (vsh, fsh []string) {
 
 // ===========================================================================
 
+// sdfShader displays signed distance field fonts.
+//           This shader expects a font image file signed distance field
+//           values for the font images - it makes the images look blurry.
+func sdfShader() (vsh, fsh []string) {
+	vsh = []string{
+		"#version 330",
+		"layout(location=0) in vec3 in_v;", // verticies
+		"layout(location=2) in vec2 in_t;", // texture coordinates
+		"",
+		"uniform mat4 mvpm;", // projection * model_view
+		"uniform vec3 kd;",   // material diffuse used as text color
+		"out     vec3 v_c;",  // pass text color from kd uniform.
+		"out     vec2 t_uv;", // pass uv coordinates through
+		"",
+		"void main() {",
+		"   gl_Position = mvpm * vec4(in_v, 1.0);",
+		"   t_uv = in_t;",
+		"	v_c = kd;", // text color from kd uniform.
+		"}",
+	}
+	fsh = []string{
+		"#version 330",
+		"in      vec2      t_uv;",  // texture coords.
+		"in      vec3      v_c;",   // color from vertex shader
+		"uniform sampler2D uv;",    // 2D texture sampler.
+		"uniform float     alpha;", // transparency
+		"out     vec4      ffc; ",  // final fragment color.
+		"",
+		"const float smoothing = 1.0/16.0;",
+		"void main() {",
+		"   float distance = texture(uv, t_uv).a;", // distance field value.
+		"   float clamp = smoothstep(0.5 - smoothing, 0.5 + smoothing, distance);",
+		"   ffc = vec4(v_c, alpha*clamp);",
+		"}",
+	}
+	return vsh, fsh
+}
+
+// ===========================================================================
+
+// txtShader is a uv shader used for text labels that want
+// color and alpha override using uniforms.
+func txtShader() (vsh, fsh []string) {
+	vsh = []string{
+		"#version 330",
+		"layout(location=0) in vec3 in_v;", // verticies
+		"layout(location=2) in vec2 in_t;", // texture coordinates
+		"",
+		"uniform mat4 mvpm;", // projection * model_view
+		"uniform vec3 kd;",   // material diffuse used as text color
+		"out     vec3 v_c;",  // pass text color from kd uniform.
+		"out     vec2 t_uv;", // pass uv coordinates through
+		"void main() {",
+		"   gl_Position = mvpm * vec4(in_v, 1.0);",
+		"   t_uv = in_t;",
+		"	v_c = kd;", // text color from kd uniform.
+		"}",
+	}
+	fsh = []string{
+		"#version 330",
+		"in      vec2      t_uv;",
+		"in      vec3      v_c;", // color from vertex shader
+		"uniform sampler2D uv;",
+		"uniform float     alpha;", // transparency
+		"out     vec4      ffc;",   // final fragment color
+		"void main() {",
+		"   float a = texture(uv, t_uv).a;",
+		"   ffc = vec4(v_c,  a*alpha);",
+		"}",
+	}
+	return vsh, fsh
+}
+
+// ===========================================================================
+
 // uvShader handles a single texture.
 func uvShader() (vsh, fsh []string) {
 	vsh = []string{
@@ -392,7 +469,7 @@ func bumpShader() (vsh, fsh []string) {
 
 // nmap is a tangent based normal map shader based on code and concepts from
 //   http://www.thetenthplanet.de/archives/1180
-// Generating the cotangent transform for each pixel Avoids the need to
+// Generating the cotangent transform for each pixel avoids the need to
 // send tangent information for each vertex.
 func nmapShader() (vsh, fsh []string) {
 	vsh = []string{
@@ -489,9 +566,9 @@ func nmapShader() (vsh, fsh []string) {
 		"    vec3 smap = texture(uv2, t_uv).rgb;",
 		"    vec3 specular = lc * ks * smap * specFac;",
 		"", // Combine into final fragment color.
-		"    vec3 base = texture(uv, t_uv).rgb;",                   // pure texture color.
-		"    vec3 color = ambient*base + diffuse*base + specular;", // combine all the values.
-		"    ffc = vec4(color, 1.0);",                              // final fragment color
+		"    vec4 t = texture(uv, t_uv);",                            // pure texture color.
+		"    vec3 color = ambient*t.rgb + diffuse*t.rgb + specular;", // combine all the values.
+		"    ffc = vec4(color, t.a);",                                // final fragment color
 		" }",
 	}
 	return vsh, fsh

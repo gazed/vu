@@ -3,6 +3,10 @@
 
 package lin
 
+// transform.go
+// FUTURE: use dual quaternions for both transformation and rotation. See:
+//         A Beginners Guide to Dual-Quaternions by Ben Kenwright
+
 import "math"
 
 // T is a 3D transform for rotation and translation. It excludes scaling and

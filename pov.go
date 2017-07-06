@@ -15,7 +15,7 @@ import (
 	"github.com/gazed/vu/render"
 )
 
-// Pov is a Point-of-view which is a combination of position and orientation.
+// Pov, point-of-view, is a combination of position and orientation.
 // Pov's are created by the application and may have additional associated
 // components like rendered models and physics bodies. The associated
 // components use the location and orientation of the Pov.
@@ -210,12 +210,13 @@ func (p *Pov) Layer() Layer { return p.eng.layer(p.id) }
 // for this layer. The default texture size is 1024x1024.
 func (p *Pov) NewLayer() Layer { return p.eng.newLayer(p.id, render.ImageBuffer) }
 
-// NewLabel creates a Model that displays a small text phrase.
-//   shader      is expected to be a texture mapping shader like "uv".
-//   font        is the font mapping file.
-//   fontTexture is the bitmapped font texture
-func (p *Pov) NewLabel(shader, font, fontTexture string) Labeler {
-	return p.NewModel(shader, "fnt:"+font, "tex:"+fontTexture)
+// NewLabel creates a Model that displays a small white text phrase.
+//   shader      expected to be a font aware shader like "txt" or "sdf".
+//   font        identifies bot the font mapping file and font texture file.
+func (p *Pov) NewLabel(shader, font string) Labeler {
+	m := p.NewModel(shader, "fnt:"+font, "tex:"+font)
+	m.StrColor(1, 1, 1) // default white.
+	return m
 }
 
 // Model returns nil if there is no model for this Pov.

@@ -74,7 +74,7 @@ func (rc *rctag) Create(eng vu.Eng, s *vu.State) {
 	rc.banner = top2D.NewPov()
 	rc.banner.SetAt(100, 100, 0)
 	rc.banner.Cull = true
-	rc.banner.NewLabel("uv", "lucidiaSu22", "lucidiaSu22White").SetStr("Overlay Text")
+	rc.banner.NewLabel("txt", "lucidiaSu22").SetStr("Overlay Text")
 
 	// set non default engine state.
 	eng.Set(vu.Color(0.2, 0.2, 0.2, 1.0))
