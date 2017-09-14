@@ -74,7 +74,7 @@ The engine and its packages include the essentials by design. In particular:
 * There is no networking package.
 * Physics only handles boxes and spheres.
 * The device layer interface provides only the absolute minimum from the underlying
-  windowing system. Only OSX and Windows 7+ are currently supported.
+  windowing system. OSX, iOS, and Windows 7+ are currently supported.
 * Rendering supports standard OpenGL 3.3 and later. OpenGL extensions are not used.
 * The Windows platform is sometimes limited by the availability of OpenGL and OpenAL.
   Generally OpenGL issues are fixed by downloading manufacturer's graphic card drivers.
