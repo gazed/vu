@@ -1,533 +1,397 @@
-// Copyright © 2013-2016 Galvanized Logic Inc.
+// Copyright © 2013-2017 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package vu
 
-// eng.go holds all the component managers and runs application state updates.
-//        This is the main user facing class.
-// DESIGN: keep small by delegating application requests to the components.
+// eng.go holds the Eng interface and engine class.
 
 import (
+	"fmt"
 	"log"
 	"time"
 
+	"github.com/gazed/vu/audio"
+	"github.com/gazed/vu/device"
 	"github.com/gazed/vu/physics"
+	"github.com/gazed/vu/render"
 )
 
 // Eng provides support for a 3D application conforming to the App interface.
-// Eng provides the root transform hierarchy node, a point-of-view (Pov) where
-// models, physics bodies, and noises are attached and processed each update.
-// Eng is also used to set global engine state and provides top level timing
-// statistics.
+// Eng uses scenes to display application created entities using a camera.
+// The application creates one or more scenes, configures the scene cameras,
+// and adds render components to each scene.
+//
+// Eng also controls the overall engine lifetime, sets global engine state,
+// and provides application profiling timing.
 type Eng interface {
 	Shutdown()     // Stop the engine and free allocated resources.
-	Reset()        // Put the engine back to its initial state.
 	State() *State // Query engine state. State updated per tick.
-	Root() *Pov    // Single root of the transform hierarchy.
 
-	// Physics returns the vu/physics system manager.
-	Physics() physics.Physics // Allows setting of physics attributes.
+	// AddScene creates a new application scene graph and camera.
+	AddScene() *Ent // Group rendered objects with a Camera.
+
+	// AddSound loads audio data and returns a unique sound identifier.
+	// Passing the sound identifier to an entity PlaySound() method will
+	// play the sound at the entities location. Set the single listener
+	// location using SetListener(). Sounds are louder the closer the
+	// played sound to the sound listener.
+	AddSound(name string) uint32
 
 	// Set changes engine wide attributes. It accepts one or more
 	// functions that take an EngAttr parameter, ie: vu.Color(0,0,0).
-	Set(...EngAttr) // Update one or more engine attributes.
+	Set(...EngAttr) // Change one or more engine attributes.
 
-	// Timing gives application feedback. It is updated each processing loop.
-	// The returned update times should be averaged over multiple calls.
-	Usage() *Timing // Per update loop performance metrics.
+	// Times for the previous update loop. The application
+	// can average times over multiple updates.
+	Times() *Profile // Per update loop performance metrics.
 }
 
-// App is the application callback interface to the engine. It is implemented
-// by the application and registered once on engine creation as follows:
-//     err := vu.New(app, "Title", 0, 0, 800, 600) // Reg. app in new Eng.
-// The App communicates with the engine using the Eng methods.
-type App interface {
-	Create(eng Eng, s *State) // Called once after successful startup.
-
-	// Update allows applications to change state prior to the next render.
-	// Update is called many times a second after the initial call to Create.
-	//    i : user input refreshed prior to each call.
-	//    s : engine state refreshed prior to each call.
-	Update(eng Eng, i *Input, s *State) // Process user input, update state.
-}
-
-// Eng and App interfaces.
-// ===========================================================================
-// engine implements Eng.
-
-// engine controls application communication and state updates.
-// It is also an entity manager in that it uses a unique entity id
-// to group application object instances by component functionality.
-// Engine relies on helper classes for the majority of the work:
-//     An asset manager for loading application assets.
-//     A physics manager for handling forces and collisions.
-//     A scene manager for rendering frames.
-// Engine expects to be started as a go-routine using the runEngine method.
+// engine controls the run loop and access to the device layer
+// One instance of engine is created by Run.
 type engine struct {
-	alive bool     // True until application decides otherwise.
-	data  *appData // Combination user input and application state.
+	dev device.Device  // OS specific window and rendering context.
+	gc  render.Context // Graphics card interface.
+	ac  audio.Audio    // Audio card interface.
+	app *application   // Application controller implementing Eng.
 
-	// Communicate with the vu device goroutine.
-	machine   chan msg   // Communicate with device loop.
-	bindReply chan error // Receive machine bind responses.
-	stop      chan bool  // Closed or any value to stop machine.
+	// Track time each refresh cycle to ensure fixed timestamp updates.
+	startTime  time.Time     // Track start of a game loop display refresh.
+	updateTime time.Duration // Grows until big enough to trigger update.
+	elapsed    time.Duration // Time since last update. Reset on update.
 
-	// Communicate with the asset load manager goroutine.
-	load     chan map[aid]string // Request asset load.
-	loaded   chan map[aid]asset  // Receive newly loaded assets.
-	stopLoad chan bool           // Send or close to stop loader.
-
-	// Application entities are grouped into components.
-	// All entities are Pov (location:orientation) based.
-	ids    *eids   // Entity id manager.
-	povs   *povs   // Entity transform component.
-	cams   *cams   // Camera component.
-	models *models // Visible component.
-	bodies *bodies // Physic component.
-	frames *frames // Render component.
-	sounds *sounds // Audio component.
-	lights *lights // Light component.
-	layers *layers // Pre-render-pass component
-	times  *Timing // Update loop timing statistics.
+	// communication with the update goroutine.
+	doneUpdate chan *application // update finished.
 }
 
-// newEngine is expected to be called once on startup
-// from the runEngine() method.
-func newEngine(machine chan msg) *engine {
-	eng := &engine{alive: true, machine: machine}
-	eng.ids = &eids{}
-	eng.data = newAppData()
-	eng.povs = newPovs()
-	eng.times = &Timing{}
-	eng.Reset() // allocate data components.
+// newEngine initializes the device layers, returning an error
+// if any problems are encountered. Called once by Run on startup.
+func newEngine(app App) (eng *engine, err error) {
+	eng = &engine{}
 
-	// init comunications with the load goroutine.
-	eng.load = make(chan map[aid]string)
-	eng.loaded = make(chan map[aid]asset)
-	eng.stopLoad = make(chan bool)
-
-	// used to synchronize bind requests with the machine.
-	eng.bindReply = make(chan error)
-	return eng
-}
-
-// Reset removes all entities and sets the engine back to
-// its initial state. This allows the application to put the
-// engine back in a clean state without restarting.
-func (eng *engine) Reset() {
-	if eng.root() != nil {
-		eng.disposePov(eng.root().id)
+	// initialize audio .
+	eng.ac = audio.New()
+	if err = eng.ac.Init(); err != nil {
+		eng.shutdown()
+		return nil, fmt.Errorf("Failed starting audio %s.", err)
 	}
-	eng.ids.reset()
-	eng.povs.reset()
-	eng.povs.create(eng, eng.ids.create(), nil) // root
-	eng.cams = newCams()
-	eng.models = newModels(eng)
-	eng.lights = newLights()
-	eng.layers = newLayers(eng)
-	eng.sounds = newSounds(eng)
-	eng.sounds.setListener(eng.povs.get(0))
-	eng.bodies = newBodies()
-	eng.frames = newFrames()
+	eng.app = newApplication(app)
+	return eng, nil
 }
 
-// Shutdown is a user request to close down the engine.
-// Expected to be called once on Application exit.
-func (eng *engine) Shutdown() {
-	eng.alive = false
-	eng.disposePov(eng.root().id)
-	if eng.machine != nil {
-		eng.stopLoad <- true
-		eng.machine <- &shutdown{}
+// Init is a one-time callback from the device. It is the
+// callback used to start model creation and asset loading.
+// Init implements device.App and is called just the once before
+// starting the regular callbacks to the Update method.
+func (eng *engine) Init(d device.Device) {
+	eng.dev = d
+
+	// initialize graphics now that context is available.
+	// Graphics can be initialized before device on OSX, but Windows
+	// needs a proper context to find the OpenGL functions
+	eng.gc = render.New()
+	if err := eng.gc.Init(); err != nil {
+		log.Printf("Failed starting graphics %s.", err)
+		eng.shutdown()
 	}
+	eng.gc.Enable(Blend, true)    // expected application startup state.
+	eng.gc.Enable(CullFace, true) // expected application startup state.
+	eng.doneUpdate = make(chan *application)
+
+	// Create engine and run initial App.Create on main thread.
+	eng.app.state.setScreen(eng.dev.Size())
+	eng.app.state.Full = eng.dev.IsFullScreen()
+	eng.app.app.Create(eng.app, eng.app.state)
+	eng.app.setAttributes(eng)
+	eng.startTime = time.Now() // begin tracking elapsed time after init.
+
+	// if App shuts down engine during Create, possibly due to errors,
+	// eng.dev will be shutdown as well, stopping any Refresh callback.
 }
 
-// main application loop timing constants.
-const (
-	// delta time is how often the state is updated. It is fixed at
-	// 50 times a second (50/1s = 20ms) so that the game speed is
-	// constant (independent from computer speed and refresh rate).
-	dt = time.Duration(20 * time.Millisecond) // 0.02s, 50fps
-
-	// render time limits how often render frames are generated.
-	// Most modern flat monitors are 60fps.
-	rt = time.Duration(10 * time.Millisecond) // 0.01s, 100fps
-
-	// capTime guards against slow updates and the spiral of death.
-	// Ignore any updating and rendering time that was more than 200ms.
-	capTime = time.Duration(200 * time.Millisecond) // 0.2s
-)
-
-// runEngine is the main application timing loop. It calls Create once
-// on startup and Update on a regular basis. The application callbacks
-// allows the application to initiate object creation for rendering and
-// to consume user input from device polling.
-func runEngine(app App, wx, wy, ww, wh int,
-	machine chan msg, draw chan frame, stop chan bool) {
-	defer catchErrors()
-	eng := newEngine(machine)
-	go runLoader(eng.machine, eng.load, eng.loaded, eng.stopLoad)
-	eng.frames.draw = draw
-	eng.stop = stop
-	eng.data.state.setScreen(wx, wy, ww, wh)
-	app.Create(eng, eng.data.state)
-	eng.layers.enableShadows() // Call before other load requests.
-	ut := uint64(0)            // kick off initial update...
-	eng.update(app, dt, ut)    // queue the initial load asset requests.
-
-	// Initialize timers and kick off the main control timing loop.
-	loopStart := time.Now()
-	var updateStart time.Time
-	var timeUsed time.Duration
-	var updateTimer time.Duration // Track when to trigger an update.
-	var renderTimer time.Duration // Track when to trigger a render.
-	for eng.alive {
-		timeUsed = time.Since(loopStart) // Count previous loop.
-		eng.times.Elapsed += timeUsed    // Track total time.
-		if timeUsed > capTime {          // Avoid slow update death.
-			timeUsed = capTime
-		}
-		loopStart = time.Now()
-
-		// Trigger update based on current elapsed time.
-		// This advances state at a constant rate (dt).
-		updateTimer += timeUsed
-		for updateTimer >= dt {
-			updateStart = time.Now() // Time the update.
-			ut++                     // Track the total update ticks.
-			updateTimer -= dt        // Remove delta time used.
-
-			// Perform the update, preparing the next render frame.
-			eng.update(app, dt, ut) // Update state, physics, etc.
-			if eng.alive {          // Application may have quit.
-				eng.frames.drawFrame(eng)
-			}
-
-			// Reset and start counting times for the next update.
-			eng.times.Zero()
-			eng.times.Update += time.Since(updateStart)
-		}
-
-		// A render frame request is sent to the machine. Redraw everything, using
-		// interpolation when there is no new frame. Ignore excess render time.
-		renderTimer += timeUsed
-		if renderTimer >= rt {
-			eng.times.Renders++
-
-			// Interpolation is the fraction of unused delta time between 0 and 1.
-			// ie: State state = currentState*interpolation + previousState * (1.0 - interpolation);
-			interpolation := updateTimer.Seconds() / dt.Seconds()
-			eng.frames.render(eng.machine, interpolation, ut)
-			renderTimer = renderTimer % rt // drop extra render time.
-		}
-		eng.communicate() // process go-routine messages.
-	}
-}
-
-// communicate processes all go-routine channels. Must be non-blocking.
-// Incoming messages are generally responses to asset loading requests
-// initiated by engine.
-func (eng *engine) communicate() {
-	select {
-	case <-eng.stop: // closed channels return 0
-		eng.stopLoad <- true // Tell the loader to stop.
-		return               // Device/window has closed.
-	case assets := <-eng.loaded:
-		eng.models.finishLoads(assets)
-		eng.sounds.finishLoads(assets)
-	default:
-		// don't block when there are no channels to process.
-	}
-}
-
-// update polls user input, runs physics, calls application update,
-// and finally refreshes all models resulting in updated transforms.
-// The transform hierarchy is now ready to generate a render frame.
-func (eng *engine) update(app App, dt time.Duration, ut uint64) {
-
-	// Fetch input from the device thread. Essentially a sequential call.
-	eng.machine <- eng.data // blocks until processed by the server.
-	<-eng.data.reply        // blocks until processing is finished.
-	input := eng.data.input // User input has been refreshed.
-	state := eng.data.state // Engine state has been refreshed.
-	dts := dt.Seconds()     // delta time as float.
-
-	// update the location and orientation of any physics bodies.
-	eng.bodies.stepVelocities(eng, dts) // Marks povs as dirty.
-
-	// Have the application adjust any or all state before rendering.
-	input.Dt = dts                // how long to get back to here.
-	input.Ut = ut                 // update ticks.
-	app.Update(eng, input, state) // application to updates its own state.
-
-	// update assets that the application changed or which need
-	// per tick processing. Per-ticks include animated models,
-	// particle effects, surfaces, phrases, ...
-	if eng.alive {
-		eng.models.refresh(dts) // check for new load requests.
-		eng.sounds.refresh()    // check for new load requests.
-		eng.povs.updateWorldTransforms()
-		eng.sounds.repositionSoundListener()
-	}
-}
-
-// release sends a release resource request to the machine.
-// Expected to be run as a goroutine so that its this method that blocks
-// until the machine is ready to process it.
-func (eng *engine) release(rd *releaseData) { eng.machine <- rd }
-
-// rebind sends a bind request to the machine and waits for
-// the response - making it a synchronous call.
+// Refresh controls the main render loop. It is called by the device layer
+// whenever a new frame is needed. It runs fixed timestep updates that are
+// separate from the frame refresh rate:.
+//    Modern frame display refresh rate is 60fps (0.0167sec) or higher.
+//    Application and physics update is fixed at 50fps (0.02sec).
 //
-// Note that rebinding mesh, texture, and sound does not change
-// any model data, it just updates the data on the graphics or audio
-// card. This way the model can continue to be rendered while the
-// data is being rebound: the binding goroutine is the same as the
-// render goroutine, so it is doing one or the other.
-func (eng *engine) rebind(assets []asset) {
-	eng.machine <- &bindData{data: assets, reply: eng.bindReply} // request binds.
-	if err := <-eng.bindReply; err != nil {                      // wait for binds.
-		log.Printf("%s", err)
+// While the game loop is controlled by display refresh callbacks updates
+// are still done at fixed timesteps. See:
+//    http://gameprogrammingpatterns.com/game-loop.html
+//    https://gafferongames.com/post/fix_your_timestep
+//    http://lspiroengine.com/?p=378
+func (eng *engine) Refresh(dev device.Device) {
+	eng.elapsed += time.Since(eng.startTime) // Add time since last Refresh
+	eng.startTime = time.Now()               // Reset loop start time tracker.
+
+	// Need the *application instance back from update,
+	// blocking if update is not done.
+	if eng.app == nil {
+		eng.app = <-eng.doneUpdate
+	}
+	if eng.app.stop {
+		eng.shutdown()
+		return
+	}
+
+	// handle queued up device requests from previous updates since the
+	// application goroutine can't access device layer resources.
+	eng.app.setAttributes(eng)  // set device attributes from update.
+	eng.app.scenes.release(eng) // remove disposed device data.
+	eng.app.scenes.rebind(eng)  // refresh changes to GPU assets.
+	eng.app.models.rebind(eng)  // refresh changes to GPU assets.
+	eng.app.sounds.rebind(eng)  // refresh changes to Audio assets.
+	eng.app.sounds.play(eng)    // play sounds requested by application.
+
+	// render a display frame passing in the interpolated time between
+	// the most recent update and the previous update.
+	eng.render(eng.updateTime.Seconds() / timeStepSecs)
+
+	// run update, if necessary, as a goroutine in the dead time after
+	// rendering a frame and before the next frame request.
+	eng.update()          // run partly as a goroutine
+	eng.dev.SwapBuffers() // can sleep the main thread on MacOS.
+}
+
+// render a frame where lerp is the linear interpolation ratio between
+// the last two updates.
+// fmt.Printf("time since last render %2.4fms\n", eng.elapsed.Seconds()*1000)
+func (eng *engine) render(lerp float64) {
+	startRender := time.Now() // track this render.
+	app := eng.app
+
+	// Use lerp to calculate positions between the two most recent updates.
+	// This smooths rendering between the different update and display rates.
+	app.povs.renderAt(lerp)
+	app.scenes.renderAt(lerp, app.state.W, app.state.H)
+	app.frame = app.scenes.draw(app, app.frame)
+
+	// render by sending the frame draw calls to the render context.
+	eng.gc.Clear()
+	for _, dc := range app.frame {
+		eng.gc.Render(dc)
+	}
+	app.prof.Renders++
+	app.prof.Render += time.Since(startRender)
+}
+
+// update does some work on the main thread and the reset on a goroutine.
+// Access to the *application instance is relinquished until the update
+// goroutine completes.
+//
+// Normal fixed-timestep-code loops while there is more update time available in
+// order to handle the case where the update rate is faster than the display.
+// However in this case only one update is run and any catchup will occur on
+// future display callbacks given that the monitors refresh rate is expected
+// to be faster than the game update rate. The slowest monitor refresh rate
+// is expected to be 60Hz and the engines fixed timestep update is 50hz.
+func (eng *engine) update() {
+	app := eng.app
+	app.prof.Elapsed += eng.elapsed // Track total time...
+	eng.updateTime += eng.elapsed   // Add time for updates.
+
+	// Run one update. A normal fixed timestep runs a loop here to handle
+	// update rates run faster than display refreshes. In this engine the
+	// update rate is slower than display refreshes, assuming 60Hz refresh
+	// minimum, so updates can eventually catch up.
+	if eng.updateTime >= timeStep {
+		start := time.Now()        // track this update.
+		eng.updateTime -= timeStep // Remove time consumed by this update.
+		app.ut++                   // Track the total update ticks.
+
+		// Input polling clears the accumulated user input.
+		app.input.poll(eng.dev.Down(), app.ut)
+		if app.input.Resized {
+			app.state.Full = eng.dev.IsFullScreen()
+			app.state.setScreen(eng.dev.Size())
+			eng.gc.Viewport(app.state.W, app.state.H)
+		}
+
+		// The application must finish an update within a reasonable time,
+		// Otherwise updates are dropped to avoid the spiral of death where
+		// slow updates start delaying future updates. Note that dropping
+		// updates effectively slows the game down and the application is
+		// informed using the profiling data. To check for slow behaviour
+		// try "go build -race" which slows an app quite a bit.
+		//
+		// This algorithm aggressively drops updates. However its either ok
+		// because the application is doing one-off processing like switching
+		// levels, or its not ok because the application is doing more than
+		// the platform can handle. The later suggests tuning the application.
+		//
+		// FUTURE: leave some time so that updates can catch up. Would need
+		//         to ensure the lerp calculation is still correct.
+		for eng.updateTime >= timeStep {
+			eng.updateTime -= timeStep // ensure updateTime < timeStep for lerp.
+			app.prof.Skipped++         // report the game slowdown.
+		}
+
+		// Perform the physics and application update for
+		// object locations, particles, animations, entity creation, etc.
+		go app.update(app.ut, start, app.prof.Elapsed, eng.doneUpdate)
+		eng.app = nil // no access to app while running update.
+	}
+	eng.elapsed = 0 // reset total elapsed time tracker.
+}
+
+// shutdown releases the engine resources allocated on startup.
+func (eng *engine) shutdown() {
+	if eng.ac != nil {
+		eng.ac.Dispose()
+		eng.ac = nil
+	}
+	if eng.dev != nil {
+		eng.dev.Dispose()
+		eng.dev = nil
+	}
+	if eng.app != nil {
+		eng.app.shutdown()
 	}
 }
 
-// submitLoadReqs is called on the engine processing goroutine to send
-// the load requests off for loading. A new go routine is started so
-// that engine is not blocked while the load request waits for processing.
-func (eng *engine) submitLoadReqs(reqs map[aid]string) {
-	go func(load chan map[aid]string, reqs map[aid]string) {
-		load <- reqs
-	}(eng.load, reqs)
+// bind sends data to the graphics or audio card. Data needs to be bound
+// before it can be used for rendering or audio. Data needs rebinding
+// if it is changed.
+//
+// Note that rebinding mesh, texture, and sound does not change the device
+// reference, it just updates the data on the graphics or audio device.
+// The bind is completed before the data is used again.
+//
+// FUTURE: move all knowledge of asset binding into the render package.
+func (eng *engine) bind(a asset) error {
+	switch d := a.(type) {
+	case *Mesh:
+		d.rebind = false // for bind() from loader instead of Mesh.bind().
+		return eng.gc.BindMesh(&d.vao, d.vdata, d.faces)
+	case *shader:
+		var err error
+		d.program, err = eng.gc.BindShader(d.vsh, d.fsh, d.uniforms, d.layouts)
+		return err
+	case *Texture:
+		d.rebind = false // for bind() from loader instead of Texture.bind().
+		return eng.gc.BindTexture(&d.tid, d.img)
+	case *sound:
+		return eng.ac.BindSound(&d.sid, &d.did, d.data)
+	case *shadows:
+		return eng.gc.BindMap(&d.bid, &d.tex.tid)
+	case *target:
+		err := eng.gc.BindTarget(&d.bid, &d.tex.tid, &d.db)
+		return err
+	}
+	return fmt.Errorf("eng:bind. Unhandled bind request")
+}
+
+// release figures out what data to release based on the releaseData type.
+//
+// FUTURE: move all knowledge of asset binding into the render package.
+func (eng *engine) release(asset interface{}) {
+	switch a := asset.(type) {
+	case *Mesh:
+		eng.gc.ReleaseMesh(a.vao)
+	case *shader:
+		eng.gc.ReleaseShader(a.program)
+	case *Texture:
+		eng.gc.ReleaseTexture(a.tid)
+	case *sound:
+		eng.ac.ReleaseSound(a.sid)
+	case *shadows:
+		eng.gc.ReleaseMap(a.bid, a.tex.tid)
+		a.bid, a.tex.tid = 0, 0
+	case *target:
+		eng.gc.ReleaseTarget(a.bid, a.tex.tid, a.db)
+		a.bid, a.tex.tid, a.db = 0, 0, 0
+	default:
+		log.Printf("machine.release: No bindings for %T", a)
+	}
 }
 
 // clampTex requests a texture to be non-repeating.
 // Expected to be called once when setting up a texture.
 func (eng *engine) clampTex(tid uint32) {
-	eng.machine <- &clampTex{tid: tid}
-}
-
-// State provides access to current engine state.
-func (eng *engine) State() *State { return eng.data.state }
-
-// Implement Eng interface. Returns the top of the transform hierarchy.
-func (eng *engine) Root() *Pov { return eng.root() }
-
-// Implement Eng interface. Returns the physics instance.
-func (eng *engine) Physics() physics.Physics { return eng.bodies.physics }
-
-// pov entities. newPov can only be called from an existing Pov
-// so parent is never nil.
-func (eng *engine) newPov(parent *Pov) *Pov {
-	return eng.povs.create(eng, eng.ids.create(), parent)
-}
-func (eng *engine) root() *Pov { return eng.povs.get(0) }
-
-// camera entities.
-func (eng *engine) cam(id eid) *Camera    { return eng.cams.get(id) }
-func (eng *engine) newCam(id eid) *Camera { return eng.cams.create(id) }
-
-// model entities.
-func (eng *engine) model(id eid) Model { return eng.models.get(id) }
-func (eng *engine) newModel(id eid, shader string, assets ...string) Model {
-	return eng.models.create(id, shader, assets...)
-}
-
-// light entities.
-func (eng *engine) light(id eid) *Light    { return eng.lights.get(id) }
-func (eng *engine) newLight(id eid) *Light { return eng.lights.create(id) }
-
-// layer render pass entities.
-func (eng *engine) layer(id eid) Layer              { return eng.layers.get(id) }
-func (eng *engine) newLayer(id eid, attr int) Layer { return eng.layers.create(id, attr) }
-
-// body: physics entities.
-func (eng *engine) body(id eid) physics.Body { return eng.bodies.get(id) }
-func (eng *engine) newBody(id eid, b physics.Body, p *Pov) physics.Body {
-	return eng.bodies.create(id, b, p.T)
-}
-func (eng *engine) setSolid(id eid, mass, bounce float64) {
-	eng.bodies.solidify(id, mass, bounce)
-}
-
-// sound: audio entities.
-func (eng *engine) addSound(id eid, name string) { eng.sounds.create(id, name) }
-func (eng *engine) playSound(id eid, index int)  { eng.sounds.play(id, index) }
-
-// FUTURE: cleaning up resources is not complete. Dispose currently means
-// removing entities from the Pov hierarchy and from the eng entity manager,
-// yet keeps them in the cache and bound on the GPU/Snd devices. Applications
-// often "dispose" parts of the Pov hierarchy only to (re)use the underlying
-// data again. Likely need another API for the application to indicate data
-// that is to be completely "unloaded".
-//
-// Note: cached objects know about "loaded" and must be kept in sync
-// if device bound data is changed.
-
-// dispose discards the given pov component or the entire pov and all
-// its components. Each call recalculates the currently loaded set
-// of assets.
-func (eng *engine) dispose(id eid, component int) {
-	switch component {
-	case PovBody:
-		eng.bodies.dispose(id)
-	case PovCam:
-		eng.cams.dispose(id)
-	case PovModel:
-		eng.models.dispose(id)
-	case PovSound:
-		eng.sounds.dispose(id)
-	case PovLight:
-		eng.lights.dispose(id)
-	case PovLayer:
-		eng.layers.dispose(id)
-	case PovNode:
-		eng.disposePov(id)
-	}
-}
-
-// disposePov chops this transform and all of its children out
-// of the transform hierarchy. All associated objects are disposed.
-func (eng *engine) disposePov(id eid) {
-	eng.povs.dispose(id)
-	eng.cams.dispose(id)
-	eng.bodies.dispose(id)
-	eng.models.dispose(id)
-	eng.sounds.dispose(id)
-	eng.lights.dispose(id)
-	eng.layers.dispose(id)
-}
-
-// Usage returns numbers collected each time through the
-// main processing loop. This allows the application to get
-// a sense of time usage.
-func (eng *engine) Usage() *Timing { return eng.times }
-
-// Set one or more engine attributes.
-func (eng *engine) Set(attrs ...EngAttr) {
-	for _, attr := range attrs {
-		attr(eng)
-	}
+	eng.gc.SetTextureMode(tid, true)
 }
 
 // engine
-// ===========================================================================
-// expose/wrap physics shapes.
-
-// NewBox creates a box shaped physics body located at the origin.
-// The box size is given by the half-extents so that actual size
-// is w=2*hx, h=2*hy, d=2*hz.
-func NewBox(hx, hy, hz float64) physics.Body {
-	return physics.NewBody(physics.NewBox(hx, hy, hz))
-}
-
-// NewSphere creates a ball shaped physics body located at the origin.
-// The sphere size is defined by the radius.
-func NewSphere(radius float64) physics.Body {
-	return physics.NewBody(physics.NewSphere(radius))
-}
-
-// NewRay creates a ray located at the origin and pointing in the
-// direction dx, dy, dz.
-func NewRay(dx, dy, dz float64) physics.Body {
-	return physics.NewBody(physics.NewRay(dx, dy, dz))
-}
-
-// SetRay updates the ray direction.
-func SetRay(ray physics.Body, x, y, z float64) {
-	physics.SetRay(ray, x, y, z)
-}
-
-// SetPlane updates the plane normal.
-func SetPlane(plane physics.Body, x, y, z float64) {
-	physics.SetPlane(plane, x, y, z)
-}
-
-// NewPlane creates a plane located on the origin and oriented by the
-// plane normal nx, ny, nz.
-func NewPlane(nx, ny, nz float64) physics.Body {
-	return physics.NewBody(physics.NewPlane(nx, ny, nz))
-}
-
-// Cast checks if a ray r intersects the given Body b, returning the
-// nearest point of intersection if there is one. The point of contact
-// x, y, z is valid when hit is true.
-func Cast(ray, b physics.Body) (hit bool, x, y, z float64) {
-	return physics.Cast(ray, b)
-}
-
-// engine physics
-// ===========================================================================
+// =============================================================================
 // engine attributes reeduces the eng API footprint using functional options:
 //    http://dave.cheney.net/2014/10/17/functional-options-for-friendly-apis
 //    https://commandcenter.blogspot.ca/2014/01/self-referential-functions-and-design.html
-// See eng_test notes about slowness. Usable on engine since the messages are
-// being sent across a channel. Currently the messages are blocking.
+//
+// The public functions are called on the update goroutine. Because the
+// methods affect the device layer, they are stored and then called when
+// back on the main engine thread.
 
 // EngAttr defines an engine attribute that can be used in Eng.Set().
-type EngAttr func(Eng)
+// For example.
+//    eng.Set(Color(1,1,1), Mute(true))
+type EngAttr func(*engine)
 
 // Color sets the background window clear color.
-// Engine attribute expected to be used in Eng.Set().
+// Engine attribute for use in Eng.Set().
 func Color(r, g, b, a float32) EngAttr {
-	return func(e Eng) {
-		e.(*engine).machine <- &setColor{r: r, g: g, b: b, a: a}
+	return func(eng *engine) { eng.gc.Color(r, g, b, a) }
+}
+
+// Title sets the window title. For windowed mode.
+// Engine attribute for use in Eng.Set().
+func Title(t string) EngAttr {
+	return func(eng *engine) { eng.dev.SetTitle(t) }
+}
+
+// Size sets the window starting location and size in pixels.
+// For windowed mode.
+// Engine attribute for use in Eng.Set().
+func Size(x, y, w, h int) EngAttr {
+	return func(eng *engine) {
+		eng.dev.SetSize(x, y, w, h)
+		eng.gc.Viewport(w, h)
+		eng.app.state.setScreen(eng.dev.Size())
 	}
 }
 
 // CursorOn hides or shows the cursor.
-// Engine attribute expected to be used in Eng.Set().
+// Engine attribute for use in Eng.Set().
 func CursorOn(show bool) EngAttr {
-	return func(e Eng) {
-		e.(*engine).machine <- &showCursor{enable: show}
-	}
+	return func(eng *engine) { eng.dev.ShowCursor(show) }
 }
 
 // CursorAt places the cursor at the window pixel x,y.
-// Engine attribute expected to be used in Eng.Set().
+// Engine attribute for use in Eng.Set().
 func CursorAt(x, y int) EngAttr {
-	return func(e Eng) {
-		e.(*engine).machine <- &setCursor{cx: x, cy: y}
-	}
+	return func(eng *engine) { eng.dev.SetCursorAt(x, y) }
 }
 
 // On enables/disables render attributes like Blend, CullFace, etc...
-// Engine attribute expected to be used in Eng.Set().
+// Engine attribute for use in Eng.Set().
 func On(attr uint32, enabled bool) EngAttr {
-	return func(e Eng) {
-		e.(*engine).machine <- &enableAttr{attr: attr, enable: enabled}
-	}
+	return func(eng *engine) { eng.gc.Enable(attr, enabled) }
 }
 
 // ToggleFullScreen flips full screen and windowed mode.
-// Engine attribute expected to be used in Eng.Set().
+// Engine attribute for use in Eng.Set().
 func ToggleFullScreen() EngAttr {
-	return func(e Eng) { e.(*engine).machine <- &toggleScreen{} }
+	return func(eng *engine) { eng.dev.ToggleFullScreen() }
 }
 
 // Mute toggles the sound volume.
-// Engine attribute expected to be used in Eng.Set().
+// Engine attribute for use in Eng.Set().
 func Mute(mute bool) EngAttr {
 	gain := 1.0
 	if mute {
 		gain = 0.0
 	}
-	return func(e Eng) {
-		e.(*engine).machine <- &setVolume{gain: gain}
-	}
+	return func(eng *engine) { eng.ac.SetGain(gain) }
 }
 
 // Volume sets the sound volume.
-// Engine attribute expected to be used in Eng.Set().
+// Engine attribute for use in Eng.Set().
 func Volume(zeroToOne float64) EngAttr {
-	return func(e Eng) {
-		e.(*engine).machine <- &setVolume{gain: zeroToOne}
-	}
+	return func(eng *engine) { eng.ac.SetGain(zeroToOne) }
 }
 
 // Gravity changes the physics gravity constant.
-// Engine attribute expected to be used in Eng.Set().
+// Engine attribute for use in Eng.Set().
 func Gravity(g float64) EngAttr {
-	return func(e Eng) {
-		e.(*engine).bodies.physics.Set(physics.Gravity(g))
+	return func(eng *engine) {
+		eng.app.bodies.physics.Set(physics.Gravity(g))
 	}
 }

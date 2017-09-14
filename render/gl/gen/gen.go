@@ -145,8 +145,9 @@ func genPreamble(gout *os.File, pkgname string, typedefs []string) {
 // Needed to create a link for the latest opengl library as follows:
 //     sudo ln -s /usr/lib/nvidia-319-updates/libGL.so.1 /usr/lib/libGL.so
 var cPreamble = []string{
-	"// #cgo darwin  LDFLAGS: -framework OpenGL", // needed to compile on OSX
-	"// #cgo linux   LDFLAGS: -lGL -ldl",         // only tested on Ubuntu
+	"// #cgo darwin,amd64 LDFLAGS: -framework OpenGL",   // needed to compile on OSX
+	"// #cgo darwin,arm64 LDFLAGS: -framework OpenGLES", // needed to compile on iOS
+	"// #cgo linux   LDFLAGS: -lGL -ldl",                // only tested on Ubuntu
 	"// #cgo windows LDFLAGS: -lopengl32",
 	"// ",
 	"// #include <stdlib.h>",

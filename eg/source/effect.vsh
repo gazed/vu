@@ -1,5 +1,3 @@
-#version 330
-
 layout(location=0) in vec3 in_v; // particle locations.
 uniform               mat4 mvm;  // model view matrix
 uniform               mat4 pm;   // projection matrix

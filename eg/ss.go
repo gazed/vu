@@ -1,4 +1,4 @@
-// Copyright © 2016 Galvanized Logic. All rights reserved.
+// Copyright © 2016-2017 Galvanized Logic. All rights reserved.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -30,8 +30,7 @@ import (
 //   AD    : rotate model           : left right
 //   1-9,0 : precanned shapes
 func ss() {
-	ss := &superShape{}
-	if err := vu.New(ss, "Super Shapes", 400, 100, 800, 600); err != nil {
+	if err := vu.Run(&superShape{}); err != nil {
 		log.Printf("ss: error starting engine %s", err)
 	}
 	defer catchErrors()
@@ -39,83 +38,80 @@ func ss() {
 
 // superShape is the  unique "tag" to encapsulate the demo specific data.
 type superShape struct {
-	cam3   *vu.Camera // 3D camera for 3D shapes.
-	cam2   *vu.Camera // 2D camera for 2D shapes and shape parameters.
-	m2D    *vu.Pov    // model to render the generated 2D shape.
-	m3D    *vu.Pov    // model to render the generated 3D shape.
-	vb     []float32  // reusable vertex buffer to create models.
-	fb     []uint16   // reusable face buffer to create models.
-	nb     []float32  // reusable normal buffer to create models.
-	row    int        // controls which shape value is being edited.
-	rowbg  *vu.Pov    // background row hilight for the editing shape values.
-	orig   []float64  // original shape values.
-	mag    float64    // shape parameter editing amount.
-	mindex int        // which magnitude for editing parameters.
-	show3D bool       // toggle between 2D and 3D visualization.
+	scene  *vu.Ent   // 3D camera for 3D shapes.
+	ui     *vu.Ent   // 2D camera for 2D shapes and shape parameters.
+	m2D    *vu.Ent   // model to render the generated 2D shape.
+	m3D    *vu.Ent   // model to render the generated 3D shape.
+	vb     []float32 // reusable vertex buffer to create models.
+	fb     []uint16  // reusable face buffer to create models.
+	nb     []float32 // reusable normal buffer to create models.
+	row    int       // controls which shape value is being edited.
+	rowbg  *vu.Ent   // background row hilight for the editing shape values.
+	orig   []float64 // original shape values.
+	mag    float64   // shape parameter editing amount.
+	mindex int       // which magnitude for editing parameters.
+	show3D bool      // toggle between 2D and 3D visualization.
 
 	// control the shape using different values for the parameters.
 	shape  *synth.Form // superformula shape.
-	labels []*vu.Pov   // indexed by M, N1, N2, N3, A, B
-	amount *vu.Pov     // show parameter editing amount value.
+	labels []*vu.Ent   // indexed by M, N1, N2, N3, A, B
+	amount *vu.Ent     // show parameter editing amount value.
 }
 
 // Create is the startup asset creation.
 func (ss *superShape) Create(eng vu.Eng, s *vu.State) {
-	scene3 := eng.Root().NewPov()
-	ss.cam3 = scene3.NewCam()
-	scene2 := eng.Root().NewPov()
-	ss.cam2 = scene2.NewCam().SetUI()
-	ss.resize(s.W, s.H)
+	eng.Set(vu.Title("Super Shapes"), vu.Size(400, 100, 800, 600))
+	ss.scene = eng.AddScene()
+	ss.scene.Cam().SetClip(0.1, 50).SetFov(60)
+	ss.ui = eng.AddScene().SetUI()
+	ss.ui.Cam().SetClip(0, 50)
 	ss.orig = []float64{0, 1, 1, 1}
 	ss.mag = 0.1 // default edit amount.
 
 	// hiliting the selected shape parameters.
-	ss.rowbg = scene2.NewPov().SetAt(115, 110, 0).SetScale(55, 20, 0)
-	ss.rowbg.NewModel("alpha", "msh:icon", "mat:transparent_blue")
+	ss.rowbg = ss.ui.AddPart().SetAt(115, 110, 0).SetScale(55, 20, 0)
+	ss.rowbg.MakeModel("alpha", "msh:icon", "mat:transparent_blue")
 
 	// mesh for 2D shapes.
 	scale := 100.0
 	ss.shape = synth.NewForm()
-	ss.m2D = eng.Root().NewPov().SetAt(400, 300, 0).SetScale(scale, scale, 0)
-	ss.m2D.NewModel("solid").Make("msh:gen2d")
-	ss.m2D.Model().Set(vu.DrawMode(vu.Lines)).SetUniform("kd", 1, 1, 1)
-	ss.m2D.Cull = ss.show3D
-	ss.genSquare(ss.m2D.Model()) // use hand generated model to start.
+	ss.m2D = ss.ui.AddPart().SetAt(400, 300, 0).SetScale(scale, scale, 0)
+	ss.m2D.MakeModel("solid").GenMesh("gen2d")
+	ss.m2D.SetDraw(vu.Lines).SetColor(1, 1, 1)
+	ss.m2D.Cull(ss.show3D)
+	ss.genSquare(ss.m2D.Mesh()) // use hand generated model to start.
 
 	// mesh for 3D shapes.
 	// debug with .SetDrawMode(vu.Points) and "solid" shader.
-	ss.m3D = scene3.NewPov().SetAt(0, 0, -8).SetScale(2.5, 2.5, 2.5)
-	ss.m3D.NewModel("gouraud", "mat:blue").Make("msh:gen3d")
-	ss.genSquare(ss.m3D.Model()) // use hand generated model to start.
-	ss.m3D.Cull = !ss.show3D
+	ss.m3D = ss.scene.AddPart().SetAt(0, 0, -8).SetScale(2.5, 2.5, 2.5)
+	ss.m3D.MakeModel("gouraud", "mat:blue").GenMesh("gen3d")
+	ss.genSquare(ss.m3D.Mesh()) // use hand generated model to start.
+	ss.m3D.Cull(!ss.show3D)
 
 	// Display the shape parameters.
 	left := 50.0
 	font := "lucidiaSu18"
-	ss.labels = []*vu.Pov{nil, nil, nil, nil, nil, nil, nil}
-	ss.labels[M] = scene2.NewPov().SetAt(left, 120, 0)
-	ss.labels[M].NewLabel("txt", font)
-	ss.labels[N1] = scene2.NewPov().SetAt(left, 100, 0)
-	ss.labels[N1].NewLabel("txt", font)
-	ss.labels[N2] = scene2.NewPov().SetAt(left, 80, 0)
-	ss.labels[N2].NewLabel("txt", font)
-	ss.labels[N3] = scene2.NewPov().SetAt(left, 60, 0)
-	ss.labels[N3].NewLabel("txt", font)
-	ss.labels[A] = scene2.NewPov().SetAt(left, 40, 0)
-	ss.labels[A].NewLabel("txt", font)
-	ss.labels[B] = scene2.NewPov().SetAt(left, 20, 0)
-	ss.labels[B].NewLabel("txt", font)
-	ss.amount = scene2.NewPov().SetAt(left+120, 0, 0)
-	ss.amount.NewLabel("txt", font)
+	ss.labels = []*vu.Ent{nil, nil, nil, nil, nil, nil, nil}
+	ss.labels[M] = ss.ui.AddPart().SetAt(left, 120, 0)
+	ss.labels[M].MakeLabel("txt", font)
+	ss.labels[N1] = ss.ui.AddPart().SetAt(left, 100, 0)
+	ss.labels[N1].MakeLabel("txt", font)
+	ss.labels[N2] = ss.ui.AddPart().SetAt(left, 80, 0)
+	ss.labels[N2].MakeLabel("txt", font)
+	ss.labels[N3] = ss.ui.AddPart().SetAt(left, 60, 0)
+	ss.labels[N3].MakeLabel("txt", font)
+	ss.labels[A] = ss.ui.AddPart().SetAt(left, 40, 0)
+	ss.labels[A].MakeLabel("txt", font)
+	ss.labels[B] = ss.ui.AddPart().SetAt(left, 20, 0)
+	ss.labels[B].MakeLabel("txt", font)
+	ss.amount = ss.ui.AddPart().SetAt(left+120, 0, 0)
+	ss.amount.MakeLabel("txt", font)
 	ss.positionLabels()
 	ss.updateLabels()
 }
 
 // Update is the regular engine callback.
 func (ss *superShape) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
-	if in.Resized {
-		ss.resize(s.W, s.H)
-	}
 	for press, down := range in.Down {
 		switch {
 
@@ -208,12 +204,6 @@ func (ss *superShape) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 	}
 }
 
-// resize handles user changes to the window size.
-func (ss *superShape) resize(ww, wh int) {
-	ss.cam2.SetOrthographic(0, float64(ww), 0, float64(wh), 0, 50)
-	ss.cam3.SetPerspective(60, float64(ww)/float64(wh), 0.1, 50)
-}
-
 // precanned for a quick demo of some cool reference shapes.
 func (ss *superShape) precanned(index int) {
 	switch index {
@@ -245,18 +235,18 @@ func (ss *superShape) precanned(index int) {
 // genShape recreates the shape based on the current shape parameters.
 // It uses 2D or 3D shape methods based on the current display mode.
 func (ss *superShape) genShape() {
-	ss.m3D.Cull = !ss.show3D
-	ss.m2D.Cull = ss.show3D
+	ss.m3D.Cull(!ss.show3D)
+	ss.m2D.Cull(ss.show3D)
 	if ss.show3D {
-		ss.gen3DShape(ss.m3D.Model())
+		ss.gen3DShape(ss.m3D.Mesh())
 	} else {
-		ss.gen2DShape(ss.m2D.Model())
+		ss.gen2DShape(ss.m2D.Mesh())
 	}
 }
 
 // gen2DShape runs the superformula over a series of samples and
 // then links the samples with a line.
-func (ss *superShape) gen2DShape(model vu.Model) {
+func (ss *superShape) gen2DShape(mesh *vu.Mesh) {
 	vc := uint16(0)                // vertex counter.
 	vb, fb := ss.vb[:0], ss.fb[:0] // keep any allocated memory.
 	samples := 100
@@ -272,13 +262,13 @@ func (ss *superShape) gen2DShape(model vu.Model) {
 	ss.vb, ss.fb = vb, fb
 
 	// reset the mesh data with the generated data.
-	model.Mesh().InitData(0, 3, vu.DynamicDraw, false).SetData(0, vb)
-	model.Mesh().InitFaces(vu.DynamicDraw).SetFaces(fb)
+	mesh.InitData(0, 3, vu.DynamicDraw, false).SetData(0, vb)
+	mesh.InitFaces(vu.DynamicDraw).SetFaces(fb)
 }
 
 // gen3DShape runs the superformula using planar coordinate sampling and
 // then generates the 3D model by creating triangles from the sampled points.
-func (ss *superShape) gen3DShape(model vu.Model) {
+func (ss *superShape) gen3DShape(mesh *vu.Mesh) {
 	vb, fb, nb := ss.vb[:0], ss.fb[:0], ss.nb[:0] // reuse keeping allocated memory.
 	halfPi := math.Pi / 2.0
 	samples := 100
@@ -351,9 +341,9 @@ func (ss *superShape) gen3DShape(model vu.Model) {
 	ss.updateNormals()
 
 	// reset the mesh data with the generated data.
-	model.Mesh().InitData(0, 3, vu.DynamicDraw, false).SetData(0, vb)
-	model.Mesh().InitData(1, 3, vu.DynamicDraw, false).SetData(1, nb)
-	model.Mesh().InitFaces(vu.DynamicDraw).SetFaces(fb)
+	mesh.InitData(0, 3, vu.DynamicDraw, false).SetData(0, vb)
+	mesh.InitData(1, 3, vu.DynamicDraw, false).SetData(1, nb)
+	mesh.InitFaces(vu.DynamicDraw).SetFaces(fb)
 }
 
 // updateNormals is called to process ss.vb and ss.nb.
@@ -405,27 +395,27 @@ func (ss *superShape) positionLabels() {
 // updateLabels regenerates the labels for the parameter labels.
 func (ss *superShape) updateLabels() {
 	s := fmt.Sprintf("m  = %5.4f", ss.shape.M)
-	ss.labels[M].Model().SetStr(s)
+	ss.labels[M].Typeset(s)
 	s = fmt.Sprintf("n1 = %5.4f", ss.shape.N1)
-	ss.labels[N1].Model().SetStr(s)
+	ss.labels[N1].Typeset(s)
 	s = fmt.Sprintf("n2 = %5.4f", ss.shape.N2)
-	ss.labels[N2].Model().SetStr(s)
+	ss.labels[N2].Typeset(s)
 	s = fmt.Sprintf("n3 = %5.4f", ss.shape.N3)
-	ss.labels[N3].Model().SetStr(s)
+	ss.labels[N3].Typeset(s)
 	s = fmt.Sprintf("a   = %5.4f", ss.shape.A)
-	ss.labels[A].Model().SetStr(s)
+	ss.labels[A].Typeset(s)
 	s = fmt.Sprintf("b   = %5.4f", ss.shape.B)
-	ss.labels[B].Model().SetStr(s)
+	ss.labels[B].Typeset(s)
 
 	// show the magnitude when changing param amounts.
 	s = fmt.Sprintf("+/-   %3.1f", ss.mag)
-	ss.amount.Model().SetStr(s)
+	ss.amount.Typeset(s)
 }
 
 // genSquare is an example of manually creating a square using lines.
 // It shows how to generate the necessary verticies and faces that
 // are algorithmically produced for generated shapes.
-func (ss *superShape) genSquare(m vu.Model) {
+func (ss *superShape) genSquare(mesh *vu.Mesh) {
 	vb := ss.vb[:0] // reuse, keeping allocated memory.
 	fb := ss.fb[:0] // reuse, keeping allocated memory.
 
@@ -435,8 +425,8 @@ func (ss *superShape) genSquare(m vu.Model) {
 	vb = append(vb, 0.5, 0.5, 0.0)   // 2
 	vb = append(vb, -0.5, 0.5, 0.0)  // 3
 	fb = append(fb, 0, 1, 1, 2, 2, 3, 3, 0)
-	m.Mesh().InitData(0, 3, vu.DynamicDraw, false).SetData(0, vb)
-	m.Mesh().InitFaces(vu.DynamicDraw).SetFaces(fb)
+	mesh.InitData(0, 3, vu.DynamicDraw, false).SetData(0, vb)
+	mesh.InitFaces(vu.DynamicDraw).SetFaces(fb)
 }
 
 // Indicies for super forumula parameters.

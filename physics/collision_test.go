@@ -120,9 +120,9 @@ func TestCollideBoxBox(t *testing.T) {
 }
 
 func TestCollideBoxBox1(t *testing.T) {
-	slab := newBody(NewBox(50, 50, 50)).setMaterial(0, 0)
+	slab := newBody(NewBox(50, 50, 50)).setProps(0, 0)
 	slab.World().Loc.SetS(0, -50, 0)
-	box := newBody(NewBox(1, 1, 1)).setMaterial(1, 0)
+	box := newBody(NewBox(1, 1, 1)).setProps(1, 0)
 	box.World().Loc.SetS(-5.000000, 1.388000, -3.000000)
 	box.World().Rot.SetS(0.182574, 0.365148, 0.547723, 0.730297)
 	wantPoint, wantDepth := lin.NewV3S(-5.2, -0.1, -4.0), -0.108

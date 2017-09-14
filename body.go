@@ -1,16 +1,78 @@
-// Copyright © 2016 Galvanized Logic Inc.
+// Copyright © 2016-2017 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package vu
 
-// body.go helps wrap the vu/physics system.
-// DESIGN: Provide a component manager for physics bodies that tracks
-//         all physics instances.
+// body.go integrates the physics package into the engine.
+// DESIGN: Expose entity related physics methods and provide a physics
+//         body component manager.
+// FUTURE: bodies currently share the pov's transform data. This only
+//         works because pov is storing pointers to the transform data.
 
 import (
+	"log"
+
 	"github.com/gazed/vu/math/lin"
 	"github.com/gazed/vu/physics"
 )
+
+// MakeBody creates non-colliding body associated with this Entity.
+// Bodies are generally set on top level pov transforms which always
+// have valid world coordindates.
+//   b: a physics body eg: vu.Box, vu.Sphere.
+func (e *Ent) MakeBody(b Body) *Ent {
+	p := e.app.povs.get(e.eid)
+	e.app.bodies.create(e.eid, b, p.tn)
+	return e
+}
+
+// Body returns the physics body for this entity, returning nil
+// if no physics body exists.
+func (e *Ent) Body() Body { return e.app.bodies.get(e.eid) }
+
+// DisposeBody removes the physics body from the given entity.
+// Does nothing if there was no physics body.
+func (e *Ent) DisposeBody() { e.app.bodies.dispose(e.eid) }
+
+// SetSolid makes the existing physics Body collide.
+//
+// Depends on Ent.MakeBody.
+func (e *Ent) SetSolid(mass, bounce float64) {
+	if body := e.app.bodies.get(e.eid); body != nil {
+		e.app.bodies.solidify(e.eid, mass, bounce)
+		return
+	}
+	log.Printf("SetSolid needs MakeBody %d", e.eid)
+}
+
+// Cast checks if the ray intersects the given entity, returning
+// the point of intersection if there is one. The point of contact
+// x, y, z is valid when hit is true.
+//
+// Depends on Ent.MakeBody.
+func (e *Ent) Cast(ray Body) (hit bool, x, y, z float64) {
+	if body := e.app.bodies.get(e.eid); body != nil {
+		return physics.Cast(ray, body)
+	}
+	log.Printf("Cast needs MakeBody %d", e.eid)
+	return false, 0, 0, 0
+}
+
+// Push adds to the body's linear velocity.
+// It is a wrapper for physics.Body.Push
+//
+// Depends on Ent.MakeBody.
+func (e *Ent) Push(x, y, z float64) {
+	if body := e.app.bodies.get(e.eid); body != nil {
+		body.Push(x, y, z)
+		return
+	}
+	log.Printf("Push needs MakeBody %d", e.eid)
+}
+
+// body entity methods
+// =============================================================================
+// bodies is the body component manager
 
 // bodies manages all the active physics instances.
 // Physics data is kept internally in order to facilitate optimizing
@@ -27,15 +89,15 @@ type bodies struct {
 // is for a single instance to be created by the engine on startup.
 func newBodies() *bodies {
 	bs := &bodies{}
-	bs.physics = physics.NewPhysics()
-	bs.shapes = map[eid]physics.Body{}
-	bs.solids = map[eid]uint32{}
-	bs.bods = []physics.Body{} // physics bodies...
-	bs.eids = []eid{}          // ...and associated entity identifiers.
+	bs.physics = physics.NewPhysics()  // underlying physics engine.
+	bs.shapes = map[eid]physics.Body{} // non-colliding bodies.
+	bs.solids = map[eid]uint32{}       // Sparse map of colliding bodies.
+	bs.bods = []physics.Body{}         // Dense array of colliding bodies...
+	bs.eids = []eid{}                  // ...and associated entity identifiers.
 	return bs
 }
 
-// create a new physics body. Guarantees that child Pov's appear later in the
+// create a new physics body. Guarantees that child pov's appear later in the
 // dense data array since children must be created after their parents.
 func (bs *bodies) create(id eid, b physics.Body, t *lin.T) physics.Body {
 	if bod, ok := bs.shapes[id]; ok {
@@ -54,7 +116,7 @@ func (bs *bodies) create(id eid, b physics.Body, t *lin.T) physics.Body {
 func (bs *bodies) solidify(id eid, mass, bounce float64) {
 	if b, ok := bs.shapes[id]; ok {
 		delete(bs.shapes, id)
-		b.SetMaterial(mass, bounce)
+		b.SetProps(mass, bounce)
 
 		// add the colliding body and update the indicies.
 		bs.bods = append(bs.bods, b)
@@ -100,18 +162,8 @@ func (bs *bodies) dispose(id eid) {
 	}
 }
 
-// stepVelocities runs physics on all the bodies; adjusting location and orientation.
-func (bs *bodies) stepVelocities(eng *engine, dts float64) {
+// stepVelocities runs physics on all the bodies; adjusting location and
+// orientation. Physics has references to update the pov transform vectors.
+func (bs *bodies) stepVelocities(dts float64) {
 	bs.physics.Step(bs.bods, dts)
-
-	// The associated pov needs to be marked as dirty in order to
-	// update the transform.
-	for _, eid := range bs.eids {
-		if p := eng.povs.get(eid); p != nil {
-			p.stable = false
-		}
-	}
-	// FUTURE: benchmark to see if time can be saved by keeping an array of
-	//         associated povs for updating the stable flag. How much Quicker
-	//         than the current hash lookup?
 }

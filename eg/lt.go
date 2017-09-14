@@ -1,4 +1,4 @@
-// Copyright © 2015-2016 Galvanized Logic Inc.
+// Copyright © 2015-2017 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -23,8 +23,7 @@ import (
 //   ZX    : move light position    : up down
 //   LaRa  : spin the cube          : left right.
 func lt() {
-	lt := &lttag{}
-	if err := vu.New(lt, "Lighting", 400, 100, 800, 600); err != nil {
+	if err := vu.Run(&lttag{}); err != nil {
 		log.Printf("lt: error starting engine %s", err)
 	}
 	defer catchErrors()
@@ -32,47 +31,41 @@ func lt() {
 
 // Globally unique "tag" that encapsulates example specific data.
 type lttag struct {
-	cam3D *vu.Camera // 3D main scene camera.
-	sun   *vu.Pov    // Light node in Pov hierarchy.
-	box   *vu.Pov    // Normal mapped box.
+	scene *vu.Ent // main 3D scene.
+	sun   *vu.Ent // Light node in Pov hierarchy.
+	box   *vu.Ent // Normal mapped box.
 }
 
 // Create is the engine callback for initial asset creation.
 func (lt *lttag) Create(eng vu.Eng, s *vu.State) {
-	top := eng.Root().NewPov()
-	lt.cam3D = top.NewCam()
-	lt.cam3D.SetAt(0.5, 2, 0.5)
-	lt.sun = top.NewPov().SetAt(0, 2.5, -1.75).SetScale(0.05, 0.05, 0.05)
-	lt.sun.NewLight().SetColor(0.5, 0.5, 0.5)
-
-	// Model at the light position.
-	lt.sun.NewModel("solid", "msh:sphere", "mat:red")
+	eng.Set(vu.Title("Lighting"), vu.Size(400, 100, 800, 600))
+	lt.scene = eng.AddScene()
+	lt.scene.Cam().SetClip(0.1, 50).SetFov(60).SetAt(0.5, 2, 0.5)
+	lt.sun = lt.scene.AddPart().SetAt(0, 2.5, -1.75).SetScale(0.05, 0.05, 0.05)
+	lt.sun.MakeLight().SetLightColor(0.8, 0.8, 0.8)
+	lt.sun.MakeModel("solid", "msh:sphere", "mat:red")
 
 	// Create solid spheres to test the lighting shaders.
-	c4 := top.NewPov().SetAt(-0.5, 2, -2).SetScale(0.25, 0.25, 0.25)
-	c5 := top.NewPov().SetAt(0.5, 2, -2).SetScale(0.25, 0.25, 0.25)
-	c6 := top.NewPov().SetAt(1.5, 2, -2).SetScale(0.25, 0.25, 0.25)
-	c4.NewModel("diffuse", "msh:sphere", "mat:blue")
-	c5.NewModel("gouraud", "msh:sphere", "mat:red")
-	c6.NewModel("phong", "msh:sphere", "mat:blue")
+	c4 := lt.scene.AddPart().SetAt(-0.5, 2, -2).SetScale(0.25, 0.25, 0.25)
+	c5 := lt.scene.AddPart().SetAt(0.5, 2, -2).SetScale(0.25, 0.25, 0.25)
+	c6 := lt.scene.AddPart().SetAt(1.5, 2, -2).SetScale(0.25, 0.25, 0.25)
+	c4.MakeModel("diffuse", "msh:sphere", "mat:blue")
+	c5.MakeModel("gouraud", "msh:sphere", "mat:red")
+	c6.MakeModel("phong", "msh:sphere", "mat:blue")
 
 	// Angle a large flat box with normal map lighting behind the spheres.
-	lt.box = top.NewPov().SetAt(0, 2, -10)
+	lt.box = lt.scene.AddPart().SetAt(0, 2, -10)
 	lt.box.SetScale(5, 5, 5).Spin(45, 45, 0)
-	lt.box.NewModel("nmap", "msh:box", "mat:tile", "tex:tile", "tex:tile_nrm", "tex:tile_spec")
-	lt.resize(s.W, s.H)
+	lt.box.MakeModel("nmap", "msh:box", "mat:tile", "tex:tile", "tex:tile_nrm", "tex:tile_spec")
 }
 
 // Update is the regular engine callback.
 func (lt *lttag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 	run := 10.0 // move so many units worth in one second.
-	if in.Resized {
-		lt.resize(s.W, s.H)
-	}
-	// move the light.
 	dt := in.Dt
 	speed := run * dt * 0.5
 	for press := range in.Down {
+		// move the light.
 		switch press {
 		case vu.KW:
 			lt.sun.Move(0, 0, -speed, lin.QI) // forward
@@ -92,9 +85,6 @@ func (lt *lttag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 			lt.box.Spin(0, -speed*10, 0)
 		}
 	}
-}
-func (lt *lttag) resize(ww, wh int) {
-	lt.cam3D.SetPerspective(60, float64(ww)/float64(wh), 0.1, 50)
 }
 
 // Design notes and references.

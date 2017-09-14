@@ -100,7 +100,7 @@ func (vd *vertexData) Size() uint32 {
 	return 0
 }
 
-// Len returns the number of verticies.
+// Len returns the number of verticies where one vertex is a set of points.
 func (vd *vertexData) Len() int { return vd.vcnt }
 
 // vertexData

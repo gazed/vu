@@ -1,4 +1,4 @@
-// Copyright © 2015-2016 Galvanized Logic Inc.
+// Copyright © 2015-2017 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package vu
@@ -82,22 +82,22 @@ func (s *shader) ensureNewLines() {
 // by a unique name. These provide some basic shaders to get simple examples
 // running quickly and can be used as starting templates for new shaders.
 var shaderLibrary = map[string]func() (vsh, fsh []string){
-	"solid":   solidShader,
-	"alpha":   alphaShader,
-	"diffuse": diffuseShader,
-	"gouraud": gouraudShader,
-	"phong":   phongShader,
-	"sdf":     sdfShader,
-	"txt":     txtShader,
-	"uv":      uvShader,
-	"uvc":     uvcShader,
-	"bump":    bumpShader,
-	"nmap":    nmapShader,
-	"bb":      bbShader,
-	"bbr":     bbrShader,
-	"anim":    animShader,
-	"depth":   depthShader,
-	"shadow":  shadowShader,
+	"solid":      solidShader,
+	"alpha":      alphaShader,
+	"diffuse":    diffuseShader,
+	"gouraud":    gouraudShader,
+	"phong":      phongShader,
+	"sdf":        sdfShader,
+	"txt":        txtShader,
+	"uv":         uvShader,
+	"uvc":        uvcShader,
+	"bump":       bumpShader,
+	"nmap":       nmapShader,
+	"bb":         bbShader,
+	"bbr":        bbrShader,
+	"anim":       animShader,
+	"castShadow": castShadowShader,
+	"showShadow": showShadowShader,
 }
 
 // FUTURE: Add edge-detect and emboss shaders, see:
@@ -108,7 +108,6 @@ var shaderLibrary = map[string]func() (vsh, fsh []string){
 // solidShader shades all verticies the given diffuse color.
 func solidShader() (vsh, fsh []string) {
 	vsh = []string{
-		"#version 330",
 		"layout(location=0) in vec3 in_v;", // verticies
 		"",
 		"uniform mat4 mvpm;", // model view projection matrix
@@ -120,7 +119,6 @@ func solidShader() (vsh, fsh []string) {
 		"}",
 	}
 	fsh = []string{
-		"#version 330",
 		"in  vec4 v_c;",  // color from vertex shader
 		"out vec4 ffc; ", // final fragment color.
 		"void main(void) {",
@@ -135,7 +133,6 @@ func solidShader() (vsh, fsh []string) {
 // alphaShader combines a color with alpha to make transparent objects.
 func alphaShader() (vsh, fsh []string) {
 	vsh = []string{
-		"#version 330",
 		"layout(location=0) in vec3 in_v;", // verticies
 		"",
 		"uniform mat4  mvpm;",  // model view projection matrix
@@ -148,7 +145,6 @@ func alphaShader() (vsh, fsh []string) {
 		"}",
 	}
 	fsh = []string{
-		"#version 330",
 		"in  vec4 v_c;", // color from vertex shader
 		"out vec4 ffc;", // final fragment color
 		"void main() {",
@@ -167,7 +163,6 @@ func alphaShader() (vsh, fsh []string) {
 //          algorithm used is: diffuse*(normal . light-direction)
 func diffuseShader() (vsh, fsh []string) {
 	vsh = []string{
-		"#version 330",
 		"layout(location=0) in vec3 in_v;", // verticies
 		"layout(location=1) in vec3 in_n;", // vertex normals
 		"",
@@ -188,7 +183,6 @@ func diffuseShader() (vsh, fsh []string) {
 		"}",
 	}
 	fsh = []string{
-		"#version 330",
 		"in  vec4 v_c;", // interpolated vertex color
 		"out vec4 ffc;", // final fragment color
 		"void main() {",
@@ -208,7 +202,6 @@ func diffuseShader() (vsh, fsh []string) {
 //           The color are then interpolated across the polygon.
 func gouraudShader() (vsh, fsh []string) {
 	vsh = []string{
-		"#version 330",
 		"layout(location=0) in vec3 in_v;", // verticies
 		"layout(location=1) in vec3 in_n;", // vertex normals
 		"",
@@ -241,7 +234,6 @@ func gouraudShader() (vsh, fsh []string) {
 		"}",
 	}
 	fsh = []string{
-		"#version 330",
 		"                   in      vec4      v_c;", // interpolated vertex color
 		"layout(location=0) out     vec4      ffc;", // final fragment color
 		"void main() {",
@@ -260,7 +252,6 @@ func gouraudShader() (vsh, fsh []string) {
 //                   interpolated vertex normals.
 func phongShader() (vsh, fsh []string) {
 	vsh = []string{
-		"#version 330",
 		"layout(location=0) in vec3 in_v;", // verticies
 		"layout(location=1) in vec3 in_n;", // vertex normals
 		"",
@@ -280,7 +271,6 @@ func phongShader() (vsh, fsh []string) {
 		"}",
 	}
 	fsh = []string{
-		"#version 330",
 		"in      vec3  v_n;",   // interpolated normal
 		"in      vec3  v_s;",   // interpolated vector from vertex to light.
 		"in      vec3  v_e;",   // interpolated vector from eye to vertex.
@@ -313,7 +303,6 @@ func phongShader() (vsh, fsh []string) {
 //           values for the font images - it makes the images look blurry.
 func sdfShader() (vsh, fsh []string) {
 	vsh = []string{
-		"#version 330",
 		"layout(location=0) in vec3 in_v;", // verticies
 		"layout(location=2) in vec2 in_t;", // texture coordinates
 		"",
@@ -329,7 +318,6 @@ func sdfShader() (vsh, fsh []string) {
 		"}",
 	}
 	fsh = []string{
-		"#version 330",
 		"in      vec2      t_uv;",  // texture coords.
 		"in      vec3      v_c;",   // color from vertex shader
 		"uniform sampler2D uv;",    // 2D texture sampler.
@@ -352,7 +340,6 @@ func sdfShader() (vsh, fsh []string) {
 // color and alpha override using uniforms.
 func txtShader() (vsh, fsh []string) {
 	vsh = []string{
-		"#version 330",
 		"layout(location=0) in vec3 in_v;", // verticies
 		"layout(location=2) in vec2 in_t;", // texture coordinates
 		"",
@@ -367,7 +354,6 @@ func txtShader() (vsh, fsh []string) {
 		"}",
 	}
 	fsh = []string{
-		"#version 330",
 		"in      vec2      t_uv;",
 		"in      vec3      v_c;", // color from vertex shader
 		"uniform sampler2D uv;",
@@ -386,7 +372,6 @@ func txtShader() (vsh, fsh []string) {
 // uvShader handles a single texture.
 func uvShader() (vsh, fsh []string) {
 	vsh = []string{
-		"#version 330",
 		"layout(location=0) in vec3 in_v;", // verticies
 		"layout(location=2) in vec2 in_t;", // texture coordinates
 		"",
@@ -398,7 +383,6 @@ func uvShader() (vsh, fsh []string) {
 		"}",
 	}
 	fsh = []string{
-		"#version 330",
 		"in      vec2      t_uv;",
 		"uniform sampler2D uv;",
 		"uniform float     alpha;", // transparency
@@ -417,7 +401,6 @@ func uvShader() (vsh, fsh []string) {
 func uvcShader() (vsh, fsh []string) {
 	vsh, _ = uvShader()
 	fsh = []string{
-		"#version 330",
 		"in      vec2      t_uv;",
 		"uniform sampler2D uv;",
 		"uniform vec3      kd;",    // material diffuse value
@@ -438,7 +421,6 @@ func uvcShader() (vsh, fsh []string) {
 // concepts from http://www.swiftless.com/tutorials/glsl/8_bump_mapping.html
 func bumpShader() (vsh, fsh []string) {
 	vsh = []string{
-		"#version 330",
 		"layout(location=0) in vec3 in_v;", // verticies
 		"layout(location=2) in vec2 in_t;", // texture coordinates
 		"uniform               mat4 mvpm;", // projection * model_view
@@ -449,7 +431,6 @@ func bumpShader() (vsh, fsh []string) {
 		"}",
 	}
 	fsh = []string{
-		"#version 330",
 		"in      vec2      t_uv;", // uv coordinates
 		"uniform sampler2D uv;",   // model texture
 		"uniform sampler2D uv1;",  // texture with normals
@@ -473,7 +454,6 @@ func bumpShader() (vsh, fsh []string) {
 // send tangent information for each vertex.
 func nmapShader() (vsh, fsh []string) {
 	vsh = []string{
-		"#version 330 core",
 		"layout(location = 0) in vec3 in_v;", // vertex position in modelspace
 		"layout(location = 1) in vec3 in_n;", // vertex normal in modespace
 		"layout(location = 2) in vec2 in_t;", // vertex uv texture coordinates
@@ -516,7 +496,6 @@ func nmapShader() (vsh, fsh []string) {
 	//   V  : the view vector in world space
 	//   tuv: texture coordinates
 	fsh = []string{
-		"#version 330 core",
 		"in vec2 t_uv;",          // vertex texture coords
 		"in vec3 v_n;",           // non-normalized vertex normal
 		"in vec3 v_v;",           // non-normalized view vector
@@ -583,7 +562,6 @@ func nmapShader() (vsh, fsh []string) {
 //     http://www.sjbaker.org/steve/omniv/alpha_sorting.html
 func bbShader() (vsh, fsh []string) {
 	vsh = []string{
-		"#version 330",
 		"layout(location=0) in vec3 in_v;", // vertex coordinates
 		"layout(location=2) in vec2 in_t;", // texture coordinates
 		"",
@@ -598,7 +576,6 @@ func bbShader() (vsh, fsh []string) {
 		"}",
 	}
 	fsh = []string{
-		"#version 330",
 		"in      vec2      t_uv;",  // interpolated uv coordinates
 		"uniform sampler2D uv;",    // texture sampler
 		"uniform float     alpha;", // transparency
@@ -616,7 +593,6 @@ func bbShader() (vsh, fsh []string) {
 func bbrShader() (vsh, fsh []string) {
 	vsh, _ = bbShader()
 	fsh = []string{
-		"#version 330",
 		"in      vec2      t_uv;",  // interpolated uv coordinates
 		"uniform sampler2D uv;",    // texture sampler
 		"uniform float     time;",  // current time in seconds
@@ -641,7 +617,6 @@ func bbrShader() (vsh, fsh []string) {
 // uv texture mapping and alpha.
 func animShader() (vsh, fsh []string) {
 	vsh = []string{
-		"#version 330",
 		"layout(location=0) in vec3 in_v;",   // verticies
 		"layout(location=2) in vec2 in_t;",   // texture coordinates
 		"layout(location=4) in vec4 joint;",  // joint indicies
@@ -661,7 +636,6 @@ func animShader() (vsh, fsh []string) {
 		"}",
 	}
 	fsh = []string{
-		"#version 330",
 		"in      vec2      t_uv;",  // interpolated uv coordinates
 		"uniform sampler2D uv;",    // texture sampler
 		"uniform float     alpha;", // transparency
@@ -677,13 +651,12 @@ func animShader() (vsh, fsh []string) {
 
 // =============================================================================
 
-// depthShader is used to create shadow maps by writing objects depths.
+// castShadowShader is used to create shadow maps by writing objects depths.
 // Expected to be used during the shadow map render pass to render to
 // a texture. See:
 // http://www.opengl-tutorial.org/intermediate-tutorials/tutorial-16-shadow-mapping
-func depthShader() (vsh, fsh []string) {
+func castShadowShader() (vsh, fsh []string) {
 	vsh = []string{
-		"#version 330",
 		"layout (location = 0) in vec3 in_v;",
 		"uniform mat4          mvpm;",
 		"void main() {",
@@ -691,7 +664,6 @@ func depthShader() (vsh, fsh []string) {
 		"}",
 	}
 	fsh = []string{
-		"#version 330",
 		"layout(location = 0) out float fragdepth;",
 		"void main() {",
 		"    fragdepth = gl_FragCoord.z;",
@@ -702,11 +674,10 @@ func depthShader() (vsh, fsh []string) {
 
 // =============================================================================
 
-// shadowShader incorporates a shadow depth map into lighting calculations. See:
+// showShadowShader incorporates a shadow depth map into lighting calculations.
 // http://www.opengl-tutorial.org/intermediate-tutorials/tutorial-16-shadow-mapping
-func shadowShader() (vsh, fsh []string) {
+func showShadowShader() (vsh, fsh []string) {
 	vsh = []string{
-		"#version 330 core",
 		"layout(location=0) in vec3 in_v;", // verticies
 		"layout(location=2) in vec2 in_t;", // texture coordinates
 		"uniform mat4       mvpm;",         // model view projection matrix
@@ -720,7 +691,6 @@ func shadowShader() (vsh, fsh []string) {
 		"}",
 	}
 	fsh = []string{
-		"#version 330 core",
 		"in      vec2            t_uv;",      // interpolated uv coordinates
 		"in      vec4            s_uv;",      // interpolated shadow uv coordinates
 		"uniform sampler2D       uv;",        // object material texture sampler

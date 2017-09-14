@@ -1,9 +1,10 @@
-// Copyright © 2015-2016 Galvanized Logic Inc.
+// Copyright © 2015-2017 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package vu
 
-// animation.go encapsulates the manipulation of animated model data.
+// animation.go encapsulates animation asset data and methods for
+// manipulating the data. Used mainly by actor.go.
 
 import (
 	"math"
@@ -11,27 +12,15 @@ import (
 	"github.com/gazed/vu/math/lin"
 )
 
-// Animator is a Model that can have multiple animated actions.
-// Actions are indexed from 0.
+// animation is asset data needed by the animated model Actor.
+// Animation data knows about sequences of poses that are sent to the
+// graphics card and used to displace verticies. The poses are continuously
+// updated so that the verticies appear to be moving.
 //
-// An animated model is a rigged model animation system. An animation
-// is a sequence of positions (frames) for the joints (bones) of a model
-// where the position of each vertex can be affected by up to 4 joints.
-// Animation data is independent of any given instance, thus making it
-// safe to cache and be referenced by multiple models. Animation data
-// may contain more than one animation sequence (action).
-type Animator interface {
-	Animate(action, frame int) bool        // Return true if available.
-	Action() (action, frame, maxFrame int) // Current movement info.
-	Actions() []string                     // Animation sequence names.
-}
-
-// Animator
-// =============================================================================
-// animation underlyes Animator and is controlled through Model.
-
-// animation contains the animation data and the knowledge for transforming
-// animation data into a specific pose that is sent to the graphics card.
+// Animation data is independent of any given instance, thus making
+// it safe to cache and be referenced by multiple models. Animation data
+// may contain more than one animation sequence (movement).
+// Movements are indexed from 0.
 type animation struct {
 	name     string     // unique animation name.
 	tag      aid        // name and type as a number.

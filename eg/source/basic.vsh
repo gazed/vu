@@ -1,5 +1,3 @@
-#version 330
-
 uniform mat4 mvpm;
 
 layout(location=0) in vec3 in_v;

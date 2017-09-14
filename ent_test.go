@@ -1,4 +1,4 @@
-// Copyright © 2016 Galvanized Logic Inc.
+// Copyright © 2016-2017 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package vu
@@ -12,17 +12,18 @@ func TestEmptyValid(t *testing.T) {
 	if ids.valid(0) {
 		t.Errorf("Expecting invalid for unallocated entity")
 	}
-
 }
-func TestFirstIsZero(t *testing.T) {
+
+func TestFirstIsOne(t *testing.T) {
 	ids := &eids{}
-	if eid := ids.create(); eid != 0 {
-		t.Errorf("Expecting first eid to be 0")
+	if eid := ids.create(); eid != 1 {
+		t.Errorf("Expecting first eid to be 1")
 	}
 }
+
 func TestMaxCreate(t *testing.T) {
 	ids := &eids{}
-	for cnt := 0; cnt <= maxEntityID; cnt++ {
+	for cnt := 1; cnt < maxEntID; cnt++ {
 		if id := ids.create(); int(id) != cnt {
 			t.Errorf("Expecting initial ids to be allocated sequentially.")
 		}
@@ -37,14 +38,14 @@ func TestMaxCreate(t *testing.T) {
 
 func TestMaxCreateWithDispose(t *testing.T) {
 	ids := &eids{}
-	for cnt := 0; cnt <= maxEntityID; cnt++ {
+	for cnt := 1; cnt < maxEntID; cnt++ {
 		ids.create() // create max entities.
 	}
-	// should have allocated maxEntityID at this point
+	// should have allocated maxEntID at this point
 
 	// free 2*maxFree entities. Check that the free list can grow
 	// larger than the amount that triggers reuse.
-	for cnt := 0; cnt < 2*maxFree; cnt++ {
+	for cnt := 1; cnt <= 2*maxFree; cnt++ {
 		ids.dispose(eid(cnt)) // should not crash.
 	}
 	if len(ids.free) != 2*maxFree {

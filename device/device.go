@@ -1,81 +1,107 @@
-// Copyright © 2013-2016 Galvanized Logic Inc.
+// Copyright © 2013-2017 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
+// Design Notes:
+// Big thanks to GLFW (http://www.glfw.org) from which the minimalist API
+// philosophy was borrowed along with which OS specific API's mattered.
+// Also thank you to https://github.com/golang/mobile.
+// FUTURE: Linux support  : ignore X support and wait for Wayland.
+//                          Need to pick one distro for main testing.
+// FUTURE: Android support: need access to android hardware.
+
 // Package device provides minimal platform/os access to a 3D rendering context
-// and user input. Access to user keyboard and mouse input is provided through
-// the Update method and Pressed structure. The application is responsible
-// for providing any windowing constructs like buttons, controls, dialogs,
-// sub-panels, text-boxes, etc.
+// and user input. Access to user keyboard and mouse or touch input is provided
+// through the Pressed structure. The application is responsible for providing
+// windowing constructs like buttons, dialogs, sub-panels, text-boxes, etc.
+//
+// An application is expected to create a device and then call Run.
+// Running a device takes control of the processing, calling the application
+// back on the App interface methods.
 //
 // Package device is provided as part of the vu (virtual universe) 3D engine.
 package device
 
-// Big thanks to GLFW (http://www.glfw.org) from which the minimalist API
-// philosophy was borrowed along with which OS specific API's mattered.
-//
-// FUTURE: Linux support  : ignore X support and wait for Wayland vs Mir.
-//                          Latest - Intel to support Wayland, not Mir.
-//                          Need to pick one distro for main testing.
-// FUTURE: Android support: Doable, maybe even maintainable.
-// FUTURE: iOS support    : Doable, not maintainable. Like to do this without
-//                          needing Xcode download and fake Xcode projects.
-
-// Device wraps OS specific functionality. The expected usage is:
-//     dev := device.New("title", x, y, width, height)
-//     // ... Application initialization code.
-//     dev.Open()
-//     for dev.IsAlive() {
-//         pressed := dev.Update()
-//         // ... Application update and render code.
-//         dev.SwapBuffers()
+// Device wraps OS specific functionality. The expected usage is for
+// the application to create the device as follows:
+//     app := &Application{}  // client specific application.
+//     dev := device.Run(app) // create device and render context.
+// where device.Run does not return but calls the following methods:
+//     func (a *Application) Init(dev device.Device) {
+//         // one time call.
 //     }
-//     dev.Dispose()
+//     func (a *Application) Refresh(d device.Device) {
+//         // regular call to handle user input,
+//         // update state, and render a frame.
+//     }
+// Commonly applications are closed when the user closes the device window
+// or app, stopping calls to Refresh. Calls to Refresh may also stop when
+// the application loses focus or is put in the background.
 type Device interface {
-	Open()                // Open the window and process events.
-	ShowCursor(show bool) // Displays or hides the cursor.
-	SetCursorAt(x, y int) // Places the cursor at the given window location.
-	Dispose()             // Release OS specific resources.
 
-	// IsAlive returns true if the window is alive processing user input.
-	// Quitting the application window will cause IsAlive to return false.
-	IsAlive() bool
+	// Call Down each App.Refresh to process user input.
+	Down() *Pressed // Gets pressed keys since last call.
+	Dispose()       // Stop device and release OS specific resources.
 
-	// Size returns the usable graphics context location and size excluding
-	// any OS specific window trim. The window x,y (0,0) coordinates are
-	// at the bottom left of the window.
-	Size() (x, y, width, height int)
-	IsFullScreen() bool // Returns true if window is full screen.
-	ToggleFullScreen()  // Flips between full screen and windowed mode.
+	// Returns the size and position of the screen. Mobile devices
+	// are always full screen where x=y=0.
+	Size() (x, y, w, h int) // in pixels where 0,0 is bottom left.
 
-	// SwapBuffers exchanges the graphic drawing buffers. Expected to be
-	// called after a render. All rendering contexts are double buffered.
-	SwapBuffers()
+	// The following methods are for to PC devices and
+	// are currently ignored or unnecessary for mobile.
+
+	// SwapBuffers exchanges the graphic drawing buffers.
+	// Call after each Refresh.
+	SwapBuffers() // A frame has been rendered.
 
 	// Copy/Paste interacts with the system clipboard using strings.
 	Copy() string   // Returns nil if no string on clipboard.
 	Paste(s string) // Paste the given string onto the clipboard.
 
-	// Update returns the current (key/mouse) pressed state.
-	// The calling application is expected to:
-	//   1. Treat the pressed information as read only.
-	//   2. Call this method every update loop for regular processing
-	//      of the native OS window events.
-	Update() *Pressed
+	// Windowed computer API's.
+	// The x,y (0,0) coordinates are at the bottom left.
+	// The w,h are width, height dimensions in pixels.
+	SetSize(x, y, w, h int) // Used to restore from preferences.
+	SetTitle(t string)      // Expected to be called once on startup.
+	IsFullScreen() bool     // Returns true if window is full screen.
+	ToggleFullScreen()      // Flips between full screen and windowed.
+	ShowCursor(show bool)   // Displays or hides the cursor.
+	SetCursorAt(x, y int)   // Places the cursor at the given window location.
+}
+
+// Run initializes the device specific layer and starts callbacks
+// to the given application. This function does not return.
+func Run(app App) {
+	// runApp and a Device implementation is defined
+	// in each native layer.
+	runApp(app) // Does not return!!!
+}
+
+// App handled device callbacks. An App instance is provided to
+// the device.Run method.
+type App interface {
+	Init(dev Device) // Called once after device initialization.
+
+	// Refresh the display. Called at the display refresh rate which is
+	// usually 60 times/second. The current (key/mouse) pressed state is
+	// returned for read only access.
+	Refresh(dev Device) // Called repeatedly after Init.
 }
 
 // Pressed is used to communicate user input. Input mainly consists
 // of the keys that are currently pressed and how long they have been
 // pressed (measured in update ticks).
-// A postitive duration means the key is still being held down.
-// A negative duration means that the key has been released since
-// the last poll. The total pressed duration prior to release can be
-// determined using the difference with KEY_RELEASED.
 type Pressed struct {
-	Mx, My  int         // Current mouse location.
-	Scroll  int         // The amount of scrolling, if any.
-	Down    map[int]int // Pressed keys and pressed duration.
-	Focus   bool        // True if window has focus.
-	Resized bool        // True if window was resized or moved.
+	Mx, My  int  // Current mouse location.
+	Scroll  int  // The amount of scrolling, if any.
+	Focus   bool // True if window has focus.
+	Resized bool // True if window was resized or moved.
+
+	// Pressed keys keyCodes and pressed duration in ticks.
+	// A postitive duration means the key is still being held down.
+	// A negative duration means that the key has been released since
+	// the last poll. The total pressed duration prior to release can
+	// be determined using the difference with KEY_RELEASED.
+	Down map[int]int // Pressed keys and pressed duration.
 }
 
 // KeyReleased is used to indicate a key up event has occurred.
@@ -84,61 +110,3 @@ type Pressed struct {
 // a key down for 24 hours before the released duration became positive
 // (assuming a reasonable update time of 0.02 seconds).
 const KeyReleased = -1000000000
-
-// New provides a newly initialized Device with an underlying window and
-// graphics context created, but not yet displayed. The only thing left to
-// do is to open the device and start polling it for user input.
-func New(title string, x, y, width, height int) Device { return newDevice(title, x, y, width, height) }
-
-// Device interfaces
-// ===========================================================================
-// device provides default Device implementation.
-
-// Design note 1: the layers in this package are:
-//     device : uses context to process events into something simple.
-//     input  : turn user input event stream into pollable structure.
-//     native : single point of entry into the native layer.
-//     os_darwin : OSX native layer. Wraps the following.
-//        os_darwin.m      : objective-c code wraps cocoa.
-//        os_darwin.h
-//        os_darwin_test.m
-//     os_windows: Win native layer. Wraps the following.
-//        os_wgl_windows.c : c code wrapping windows OpenGL API.
-//        os_windows.c     : c code wrapping windows API.
-//        os_windows.h
-//        os_windows_test.c
-//
-// Design note 2: user events need to be processed on the main thread for OSX.
-//                See: native::readAndDispatch
-
-// device provides a simplification layer over the more raw context layer.
-type device struct {
-	os    *nativeOs // Native layer wrapper.
-	input *input    // User input handler.
-}
-
-// newDevice initializes a OS specific window with a valid render context.
-func newDevice(title string, x, y, width, height int) *device {
-	d := &device{}
-	d.os = newNativeOs()
-	d.os.createDisplay(title, x, y, width, height)
-	d.os.createShell()
-	depthBufferBits, alphaBits := 24, 8 // resonable defaults
-	d.os.createContext(depthBufferBits, alphaBits)
-	d.input = newInput()
-	return d
-}
-
-// Access the device specific information in a consistent and general manner.
-func (d *device) Open()                           { d.os.openShell() }
-func (d *device) Dispose()                        { d.os.dispose() }
-func (d *device) IsAlive() bool                   { return d.os.isAlive() }
-func (d *device) Size() (x, y, width, height int) { return d.os.size() }
-func (d *device) ShowCursor(show bool)            { d.os.showCursor(show) }
-func (d *device) SwapBuffers()                    { d.os.swapBuffers() }
-func (d *device) IsFullScreen() bool              { return d.os.isFullscreen() }
-func (d *device) ToggleFullScreen()               { d.os.toggleFullscreen() }
-func (d *device) SetCursorAt(x, y int)            { d.os.setCursorAt(x, y) }
-func (d *device) Copy() string                    { return d.os.copyClip() }
-func (d *device) Paste(s string)                  { d.os.pasteClip(s) }
-func (d *device) Update() *Pressed                { return d.input.pollEvents(d.os) }

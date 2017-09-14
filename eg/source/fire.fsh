@@ -1,5 +1,3 @@
-#version 330
-
 // An example from  https://www.shadertoy.com/view/Xsl3zN
 // Algorithmic creation of a fire effect.
 

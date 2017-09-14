@@ -1,4 +1,4 @@
-// Copyright © 2013-2016 Galvanized Logic Inc.
+// Copyright © 2013-2017 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -26,17 +26,26 @@ import (
 //
 // CONTROLS: NA
 func tr() {
-	tag := &trtag{}
-	dev := device.New("Triangle", 400, 100, 600, 600)
+	device.Run(&trtag{}) // Does not return.
+}
+
+// Init is a one-time callback before rendering updates.
+func (tag *trtag) Init(dev device.Device) {
+	dev.SetTitle("Triangle")
+	dev.SetSize(500, 100, 600, 600)
 	tag.initScene()
-	dev.Open()
 	tag.resize(600, 600)
-	for dev.IsAlive() {
-		dev.Update()
-		tag.drawScene()
-		dev.SwapBuffers()
+}
+
+// Refresh application state and render a new frame.
+func (tag *trtag) Refresh(dev device.Device) {
+	p := dev.Down()
+	if p.Resized {
+		_, _, ww, wh := dev.Size()
+		tag.resize(ww, wh)
 	}
-	dev.Dispose()
+	tag.drawScene()
+	dev.SwapBuffers()
 }
 
 // Globally unique "tag" that encapsulates example specific data.

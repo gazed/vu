@@ -1,5 +1,3 @@
-#version 400 core
-
 // shader to update a particle system based on a simple kinematics function
 // http://antongerdelan.net/opengl/particles.html
 // Consistent sizing based on:

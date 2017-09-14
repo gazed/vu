@@ -22,10 +22,10 @@ func TestNewSolver(t *testing.T) {
 func TestBoxHit0(t *testing.T) {
 
 	// create two bodies for the solver.
-	slab := newBody(NewBox(50, 50, 50)).setMaterial(0, 0)
+	slab := newBody(NewBox(50, 50, 50)).setProps(0, 0)
 	slab.World().Loc.SetS(0, -50, 0)
 	slab.updateInertiaTensor()
-	box := newBody(NewBox(1, 1, 1)).setMaterial(1, 0)
+	box := newBody(NewBox(1, 1, 1)).setProps(1, 0)
 	box.World().Loc.SetS(-5, 1.388006, -3)
 	box.World().Rot.SetS(0.1825742, 0.3651484, 0.5477226, 0.7302967)
 	box.lvel.SetS(0, -16.599991, 0)
@@ -82,10 +82,10 @@ func TestBoxHit0(t *testing.T) {
 func TestBoxHit2(t *testing.T) {
 
 	// create two bodies for the solver.
-	slab := newBody(NewBox(50, 50, 50)).setMaterial(0, 0)
+	slab := newBody(NewBox(50, 50, 50)).setProps(0, 0)
 	slab.World().Loc.SetS(0, -50, 0)
 	slab.updateInertiaTensor()
-	box := newBody(NewBox(1, 1, 1)).setMaterial(1, 0)
+	box := newBody(NewBox(1, 1, 1)).setProps(1, 0)
 	box.World().Loc.SetS(-4.966656, 0.913616, -2.962081)
 	box.World().Rot.SetS(0.291306, 0.202673, 0.711813, 0.606125)
 	box.lvel.SetS(0.575174, -7.106833, 0.947961)

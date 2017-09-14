@@ -1,10 +1,10 @@
-// Copyright © 2014-2016 Galvanized Logic Inc.
+// Copyright © 2014-2017 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package vu
 
-// input.go wraps the device layer for the engine applications.
-// FUTURE: Have the device layer also support text entry.
+// input.go wraps the device package for the engine applications.
+// FUTURE: Have the device package support text entry.
 
 import (
 	"github.com/gazed/vu/device"
@@ -26,34 +26,41 @@ type Input struct {
 	Focus   bool        // True if window is in focus.
 	Resized bool        // True if window was resized or moved.
 	Scroll  int         // Scroll amount: plus, minus or zero.
-	Dt      float64     // Delta time for this update tick.
+	Dt      float64     // Update delta time in seconds. Set on create.
 	Ut      uint64      // Total number of update ticks.
 }
 
-// convertInput copies the given device.Pressed input into vu.Input.
-// It also adds the delta time and updates the current game time
-// in update ticks. It is expected to be called each update.
-func (in *Input) convertInput(pressed *device.Pressed, ut uint64, dt float64) {
+// poll copies the given device.Pressed input into vu.Input.
+// It is to be called each app update, not each render frame.
+func (in *Input) poll(pressed *device.Pressed, ut uint64) {
 	in.Mx, in.My = pressed.Mx, pressed.My
 	in.Focus = pressed.Focus
 	in.Resized = pressed.Resized
 	in.Scroll = pressed.Scroll
-	in.Dt = dt
 	in.Ut = ut
 
 	// Create a key/mouse down map that the application can trash
 	// since it is cleared and refilled each update.
-	for key := range in.Down {
-		delete(in.Down, key)
-	}
+	in.clear()
 	for key, val := range pressed.Down {
 		in.Down[key] = val
+	}
+}
+
+// clear removes all user input. Expected to be called after the
+// application has handled the user input.
+func (in *Input) clear() {
+	for key := range in.Down {
+		delete(in.Down, key)
 	}
 }
 
 // Expose the device package keys as a convenience so the
 // device package does not always need including.
 // The symbol associated to each key is shown in the comments.
+//
+// Keys are expected to be used for controlling game actions.
+// There is no text entry or text layout support.
 const (
 	K0     = device.K0     // 0 48     Standard keyboard numbers.
 	K1     = device.K1     // 1 49       "
@@ -163,11 +170,11 @@ const (
 	KAlt   = device.KAlt   // ◇ 9671     "
 )
 
-// Keysym returns a single rune representing the given key.
+// Symbol returns a single rune representing the given key.
 // Zero is returned if there is no rune for the key. This is intended
-// to provide a default means of representing each keyboard key with
-// a displayable character.
-func Keysym(keycode int) rune {
+// to provide a default means of representing each keyboard key with a
+// displayable character in a manner similar to game console controllers.
+func Symbol(keycode int) rune {
 	if symbol, ok := keysym[keycode]; ok {
 		return rune(symbol)
 	}

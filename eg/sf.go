@@ -1,4 +1,4 @@
-// Copyright © 2013-2016 Galvanized Logic Inc.
+// Copyright © 2013-2017 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -26,16 +26,25 @@ import (
 //
 // CONTROLS: NA
 func sf() {
-	sf := new(sftag)
-	dev := device.New("Shader Fire", 400, 100, 500, 500)
+	device.Run(&sftag{}) // Does not return!
+}
+
+// Init is a one-time callback before rendering updates.
+func (sf *sftag) Init(dev device.Device) {
 	sf.initScene()
-	dev.Open()
-	for dev.IsAlive() {
-		sf.update(dev)
-		sf.drawScene()
-		dev.SwapBuffers()
+	dev.SetTitle("Shader Fire")
+	dev.SetSize(500, 100, 500, 500)
+	sf.resize(0, 0, 500, 500)
+}
+
+// Refresh application state and render a new frame.
+func (sf *sftag) Refresh(dev device.Device) {
+	p := dev.Down()
+	if p.Resized {
+		sf.resize(dev.Size())
 	}
-	dev.Dispose()
+	sf.drawScene()
+	dev.SwapBuffers()
 }
 
 // Globally unique "tag" that encapsulates example specific data.
@@ -51,14 +60,6 @@ type sftag struct {
 	// mesh information
 	verticies []float32
 	faces     []uint8
-}
-
-// update handles user input.
-func (sf *sftag) update(dev device.Device) {
-	pressed := dev.Update()
-	if pressed.Resized {
-		sf.resize(dev.Size())
-	}
 }
 
 // resize handles user screen/window changes.

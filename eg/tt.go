@@ -1,4 +1,4 @@
-// Copyright © 2015-2016 Galvanized Logic. All rights reserved.
+// Copyright © 2015-2017 Galvanized Logic. All rights reserved.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -19,12 +19,11 @@ import (
 // generating live in-game portals.
 //
 // CONTROLS: none
-//   ws    : spin frame             : left right
+//   WS    : spin frame             : left right
 //   AD    : spin model             : left right
 //   T     : shut down
 func tt() {
-	tt := &toTex{}
-	if err := vu.New(tt, "Render to Texture", 400, 100, 800, 600); err != nil {
+	if err := vu.Run(&toTex{}); err != nil {
 		log.Printf("tt: error starting engine %s", err)
 	}
 	defer catchErrors()
@@ -32,43 +31,35 @@ func tt() {
 
 // Globally unique "tag" that encapsulates example specific data.
 type toTex struct {
-	cam0   *vu.Camera // Camera for rendering monkey to texture scene.
-	monkey *vu.Pov    // Allow user to spin monkey.
-	cam1   *vu.Camera // Camera for rendering texture frame.
-	frame  *vu.Pov    // Allow user to spin frame.
+	monkey *vu.Ent // Allow user to spin monkey.
+	frame  *vu.Ent // Allow user to spin frame.
 }
 
 // Create is the startup asset creation.
 func (tt *toTex) Create(eng vu.Eng, s *vu.State) {
+	eng.Set(vu.Title("Render to Texture"), vu.Size(400, 100, 800, 600))
 
-	// create a scene that will render the blender monkey model to a texture.
-	scene0 := eng.Root().NewPov()
-	tt.cam0 = scene0.NewCam()
-	scene0.NewLayer() // render scene to texture.
-	background := scene0.NewPov().SetAt(0, 0, -10).SetScale(100, 100, 1)
-	background.NewModel("uv", "msh:icon", "tex:wall")
-	tt.monkey = scene0.NewPov().SetAt(0, 0, -5)
-	tt.monkey.NewModel("monkey", "msh:monkey", "mat:gray")
+	// scene that will render the blender monkey model to a square texture.
+	scene0 := eng.AddScene().AsTex(true)
+	scene0.Cam().SetClip(0.1, 50).SetFov(60)
+	background := scene0.AddPart().SetAt(0, 0, -10).SetScale(100, 100, 1)
+	background.MakeModel("uv", "msh:icon", "tex:wall")
+	tt.monkey = scene0.AddPart().SetAt(0, 0, -5)
+	tt.monkey.MakeModel("monkey", "msh:monkey", "mat:gray")
 
-	// create a scene consisting of a single quad. The quad will display
+	// scene consisting of a single quad. The quad will display
 	// the rendered texture from scene0. The texture image is flipped
 	// so reorient it using flipped texture coordinates in flipboard.
-	scene1 := eng.Root().NewPov()
-	tt.cam1 = scene1.NewCam()
-	tt.frame = scene1.NewPov().SetAt(0, 0, -0.5).SetScale(0.25, 0.25, 0.25)
-	model := tt.frame.NewModel("uv", "msh:flipboard")
-	model.UseLayer(scene0.Layer()) // use rendered texture from scene0.
-
-	// set camera perspectives and default background color.
-	tt.resize(s.W, s.H)
+	scene1 := eng.AddScene()
+	scene1.Cam().SetClip(0.1, 50).SetFov(60)
+	tt.frame = scene1.AddPart().SetAt(0, 0, -0.5).SetScale(0.25, 0.25, 0.25)
+	model := tt.frame.MakeModel("uv", "msh:flipboard")
+	model.SetTex(scene0) // use rendered texture from scene0.
 }
 
 // Update is the regular engine callback.
 func (tt *toTex) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 	spin := 270.0 // spin so many degrees in one second.
-	if in.Resized {
-		tt.resize(s.W, s.H)
-	}
 	dt := in.Dt
 	for press := range in.Down {
 		switch press {
@@ -84,8 +75,4 @@ func (tt *toTex) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 			eng.Shutdown()
 		}
 	}
-}
-func (tt *toTex) resize(ww, wh int) {
-	tt.cam0.SetPerspective(60, float64(1024)/float64(1024), 0.1, 50) // Image size.
-	tt.cam1.SetPerspective(60, float64(ww)/float64(wh), 0.1, 50)     // Screen size.
 }

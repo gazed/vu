@@ -16,7 +16,7 @@ func TestBroadphaseUniqueCompare(t *testing.T) {
 	px, sp := newPhysics(), NewSphere(1)
 	bodies := []Body{newBody(sp), newBody(sp), newBody(sp), newBody(sp), newBody(sp)}
 	for _, bod := range bodies {
-		bod.SetMaterial(1, 0)
+		bod.SetProps(1, 0)
 	}
 	px.broadphase(bodies, px.overlapped)
 	if len(px.overlapped) != 10 {
@@ -28,10 +28,10 @@ func TestBroadphaseUniqueCompare(t *testing.T) {
 // The test uses no restitution (bounciness).
 func TestSphereAt(t *testing.T) {
 	px := newPhysics()
-	slab := newBody(NewBox(100, 25, 100)).SetMaterial(0, 0)
-	slab.World().Loc.SetS(0, -25, 0)                // slab below ball at world y==0.
-	ball := newBody(NewSphere(1)).SetMaterial(1, 0) //
-	ball.World().Loc.SetS(-5, 15, -3)               // ball above slab.
+	slab := newBody(NewBox(100, 25, 100)).SetProps(0, 0)
+	slab.World().Loc.SetS(0, -25, 0)             // slab below ball at world y==0.
+	ball := newBody(NewSphere(1)).SetProps(1, 0) //
+	ball.World().Loc.SetS(-5, 15, -3)            // ball above slab.
 	bodies := []Body{slab, ball}
 	for cnt := 0; cnt < 100; cnt++ {
 		px.Step(bodies, 0.02)
@@ -45,8 +45,8 @@ func TestSphereAt(t *testing.T) {
 // Check that basic collision works independent of general collision resolution.
 func TestCollide(t *testing.T) {
 	px := newPhysics()
-	s0 := newBody(NewSphere(1)).SetMaterial(1, 0)
-	s1 := newBody(NewSphere(1)).SetMaterial(1, 0)
+	s0 := newBody(NewSphere(1)).SetProps(1, 0)
+	s1 := newBody(NewSphere(1)).SetProps(1, 0)
 	s0.World().Loc.SetS(0, 0, 0)
 	s1.World().Loc.SetS(1, 1, 1)
 	if !px.Collide(s0, s1) {

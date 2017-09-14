@@ -1,9 +1,11 @@
-// Copyright © 2014-2016 Galvanized Logic Inc.
+// Copyright © 2014-2017 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package vu
 
 // font.go encapsulates knowledge for displaying strings on screen.
+//         Also see label.go.
+//
 // FUTURE: create 3D fonts from system fonts on the fly
 //         or make a separate tool like:
 //         http://www.angelcode.com/products/bmfont/
@@ -12,25 +14,7 @@ import (
 	"github.com/gazed/vu/render"
 )
 
-// Labeler is a Model that displays a small text phrase. The Model
-// combines a quad mesh, font mapping data, and a bitmapped font texture
-// to display a string. Controlling a Labeler amounts to setting the
-// string value and centering it using its width in pixels.
-//
-// Intended for single words or small phrases. Use another methods
-// for large text layouts. The default color is white: 1,1,1.
-type Labeler interface {
-	SetStr(text string) Labeler // Set the string to display.
-	SetWrap(w int) Labeler      // Set the string wrap length in pixels.
-	StrSize() (w, h int)        // Width, Height in pixels, 0 if not loaded.
-	StrColor(r, g, b float64)   // Label color where each value is from 0-1
-}
-
-// Labeler
-// =============================================================================
-// font is font mapping data needed by Labeler.
-
-// font is an optional part of a rendered Model.
+// font is font mapping data needed by MakeLabel.
 // font holds a single bitmapped font. It knows how to pull individual
 // character images out of a single image that contains all the characters
 // for a font. It is combined with a texture (the font bitmapped image)
@@ -72,7 +56,7 @@ func (f *font) addChar(r rune, x, y, w, h, xo, yo, xa int) {
 //    wrap : optional (positive) width limit before the text wraps.
 //
 // The width in pixels for the resulting string image is returned.
-func (f *font) setStr(m *mesh, str string, wrap int) (sx, sy int) {
+func (f *font) setStr(m *Mesh, str string, wrap int) (sx, sy int) {
 	vb := f.vb[:0] // reset keeping allocated memory.
 	tb := f.tb[:0] //  ""
 	fb := f.fb[:0] //  ""
@@ -109,10 +93,10 @@ func (f *font) setStr(m *mesh, str string, wrap int) (sx, sy int) {
 				height += c.h
 			}
 
-			// create the triangles indexes referring to the points created above.
+			// create the triangles indexes referring to the points above.
 			i0 := uint16(cnt * 4)
 			fb = append(fb, i0, i0+1, i0+3, i0+1, i0+2, i0+3)
-			cnt += 1 // count characters rendered.
+			cnt++ // count characters rendered.
 		case char == '\n':
 			// auto wrap at newlines.
 			width = 0

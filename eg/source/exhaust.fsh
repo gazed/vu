@@ -1,5 +1,3 @@
-#version 330
-
 in      float     alpha; // Particle transparency.
 in      float     index; // Particle index for texture atlas.
 uniform sampler2D uv;    // Texture sampler.

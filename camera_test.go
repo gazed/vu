@@ -1,4 +1,4 @@
-// Copyright © 2014-2016 Galvanized Logic Inc.
+// Copyright © 2014-2017 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package vu
@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/gazed/vu/math/lin"
+	"github.com/gazed/vu/physics"
 )
 
 // Test a ray cast with simple perspective and view inverses.
@@ -28,6 +29,8 @@ func TestAngledRay(t *testing.T) {
 	cam, ww, wh := initScene()
 	cam.SetPitch(cam.Pitch + 45)
 	cam.SetAt(0, -15, 15)
+	cam.vt(cam.at, cam.q0, cam.vm)            // view transform
+	cam.it(cam.at, cam.q0, cam.ivm)           // inverse view transform.
 	rx, ry, rz := cam.Ray(ww/2, wh/2, ww, wh) // center of screen.
 	ex, ey, ez := 0.0, 0.7071068, -0.7071068
 	if !lin.Aeq(rx, ex) || !lin.Aeq(ry, ey) || !lin.Aeq(rz, ez) {
@@ -55,6 +58,8 @@ func TestInverses(t *testing.T) {
 	cam, _, _ := initScene()
 	cam.SetPitch(cam.Pitch + 45)
 	cam.Move(0, -15, 15, cam.Lookat())
+	cam.vt(cam.at, cam.q0, cam.vm)  // view transform
+	cam.it(cam.at, cam.q0, cam.ivm) // inverse view transform.
 
 	// the inverses multiplied with non-inverses should be the identity matrix.
 	if !lin.NewM4().Mult(cam.pm, cam.ipm).Aeq(lin.M4I) {
@@ -70,8 +75,9 @@ func TestInverseVp(t *testing.T) {
 	v := newCamera()
 	v.at.Loc.SetS(10, 10, 10)
 	v.at.Rot.SetAa(1, 0, 0, -lin.Rad(90))
-	vm := VP(v.at, lin.NewQ(), &lin.M4{})
-	ivm := ivp(v.at, &lin.Q{X: 1, Y: 0, Z: 0, W: 1}, lin.NewQ(), &lin.M4{})
+	vm, ivm := &lin.M4{}, &lin.M4{}
+	vp(v.at, lin.NewQ(), vm)
+	ivp(v.at, lin.NewQ(), ivm)
 	if !vm.Mult(vm, ivm).Aeq(lin.M4I) {
 		t.Errorf("Matrix times inverse should be identity")
 	}
@@ -79,8 +85,10 @@ func TestInverseVp(t *testing.T) {
 
 func TestRoundTrip(t *testing.T) {
 	cam, _, _ := initScene()
-	cx, cy, cz := 0.0, 0.0, 14.0 // camera location to
-	cam.SetAt(cx, cy, cz)        // ...point directly at 0, 0, 0
+	cx, cy, cz := 0.0, 0.0, 14.0    // camera location to
+	cam.SetAt(cx, cy, cz)           // ...point directly at 0, 0, 0
+	cam.vt(cam.at, cam.q0, cam.vm)  // view transform
+	cam.it(cam.at, cam.q0, cam.ivm) // inverse view transform.
 
 	// Create the matricies to go between clip and world space.
 	toClip := lin.NewM4().Mult(cam.vm, cam.pm)
@@ -109,40 +117,42 @@ func TestRayWithSpin(t *testing.T) {
 	cx, cy, cz := 0.0, -10.0, 14.0             // camera location to
 	cam.SetAt(cx, cy, cz)                      // ...point directly at 0, 0, 0
 	cam.SetPitch(lin.Deg(math.Atan(-cy / cz))) // 35.53768 degrees
-	plane := NewPlane(0, 0, -1)
+	plane := Plane(0, 0, -1)
+	cam.vt(cam.at, cam.q0, cam.vm)  // view transform
+	cam.it(cam.at, cam.q0, cam.ivm) // inverse view transform.
 
 	ww, wh := 1280, 800
 	rx, ry, rz := cam.Ray(0, 0, ww, wh)
-	ray := NewRay(rx, ry, rz)
+	ray := Ray(rx, ry, rz)
 	ray.World().SetLoc(cx, cy, cz)
-	hit, hx, hy, hz := Cast(ray, plane)
+	hit, hx, hy, hz := physics.Cast(ray, plane)
 	ex, ey, ez := -6.191039, -4.755119, 0.0
 	if !hit || !lin.Aeq(hx, ex) || !lin.Aeq(hx, ex) || !lin.Aeq(hx, ex) {
 		t.Errorf("Hit %t %f %f %f, expected %f %f %f", hit, hx, hy, hz, ex, ey, ez)
 	}
 
 	rx, ry, rz = cam.Ray(0, wh, ww, wh)
-	ray = NewRay(rx, ry, rz)
+	ray = Ray(rx, ry, rz)
 	ray.World().SetLoc(cx, cy, cz)
-	hit, hx, hy, hz = Cast(ray, plane)
+	hit, hx, hy, hz = physics.Cast(ray, plane)
 	ex, ey, ez = -9.121797, 7.006131, 0.0
 	if !hit || !lin.Aeq(hx, ex) || !lin.Aeq(hx, ex) || !lin.Aeq(hx, ex) {
 		t.Errorf("Hit %t %f %f %f, expected %f %f %f", hit, hx, hy, hz, ex, ey, ez)
 	}
 
 	rx, ry, rz = cam.Ray(ww, 0, ww, wh)
-	ray = NewRay(rx, ry, rz)
+	ray = Ray(rx, ry, rz)
 	ray.World().SetLoc(cx, cy, cz)
-	hit, hx, hy, hz = Cast(ray, plane)
+	hit, hx, hy, hz = physics.Cast(ray, plane)
 	ex, ey, ez = 6.191039, -4.755119, 0.0
 	if !hit || !lin.Aeq(hx, ex) || !lin.Aeq(hx, ex) || !lin.Aeq(hx, ex) {
 		t.Errorf("Hit %t %f %f %f, expected %f %f %f", hit, hx, hy, hz, ex, ey, ez)
 	}
 
 	rx, ry, rz = cam.Ray(ww, wh, ww, wh)
-	ray = NewRay(rx, ry, rz)
+	ray = Ray(rx, ry, rz)
 	ray.World().SetLoc(cx, cy, cz)
-	hit, hx, hy, hz = Cast(ray, plane)
+	hit, hx, hy, hz = physics.Cast(ray, plane)
 	ex, ey, ez = 9.121797, 7.006131, 0.0
 	if !hit || !lin.Aeq(hx, ex) || !lin.Aeq(hx, ex) || !lin.Aeq(hx, ex) {
 		t.Errorf("Hit %t %f %f %f, expected %f %f %f", hit, hx, hy, hz, ex, ey, ez)
@@ -151,8 +161,10 @@ func TestRayWithSpin(t *testing.T) {
 
 func TestScreen(t *testing.T) {
 	cam, _, _ := initScene()
-	cx, cy, cz := 0.0, 0.0, 14.0 // camera location to
-	cam.SetAt(cx, cy, cz)        // ...point directly at 0, 0, 0
+	cx, cy, cz := 0.0, 0.0, 14.0    // camera location to
+	cam.SetAt(cx, cy, cz)           // ...point directly at 0, 0, 0
+	cam.vt(cam.at, cam.q0, cam.vm)  // view transform
+	cam.it(cam.at, cam.q0, cam.ivm) // inverse view transform.
 
 	// center of the world should give the center of the screen.
 	px, py, pz := 0.0, 0.0, 0.0
@@ -169,6 +181,6 @@ func initScene() (c *Camera, ww, wh int) {
 	c = newCamera()
 	ww, wh = 1280, 800
 	fov, ratio, near, far := 30.0, float64(ww)/float64(wh), 0.1, 500.0
-	c.SetPerspective(fov, ratio, near, far)
+	c.setPerspective(fov, ratio, near, far)
 	return
 }

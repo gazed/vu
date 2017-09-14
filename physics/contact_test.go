@@ -37,9 +37,9 @@ func TestClosestPoint(t *testing.T) {
 }
 
 func TestPrepForSolver(t *testing.T) {
-	ball := newBody(NewSphere(1)).SetMaterial(1, 0).(*body)
+	ball := newBody(NewSphere(1)).SetProps(1, 0).(*body)
 	ball.World().Loc.SetS(-5, 0.99, -3)
-	box := newBody(NewBox(50, 50, 50)).SetMaterial(0, 0).(*body)
+	box := newBody(NewBox(50, 50, 50)).SetProps(0, 0).(*body)
 	box.World().Loc.SetS(0, -50, 0)
 	con := newContactPair(ball, box)
 	_, _, con.pocs = collideSphereBox(ball, box, con.pocs[0:4])

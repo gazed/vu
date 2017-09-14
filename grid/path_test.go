@@ -83,7 +83,9 @@ func printPath(pts []int) {
 type emptyPlan struct{}
 
 func (ep *emptyPlan) Size() (width, depth int) { return gridSize, gridSize }
-func (ep *emptyPlan) IsOpen(x, y int) bool     { return x >= 0 && x < gridSize && y >= 0 && y < gridSize }
+func (ep *emptyPlan) IsOpen(x, y int) bool {
+	return x >= 0 && x < gridSize && y >= 0 && y < gridSize
+}
 
 // ============================================================================
 
@@ -141,7 +143,7 @@ var roomMap = [][]rune{ // 25x25 grid, 0, 0 is top left.
 
 // Mock the Plan interface.
 func (rp *roomPlan) Size() (width, depth int) { return len(roomMap), len(roomMap[0]) }
-func (rp *roomPlan) IsOpen(x, y int) bool {   // flip x, y
+func (rp *roomPlan) IsOpen(x, y int) bool {
 	switch {
 	case x < 0 || x >= len(roomMap[0]) || y < 0 || y >= len(roomMap):
 		return false

@@ -14,8 +14,6 @@ func TestLoadSource(t *testing.T) {
 	loc := NewLocator().Dir("VSH", "../eg/source").Dir("FSH", "../eg/source")
 	err := shd.Load("basic", loc)
 	expect := []string{
-		"#version 330\n",
-		"\n",
 		"in  vec4 ex_Color;\n",
 		"out vec4 out_Color;\n",
 		"\n",

@@ -291,9 +291,9 @@ func Gravity(g float64) PhysAttr {
 	return func(p Physics) { p.(*physics).gravity = g }
 }
 
-// SetMargin is set so that close enough objects are reported as colliding.
+// Margin is set so that close enough objects are reported as colliding.
 // Its default value is 0.04. It is an attribute to be used in Physics.Set().
-func SetMargin(collisionMargin float64) PhysAttr {
+func Margin(collisionMargin float64) PhysAttr {
 	return func(p Physics) { margin = collisionMargin }
 }
 

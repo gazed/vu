@@ -1,4 +1,4 @@
-// Copyright © 2013-2016 Galvanized Logic Inc.
+// Copyright © 2013-2017 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 // Package eg is used to test and demonstrate different aspects of the
@@ -10,7 +10,7 @@
 // Please look at each examples source code for possible user actions like
 // moving around or tabbing to show different scenes.
 //
-// The package subdirectories contain resource data needed by the examples.
+// The package subdirectories contain asset filess needed by the examples.
 package main
 
 import (
@@ -49,12 +49,12 @@ func main() {
 		{"tm", "tm: Terrain Map", tm},
 		{"ps", "ps: Particle System", ps},
 		{"rc", "rc: Ray Cast", rc},
+		{"sd", "sd: Sky Dome", sd},
 		{"ma", "ma: Model Animation", ma},
 		{"ff", "ff: Flow Field", ff},
 		{"rt", "rt: Ray Trace", rt},
 		{"tt", "tt: Render to Texture", tt},
 		{"sm", "sm: Shadow Map", sm},
-		{"pt", "pt: Procedural Textures", pt},
 		{"ss", "ss: Super Shapes", ss},
 	}
 

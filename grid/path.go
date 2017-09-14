@@ -10,7 +10,7 @@ package grid
 //     http://www.gamasutra.com/view/feature/131505/toward_more_realistic_pathfinding.php?print=1
 // Other pathfinding links:
 //     http://www.ai-blog.net/archives/000152.html (discusses navigation meshes)
-//     http://grail.cs.washington.edu/projects/crowd-flows/ (flowfield algorithm)
+//     http://grail.cs.washington.edu/projects/crowd-flows/ (flowfield)
 
 // Design Notes:
 //   • This A* implementation has been lightly optimized for short routes
@@ -108,8 +108,8 @@ func (p *path) Find(fx, fy, tx, ty int) (path []int) {
 				neighbour.state = isCandidate
 			}
 
-			// Update the projected cost for all neighbours since candidates may be
-			// revisited.
+			// Update the projected cost for all neighbours since candidates
+			// may be revisited.
 			neighbour.projCost = neighbour.pathCost + neighbour.heuristic(tx, ty)
 		}
 	}
@@ -127,13 +127,15 @@ func (p *path) closest() *node {
 			index = cnt
 		}
 	}
-	p.candidates = append(p.candidates[:index], p.candidates[index+1:]...) // remove closest.
+	// remove closest.
+	p.candidates = append(p.candidates[:index], p.candidates[index+1:]...)
 	closest.state = isChecked
 	return closest
 }
 
-// neighbourNodes creates the valid neighbour nodes for the given node. The nodes
-// path distance variables are not set. Neighbours are valid if they are
+// neighbourNodes creates the valid neighbour nodes for the given node.
+// The nodes path distance variables are not set. Neighbours are valid if
+// they are:
 //    • inside the floor plan.
 //    • passable.
 //    • a diagonal with two passable adjacent neighbours.
@@ -153,23 +155,27 @@ func (p *path) neighbourNodes(n *node) []*node {
 	if yminus = p.fp.IsOpen(x, y-1); yminus {
 		p.addNeighbour(n.x, n.y-1, n.pathCost+p.orthMoveCost)
 	}
-	if xminus && yminus && p.fp.IsOpen(x-1, y-1) { // diagonal: xminus, yminus must be passable.
+	if xminus && yminus && p.fp.IsOpen(x-1, y-1) {
+		// diagonal: xminus, yminus must be passable.
 		p.addNeighbour(n.x-1, n.y-1, n.pathCost+p.diagMoveCost)
 	}
-	if xminus && yplus && p.fp.IsOpen(x-1, y+1) { // diagonal: xminus, yplus must be passable.
+	if xminus && yplus && p.fp.IsOpen(x-1, y+1) {
+		// diagonal: xminus, yplus must be passable.
 		p.addNeighbour(n.x-1, n.y+1, n.pathCost+p.diagMoveCost)
 	}
-	if xplus && yminus && p.fp.IsOpen(x+1, y-1) { // diagonal: xplus, yminus must be passable.
+	if xplus && yminus && p.fp.IsOpen(x+1, y-1) {
+		// diagonal: xplus, yminus must be passable.
 		p.addNeighbour(n.x+1, n.y-1, n.pathCost+p.diagMoveCost)
 	}
-	if xplus && yplus && p.fp.IsOpen(x+1, y+1) { // diagonal: xplus, yplus must be passable.
+	if xplus && yplus && p.fp.IsOpen(x+1, y+1) {
+		// diagonal: xplus, yplus must be passable.
 		p.addNeighbour(n.x+1, n.y+1, n.pathCost+p.diagMoveCost)
 	}
 	return p.neighbours
 }
 
-// addNeighbour creates the new neighbour node and adds it to the current neighbour list
-// as along as the node is not on the checked list.
+// addNeighbour creates the new neighbour node and adds it to the current
+// neighbour list as along as the node is not on the checked list.
 func (p *path) addNeighbour(x, y, cost int) {
 	id := p.id(x, y)
 	if n, ok := p.nodes[id]; ok {
@@ -210,7 +216,9 @@ type node struct {
 
 // newNode creates a new node at the given grid location. The distance values
 // are initialized to 0.
-func newNode(id, x, y, cost int) *node { return &node{id: id, x: x, y: y, pathCost: cost, from: -1} }
+func newNode(id, x, y, cost int) *node {
+	return &node{id: id, x: x, y: y, pathCost: cost, from: -1}
+}
 
 // heuristic returns an appoximation of the distance between the current
 // node and the given point.

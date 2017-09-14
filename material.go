@@ -1,9 +1,13 @@
-// Copyright © 2014-2016 Galvanized Logic Inc.
+// Copyright © 2014-2017 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package vu
 
 // material.go handles model surface color data.
+
+import (
+	"github.com/gazed/vu/render"
+)
 
 // material is used to color a mesh. It specifies the surface color and
 // how the surface is lit. Materials are applied to a rendered model by
@@ -28,6 +32,15 @@ func newMaterial(name string) *material {
 // aid is used to uniquely identify assets.
 func (m *material) aid() aid      { return m.tag }  // hashed type and name.
 func (m *material) label() string { return m.name } // asset name
+
+// draw turns a material into draw call data needed by the render shaders.
+// Visibile objects are responsible for incorporating m.tr with alpha.
+func (m *material) draw(d *render.Draw) {
+	d.SetFloats("kd", m.kd.R, m.kd.G, m.kd.B)
+	d.SetFloats("ks", m.ks.R, m.ks.G, m.ks.B)
+	d.SetFloats("ka", m.ka.R, m.ka.G, m.ka.B)
+	d.SetFloats("ns", m.ns)
+}
 
 // material
 // ===========================================================================

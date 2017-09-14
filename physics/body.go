@@ -37,14 +37,14 @@ type Body interface {
 	Stop()                    // Stops linear velocity.
 	Rest()                    // Stops angular velocity.
 
-	// SetMaterial associates physical properties with a body. The physical
-	// properties are combined with the body's shape to determine its behaviour
-	// during collisions. The updated Body is returned.
+	// SetProps associates physical properties with a body. The physical
+	// properties are combined with the body's shape to determine its
+	// behaviour during collisions. The updated Body is returned.
 	//     mass:       use zero mass for unmoving (static/fixed) bodies.
-	//     bounciness: total bounciness is determined by multiplying the bounciness
-	//                 of the two colliding bodies. If one of the bodies has 0
+	//     bounciness: total bounciness is the multiplication of the two
+	//                 colliding bodies. If one of the bodies has 0
 	//                 bounciness then there is no bounce effect.
-	SetMaterial(mass, bounciness float64) Body
+	SetProps(mass, bounciness float64) Body
 }
 
 // Body interface
@@ -158,10 +158,10 @@ func (b *body) Turn(x, y, z float64) {
 	b.avel.Y += y
 	b.avel.Z += z
 }
-func (b *body) SetMaterial(mass, bounciness float64) Body {
-	return b.setMaterial(mass, bounciness)
+func (b *body) SetProps(mass, bounciness float64) Body {
+	return b.setProps(mass, bounciness)
 }
-func (b *body) setMaterial(mass, bounciness float64) *body {
+func (b *body) setProps(mass, bounciness float64) *body {
 	b.imass = 0 // static unless there is mass.
 	if !lin.AeqZ(mass) {
 		b.imass = 1.0 / mass                 // only need inverse mass

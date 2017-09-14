@@ -1,4 +1,4 @@
-// Copyright © 2015-2016 Galvanized Logic. All rights reserved.
+// Copyright © 2015-2017 Galvanized Logic. All rights reserved.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -35,18 +35,28 @@ import (
 //
 // CONTROLS: NA
 func rt() {
-	rt := new(rtrace)
-	dev := device.New("Ray Trace", 400, 400, 512, 512)
+	device.Run(&rtrace{}) // Does not return!
+}
+
+// Init is a one-time callback before rendering updates.
+func (rt *rtrace) Init(dev device.Device) {
+	dev.SetTitle("Ray Trace")
+	dev.SetSize(500, 400, 512, 512)
 	rt.scene = rt.createScene() // create the scene for the ray tracer.
 	rt.img = rt.rayTrace()      // create the ray traced image.
 	rt.initRender()             // initialize opengl.
-	dev.Open()
-	for dev.IsAlive() {
-		rt.update(dev)
-		rt.drawScene()
-		dev.SwapBuffers()
+	gl.Viewport(0, 0, 512, 512) //
+}
+
+// Refresh application state and render a new frame.
+func (rt *rtrace) Refresh(dev device.Device) {
+	p := dev.Down()
+	if p.Resized {
+		_, _, ww, wh := dev.Size()
+		gl.Viewport(0, 0, int32(ww), int32(wh))
 	}
-	dev.Dispose()
+	rt.drawScene()
+	dev.SwapBuffers()
 }
 
 // Encapsulate this examples methods using this structure.
@@ -150,15 +160,6 @@ func (rt *rtrace) initRender() {
 
 	// set some state that doesn't need to change during drawing.
 	gl.ClearColor(0.0, 0.0, 0.0, 1.0)
-}
-
-// update handles user input.
-func (rt *rtrace) update(dev device.Device) {
-	pressed := dev.Update()
-	if pressed.Resized {
-		_, _, ww, wh := dev.Size()
-		gl.Viewport(0, 0, int32(ww), int32(wh))
-	}
 }
 
 // drawScene renders the single texture on the quad.

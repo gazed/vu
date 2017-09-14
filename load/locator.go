@@ -53,11 +53,14 @@ type locator struct {
 func newLocator() *locator {
 	var resources *zip.ReadCloser // packaged resources.
 	programName := os.Args[0]     // qualified path to executable
-	assetZip := path.Join(path.Dir(programName), "../Resources/assets.zip")
-	if reader, err := zip.OpenReader(assetZip); err == nil {
-		resources = reader // OSX packaged application.
+	assetZip0 := path.Join(path.Dir(programName), "assets.zip")
+	assetZip1 := path.Join(path.Dir(programName), "../Resources/assets.zip")
+	if reader, err := zip.OpenReader(assetZip0); err == nil {
+		resources = reader // iOS
+	} else if reader, err := zip.OpenReader(assetZip1); err == nil {
+		resources = reader // OSX
 	} else if reader, err := zip.OpenReader(programName); err == nil {
-		resources = reader // windows non-store exe. Zip with Exe.
+		resources = reader // windows non-store exe: zip is in Exe.
 	} else {
 		// windows store app.
 		// use absolute path to executable since relative files
@@ -68,8 +71,8 @@ func newLocator() *locator {
 		//     ~/AppData/Local/Packages/mangledAppName/LocalCache/...
 		programName = filepath.Dir(os.Args[0]) // executable directory
 		absDir, err0 := filepath.Abs(programName)
-		assetZip = path.Join(absDir, "Assets/assets.zip")
-		if reader, err := zip.OpenReader(assetZip); err0 == nil && err == nil {
+		assetZip2 := path.Join(absDir, "Assets/assets.zip")
+		if reader, err := zip.OpenReader(assetZip2); err0 == nil && err == nil {
 			resources = reader // Windows
 		}
 	}

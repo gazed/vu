@@ -1,4 +1,4 @@
-// Copyright © 2013-2016 Galvanized Logic Inc.
+// Copyright © 2013-2017 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -21,8 +21,7 @@ import (
 //   key   : highlight key press
 //   mouse : highlight mouse click
 func kc() {
-	kc := &kctag{}
-	if err := vu.New(kc, "Keyboard Controller", 200, 200, 900, 400); err != nil {
+	if err := vu.Run(&kctag{}); err != nil {
 		log.Printf("kc: error starting engine %s", err)
 	}
 	defer catchErrors()
@@ -30,59 +29,53 @@ func kc() {
 
 // Globally unique "tag" that encapsulates example specific data.
 type kctag struct {
-	ui        *vu.Camera  // 2D user interface.
-	kb        *vu.Pov     // Keyboard image.
-	focus     *vu.Pov     // Hilights first pressed key.
+	ui        *vu.Ent     // 2D user interface.
+	focus     *vu.Ent     // Hilights first pressed key.
 	positions map[int]pos // Screen position for each key.
 }
 
 // Create is the startup asset creation.
 func (kc *kctag) Create(eng vu.Eng, s *vu.State) {
-	top := eng.Root().NewPov()
-	kc.ui = top.NewCam().SetUI()
+	eng.Set(vu.Title("Keyboard Controller"), vu.Size(200, 200, 900, 400))
+	eng.Set(vu.Color(0.45, 0.45, 0.45, 1))
+
+	// create the 2D overlay
+	kc.ui = eng.AddScene().SetUI()
+	kc.ui.Cam().SetClip(0, 10)
 	kc.positions = kc.keyPositions()
 
 	// Create the keyboard image.
-	kc.kb = top.NewPov().SetScale(900, 255, 0).SetAt(450, 100+85, 0)
-	kc.kb.NewModel("uv", "msh:icon", "tex:keyboard")
+	kb := kc.ui.AddPart().SetScale(900, 255, 0).SetAt(450, 100+85, 0)
+	kb.MakeModel("uv", "msh:icon", "tex:keyboard")
 
 	// Pressed key focus
-	kc.focus = top.NewPov().SetScale(50, 50, 0)
-	kc.focus.NewModel("uv", "msh:icon", "tex:particle")
+	kc.focus = kc.ui.AddPart().SetScale(50, 50, 0)
+	kc.focus.MakeModel("uv", "msh:icon", "tex:particle")
 
 	// Place the key symbols over the keys.
 	for code, key := range kc.positions { // map key is key code, map value is key struct
-		if char := vu.Keysym(code); char > 0 {
+		if char := vu.Symbol(code); char > 0 {
 			cx, cy := key.location()
-			letter := top.NewPov().SetAt(cx, cy, 0)
-			letter.NewLabel("txt", "lucidiaSu18").SetStr(string(char))
-			letter.Model().StrColor(0, 0, 0)
+			letter := kc.ui.AddPart().SetAt(cx, cy, 0)
+			letter.MakeLabel("txt", "lucidiaSu18").Typeset(string(char))
+			letter.SetColor(0, 0, 0)
 		}
 	}
-
-	// Have a lighter default background.
-	eng.Set(vu.Color(0.45, 0.45, 0.45, 1))
-	kc.resize(s.W, s.H)
 }
 
 // Update is the regular engine callback.
 func (kc *kctag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
-	if in.Resized {
-		kc.resize(s.W, s.H)
-	}
-
-	// hilight the first pressed key.
-	kc.focus.Cull = true
-	for press := range in.Down {
-		kc.focus.Cull = false
-		position := kc.positions[press]
-		cx, cy := position.location()
-		kc.focus.SetAt(cx+6, cy+10, 0)
+	kc.focus.Cull(true)
+	for press, down := range in.Down {
+		// hilight the first pressed key.
+		if down > 0 {
+			position := kc.positions[press]
+			cx, cy := position.location()
+			kc.focus.SetAt(cx+6, cy+10, 0)
+			kc.focus.Cull(false)
+		}
 		break
 	}
-}
-func (kc *kctag) resize(ww, wh int) {
-	kc.ui.SetOrthographic(0, float64(ww), 0, float64(wh), 0, 10)
 }
 
 // Position the keys on the keyboard image.

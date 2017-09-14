@@ -28,19 +28,18 @@ type Draw struct {
 	Mode   int    // Points, Lines, Triangles
 	Texs   []tex  // GPU bound texture references.
 	Shtex  uint32 // GPU bound texture shadow depth map.
-	Tag    uint64 // Application tag for debugging. Commonly an Entity id.
+	Tag    uint32 // Application tag for debugging. Commonly an Entity id.
 
 	// Shader uniform data.
 	Uniforms map[string]int32     // Expected uniforms and shader references.
 	Floats   map[string][]float32 // Uniform values.
 
 	// Rendering hints.
-	Bucket  int     // Used to sort draws. Lower buckets rendered first.
-	Tocam   float64 // Distance to Camera for sorting by distance.
-	Depth   bool    // True to render with depth.
-	Fbo     uint32  // Framebuffer id. 0 for default.
-	FaceCnt int32   // Number of triangles to be rendered.
-	VertCnt int32   // Number of verticies to be rendered.
+	Bucket  uint64 // Used to sort draws. Lower buckets rendered first.
+	Depth   bool   // True to render with depth.
+	Fbo     uint32 // Framebuffer id. 0 for default.
+	FaceCnt int32  // Number of triangles to be rendered.
+	VertCnt int32  // Number of verticies to be rendered.
 
 	// Transform data.
 	Mv   *m4   // Model View.
@@ -96,15 +95,6 @@ func (d *Draw) SetPose(pose []lin.M4) {
 	}
 }
 
-// SetHints affects how a draw is rendered.
-//   bucket : Sort order Opaque, Transparent, Overlay.
-//   toCam : Distance to Camera.
-//   depth : True to render with depth, ie: use Z-buffer.
-//   fbo   : Frame buffer object for render to texture.
-func (d *Draw) SetHints(bucket int, toCam float64, depth bool, fbo uint32) {
-	d.Bucket, d.Tocam, d.Depth, d.Fbo = bucket, toCam, depth, fbo
-}
-
 // SetCounts specifies how many verticies and how many triangle
 // faces for this draw object. This must match the vertex and
 // face data.
@@ -129,7 +119,7 @@ func (d *Draw) SetRefs(shader, meshes uint32, mode int) {
 //   index  : Texture index starting from 0.
 //   tid    : Bound texture reference.
 //   fn, f0 : Used for multiple textures on one mesh.
-func (d *Draw) SetTex(count, index int, tid, f0, fn uint32) {
+func (d *Draw) SetTex(count, index, order int, tid, f0, fn uint32) {
 	if count == 0 {
 		d.Texs = d.Texs[:0]
 		return
@@ -139,6 +129,7 @@ func (d *Draw) SetTex(count, index int, tid, f0, fn uint32) {
 	}
 	d.Texs = d.Texs[:count] // ensure length is the same.
 	d.Texs[index].tid = tid
+	d.Texs[index].order = order
 	d.Texs[index].f0 = int32(f0)
 	d.Texs[index].fn = int32(fn)
 }
@@ -165,20 +156,16 @@ func (d *Draw) SetFloats(key string, floats ...float32) {
 
 type draws []*Draw
 
-// Sort parts ordered by bucket first, and distance next.
+// Sort draws where the Bucket must be set to ensure proper draw order.
 func (d draws) Len() int      { return len(d) }
 func (d draws) Swap(i, j int) { d[i], d[j] = d[j], d[i] }
 func (d draws) Less(i, j int) bool {
-	di, dj := d[i], d[j]
-	if di.Bucket != dj.Bucket {
-		return di.Bucket < dj.Bucket // First sort into buckets.
+	if d[i].Bucket == d[j].Bucket {
+		// Break ties by prefering earlier entities.
+		// Prevents z-battle screen flickering.
+		return d[i].Tag < d[j].Tag
 	}
-	if di.Bucket == Transparent {
-		if !lin.Aeq(di.Tocam, dj.Tocam) {
-			return di.Tocam > dj.Tocam // Sort transparent by distance to camera.
-		}
-	}
-	return di.Tag < dj.Tag // Sort by eid.
+	return d[i].Bucket > d[j].Bucket
 }
 
 // SortDraws sorts draw requests by buckets then by
@@ -191,7 +178,8 @@ func SortDraws(frame []*Draw) { sort.Sort(draws(frame)) }
 // tex is used to hold a texture reference that is intended
 // for only a portion of a model.
 type tex struct {
-	tid uint32 // GPU bound texture reference.
+	tid   uint32 // GPU bound texture reference.
+	order int    // Shader uniform identifier for multiple textures.
 
 	// Only set when multiple textures apply to the same model.
 	f0, fn int32 // Model face indicies; start and count.

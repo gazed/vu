@@ -293,7 +293,7 @@ func (v *V3) LenSqr() float64 { return v.Dot(v) }
 func (v *V4) Len() float64 { return math.Sqrt(v.Dot(v)) }
 
 // LenSqr returns the length of vector v squared.
-// Same behaviour as V3.Len()
+// Same behaviour as V3.LenSqr()
 func (v *V4) LenSqr() float64 { return v.Dot(v) }
 
 // Dist returns the distance between vector end-points v and a

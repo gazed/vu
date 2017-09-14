@@ -22,7 +22,8 @@ func TestNew(t *testing.T) {
 }
 
 func TestID(t *testing.T) {
-	h, want := NewHex(2, 3), uint64(8589934595) // 10 0000000000000000000000000000011
+	h, want := NewHex(2, 3), uint64(8589934595)
+	// 10 0000000000000000000000000000011
 	if h.ID() != want {
 		t.Errorf("Wanted %d got %d", want, h.ID())
 	}
@@ -34,7 +35,8 @@ func TestID(t *testing.T) {
 	if h.ID() != want {
 		t.Errorf("Wanted %d got %d", want, h.ID())
 	}
-	h, want = NewHex(-1, -1), uint64(18446744073709551615) // 10 0000000000000000000000000000011
+	h, want = NewHex(-1, -1), uint64(18446744073709551615)
+	// 10 0000000000000000000000000000011
 	if h.ID() != want {
 		t.Errorf("Wanted %d got %d", want, h.ID())
 	}

@@ -1,4 +1,4 @@
-// Copyright © 2014-2016 Galvanized Logic Inc.
+// Copyright © 2014-2017 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package vu
@@ -15,9 +15,9 @@ import (
 // It is attached to a Camera.
 type Culler interface {
 
-	// Culled returns true if a model represented by point, px, py, pz
-	// should be culled using the given camera.
-	Culled(cam *Camera, px, py, pz float64) bool
+	// Culled returns true if a model, represented by the Pov p,
+	// should be culled using the given camera c.
+	Culled(c *Camera, wx, wy, wz float64) bool
 }
 
 // =============================================================================
@@ -41,19 +41,19 @@ type frontCull struct {
 
 // Culler implmentation.
 // Project the part location back along the lookat vector.
-func (fc *frontCull) Culled(cam *Camera, px, py, pz float64) bool {
-	fudgeFactor := float64(0.8) // don't move all the way up.
+func (fc *frontCull) Culled(cam *Camera, wx, wy, wz float64) bool {
+	fudgeFactor := float64(0.8) // don't move all the way.
 	cx, cy, cz := lin.MultSQ(0, 0, -fc.radius*fudgeFactor, cam.at.Rot)
-	px, py, pz = px-cx, py-cy, pz-cz // move part location back.
-	toc := cam.Distance(px, py, pz)  // cull if outside radius.
+	wx, wy, wz = wx-cx, wy-cy, wz-cz // move part location back.
+	toc := cam.Distance(wx, wy, wz)  // cull if outside radius.
 	return toc > fc.rr
 }
 
 // =============================================================================
 
 // NewRadiusCull returns a culler that removes objects outside a given
-// radius from the camera. Can be used to show objects around a camera
-// like top down minimaps.
+// radius from the camera. Can be used to show objects around a camera,
+// eg: top down minimaps.
 func NewRadiusCull(r float64) Culler {
 	if r < 0 {
 		r = 0
@@ -68,7 +68,6 @@ type radiusCull struct {
 
 // Culler implmentation. True if the given location is
 // within the culler radius of the camera.
-func (rc *radiusCull) Culled(cam *Camera, px, py, pz float64) bool {
-	toc := cam.Distance(px, py, pz)
-	return toc > rc.rr
+func (rc *radiusCull) Culled(cam *Camera, wx, wy, wz float64) bool {
+	return cam.Distance(wx, wy, wz) > rc.rr
 }

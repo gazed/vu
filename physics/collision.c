@@ -54,9 +54,9 @@ typedef struct OutputResult{} Result;
 #define SIMD_EPSILON 0.0000001
 #define BT_LARGE_FLOAT 1e30
 
-inline btScalar btFabs(btScalar x) { return fabs(x); }
-inline btScalar btAtan2(btScalar x, btScalar y) { return atan2(x, y); }
-inline btScalar btSqrt(btScalar x) { return sqrt(x); }
+static inline btScalar btFabs(btScalar x) { return fabs(x); }
+static inline btScalar btAtan2(btScalar x, btScalar y) { return atan2(x, y); }
+static inline btScalar btSqrt(btScalar x) { return sqrt(x); }
 
 static btScalar dDOT   (const btScalar *a, const btScalar *b) { return dDOTpq(a,b,1,1); }
 static btScalar dDOT44 (const btScalar *a, const btScalar *b) { return dDOTpq(a,b,4,4); }
@@ -74,7 +74,7 @@ static btScalar dDOT14 (const btScalar *a, const btScalar *b) { return dDOTpq(a,
 	(A)[0] op dDOT((B),(C)); \
 	(A)[1] op dDOT((B+4),(C)); \
 	(A)[2] op dDOT((B+8),(C)); \
-} 
+}
 
 #define dMULTIPLY1_331(A,B,C) dMULTIPLYOP1_331(A,=,B,C)
 #define dMULTIPLY0_331(A,B,C) dMULTIPLYOP0_331(A,=,B,C)

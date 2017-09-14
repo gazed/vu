@@ -49,7 +49,7 @@ import (
 // FntData holds UV texture mapping information for a font.
 // It is intended for populating rendered models of strings.
 // This is an intermediate data format that needs further processing by
-// something like vu/Model to bind the data to a GPU and associate
+// something like a vu.Ent.MakeModel to bind the data to a GPU and associate
 // it with a texture atlas containing the bitmapped font images.
 type FntData struct {
 	W, H  int       // Width and height
@@ -90,7 +90,7 @@ func (d *FntData) Load(name string, l Locator) (err error) {
 // but assigned an alpha of 1 when read in.
 //
 // This is an intermediate data format that needs further processing by
-// something like vu/Model to bind the data to a GPU based texture.
+// something like vu.Ent.MakeModel to bind the data to a GPU based texture.
 type ImgData struct {
 	Img image.Image
 }
@@ -113,7 +113,7 @@ func (d *ImgData) Load(name string, l Locator) (err error) {
 
 // ModData combines vertex data, animation data and some texture
 // names for a complete animated model. It is an intermediate data
-// format that needs further processing by something like vu/Model
+// format that needs further processing by something like vu.Ent.MakeModel
 // to bind the data to a GPU.
 type ModData struct {
 	MshData          // Vertex based data.
@@ -122,7 +122,7 @@ type ModData struct {
 }
 
 // AnmData holds the data necessary to a. It is an intermediate data
-// format that needs further processing by something like vu/Model
+// format that needs further processing by something like vu.Ent.MakeModel
 // to bind the data to a GPU.
 type AnmData struct {
 	Movements []Movement // Indexes into the given frames.
@@ -169,7 +169,7 @@ func (d *ModData) Load(name string, l Locator) (err error) {
 // The V,F buffers are expected to have data. The N,T,X buffers are optional.
 //
 // MshData is an intermediate data format that needs further processing
-// by something like vu/Model to bind the data to a GPU.
+// by something like vu.Ent.MakeModel to bind the data to a GPU.
 type MshData struct {
 	Name string    // Imported model name.
 	V    []float32 // Vertex positions.    Arranged as [][3]float32
@@ -199,8 +199,8 @@ func (d *MshData) Load(name string, l Locator) (err error) {
 // It is intended for populating rendered models and is
 // often needed for as attributes for shaders with lighting.
 //
-// MtlData is an intermediate data format that needs further processing
-// by something like vu/Model to bind the data to uniforms in a GPU shader.
+// MtlData is an intermediate data format that needs further processing by
+// something like vu.Ent.MakeModel to bind the data to uniforms in a GPU shader.
 type MtlData struct {
 	KaR, KaG, KaB float32 // Ambient color.
 	KdR, KdG, KdB float32 // Diffuse color.
@@ -230,7 +230,7 @@ func (d *MtlData) Load(name string, l Locator) (err error) {
 // on the GPU.
 //
 // ShdData is an intermediate data format that needs further processing
-// by something like vu/Model to compile the shader program and bind
+// by something like vu.Ent.MakeModel to compile the shader program and bind
 // it to a GPU.
 type ShdData struct {
 	Vsh SrcData // Vertex shader.
@@ -269,8 +269,8 @@ func (d *ShdData) Load(name string, l Locator) (err error) {
 // that describe how the sound data is interpreted and played.
 //
 // SndData is an intermediate data format that needs further processing
-// by something like vu/Pov to associate the noise with a 3D location
-// and bind it to an audio card.
+// by something like vu.Eng.AddSound and vu.Ent.PlaySound to associate the
+// noise with a 3D location and bind it to an audio card.
 type SndData struct {
 	Data  []byte         // the sound data bytes.
 	Attrs *SndAttributes // Attributes describing the sound data.

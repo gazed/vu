@@ -1,5 +1,3 @@
-#version 330
-
 in      vec3      f_nm;   // normal
 in      vec2      tuv0;   // texture coordinates
 in      vec2      tuv1;   // texture coordinates

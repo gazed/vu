@@ -1,4 +1,4 @@
-// Copyright © 2014-2016 Galvanized Logic Inc.
+// Copyright © 2014-2017 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -13,16 +13,15 @@ import (
 	"github.com/gazed/vu/grid"
 )
 
-// ff demonstrates flow field path finding by having a bunch of chasers and
-// a goal. The goal is randomly reset once all the chasers have reached it.
+// ff demonstrates flow field pathing by having a bunch of chasers and a goal.
+// The goal is randomly reset once all the chasers have reached it.
 // Restarting the example will create a different random grid.
 // See vu/grid/flow.go for more information on flow fields.
 //
 // CONTROLS:
 //   Sp    : pause while pressed
 func ff() {
-	ff := &fftag{}
-	if err := vu.New(ff, "Flow Field", 400, 100, 750, 750); err != nil {
+	if err := vu.Run(&fftag{}); err != nil {
 		log.Printf("ff: error starting engine %s", err)
 	}
 	defer catchErrors()
@@ -30,25 +29,26 @@ func ff() {
 
 // Globally unique "tag" that encapsulates example specific data.
 type fftag struct {
-	top     *vu.Pov    // transform hierarchy root.
-	chasers []*chaser  // map chasers.
-	goal    *vu.Pov    // chasers goal.
-	mmap    *vu.Pov    // allows the main map to be moved around.
-	cam     *vu.Camera // how its drawn on the minimap.
-	msize   int        // map width and height.
-	spots   []int      // unique ids of open spots.
-	plan    grid.Grid  // the floor layout.
-	flow    grid.Flow  // the flow field.
+	ui      *vu.Ent   // transform hierarchy root.
+	chasers []*chaser // map chasers.
+	goal    *vu.Ent   // chasers goal.
+	mmap    *vu.Ent   // allows the main map to be moved around.
+	msize   int       // map width and height.
+	spots   []int     // unique ids of open spots.
+	plan    grid.Grid // the floor layout.
+	flow    grid.Flow // the flow field.
 }
 
 // Create is the engine callback for initial asset creation.
 func (ff *fftag) Create(eng vu.Eng, s *vu.State) {
+	eng.Set(vu.Title("Flow Field"), vu.Size(400, 100, 750, 750))
+	eng.Set(vu.Color(0.15, 0.15, 0.15, 1))
 	rand.Seed(time.Now().UTC().UnixNano())
 
-	// create the overlay
-	ff.top = eng.Root().NewPov()
-	ff.cam = ff.top.NewCam().SetUI()
-	ff.mmap = ff.top.NewPov().SetScale(10, 10, 0)
+	// create the 2D overlay
+	ff.ui = eng.AddScene().SetUI()
+	ff.ui.Cam().SetClip(0, 10)
+	ff.mmap = ff.ui.AddPart().SetScale(10, 10, 0)
 	ff.mmap.SetAt(30, 30, 0)
 
 	// populate the map
@@ -59,10 +59,13 @@ func (ff *fftag) Create(eng vu.Eng, s *vu.State) {
 	for x := 0; x < width; x++ {
 		for y := 0; y < height; y++ {
 			if ff.plan.IsOpen(x, y) {
-				block := ff.mmap.NewPov()
-				block.SetAt(float64(x), float64(y), 0)
-				block.NewModel("uv", "msh:icon", "tex:wall")
+				// open spots used to navigate.
 				ff.spots = append(ff.spots, ff.id(x, y))
+			} else {
+				// less resources used showing walls rather than open spots.
+				block := ff.mmap.AddPart()
+				block.SetAt(float64(x), float64(y), 0)
+				block.MakeModel("uv", "msh:icon", "tex:wall")
 			}
 		}
 	}
@@ -72,34 +75,26 @@ func (ff *fftag) Create(eng vu.Eng, s *vu.State) {
 	for cnt := 0; cnt < numChasers; cnt++ {
 		ff.chasers = append(ff.chasers, newChaser(ff.mmap))
 	}
-	ff.goal = ff.mmap.NewPov()
-	ff.goal.NewModel("uv", "msh:icon", "tex:goal")
+	ff.goal = ff.mmap.AddPart().MakeModel("uv", "msh:icon", "tex:goal")
 	ff.flow = grid.NewFlow(ff.plan) // flow field for the given plan.
 	ff.resetLocations()
-
-	// set non default engine state.
-	eng.Set(vu.Color(0.15, 0.15, 0.15, 1))
-	ff.resize(s.W, s.H)
 }
 
 // Update is the regular engine callback.
 func (ff *fftag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
-	if in.Resized {
-		ff.resize(s.W, s.H)
+	if _, ok := in.Down[vu.KSpace]; ok {
+		return // pause with space bar.
 	}
 
-	// pause with space bar.
-	if _, ok := in.Down[vu.KSpace]; !ok {
-		// move each of the chasers closer to the goal.
-		reset := true
-		for _, chaser := range ff.chasers {
-			if chaser.move(ff.flow) {
-				reset = false
-			}
+	// move each of the chasers closer to the goal.
+	reset := true
+	for _, chaser := range ff.chasers {
+		if chaser.move(ff.flow) {
+			reset = false
 		}
-		if reset {
-			ff.resetLocations()
-		}
+	}
+	if reset {
+		ff.resetLocations()
 	}
 }
 
@@ -125,26 +120,21 @@ func (ff *fftag) id(x, y int) int { return x*ff.msize + y }
 // Turn unique identifiers to x,y map indicies.
 func (ff *fftag) at(id int) (x, y int) { return id / ff.msize, id % ff.msize }
 
-func (ff *fftag) resize(w, h int) {
-	ff.cam.SetOrthographic(0, float64(w), 0, float64(h), 0, 10)
-}
-
 // =============================================================================
 
 // chasers move from grid location to grid location until they
 // reach the goal.
 type chaser struct {
-	pov    *vu.Pov // actual location.
+	pov    *vu.Ent // actual location.
 	gx, gy int     // old grid location.
 	nx, ny int     // next grid location.
 	cx, cy int     // optional center to avoid when moving.
 }
 
 // chaser moves towards a goal.
-func newChaser(parent *vu.Pov) *chaser {
+func newChaser(parent *vu.Ent) *chaser {
 	c := &chaser{}
-	c.pov = parent.NewPov()
-	c.pov.NewModel("uv", "msh:icon", "tex:token")
+	c.pov = parent.AddPart().MakeModel("uv", "msh:icon", "tex:token")
 	return c
 }
 

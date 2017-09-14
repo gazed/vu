@@ -1,5 +1,3 @@
-#version 330
-
 layout(location=0) in vec3 in_v;
 layout(location=2) in vec2 in_t;
 

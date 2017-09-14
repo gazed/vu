@@ -1,26 +1,34 @@
-// Copyright © 2013-2016 Galvanized Logic Inc.
+// Copyright © 2013-2017 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
 
 import (
-	"fmt"
-
 	"github.com/gazed/vu/device"
 	"github.com/gazed/vu/render/gl"
 )
 
-// Initialize enough of the opengl context that some OpenGL information
-// can be dumped to screen along with the bindings. This is a basic graphics
-// package test that checks if the underlying OpenGL functions are available.
-// Columns of function names marked [+]:available or [ ]:missing will
-// be written the the console.
+// Basic graphics package test that checks if the underlying OpenGL functions
+// are available. Columns of function names marked [+]:available or [ ]:missing
+// are written the the console.
+//
+// Windows does not find the opengl functions without a graphics context.
 //
 // CONTROLS: NA
 func dg() {
-	app := device.New("Dump", 400, 100, 600, 600)
-	gl.Dump() // gets graphic context to properly bind.
-	fmt.Printf("%s %s", gl.GetString(gl.RENDERER), gl.GetString(gl.VERSION))
-	fmt.Printf(" GLSL %s\n", gl.GetString(gl.SHADING_LANGUAGE_VERSION))
-	app.Dispose()
+	device.Run(&dgtag{}) // Does not return.
+
+	// on macOS could just run gl.Dump() instead of having to
+	// create the device.
 }
+
+type dgtag struct{}
+
+// Init is a one-time callback before rendering updates.
+func (tag *dgtag) Init(dev device.Device) {
+	gl.Dump()
+	dev.Dispose()
+}
+
+// Refresh application state and render a new frame.
+func (tag *dgtag) Refresh(dev device.Device) {}

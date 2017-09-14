@@ -8,7 +8,8 @@
 // Package gl is provided as part of the vu (virtual universe) 3D engine.
 package gl
 
-// #cgo darwin  LDFLAGS: -framework OpenGL
+// #cgo darwin,amd64 LDFLAGS: -framework OpenGL
+// #cgo darwin,arm64 LDFLAGS: -framework OpenGLES
 // #cgo linux   LDFLAGS: -lGL -ldl
 // #cgo windows LDFLAGS: -lopengl32
 //

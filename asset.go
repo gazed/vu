@@ -1,15 +1,19 @@
-// Copyright © 2016 Galvanized Logic Inc.
+// Copyright © 2016-2017 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package vu
 
-// aid.go defines asset identfiers. See eid.go for entity identifiers.
+// aid.go defines asset identfiers. Assets are data used by shaders.
+// See eid.go for entity identifiers.
 
 import (
 	"math"
 )
 
 // asset describes any data asset that can uniquely identify itself.
+// Based on unique names within a given asset group.
+// Assets are game data like meshes and textures that are
+// either read from disk or created algorithmically.
 type asset interface {
 	aid() aid      // Data type and name combined.
 	label() string // Identifier unique with data type.
@@ -21,18 +25,19 @@ type asset interface {
 // Asset identifiers are hashes generated from an asset name and type.
 type aid uint64
 
-// dataType returns the type of asset data for this aid.
-func (a aid) dataType() uint32 { return uint32(a & math.MaxUint32) }
+// kind returns the type of asset data for this aid.
+func (a aid) kind() uint32 { return uint32(a & math.MaxUint32) }
 
-// Asset data types. See aid.dataType and assetID.
+// Asset types used in aid and aid.kind.
 const (
-	fnt = iota // font
-	shd        // shader
-	mat        // material
-	msh        // mesh
-	tex        // texture
-	snd        // sound
-	anm        // animation
+	fnt        = iota // font
+	shd               // shader
+	mat               // material
+	msh               // mesh
+	tex               // texture
+	snd               // sound
+	anm               // animation
+	assetTypes        // end of asset types.
 )
 
 // =============================================================================

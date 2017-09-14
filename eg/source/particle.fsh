@@ -1,5 +1,3 @@
-#version 400 core
-
 // shader to render simple particle system points 
 // http://antongerdelan.net/opengl/particles.html
 

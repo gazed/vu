@@ -21,11 +21,8 @@ type opengl struct {
 	vw, vh    int32  // Remember the viewport size for framebuffer switching.
 }
 
-// newRenderer returns an OpenGL implementation of Renderer.
-func newRenderer() Renderer {
-	gc := &opengl{}
-	return gc
-}
+// newRenderer returns an OpenGL Context.
+func newRenderer() Context { return &opengl{} }
 
 // Renderer implementation specific constants.
 const (
@@ -48,7 +45,9 @@ func (gc *opengl) Init() error {
 
 // Renderer implementation.
 func (gc *opengl) Color(r, g, b, a float32) { gl.ClearColor(r, g, b, a) }
-func (gc *opengl) Clear()                   { gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT) }
+func (gc *opengl) Clear() {
+	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+}
 func (gc *opengl) Viewport(width int, height int) {
 	gc.vw, gc.vh = int32(width), int32(height)
 	gl.Viewport(0, 0, int32(width), int32(height))
@@ -138,52 +137,29 @@ func (gc *opengl) Render(d *Draw) {
 // in the model shader.
 func (gc *opengl) bindUniforms(d *Draw) {
 	for key, ref := range d.Uniforms {
-		switch key {
-		case "mvpm":
+		switch {
+		case key == "mvpm":
 			gc.bindUniform(ref, x4, 1, d.Mvp.Pointer())
-		case "mvm":
+		case key == "mvm":
 			gc.bindUniform(ref, x4, 1, d.Mv.Pointer())
-		case "dbm":
+		case key == "dbm":
 			gc.bindUniform(ref, x4, 1, d.Dbm.Pointer())
-		case "pm":
+		case key == "pm":
 			gc.bindUniform(ref, x4, 1, d.Pm.Pointer())
-		case "uv":
-			gc.useTexture(ref, 0, d.Texs[0].tid)
-		case "uv0":
-			gc.useTexture(ref, 0, d.Texs[0].tid)
-		case "uv1":
-			gc.useTexture(ref, 1, d.Texs[1].tid)
-		case "uv2":
-			gc.useTexture(ref, 2, d.Texs[2].tid)
-		case "uv3":
-			gc.useTexture(ref, 3, d.Texs[3].tid)
-		case "uv4":
-			gc.useTexture(ref, 4, d.Texs[4].tid)
-		case "uv5":
-			gc.useTexture(ref, 5, d.Texs[5].tid)
-		case "uv6":
-			gc.useTexture(ref, 6, d.Texs[6].tid)
-		case "uv7":
-			gc.useTexture(ref, 7, d.Texs[7].tid)
-		case "uv8":
-			gc.useTexture(ref, 8, d.Texs[8].tid)
-		case "uv9":
-			gc.useTexture(ref, 9, d.Texs[9].tid)
-		case "uv10":
-			gc.useTexture(ref, 10, d.Texs[10].tid)
-		case "uv11":
-			gc.useTexture(ref, 11, d.Texs[11].tid)
-		case "uv12":
-			gc.useTexture(ref, 12, d.Texs[12].tid)
-		case "uv13":
-			gc.useTexture(ref, 13, d.Texs[13].tid)
-		case "uv14":
-			gc.useTexture(ref, 14, d.Texs[14].tid)
-		case "sm":
+		case key == "sm":
 			gc.useTexture(ref, 15, d.Shtex) // always use 15 for shadow maps.
-		case "bpos": // bone position animation data.
+		case key == "bpos": // bone position animation data.
 			if d.Pose != nil && len(d.Pose) > 0 {
 				gc.bindUniform(ref, x34, len(d.Pose), d.Pose[0].Pointer())
+			}
+		case strings.HasPrefix(key, "uv"):
+			index := 0
+			fmt.Sscanf(key, "uv%d", &index)
+			for _, t := range d.Texs {
+				if t.order == index {
+					gc.useTexture(ref, int32(index), t.tid)
+					break
+				}
 			}
 		default:
 			// bind individual float based uniforms.
@@ -200,8 +176,11 @@ func (gc *opengl) bindUniforms(d *Draw) {
 					gc.bindUniform(ref, f4, 1, floats[0], floats[1], floats[2], floats[3])
 				}
 			} else {
-				log.Printf("No uniform bound for %s", key)
+				log.Printf("No uniform bound for %s %d", key, d.Tag)
 			}
+		}
+		if glerr := gl.GetError(); glerr != gl.NO_ERROR {
+			log.Printf("BindUniforms error %X for %s %d", glerr, key, d.Tag)
 		}
 	}
 
@@ -223,10 +202,10 @@ func (gc *opengl) validate() error {
 			}
 		}
 		if !valid {
-			return fmt.Errorf("Need OpenGL 3.2 or higher.")
+			return fmt.Errorf("Need OpenGL 3.2 or higher")
 		}
 	} else {
-		return fmt.Errorf("OpenGL unavailable.")
+		return fmt.Errorf("OpenGL unavailable")
 	}
 	return nil
 }
@@ -236,7 +215,7 @@ func (gc *opengl) validate() error {
 // and initializes the vao and buffer references.
 func (gc *opengl) BindMesh(vao *uint32, vdata map[uint32]Data, fdata Data) error {
 	if glerr := gl.GetError(); glerr != gl.NO_ERROR {
-		return fmt.Errorf("BindMesh needs to find and fix prior error %X", glerr)
+		return fmt.Errorf("BindMesh: fix prior error %X", glerr)
 	}
 
 	// Reuse existing vao's.
@@ -344,15 +323,15 @@ func (gc *opengl) BindShader(vsh, fsh []string, uniforms map[string]int32,
 // BindTexture makes the texture available on the GPU.
 func (gc *opengl) BindTexture(tid *uint32, img image.Image) (err error) {
 	if glerr := gl.GetError(); glerr != gl.NO_ERROR {
-		log.Printf("opengl:bindTexture need to find and fix prior error %X", glerr)
+		log.Printf("opengl:bindTexture find and fix prior error %X", glerr)
 	}
 	if *tid == 0 {
 		gl.GenTextures(1, tid)
 	}
 	gl.BindTexture(gl.TEXTURE_2D, *tid)
 
-	// FUTURE: check if RGBA, or NRGBA are alpha pre-multiplied. The docs say yes
-	// for RGBA but the data is from PNG files which are not pre-multiplied
+	// FUTURE: check if RGBA, or NRGBA are alpha pre-multiplied. The docs say
+	// yes for RGBA but the data is from PNG files which are not pre-multiplied
 	// and the go png Decode looks like its reading values directly.
 	var ptr gl.Pointer
 	bounds := img.Bounds()
@@ -392,10 +371,10 @@ func (gc *opengl) SetTextureMode(tid uint32, clamp bool) {
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST_MIPMAP_LINEAR)
 }
 
-// BindFrame creates a framebuffer object with an associated texture.
-//    http://www.opengl-tutorial.org/intermediate-tutorials/tutorial-14-render-to-texture/
-//    http://www.opengl-tutorial.org/intermediate-tutorials/tutorial-16-shadow-mapping/
-func (gc *opengl) BindFrame(buf int, fbo, tid, db *uint32) (err error) {
+// BindTarget creates a framebuffer object that can be used as render
+// target. The buffer has both color and depth.
+//    http://www.opengl-tutorial.org/intermediate-tutorials/tutorial-14-render-to-texture
+func (gc *opengl) BindTarget(fbo, tid, db *uint32) (err error) {
 	size := int32(LayerSize)
 	gl.GenFramebuffers(1, fbo)
 	gl.BindFramebuffer(gl.FRAMEBUFFER, *fbo)
@@ -403,39 +382,57 @@ func (gc *opengl) BindFrame(buf int, fbo, tid, db *uint32) (err error) {
 	// Create a texture specifically for the framebuffer.
 	gl.GenTextures(1, tid)
 	gl.BindTexture(gl.TEXTURE_2D, *tid)
-	switch buf {
-	case ImageBuffer:
-		gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, size, size,
-			0, gl.RGBA, gl.UNSIGNED_BYTE, gl.Pointer(nil))
-		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
-		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
+	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, size, size,
+		0, gl.RGBA, gl.UNSIGNED_BYTE, gl.Pointer(nil))
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
 
-		// Add a depth buffer to mimic the normal framebuffer behaviour for 3D objects.
-		gl.GenRenderbuffers(1, db)
-		gl.BindRenderbuffer(gl.RENDERBUFFER, *db)
-		gl.RenderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT, size, size)
-		gl.FramebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, *db)
+	// Add a depth buffer to mimic the normal framebuffer behaviour for 3D objects.
+	gl.GenRenderbuffers(1, db)
+	gl.BindRenderbuffer(gl.RENDERBUFFER, *db)
+	gl.RenderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT, size, size)
+	gl.FramebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, *db)
 
-		// Associate the texture with the framebuffer.
-		gl.FramebufferTexture(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, *tid, 0)
-		buffType := uint32(gl.COLOR_ATTACHMENT0)
-		gl.DrawBuffers(1, &buffType)
-	case DepthBuffer:
-		gl.TexImage2D(gl.TEXTURE_2D, 0, gl.DEPTH_COMPONENT16, size, size,
-			0, gl.DEPTH_COMPONENT, gl.FLOAT, gl.Pointer(nil))
-		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
-		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
-		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
-		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
-		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_COMPARE_FUNC, gl.LEQUAL)
-		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_COMPARE_MODE, gl.COMPARE_REF_TO_TEXTURE)
+	// Associate the texture with the framebuffer.
+	gl.FramebufferTexture(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, *tid, 0)
+	buffType := uint32(gl.COLOR_ATTACHMENT0)
+	gl.DrawBuffers(1, &buffType)
 
-		// Associate the texture with the framebuffer.
-		gl.FramebufferTexture(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, *tid, 0)
-		gl.DrawBuffer(gl.NONE)
-	default:
-		return fmt.Errorf("BindFrame unrecognized buffer type.")
+	// Report any problems.
+	glerr := gl.CheckFramebufferStatus(gl.FRAMEBUFFER)
+	if glerr != gl.FRAMEBUFFER_COMPLETE {
+		return fmt.Errorf("BindFrame error %X", glerr)
 	}
+	if glerr := gl.GetError(); glerr != gl.NO_ERROR {
+		err = fmt.Errorf("Failed binding framebuffer %X", glerr)
+	}
+	gl.BindFramebuffer(gl.FRAMEBUFFER, 0) // clean up by resetting to default framebuffer.
+	return err
+}
+
+// BindMap creates a framebuffer object with an associated texture.
+// This has depth, but no color. Expected to be used for shadow maps.
+//    http://www.opengl-tutorial.org/intermediate-tutorials/tutorial-16-shadow-mapping/
+func (gc *opengl) BindMap(fbo, tid *uint32) (err error) {
+	size := int32(LayerSize)
+	gl.GenFramebuffers(1, fbo)
+	gl.BindFramebuffer(gl.FRAMEBUFFER, *fbo)
+
+	// Create a texture specifically for the framebuffer.
+	gl.GenTextures(1, tid)
+	gl.BindTexture(gl.TEXTURE_2D, *tid)
+	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.DEPTH_COMPONENT16, size, size,
+		0, gl.DEPTH_COMPONENT, gl.FLOAT, gl.Pointer(nil))
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_COMPARE_FUNC, gl.LEQUAL)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_COMPARE_MODE, gl.COMPARE_REF_TO_TEXTURE)
+
+	// Associate the texture with the framebuffer.
+	gl.FramebufferTexture(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, *tid, 0)
+	gl.DrawBuffer(gl.NONE)
 
 	// Report any problems.
 	glerr := gl.CheckFramebufferStatus(gl.FRAMEBUFFER)
@@ -509,8 +506,12 @@ func (gc *opengl) useTexture(sampler, texUnit int32, tid uint32) {
 func (gc *opengl) ReleaseMesh(vao uint32)    { gl.DeleteVertexArrays(1, &vao) }
 func (gc *opengl) ReleaseShader(sid uint32)  { gl.DeleteProgram(sid) }
 func (gc *opengl) ReleaseTexture(tid uint32) { gl.DeleteTextures(1, &tid) }
-func (gc *opengl) ReleaseFrame(fbo, tid, db uint32) {
+func (gc *opengl) ReleaseTarget(fbo, tid, db uint32) {
 	gl.DeleteFramebuffers(1, &fbo)
 	gl.DeleteTextures(1, &tid)
 	gl.DeleteRenderbuffers(1, &db)
+}
+func (gc *opengl) ReleaseMap(fbo, tid uint32) {
+	gl.DeleteFramebuffers(1, &fbo)
+	gl.DeleteTextures(1, &tid)
 }

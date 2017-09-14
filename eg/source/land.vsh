@@ -1,5 +1,3 @@
-#version 330
-
 // land is an experimental surface shader.
 // It expects land textures to be stacked in an atlas and it will blend
 // a blend texture with the next texture down in the atlas.

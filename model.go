@@ -1,12 +1,9 @@
-// Copyright © 2015-2016 Galvanized Logic Inc.
+// Copyright © 2015-2017 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package vu
 
-// model.go groups a shader with its related assets. Key app facing API.
-// FUTURE: Would ditching the interface and exposing the struct make the
-//         application experience better or worse? Possibly need to break
-//         Model into specialized types.
+// model.go contains code related to the model component.
 
 import (
 	"log"
@@ -18,292 +15,288 @@ import (
 	"github.com/gazed/vu/render"
 )
 
-// Model manages rendered 3D objects. Model is the link between loaded
-// assets and the data needed by the rendering system. Assets, such as
-// shaders, mesh, textures, etc., are specified as unique strings in the
-// Load method. Assets are loaded and converted to intermediate data
-// which is later converted to render draws for the render system.
-// Make is used for Models that are generated instead of loaded.
+// MakeModel adds a model component to an entity.
+// The following assets can be loaded into a model. The first parameter
+// is the shader asset name. The remaining assets can be in any order
+// and are prefixed with an asset type. Names must be unique within
+// an asset type.
+//    shd: first parameter, "name" of shader - one per model.
+//    msh: "msh:name" - one per model.
+//    tex: "tex:name" - 0 to 14 per model.
+//    mat: "mat:name" - 0 or 1 per model.
 //
-// A model is expected to be attached to a point-of-view (Pov) to give
-// it a 3D location and orientation in the render transform hierarchy.
+// A model manages rendered 3D objects. It is the link between loaded
+// assets and the data needed by the rendering system for the shader.
+// Assets, such as shaders, mesh, textures, etc., are specified as unique
+// strings. The assets are located, loaded, and converted to intermediate
+// data which is later converted to render draws for the render system.
 //
-// It is the applications responsibility to call enough Model methods
-// to ensure the Models shader is provided with its expected asset data.
+// It is the applications responsibility to call enough model methods
+// to ensure the models shader is provided with its expected asset data.
 // Ie: if the shader expects a texture, ensure a texture is loaded.
-// Mismatches generate runtime logs.
-type Model interface {
-	Shader() (name string)       // Rendered models have a shader.
-	Load(assets ...string) Model // Create and import assets.
-	Make(assets ...string) Model // Create msh or tex placeholders.
-	Set(opts ...ModAttr) Model   // Config with functional options.
-
-	// Mesh allows setting vertex data on meshes. Triggers rebind.
-	// Needed for meshes created with Make.
-	Mesh() Mesh // One mesh per model.
-
-	// Tex allows setting a texture image. Triggers rebind.
-	// Textures are in the order they were added. OrderTex puts the
-	// named texture at the given index and shifts the remaining.
-	Tex(index int) Tex           // Multiple textures per model.
-	ClampTex(name string) Model  // Make texture non-repeating.
-	OrderTex(name string, i int) // Order textures for shader.
-
-	// A Model is expected to be one thing at a time. The following
-	// are particular combinations of the shader, mesh, and textures
-	Animator // Animators are animated Models.
-	Labeler  // Labels are Models used to display small text phrases.
-
-	// Particle effects are either CPU:application or GPU:shader based.
-	// SetEffect sets a CPU controlled particle effect.
-	SetEffect(mover ParticleEffect, maxParticles int)
-
-	// Layers are used for shadows or render to texture.
-	UseLayer(l Layer) // Use render pass texture.
-
-	// Set/get shader uniform values where id is the shader uniform name.
-	Uniform(id string) (value []float32)         // Uniform name/values.
-	SetUniform(id string, floats ...interface{}) // Individual values.
-
-	// Alpha is model transparency used in shaders.
-	Alpha() (a float64) // 0 for fully transparent, to 1 fully opaque.
-	SetAlpha(a float64) // Overrides any material alpha values.
-}
-
-// Model
-// =============================================================================
-// model implements Model.
-
-// model implements Model. It links the applications transform hierarchy
-// to the rendering system. The application specifies the model resources.
-// These resources are later linked and bound during engine processing.
-type model struct {
-	// Assets are added when loading and removed when loaded.
-	assets  map[aid]string  // Model is comprised of named assets.
-	clamps  map[string]bool // Collects requests for repeating textures.
-	rebinds []asset         // Collects rebind requests.
-
-	// Loaded asset instances.
-	shd    *shader         // Mandatory GPU render program.
-	texs   []*texture      // Optional: one or more texture images.
-	tids   []*texid        // Texture placeholder to track ordering.
-	mat    *material       // Optional: material lighting info.
-	msh    *mesh           // Mandatory vertex buffer data.
-	effect *particleEffect // Optional particle effect.
-	layer  *layer          // Optional previous render pass.
-
-	// Optional animated model control information.
-	anm     *animation // Optional: bone animation info.
-	frame   float64    // Frame counter.
-	move    int        // Aurrent animation defaults to 0.
-	nFrames int        // Number of frames in the current movement.
-	pose    []lin.M4   // Pose refreshed each update.
-
-	// Optional font information.
-	fnt  *font  // Optional: font layout data.
-	str  string // Initial pre-load display string.
-	strw int    // Rendered string width in pixels, 0 otherwise.
-	strh int    // Rendered string height in pixels, 0 otherwise.
-	wrap int    // Optional string wrap in pixels. Used if positive.
-
-	// Rendering attributes.
-	castShadow bool // Model to cast a shadow. Default false.
-	hasShadows bool // Model to reveal a shadow. Default false.
-	depth      bool // Depth buffer on by default.
-	drawMode   int  // Render mesh as Triangles, Points, Lines.
-
-	// Shader dependent uniform data.
-	alpha    float64              // Transparency between 0 and 1.
-	time     time.Time            // Time needed by some shaders.
-	uniforms map[string][]float32 // Uniform values.
-	sm       *lin.M4              // scratch matrix.
-}
-
-// newModel allocates a new model instance setting some common defaults.
-// It parses the requested model attributes, creating placeholders for
-// the necessary rendering objects. These will be loaded or filled in
-// later.
-func newModel(shaderName string, attrs ...string) *model {
-	m := &model{alpha: 1, depth: true, assets: map[aid]string{}}
-	m.assets[assetID(shd, shaderName)] = shaderName
-	m.clamps = map[string]bool{}
-
-	m.time = time.Now()
-	m.uniforms = map[string][]float32{}
-	m.sm = &lin.M4{}
-	m.Load(attrs...) // default is to load assets.
-	return m
-}
-
-// Load is called during App.Update.
-func (m *model) Load(attrs ...string) Model {
-	for _, attribute := range attrs {
-		attr := strings.Split(attribute, ":")
-		if len(attr) != 2 {
-			continue
-		}
-		name := attr[1]
-		switch attr[0] {
-		case "mod": // animated model
-			m.assets[assetID(anm, name)] = name
-			textureName := name + "0"
-			aid := assetID(tex, textureName)
-			m.assets[aid] = textureName
-			m.tids = append(m.tids, newTexid(textureName, aid))
-		case "msh": // static model.
-			m.assets[assetID(msh, name)] = name
-		case "mat": // material for lighting shaders.
-			m.assets[assetID(mat, name)] = name
-		case "tex": // texture.
-			aid := assetID(tex, name)
-			m.assets[aid] = name
-			m.tids = append(m.tids, newTexid(name, aid))
-		case "fnt": // font mapping
-			m.assets[assetID(fnt, name)] = name
-			m.msh = newMesh("phrase") // dynamic mesh for phrase backing.
-		}
-	}
-	return m
-}
-
-// Make is used to create objects where the data is filled by the
-// application instead of the loader. Called during App.Update.
-func (m *model) Make(attrs ...string) Model {
-	for _, attribute := range attrs {
-		attr := strings.Split(attribute, ":")
-		if len(attr) != 2 {
-			continue
-		}
-		name := attr[1]
-		switch attr[0] {
-		case "msh": // static model that needs generated data.
-			m.newMesh(name)
-		case "tex": // texture that needs generated data.
-			m.texs = append(m.texs, newTexture(name))
-		}
-	}
-	return m
-}
-
-// Set handles updating Model attributes using functional options.
-// These are expected to be used rarely since they are many times
-// slower than calling a method. See eng_test benchmark.
-func (m *model) Set(options ...ModAttr) Model { // Functional options.
-	for _, opt := range options {
-		opt(m) // apply option by calling function with model instance.
-	}
-	return m
-}
-
-// Alpha is model transparency. This value overrides any material values.
-// Alpha is used often enough to separate it from Uniforms and ModAttrs.
-func (m *model) Alpha() (a float64) { return m.alpha }
-func (m *model) SetAlpha(a float64) { m.alpha = a }
-
-// Each model has one shader.
-func (m *model) Shader() string { return m.shd.name }
-
-// Each model may have one mesh.
-func (m *model) Mesh() Mesh {
-	if m.msh != nil {
-		m.rebinds = append(m.rebinds, m.msh)
-	}
-	return m.msh
-}
-func (m *model) newMesh(meshName string) {
-	if m.msh == nil && m.anm == nil {
-		m.msh = newMesh(meshName)
-	}
-}
-
-// A model may have one more more textures that apply
-// to the models mesh.
-func (m *model) Tex(i int) Tex {
-	if i < 0 || i >= len(m.texs) {
-		return nil
-	}
-	m.rebinds = append(m.rebinds, m.texs[i])
-	return m.texs[i]
-}
-
-// ClampTex for when a repeating texture is not going to work,
-// as is often the case with rotating textures.
-func (m *model) ClampTex(textureName string) Model {
-	m.clamps[textureName] = true
-	return m
-}
-
-// OrderTex tracks the order of textures for the model.
-// The texture order must match that expected by the shader.
-// Changing a visible texture can be accomplished by switching texture order.
-// Note that texture order needs to be maintained if there are outstanding
-// load requests. This allows apps to load and order textures during the
-// original create.
-func (m *model) OrderTex(name string, i int) {
-	if i < 0 || i >= len(m.tids) {
-		return
-	}
-	at := -1
-	for cnt, tb := range m.tids {
-		if tb.name == name {
-			at = cnt
-			break
-		}
-	}
-	if at == -1 || at == i {
-		return // couldn't find it or its already in its spot.
-	}
-	a := m.tids[at]
-	m.tids = append(m.tids[:at], m.tids[at+1:]...)                     // cut
-	m.tids = append(m.tids[:i], append([]*texid{a}, m.tids[i:]...)...) // insert
-	if len(m.tids) == len(m.texs) {
-		t := m.texs[at]
-		m.texs = append(m.texs[:at], m.texs[at+1:]...)                       // cut
-		m.texs = append(m.texs[:i], append([]*texture{t}, m.texs[i:]...)...) // insert
-	}
-}
-
-// In this case the texture has been generated in the given layer
-// and is already on the gpu. Ignored if there is already a
-// textured assigned to the model.
 //
-// Note: The layer texture must be rendered before the model
-//       using it is rendered.
-func (m *model) UseLayer(l Layer) {
-	layer, ok := l.(*layer)
-	if m.layer == nil && ok {
-		m.layer = layer
-		switch m.layer.attr {
-		case render.ImageBuffer:
-			m.texs = append(m.texs, m.layer.tex)
-		case render.DepthBuffer:
-			// shadow maps are handled in toDraw.
-		}
-	}
+// A model is attached to an entity with a point-of-view to give
+// it a 3D location and orientation.
+func (e *Ent) MakeModel(shader string, attrs ...string) *Ent {
+	mod := e.app.models.create(e)
+	e.app.models.loadAssets(e, mod, append(attrs, "shd:"+shader)...)
+	return e
 }
 
-// SetStr changes the text phrase and causes a mesh rebind.
-func (m *model) SetStr(str string) Labeler {
-	if len(str) > 0 && m.str != str {
-		m.str = str // used by loader to set mesh data.
-		m.rebinds = append(m.rebinds, m.msh)
-		if m.fnt != nil {
-			m.strw, m.strh = m.fnt.setStr(m.msh, m.str, m.wrap)
+// Load more model assets after the model has been created.
+// The assets can be in any order and are prefixed with an asset type.
+// Names must be unique within an asset type.
+//    msh: "msh:name" - one per model.
+//    tex: "txt:name" - 0 to 14 per model.
+//    mat: "mat:name" - 0 to 1 per model.
+//
+// Depends on Ent.MakeModel.
+func (e *Ent) Load(assets ...string) *Ent {
+	if m := e.app.models.get(e.eid); m != nil {
+		e.app.models.loadAssets(e, m, assets...)
+		return e
+	}
+	log.Printf("Load needs MakeModel %d", e.eid)
+	return e
+}
+
+// Mesh returns the vertex data for an entity with a model component.
+// The Mesh will be marked for rebinding as the expected reason
+// to get a mesh is to modify it.
+//
+// Depends on Ent.MakeModel. Returns nil if missing model component.
+func (e *Ent) Mesh() *Mesh {
+	if m := e.app.models.get(e.eid); m != nil {
+		e.app.models.rebinds[e.eid] = m
+		return m.msh
+	}
+	log.Printf("Mesh needs MakeModel %d", e.eid)
+	return nil
+}
+
+// GenMesh is used to create a mesh where the data is filled by the
+// application instead of the loader. Does nothing if the original
+// MakeModel call already loaded a mesh.
+//
+// Depends on Ent.MakeModel. Returns nil if missing model component.
+func (e *Ent) GenMesh(name string) *Mesh {
+	if m := e.app.models.get(e.eid); m != nil {
+		if m.msh == nil {
+			m.msh = newMesh(name)
+			m.track[msh] = 1
+			e.app.models.rebinds[e.eid] = m
+		}
+		return m.msh
+	}
+	log.Printf("GenMesh needs MakeModel %d", e.eid)
+	return nil
+}
+
+// Tex returns the texture for an entity with a model component and
+// a texture at the given index. The Texture will be marked for rebinding
+// as the expected reason  to get a texture is to modify it.
+//
+// Depends on Ent.MakeModel. Returns nil if missing model component.
+func (e *Ent) Tex(index int) *Texture {
+	if m := e.app.models.get(e.eid); m != nil {
+		e.app.models.rebinds[e.eid] = m
+		if index >= 0 && index < len(m.texs) {
+			return m.texs[index]
 		}
 	}
-	return m
+	log.Printf("Tex needs MakeModel %d", e.eid)
+	return nil
 }
-func (m *model) SetWrap(w int) Labeler    { m.wrap = w; return m }
-func (m *model) StrSize() (w, h int)      { return m.strw, m.strh }
-func (m *model) StrColor(r, g, b float64) { m.SetUniform("kd", r, g, b) }
-func (m *model) isEmptyStr() bool         { return m.fnt != nil && m.str == "" }
+
+// GenTex is used to create a mesh where the data is filled by the
+// application instead of the loader. Can be called on an existing
+// model entity.
+//
+// Depends on Ent.MakeModel. Returns nil if missing model component.
+func (e *Ent) GenTex(name string) *Texture {
+	if m := e.app.models.get(e.eid); m != nil {
+		t := newTexture(name)
+		m.texs = append(m.texs, t)
+		m.tpos[name] = len(m.texs) - 1
+		m.track[tex] = m.track[tex] + 1
+		e.app.models.rebinds[e.eid] = m
+		return t
+	}
+	log.Printf("GenTex needs MakeModel %d", e.eid)
+	return nil
+}
+
+// SetTex assigns the model a texture that has been generated
+// from a scene and which already exists on the GPU.
+// Ignored if there is already a texture assigned to the model.
+//
+// Depends on Ent.MakeModel.
+//     scene : depends on Eng.AddScene.
+func (e *Ent) SetTex(scene *Ent) *Ent {
+	m := e.app.models.get(e.eid)
+	t := e.app.scenes.getTarget(scene.eid)
+	if len(m.texs) == 0 && t != nil {
+		m.texs = append(m.texs, t.tex)
+		m.track[tex] = 1
+		return e
+	}
+	log.Printf("SetTex needs MakeModel %d and AddScene %d", e.eid, scene.eid)
+	return e
+}
+
+// SetFirst ensures that the named texture is at texture position 0.
+// Position 0 is the texture position most shaders use to color a model.
+// This allows models to have multiple textures and change from displaying
+// one texture to another. The order of the remaining textures is not
+// guaranteed.
+//
+// Nothing happens if the texture is invalid. Expected to be called
+// after textures have been loaded.
+//
+// Depends on Ent.MakeModel.
+func (e *Ent) SetFirst(name string) *Ent {
+	if m := e.app.models.get(e.eid); m != nil {
+		m.setFirstTexture(name)
+		return e
+	}
+	log.Printf("SetFirst needs MakeModel %d", e.eid)
+	return e
+}
 
 // SetUniform combines floats values into a slice of float32's
-// that will be passed to the rendering layer and used to set
-// shader uniform values.
-func (m *model) Uniform(id string) (value []float32) { return m.uniforms[id] }
-func (m *model) SetUniform(id string, floats ...interface{}) {
-	values := []float32{}
+// that will be passed to rendering and used to set shader uniform values.
+//
+// Depends on Ent.MakeModel.
+func (e *Ent) SetUniform(id string, floats ...interface{}) *Ent {
+	if m := e.app.models.get(e.eid); m != nil {
+		m.setUniforms(id, floats...)
+		return e
+	}
+	log.Printf("SetUniform needs MakeModel %d", e.eid)
+	return e
+}
+
+// Alpha returns the alpha value for this model entity.
+//
+// Depends on Ent.MakeModel. Returns 0 if there is no model component.
+func (e *Ent) Alpha() float64 {
+	if m := e.app.models.get(e.eid); m != nil {
+		return m.alpha()
+	}
+	log.Printf("Alpha needs MakeModel %d", e.eid)
+	return 0
+}
+
+// SetAlpha sets the alpha value for this model entity.
+//
+// Depends on Ent.MakeModel. Sets nothing if there is no model component.
+func (e *Ent) SetAlpha(a float64) *Ent {
+	if m := e.app.models.get(e.eid); m != nil {
+		m.setUniforms("alpha", a)
+		return e
+	}
+	log.Printf("SetAlpha needs MakeModel %d", e.eid)
+	return e
+}
+
+// SetColor sets a model component material color where
+// the r,g,b values are from 0-1.
+//
+// Depends on Ent.MakeModel.
+func (e *Ent) SetColor(r, g, b float64) *Ent {
+	if m := e.app.models.get(e.eid); m != nil {
+		m.setUniforms("kd", r, g, b)
+		return e
+	}
+	log.Printf("SetColor needs MakeModel %d", e.eid)
+	return e
+}
+
+// SetDraw affects rendered meshes by rendering with Triangles, Lines, Points.
+// The default mode is Triangles.
+//
+// Depends on Ent.MakeModel.
+func (e *Ent) SetDraw(mode int) *Ent {
+	if m := e.app.models.get(e.eid); m != nil {
+		m.drawMode = mode
+		return e
+	}
+	log.Printf("SetDraw needs MakeModel %d", e.eid)
+	return e
+}
+
+// Clamp a texture instead of using the default repeating texture.
+// Expected to be called after a model with texture assets has been defined,
+// but before the model assets have been loaded. Ie: something that is set
+// before first use, not for flipping back and forth.
+func (e *Ent) Clamp(name string) *Ent {
+	// FUTURE: would be nice to know whether or not to clamp as the asset
+	//         is being created.
+	e.app.models.clamps[e.eid] = append(e.app.models.clamps[e.eid], name)
+	return e
+}
+
+// model entity methods.
+// =============================================================================
+// model data
+
+// model transforms groups of application requested assets into
+// render draw data. It also provides a consistent API for application
+// access and modification of render data.
+//
+// Generally expected to be accessed through wrapper classes such as
+// Model, Particle, Actor, and Label.
+type model struct {
+	// Base asset instances will be nil until loaded.
+	msh      *Mesh      // Mandatory vertex buffer data.
+	shd      *shader    // Mandatory GPU render program.
+	texs     []*Texture // Optional: one or more texture images.
+	mat      *material  // Optional: material lighting info.
+	tocam    float64    // distance to camera helps with 3D render order.
+	drawMode int        // Render mesh as Triangles, Points, Lines.
+
+	// Mark as a effect since GPU effects don't have effect data.
+	isEffect bool // Mark GPU and CPU particle effects.
+
+	// Allow textures to change order. Must be able to do this
+	// before assets are back from loading.
+	tpos map[string]int // Texture ordering to match shader.
+
+	// match requested assets with loaded loaded assets to know when
+	// to render. Asset types are initialized to 0 in constructor.
+	track map[int]int // expected number of each asset type.
+
+	time     time.Time            // Shader uniform.
+	uniforms map[string][]float32 // Shader uniform names and data.
+}
+
+// newModel initializes the data structures and default uniforms.
+func newModel() *model {
+	m := &model{}
+	m.uniforms = map[string][]float32{}
+	m.track = map[int]int{shd: 0, msh: 0, tex: 0, mat: 0, fnt: 0, anm: 0}
+	m.tpos = map[string]int{}
+	m.setUniforms("alpha", 1)
+	m.time = time.Now()
+	return m
+}
+
+// alpha returns the uniform alpha value, returning the default 1
+// if there is none.
+func (m *model) alpha() float64 {
+	if values, ok := m.uniforms["alpha"]; ok && len(values) > 0 {
+		return float64(values[0])
+	}
+	return 1
+}
+
+// setUniforms is a helper method for externally visible SetUniform.
+func (m *model) setUniforms(id string, floats ...interface{}) {
+	values, ok := m.uniforms[id]
+	if !ok {
+		values = []float32{}
+	}
+	values = values[:0] // reset preserving memory.
 	for _, value := range floats {
 		switch v := value.(type) {
 		case float32:
@@ -319,281 +312,424 @@ func (m *model) SetUniform(id string, floats ...interface{}) {
 	m.uniforms[id] = values
 }
 
-// Animation methods wrap animation class.
-// FUTURE: handle animation models with multiple textures.
-//         Animation models are currently limited to one texture.
-func (m *model) Animate(move, frame int) bool {
-	if m.anm != nil {
-		m.nFrames = m.anm.maxFrames(move)
-		m.move = m.anm.isMovement(move)
-		if frame < m.nFrames {
-			m.frame = float64(frame)
+// setFirstTexture ensures the named texture is the first
+// texture, order == 0, selected by a shader.
+func (m *model) setFirstTexture(name string) {
+	swap := m.tpos[name]
+	for key, index := range m.tpos {
+		if index == 0 {
+			m.tpos[key] = swap
+			m.tpos[name] = 0
+			break
 		}
 	}
-	return move == m.move // was the requested movement available.
-}
-func (m *model) Action() (move, frame, nFrames int) {
-	return m.move, int(math.Floor(m.frame + 1)), m.nFrames
-}
-func (m *model) Actions() []string {
-	if m.anm != nil {
-		return m.anm.moveNames()
-	}
-	return []string{}
 }
 
-// Pose returns the bone transform, or the identity matrix
-// if there was no transform for the model. The returned matrix
-// should not be altered. It is intended for transforming points.
-func (m *model) Pose(index int) *lin.M4 {
-	if index < len(m.pose) {
-		return &m.pose[index]
+// draw turns a Model instance into draw call data.
+// Expects to be called after pov.draw()
+func (m *model) draw(d *render.Draw, shd *shader) {
+	if shd == nil {
+		shd = m.shd
 	}
-	return lin.M4I
+	d.SetRefs(shd.program, m.msh.vao, m.drawMode)
+	d.SetCounts(m.msh.counts())
+	for cnt, t := range m.texs {
+		d.SetTex(len(m.texs), cnt, m.tpos[t.name], t.tid, t.f0, t.fn)
+	}
+
+	// Set uniform names and references needed by the shader.
+	d.SetUniforms(shd.uniforms)   // shader integer uniform references.
+	if mat := m.mat; mat != nil { // Material color uniforms.
+		mat.draw(d)
+	}
+
+	// Set the shader data reference by the uniform names.
+	for uniform, uvalues := range m.uniforms {
+		d.SetFloats(uniform, uvalues...)
+	}
+	d.SetFloats("time", float32(time.Since(m.time).Seconds()))
+
+	// Update bucket draw order information for transparent objects.
+	d.Bucket = setDist(d.Bucket, m.tocam)
+	alpha := m.uniforms["alpha"][0]
+	switch {
+	case alpha == 1:
+		d.Bucket = setOpaque(d.Bucket)
+	case alpha >= 0 && alpha < 1:
+		d.Bucket = setTransparent(d.Bucket)
+	default:
+		log.Printf("Alpha outside range 0->1 %f", alpha) // Dev error.
+	}
 }
 
-// SetEffect ties the particle effect classes to the model.
-func (m *model) SetEffect(mover ParticleEffect, maxParticles int) {
-	if mover != nil {
-		m.effect = newParticleEffect(m, mover, maxParticles)
-		m.depth = false // only time model depth is set to false.
-	}
-}
-
-// animate is called to reposition the poses for an animated model.
-func (m *model) animate(dt float64) {
-	m.frame = m.anm.animate(dt, m.frame, m.move, m.pose)
-	nextFrame := int(math.Floor(m.frame + 1))
-	if nextFrame >= m.nFrames {
-		m.frame -= float64(m.nFrames - 1)
+// drawEffect converts a model particle effect into a draw call.
+func (m *model) drawEffect(d *render.Draw) {
+	d.SetRefs(m.shd.program, m.msh.vao, render.Points)
+	d.Depth = false
+	d.SetCounts(m.msh.counts())
+	d.SetTex(1, 0, 0, m.texs[0].tid, 0, 0)
+	d.SetUniforms(m.shd.uniforms)
+	d.SetFloats("time", float32(time.Since(m.time).Seconds()))
+	d.Bucket = setOpaque(d.Bucket)
+	for uniform, uvalues := range m.uniforms {
+		d.SetFloats(uniform, uvalues...)
 	}
 }
 
 // =============================================================================
-// Functional options for Model.
 
-// ModAttr defines optional model attributes that can be used in Model.Set().
-type ModAttr func(Model)
-
-// DrawMode affects rendered meshes by rendering with Triangles, Lines, Points.
-func DrawMode(mode int) ModAttr {
-	return func(m Model) { m.(*model).drawMode = mode }
-}
-
-// SetDepth toggles Z-Buffer awareness while rendering.
-// Generally on, it is often disabled for particle effects.
-func SetDepth(enabled bool) ModAttr {
-	return func(m Model) { m.(*model).depth = enabled }
-}
-
-// CastShadow marks a model that can cast shadows. Casting shadows
-// implies a scene with a light and objects that receive shadows.
-// It also implies a shadow map capable shader.
-var CastShadow = func(m Model) { m.(*model).castShadow = true }
-
-// HasShadows marks a model that reveals shadows. Revealing shadows
-// implies a scene with a light and objects that cast shadows.
-// It also implies a shadow map capable shader.
-var HasShadows = func(m Model) { m.(*model).hasShadows = true }
-
-// functional options.
-// =============================================================================
-// models
-
-// models is a component that models manages all the active Models instances.
-// Models exist in either load or render state.
-//
-// FUTURE: Look at putting each model attribute into their own indexed array.
-//         This is how the Data oriented gurus roll. Benchmark first!
+// models is the component manager for model data. Its job is to turn model
+// data into render.draw calls. The lifecycle of a model starts with an asset
+// load request. This is a space and colon separated string specified by
+// the application
+//    "shd:name msh:name tex:name ..." Used to locate disk assets.
 type models struct {
-	eng     *engine        // Needed for binding and other machine stuff.
-	data    map[eid]*model // All models.
-	load    map[eid]*model // New models need to be run through loader.
-	loading map[eid]*model // Models waiting for asset loads.
-	active  map[eid]*model // Models that can be rendered.
-	rebinds []asset        // Scratch slice for assets whose data has changed.
+	all     map[eid]*model // All model objects.
+	rebinds map[eid]*model // Models need asset rebinds.
+	loading map[eid]*model // Waiting for assets.
+	ready   map[eid]*model // Assets received.
+
+	// Optional data information for specific model types.
+	// Processing for each data type depends on a specific set of assets.
+	actors  map[eid]*actor  // Depends on anm asset.
+	acting  map[eid]*actor  // Actors ready for animations.
+	effects map[eid]*effect // CPU particle effect.
+	labels  map[eid]*label  // Depends on fnt asset.
+
+	// Texture clamps are textures that need clamping. Need to remember
+	// which ones because the request often happens when the texture
+	// asset is away for loading. They are processed once the texture
+	// is loaded.
+	clamps map[eid][]string // Texture clamps.
 }
 
-// newModels creates the model component manager.
+// newModels creates the render model component manager.
 // Expected to be called once on startup.
-func newModels(eng *engine) *models {
-	ms := &models{eng: eng}
-	ms.data = map[eid]*model{}
-	ms.load = map[eid]*model{}
-	ms.loading = map[eid]*model{}
-	ms.active = map[eid]*model{}
+func newModels() *models {
+	ms := &models{}
+	ms.all = map[eid]*model{}      // any model in any state.
+	ms.loading = map[eid]*model{}  // waiting for initial assets.
+	ms.ready = map[eid]*model{}    // assets received.
+	ms.rebinds = map[eid]*model{}  // model needing rebinds.
+	ms.actors = map[eid]*actor{}   // optional actor data.
+	ms.acting = map[eid]*actor{}   // live actors data.
+	ms.effects = map[eid]*effect{} // optional particle data.
+	ms.labels = map[eid]*label{}   // optional label data.
+	ms.clamps = map[eid][]string{} // optional texture clamps
 	return ms
 }
 
-// get loading or loaded models for the given entity.
-func (ms *models) get(id eid) *model {
-	if mod, ok := ms.data[id]; ok {
-		return mod
-	}
-	return nil
-}
-
-// getActive returns fully loaded models ready for rendering.
-func (ms *models) getActive(id eid) *model {
-	if mod, ok := ms.active[id]; ok {
-		return mod
-	}
-	return nil
-}
-
-// create a new model and run it through the loader to
-// ensure it has all of its assets.
-func (ms *models) create(id eid, shader string, assets ...string) *model {
-	if _, ok := ms.data[id]; !ok {
-		m := newModel(shader, assets...)
-		ms.data[id] = m
-		ms.load[id] = m
+// create is called by the App on the update goroutine. A new model object
+// placeholder is created and the asset loading kicked off.
+func (ms *models) create(e *Ent) *model {
+	if _, ok := ms.all[e.eid]; !ok {
+		m := newModel()
+		ms.all[e.eid] = m
+		ms.loading[e.eid] = m
+		// leave control of when to load assets to the caller.
+		// Assets from cache may load and immediately call loaded.
 		return m
 	}
 	return nil
 }
 
-// dispose of the model, removing it from all of the maps.
-func (ms *models) dispose(id eid) {
-	if m, ok := ms.data[id]; ok {
-		m.msh = nil
-		m.shd = nil
-		m.anm = nil
-		m.fnt = nil
-		m.mat = nil
-		m.texs = []*texture{} // garbage collect all old textures.
+// createLabel adds extra label data in addition to the model data.
+func (ms *models) createLabel(e *Ent, assets ...string) *model {
+	m := ms.create(e)
+	if _, ok := ms.labels[e.eid]; !ok {
+		ms.labels[e.eid] = &label{str: " "} // nil strings invalidates mesh.
 	}
-	delete(ms.data, id)
-	delete(ms.load, id)
-	delete(ms.loading, id)
-	delete(ms.active, id)
+	m.msh = newMesh("phrase")    // dynamic mesh for phrase backing.
+	m.track[msh] = 1             // track generated mesh.
+	m.setUniforms("kd", 1, 1, 1) // default color is white.
+	e.app.models.loadAssets(e, m, assets...)
+	return m
 }
 
-func (ms *models) counts() (models, verts int) {
-	models = len(ms.data)
-	for _, m := range ms.data {
+// createActor adds extra actor data in addition to the model data.
+func (ms *models) createActor(e *Ent, assets ...string) *model {
+	m := ms.create(e)
+	if _, ok := ms.actors[e.eid]; !ok {
+		ms.actors[e.eid] = &actor{}
+	}
+	e.app.models.loadAssets(e, m, assets...)
+	return m
+}
+
+// createEffect adds particle effect tracking data in addition to the model data.
+func (ms *models) createEffect(e *Ent, assets ...string) *model {
+	m := e.app.models.create(e)
+	m.msh = newMesh("effect")
+	m.drawMode = Points
+	m.isEffect = true
+	e.app.models.loadAssets(e, m, assets...)
+	return m
+}
+
+// loadAssets adds assets to the current model.
+// The defers are used to ensure fetching happends after the assets are
+// tracked. Otherwise cached assets can immediately return in a loaded
+// callback before all tracking data is updated.
+func (ms *models) loadAssets(e *Ent, m *model, assets ...string) {
+	ld, id := e.app.ld, e.eid
+	callback := func(a asset) { ms.loaded(id, a) }
+	for _, attribute := range assets {
+		attr := strings.Split(attribute, ":")
+		if len(attr) != 2 {
+			continue
+		}
+		name := attr[1]
+		switch attr[0] {
+		case "msh": // static model.
+			m.track[msh] = 1
+			defer ld.fetch(newMesh(name), callback)
+		case "mat": // material for lighting shaders.
+			m.track[mat] = 1
+			defer ld.fetch(newMaterial(name), callback)
+		case "tex": // texture.
+			m.tpos[name] = len(m.tpos)
+			m.track[tex] = m.track[tex] + 1
+			defer ld.fetch(newTexture(name), callback)
+		case "shd": // shader.
+			m.track[shd] = 1
+			defer ld.fetch(newShader(name), callback)
+		case "fnt":
+			m.track[fnt] = 1
+			defer ld.fetch(newFont(name), callback)
+		case "anm":
+			m.track[anm] = 1
+			m.track[msh] = 1
+			defer ld.fetch(newAnimation(name), callback)
+		default:
+			log.Printf("Unknown model asset %s %s for %d", attr[0], name, id)
+		}
+	}
+}
+
+// loaded is called from the update goroutine when a model asset
+// has finished loading.
+func (ms *models) loaded(eid eid, a asset) {
+	m := ms.get(eid)
+	if m == nil {
+		// This is not a dev error... the model may have been disposed
+		// before it finished loading.
+		log.Printf("No model for %d asset %s", eid, a.label())
+		return
+	}
+	switch la := a.(type) {
+	case *shader:
+		m.shd = la
+		ms.rebinds[eid] = m
+	case *Texture:
+		m.texs = append(m.texs, la)
+		ms.processTexture(eid, m, la)
+		ms.rebinds[eid] = m
+	case *Mesh:
+		m.msh = la
+		ms.rebinds[eid] = m
+	case *material:
+		m.mat = la
+		if m.alpha() == 1.0 {
+			// Set with material alpha if app has not
+			// overridden the default alpha value.
+			m.setUniforms("alpha", m.mat.tr)
+		}
+	case *animation:
+		a := ms.getActor(eid)
+		if a == nil {
+			log.Printf("Animation data for actor %d", eid)
+			return
+		}
+		a.anm = la
+		a.nFrames = a.anm.maxFrames(0)
+		a.pose = make([]lin.M4, len(a.anm.joints))
+	case *font:
+		l := ms.getLabel(eid)
+		if l == nil {
+			log.Printf("Font data for label %d", eid)
+			return
+		}
+		l.fnt = la
+		ms.updateLabel(eid, l, m)
+	default:
+		log.Printf("Unexepected model asset: %s", la.label())
+	}
+
+	// move to the ready queue if all the assets have been loaded.
+	if ms.canRender(m, eid) {
+		delete(ms.loading, eid)
+		ms.ready[eid] = m
+		if a, ok := ms.actors[eid]; ok {
+			ms.acting[eid] = a
+		}
+	}
+}
+
+// canRender returns true when the model has all its assets.
+// Models have 1 asset per type, except for textures which can have
+// zero or more per model.
+func (ms *models) canRender(m *model, eid eid) bool {
+	if m.shd == nil {
+		return false // always need a shader for a model.
+	}
+	if m.track[msh] != 0 {
+		if m.msh == nil {
+			return false
+		}
+	}
+	if m.track[tex] != len(m.texs) {
+		return false
+	}
+	if m.track[mat] != 0 && m.mat == nil {
+		return false
+	}
+	if m.track[anm] != 0 {
+		a := ms.getActor(eid)
+		if a == nil || a.anm == nil {
+			return false
+		}
+	}
+	if m.track[fnt] != 0 {
+		l := ms.getLabel(eid)
+		if l == nil || l.fnt == nil {
+			return false
+		}
+	}
+	return true
+}
+
+// get loading or loaded models for the given entity.
+func (ms *models) get(eid eid) *model      { return ms.all[eid] }
+func (ms *models) getLabel(eid eid) *label { return ms.labels[eid] }
+func (ms *models) getActor(eid eid) *actor { return ms.actors[eid] }
+func (ms *models) getReady(eid eid) *model { return ms.ready[eid] }
+
+// animate updates the animations. Needs to be called each update tick.
+// Animations are always updated even if they are not rendered.
+func (ms *models) animate(dt float64) {
+	for _, a := range ms.acting {
+		a.frame = a.anm.animate(dt, a.frame, a.move, a.pose)
+		nextFrame := int(math.Floor(a.frame + 1))
+		if nextFrame >= a.nFrames {
+			a.frame -= float64(a.nFrames - 1)
+		}
+	}
+}
+
+// setEffect adds CPU particle data to a model entity.
+func (ms *models) setEffect(eid eid, mover Mover, maxParticles int) {
+	if m := ms.get(eid); m != nil {
+		eff := newEffect(m.msh, mover, maxParticles)
+		eff.move(m.msh, eff.parts, 0.1)
+		ms.effects[eid] = eff
+		ms.rebinds[eid] = m
+	}
+}
+
+// moveParticles updates the particle effects.
+// Particles are always updated even if they are not rendered.
+func (ms *models) moveParticles(dt float64) {
+	for eid, eff := range ms.effects {
+		if m, ok := ms.ready[eid]; ok {
+			eff.move(m.msh, eff.parts, dt)
+			ms.rebinds[eid] = m
+		}
+	}
+}
+
+// Create the backing mesh based on the given label and queue the
+// label mesh for a rebind.
+func (ms *models) updateLabel(eid eid, l *label, m *model) {
+	if l.fnt != nil && m != nil && m.msh != nil && l.str != "" {
+		l.w, l.h = l.fnt.setStr(m.msh, l.str, l.wrap)
+		ms.rebinds[eid] = m
+	}
+}
+
+// FUTURE: design a better way to process application clamp requests
+//         for textures that are loading.
+func (ms *models) processTexture(eid eid, m *model, t *Texture) {
+	if clamps, ok := ms.clamps[eid]; ok {
+		for _, name := range clamps {
+			if t.name == name {
+				t.clamp = true
+			}
+		}
+	}
+}
+
+// rebind is called from main thread each loop to move asset data to the GPU.
+// Assets that have trickled in from the loader are rebound. The update adds
+// assets for binding, this method run on the main thread, processes them.
+func (ms *models) rebind(eng *engine) {
+	for eid, m := range ms.rebinds {
+		if m.shd != nil && m.shd.program == 0 {
+			if err := eng.bind(m.shd); err != nil {
+				log.Printf("Bind shader %s failed: %s", m.shd.name, err)
+				return // dev error - asset should be bindable.
+			}
+		}
+		if m.msh != nil && m.msh.rebind {
+			if err := m.msh.bind(eng); err != nil {
+				log.Printf("Bind mesh %s failed: %s", m.msh.name, err)
+			}
+		}
+		for _, t := range m.texs {
+			if t.rebind {
+				if err := t.bind(eng); err != nil {
+					log.Printf("Bind texture %s failed : %s", t.name, err)
+				}
+			}
+			if t.clamp {
+				eng.clampTex(t.tid)
+				t.clamp = false // HACK: only do once.
+			}
+		}
+		// model removed once all outstanding rebinds are completed.
+		delete(ms.rebinds, eid)
+	}
+}
+
+// draw populates the render.Draw data depending on the model data
+// for this entity.
+func (ms *models) draw(eid eid, m *model, d *render.Draw) {
+	if _, ok := ms.effects[eid]; ok || m.isEffect {
+		m.drawEffect(d)
+	} else {
+		m.draw(d, nil)
+
+		// Set animation pose data for actors.
+		if a, ok := ms.acting[eid]; ok && len(a.pose) > 0 {
+			d.SetPose(a.pose)
+		}
+	}
+}
+
+// dispose of the model, removing it from all of the maps.
+// There is no easy way of knowing when to delete the related assets.
+// Leave that to the application.
+func (ms *models) dispose(eid eid) {
+	delete(ms.all, eid)
+	delete(ms.loading, eid)
+	delete(ms.ready, eid)
+	delete(ms.rebinds, eid)
+	delete(ms.actors, eid)
+	delete(ms.acting, eid)
+	delete(ms.effects, eid)
+	delete(ms.labels, eid)
+	delete(ms.clamps, eid)
+}
+
+// stats returns the number of models and verticies over
+// all models. Used by profile.go.
+func (ms *models) stats() (models, tris, verts int) {
+	models = len(ms.all)
+	for _, m := range ms.all {
 		if m.msh != nil && len(m.msh.vdata) > 0 {
+			tris += m.msh.faces.Len()
 			verts += m.msh.vdata[0].Len()
 		}
 	}
-	return models, verts
-}
-
-// process any ongoing model updates like animated models
-// and CPU particle effects. Any new models are sent off for loading
-// and any updated models generate data rebind requests.
-func (ms *models) refresh(dts float64) {
-	ms.queueLoads()
-
-	// Process ongoing activity on active models.
-	// FUTURE Don't traverse all active models. Have separate
-	//        lists for animated models and particle models.
-	for _, m := range ms.active {
-
-		if m.effect != nil {
-			// udpate and rebind particle effects first since
-			// they change mesh data and then need rebinding.
-			m.effect.update(m, dt.Seconds())
-		}
-		if m.anm != nil {
-			// animations update the bone position matricies.
-			// These are bound as uniforms at draw time.
-			m.animate(dts)
-		}
-
-		// handle any data updates with rebind requests.
-		if len(m.rebinds) > 0 {
-			ms.rebinds = append(ms.rebinds, m.rebinds...)
-			m.rebinds = m.rebinds[:0] // reset keeping memory.
-		}
-	}
-
-	// handle all rebind requests at once.
-	if len(ms.rebinds) > 0 {
-		ms.eng.rebind(ms.rebinds)
-		ms.rebinds = ms.rebinds[:0] // reset keeping memory.
-	}
-}
-
-// queueLoads ensures new models are passed through the loading system.
-// Overall there are few assets used by lots of models.
-func (ms *models) queueLoads() {
-	if len(ms.load) > 0 {
-		reqs := map[aid]string{}
-		for id, m := range ms.load {
-			for aid, name := range m.assets {
-
-				// filter out duplicate load requests.
-				if _, ok := reqs[aid]; !ok {
-					reqs[aid] = name
-				}
-			}
-			delete(ms.load, id)
-			ms.loading[id] = m
-		}
-		if len(reqs) > 0 {
-			ms.eng.submitLoadReqs(reqs)
-		}
-	}
-}
-
-// finishLoads processes models waiting for assets to be loaded.
-// It is called by the engine when a new batch of loaded assets
-// has been received from the loader.
-func (ms *models) finishLoads(assets map[aid]asset) {
-	for eid, m := range ms.loading {
-		for aid := range m.assets {
-			if a, ok := assets[aid]; ok {
-				switch at := a.(type) {
-				case *mesh:
-					m.msh = at
-					delete(m.assets, aid)
-				case *texture:
-					if len(m.texs) == 0 {
-						m.texs = make([]*texture, len(m.tids))
-					}
-					for cnt, tid := range m.tids {
-						if tid.id == a.aid() {
-							m.texs[cnt] = at
-							if _, ok := m.clamps[at.name]; ok {
-								ms.eng.clampTex(at.tid)
-							}
-						}
-					}
-					delete(m.assets, aid)
-				case *shader:
-					m.shd = at
-					delete(m.assets, aid)
-				case *font:
-					m.fnt = at
-					if len(m.str) > 0 {
-						m.strw, m.strh = m.fnt.setStr(m.msh, m.str, m.wrap)
-					}
-					delete(m.assets, aid)
-				case *animation:
-					m.anm = at
-					m.nFrames = at.maxFrames(0)
-					m.pose = make([]lin.M4, len(at.joints))
-
-					// Mesh created when loading animation data.
-					if at, ok := assets[assetID(msh, m.anm.name)]; ok {
-						m.msh = at.(*mesh)
-					}
-					delete(m.assets, aid)
-				case *material:
-					m.mat = at
-
-					// Override with material if not directly set by app.
-					if m.alpha == 1.0 {
-						m.alpha = float64(at.tr)
-					}
-					delete(m.assets, aid)
-				}
-			}
-		}
-		if len(m.assets) == 0 {
-			delete(ms.loading, eid)
-			ms.active[eid] = m
-		}
-	}
+	// 3 vertex indicies per triangle. Verticies reported correctly.
+	return models, tris / 3, verts
 }

@@ -1,7 +1,10 @@
-// Copyright © 2013-2016 Galvanized Logic Inc.
+// Copyright © 2013-2017 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
+
+// FUTURE: upgrade shader to PCSS ie:
+//   http://developer.download.nvidia.com/whitepapers/2008/PCSS_Integration.pdf
 
 import (
 	"log"
@@ -10,18 +13,14 @@ import (
 	"github.com/gazed/vu/math/lin"
 )
 
-// sm, shadow map, tests the engines handling of shadow maps
-// and multipass rendering. These are hard shadows. More work has to
-// be done to soften and blur shadows the further away they are from
-// their source.
-// FUTURE: upgrade shader to PCSS ie:
-//   http://developer.download.nvidia.com/whitepapers/2008/PCSS_Integration.pdf
+// sm tests the engines handling of shadow maps and multipass rendering.
+// These are hard shadows. More work has to be done to soften and blur
+// shadows the further away they are from their source.
 //
 // CONTROLS:
-//   WASD  : move light position    : up left down right
+//   WASD  : move light position    : forward left back right
 func sm() {
-	sm := &smtag{}
-	if err := vu.New(sm, "Shadow Map", 400, 100, 800, 600); err != nil {
+	if err := vu.Run(&smtag{}); err != nil {
 		log.Printf("sm: error starting engine %s", err)
 	}
 	defer catchErrors()
@@ -29,43 +28,38 @@ func sm() {
 
 // Globally unique "tag" that encapsulates example specific data.
 type smtag struct {
-	sun    *vu.Pov
-	cube   *vu.Pov
-	sphere *vu.Pov
-	cam    *vu.Camera
+	scene  *vu.Ent
+	sun    *vu.Ent
+	cube   *vu.Ent
+	sphere *vu.Ent
 }
 
 // Create is the startup asset creation.
 func (sm *smtag) Create(eng vu.Eng, s *vu.State) {
-	scene := eng.Root().NewPov()
-	sm.cam = scene.NewCam()
-
-	// need a light for shadows.
-	sm.sun = scene.NewPov().SetAt(0, 0, 0)
-	sm.sun.NewLight().SetColor(0.8, 0.8, 0.8)
+	eng.Set(vu.Title("Shadow Map"), vu.Size(400, 100, 800, 600))
 
 	// create a scene that will render a shadow map.
-	sm.cam = scene.NewCam()
-	sm.cam.SetAt(0, 0, 10)
-	sm.cam.SetPerspective(60, float64(s.W)/float64(s.H), 0.1, 50)
+	sm.scene = eng.AddScene().SetShadows()
+	sm.scene.Cam().SetClip(0.1, 50).SetFov(60).SetAt(0, 0, 10)
+
+	// need a light for shadows.
+	sm.sun = sm.scene.AddPart().SetAt(0, 0, 0)
+	sm.sun.MakeLight().SetLightColor(0.8, 0.8, 0.8)
 
 	// create a few objects that cast shadows.
-	sm.cube = scene.NewPov().SetAt(-1, -1, -4)
-	sm.cube.NewModel("gouraud", "msh:box", "mat:gray").Set(vu.CastShadow)
+	sm.cube = sm.scene.AddPart().SetAt(-1, -1, -4)
+	sm.cube.MakeModel("gouraud", "msh:box", "mat:gray")
 	sm.cube.Spin(45, 45, 0)
-	sm.sphere = scene.NewPov().SetAt(1, 1, -4)
-	sm.sphere.NewModel("gouraud", "msh:sphere", "mat:red").Set(vu.CastShadow)
+	sm.sphere = sm.scene.AddPart().SetAt(1, 1, -4)
+	sm.sphere.MakeModel("gouraud", "msh:sphere", "mat:red")
 
 	// create a ground block to show shadows.
-	ground := scene.NewPov().SetAt(0, 0, -20).SetScale(50, 50, 5)
-	ground.NewModel("shadow", "msh:box", "mat:gray", "tex:tile").Set(vu.HasShadows)
+	ground := sm.scene.AddPart().SetAt(0, 0, -20).SetScale(50, 50, 5)
+	ground.MakeModel("showShadow", "msh:box", "mat:gray", "tex:tile")
 }
 
 // Update is the regular engine callback.
 func (sm *smtag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
-	if in.Resized {
-		sm.resize(s.W, s.H)
-	}
 	dt := in.Dt
 	rate := 10.0
 	for press := range in.Down {
@@ -80,7 +74,4 @@ func (sm *smtag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 			sm.sun.Move(0, dt*rate, 0, lin.QI) // shadow down
 		}
 	}
-}
-func (sm *smtag) resize(ww, wh int) {
-	sm.cam.SetPerspective(60, float64(ww)/float64(wh), 0.1, 50)
 }

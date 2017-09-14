@@ -36,8 +36,8 @@ func (c *cave) Generate(width, depth int) Grid {
 		}
 	}
 
-	// iterate, treating each wall with a cellular automaton live/die depending on
-	// the number of neighbours.
+	// iterate, treating each wall with a cellular automaton live/die depending
+	// on the number of neighbours.
 	iterations := 4
 	makeWall := func(w3x3, w5x5 int) bool { return w3x3 >= 5 || w5x5 <= 3 }
 	for cnt := 0; cnt < iterations; cnt++ {
@@ -60,7 +60,7 @@ func (c *cave) runGeneration(scratch [][]*cell, makeWall func(w3x3, w5x5 int) bo
 	for x := range c.cells {
 		for y, cell := range c.cells[x] {
 
-			// A tile is a wall if the 3x3 region around it has at least 5 walls.
+			// A tile is a wall if the 3x3 region around has at least 5 walls.
 			// Otherwise it is a floor.
 			w3, w5 := c.wallCount(cell)
 			scratch[x][y].isWall = makeWall(w3, w5)

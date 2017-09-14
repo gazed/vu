@@ -62,7 +62,7 @@ func (s *sparse) addWall(u *cell) {
 func (s *sparse) checkLevel(floors []*cell) bool {
 	for _, floor := range floors {
 
-		// this temporary wall will be turned back into a floor before exiting this function.
+		// this temporary wall will be turned back into a floor before exiting.
 		floor.isWall = allWalls
 
 		// check around the affected floor for dead ends.

@@ -1,4 +1,4 @@
-// Copyright © 2015-2016 Galvanized Logic Inc.
+// Copyright © 2015-2017 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package vu
@@ -6,8 +6,37 @@ package vu
 // sound.go wraps the audio package and controls all engine sounds.
 
 import (
+	"log"
+
 	"github.com/gazed/vu/audio"
 )
+
+// PlaySound plays the given sound at this entities location.
+//    soundID : entity created with Eng.AddSound.
+//
+// Depends on Ent.AddPart.
+func (e *Ent) PlaySound(soundID uint32) {
+	if p := e.app.povs.get(e.eid); p != nil {
+		e.app.sounds.addNoise(eid(soundID), e.eid)
+		return
+	}
+	log.Printf("PlaySound needs AddPart %d", e.eid)
+}
+
+// SetListener sets the location of the sound listener to be this entity.
+//
+// Depends on Ent.AddPart.
+func (e *Ent) SetListener() {
+	if p := e.app.povs.get(e.eid); p != nil {
+		e.app.sounds.setListener(e.eid)
+		return
+	}
+	log.Printf("SetListener needs pov %d", e.eid)
+}
+
+// pov sound related entity methods
+// =============================================================================
+// sound
 
 // sound is an engine sound asset. Expected to be accessed through
 // the sounds component.
@@ -29,105 +58,107 @@ func newSound(name string) *sound {
 func (s *sound) aid() aid      { return s.tag }  // hashed type and name.
 func (s *sound) label() string { return s.name } // asset name
 
+// sound
 // =============================================================================
+// sounds: component manager for sound.
 
 // sounds manages audio instances. Each sound must be loaded with sound data
 // that has been bound to the audio card in order for the sound to be played.
 type sounds struct {
-	eng     *engine          // Needed to load and play sounds.
-	assets  map[aid]string   // Collect assets for load request.
-	loading map[eid][]aid    // New sounds need to be run through loader.
-	active  map[eid][]*sound // Sounds that can be played.
-
-	// Sounds are heard by the sound listener at an app set pov.
-	soundListener *Pov    // Single listener for all noises. Current location.
-	sx, sy, sz    float64 // Last location of the sound listener.
+	all      map[eid]*sound // All sounds assets.
+	loading  map[eid]*sound // New sounds need to be run through loader.
+	rebinds  map[eid]*sound // Sounds needing rebind.
+	ready    map[eid]*sound // Sounds that can be played.
+	noises   map[eid]eid    // Sounds to be played at pov eid.
+	listener eid            // Pov listener location.
 }
 
 // newSounds creates the sound component manager.
 // Expected to be called once on startup.
-func newSounds(eng *engine) *sounds {
-	ss := &sounds{eng: eng}
-	ss.assets = map[aid]string{}   // Reused to submit assets for loading.
-	ss.loading = map[eid][]aid{}   // Sounds waiting to be loaded.
-	ss.active = map[eid][]*sound{} // Sounds that can be played.
+func newSounds() *sounds {
+	ss := &sounds{}
+	ss.all = map[eid]*sound{}     // All sounds.
+	ss.loading = map[eid]*sound{} // Sounds waiting to be loaded.
+	ss.ready = map[eid]*sound{}   // Sounds that can be played.
+	ss.rebinds = map[eid]*sound{} // Sounds waiting for main thread bind.
+	ss.noises = map[eid]eid{}     // Sounds waiting for main thread play.
 	return ss
 }
 
 // create a new sound. Allows multiple sounds to be associated with
-// an entity.
-func (ss *sounds) create(id eid, name string) {
-	aid := assetID(snd, name)
-	ss.assets[aid] = name                        // all sound assets.
-	ss.loading[id] = append(ss.loading[id], aid) // sounds by entity.
+// an entity. Called by the application through the update goroutine.
+func (ss *sounds) create(ld *loader, eid eid, name string) {
+	sn := newSound(name)
+	ss.all[eid] = sn     // all sound assets.
+	ss.loading[eid] = sn // sounds need to be run through loader.
+
+	// create a callback closure with the entity id.
+	callback := func(a asset) { ss.loaded(eid, a) }
+	ld.fetch(newSound(name), callback)
+}
+
+// loaded is the asset loader callback. Called on the loader goroutine.
+func (ss *sounds) loaded(eid eid, a asset) {
+	switch la := a.(type) {
+	case *sound:
+		if _, ok := ss.loading[eid]; ok {
+			delete(ss.loading, eid) // placeholder
+			ss.ready[eid] = la      // loaded sound.
+			ss.rebinds[eid] = la    // request rebind before next update.
+		} else {
+			log.Printf("Expected loading sound for: %s", a.label())
+		}
+	default:
+		log.Printf("Unexepected sound asset: %s", a.label())
+	}
+}
+
+// rebind is called to bind or rebind sound data. This moves the
+// data to the audio card. Called on the main thread.
+func (ss *sounds) rebind(eng *engine) {
+	for eid, s := range ss.rebinds {
+		if err := eng.bind(s); err != nil {
+			log.Printf("Bind sound %s failed: %s", s.name, err)
+			return // dev error - asset should be bindable.
+		}
+		delete(ss.rebinds, eid)
+	}
+}
+
+// addNoise saves a sound to be played later on the main thread.
+func (ss *sounds) addNoise(soundID, pov eid) {
+	ss.noises[soundID] = pov
+}
+
+// setListener saves the location of the listener pov.
+// so that it can be set later on the main thread.
+func (ss *sounds) setListener(pov eid) {
+	ss.listener = pov
+}
+
+// play the sounds requested during update. Called on the main thread.
+func (ss *sounds) play(eng *engine) {
+	if ss.listener != 0 {
+		// reposition sound listener if necessary.
+		if pov := eng.app.povs.get(ss.listener); pov != nil {
+			eng.ac.PlaceListener(pov.at())
+		}
+		ss.listener = 0
+	}
+	for sid, eid := range ss.noises {
+		s := ss.ready[sid]
+		pov := eng.app.povs.get(eid)
+		if s != nil && pov != nil {
+			x, y, z := pov.at()
+			eng.ac.PlaySound(s.sid, x, y, z)
+		}
+		delete(ss.noises, sid)
+	}
 }
 
 // dispose all sounds associated with the given entity.
-func (ss *sounds) dispose(id eid) {
-	delete(ss.active, id)
-	delete(ss.loading, id) // Outstanding loads are ignored when they return.
-}
-
-// refresh passes new sounds through the loading system.
-func (ss *sounds) refresh() {
-	if len(ss.assets) > 0 {
-		ss.eng.submitLoadReqs(ss.assets)
-		ss.assets = map[aid]string{}
-	}
-}
-
-// finishLoads matches loaded sounds with loading sounds and moves
-// loaded sounds to be active.
-func (ss *sounds) finishLoads(assets map[aid]asset) {
-	for eid, aids := range ss.loading {
-		for _, aid := range aids {
-			if a, ok := assets[aid]; ok {
-				switch s := a.(type) {
-				case *sound:
-					ss.active[eid] = append(ss.active[eid], s)
-				}
-			}
-		}
-		if len(ss.active[eid]) == len(ss.loading[eid]) {
-			delete(ss.loading, eid)
-		}
-	}
-}
-
-// play gets the sounds location and generates a play sound request.
-// The play request is sent to a goroutine allowing the goroutine to block
-// until the machine can service the request.
-func (ss *sounds) play(id eid, index int) {
-	if snds, ok := ss.active[id]; ok {
-		if index < 0 || index >= len(snds) {
-			return
-		}
-		s := snds[index]
-		if p := ss.eng.povs.get(id); p != nil {
-			x, y, z := p.At()
-			go func(sid uint64, x, y, z float64) {
-				ss.eng.machine <- &playSound{sid: sid, x: x, y: y, z: z}
-			}(s.sid, x, y, z)
-		}
-	}
-}
-
-// repositionSoundListener checks and updates the sound listeners location.
-func (ss *sounds) repositionSoundListener() {
-	x, y, z := ss.soundListener.At()
-	if x != ss.sx || y != ss.sy || z != ss.sz {
-		ss.sx, ss.sy, ss.sz = x, y, z
-		go func(x, y, z float64) {
-			ss.eng.machine <- &placeListener{x: x, y: y, z: z}
-		}(x, y, z)
-	}
-}
-
-// setListener locates the point that can hear sounds.
-// There is always only one listener. It is associated with the root pov
-// by default. This changes the listener location to the given pov.
-func (ss *sounds) setListener(p *Pov) {
-	if p != nil {
-		ss.soundListener = p
-	}
+func (ss *sounds) dispose(eid eid) {
+	delete(ss.loading, eid) // Outstanding loads are ignored when they return.
+	delete(ss.ready, eid)
+	delete(ss.all, eid)
 }

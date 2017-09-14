@@ -18,12 +18,12 @@ import (
 	"image"
 )
 
-// Renderer is used to draw 3D model objects within a graphics context.
+// Context is used to draw 3D model objects within a graphics context.
 // The expected usage is along the lines of:
 //     • Initialize the graphics layer.
 //     • Create some 3D models by binding graphics data to the GPU.
 //     • Render the 3D models many times a second.
-type Renderer interface {
+type Context interface {
 	Init() (err error)               // Call first, once at startup.
 	Clear()                          // Clear all buffers before rendering.
 	Color(r, g, b, a float32)        // Set the default render clear color
@@ -38,22 +38,29 @@ type Renderer interface {
 	SetTextureMode(tid uint32, clamp bool)
 	Render(d *Draw) // Render bound data, textures with bound shaders.
 
-	// BindFrame creates a framebuffer object with an associated texture.
-	//   buf : DEPTH_BUFF, for depth, or IMAGE_BUFF, for color and depth.
+	// BindMap creates a framebuffer object with an associated
+	// texture that can be used for shadow maps.
+	//   fbo : returned frame buffer object identifier.
+	//   tid : returned texture identifier.
+	BindMap(fbo, tid *uint32) error
+
+	// BindTarget creates a framebuffer object that can be used
+	// as a render target.
 	//   fbo : returned frame buffer object identifier.
 	//   tid : returned texture identifier.
 	//   db  : returned depth buffer render buffer.
-	BindFrame(buf int, fbo, tid, db *uint32) error
+	BindTarget(fbo, tid, db *uint32) error
 
 	// Releasing frees up previous bound graphics card data.
-	ReleaseMesh(vao uint32)           // Free bound vao reference.
-	ReleaseShader(sid uint32)         // Free bound shader reference.
-	ReleaseTexture(tid uint32)        // Free bound texture reference.
-	ReleaseFrame(fbo, tid, db uint32) // Free framebuffer and texture.
+	ReleaseMesh(vao uint32)            // Free bound vao reference.
+	ReleaseShader(sid uint32)          // Free bound shader reference.
+	ReleaseTexture(tid uint32)         // Free bound texture reference.
+	ReleaseMap(fbo, tid uint32)        // Free shadow map framebuffer.
+	ReleaseTarget(fbo, tid, db uint32) // Free render target framebuffer.
 }
 
 // New provides the render implementation as determined by the build.
-func New() Renderer { return newRenderer() }
+func New() Context { return newRenderer() }
 
 // Renderer implementation independent constants.
 const (
@@ -61,12 +68,6 @@ const (
 	Triangles = iota // Triangles are the default for 3D models.
 	Points           // Points are used for particle effects.
 	Lines            // Lines are used for drawing wireframe shapes.
-
-	// Render buckets. Lower values drawn first. Used in Draw.SetHints.
-	DepthPass   // draw first
-	Opaque      // draw after shadow
-	Transparent // draw after opaque
-	Overlay     // draw last.
 
 	// BindFrame buffer types.
 	DepthBuffer        // For depth only.

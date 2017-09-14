@@ -1,4 +1,4 @@
-// Copyright © 2014-2016 Galvanized Logic Inc.
+// Copyright © 2014-2017 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -20,8 +20,7 @@ import (
 //   []    : move ocean level       : up down
 //   -=    : change texture         : greener browner
 func tm() {
-	tm := &tmtag{}
-	if err := vu.New(tm, "Terrain Map", 400, 100, 800, 600); err != nil {
+	if err := vu.Run(&tmtag{}); err != nil {
 		log.Printf("tm: error starting engine %s", err)
 	}
 	defer catchErrors()
@@ -29,11 +28,10 @@ func tm() {
 
 // Encapsulate example specific data with a unique "tag".
 type tmtag struct {
-	cam     *vu.Camera
-	gm      vu.Model    // visible surface model
-	ground  *vu.Pov     // visible surface.
-	coast   *vu.Pov     // shallow water plane.
-	ocean   *vu.Pov     // deep water plane.
+	scene   *vu.Ent     // App objects and Camera.
+	ground  *vu.Ent     // visible surface.
+	coast   *vu.Ent     // shallow water plane.
+	ocean   *vu.Ent     // deep water plane.
 	world   synth.Land  // height map generation.
 	surface *surface    // data structure used to create land.
 	evo     [][]float64 // used for evolution experiments.
@@ -41,10 +39,11 @@ type tmtag struct {
 
 // Create is the engine callback for initial asset creation.
 func (tm *tmtag) Create(eng vu.Eng, s *vu.State) {
-	tm.cam = eng.Root().NewCam()
-	tm.cam.SetOrthographic(0, float64(s.W), 0, float64(s.H), 0, 50)
-	sun := eng.Root().NewPov().SetAt(0, 5, 0)
-	sun.NewLight().SetColor(0.4, 0.7, 0.9)
+	eng.Set(vu.Title("Terrain Map"), vu.Size(400, 100, 800, 600))
+	tm.scene = eng.AddScene().SetOrtho()
+	tm.scene.Cam().SetClip(0, 50)
+	sun := tm.scene.AddPart().SetAt(0, 5, 0)
+	sun.MakeLight().SetLightColor(0.4, 0.7, 0.9)
 
 	// create the world surface.
 	seed := int64(123)
@@ -79,39 +78,31 @@ func (tm *tmtag) Create(eng vu.Eng, s *vu.State) {
 
 	// Add a rendering component for the surface data.
 	scale := 10.0
-	tm.ground = eng.Root().NewPov().SetAt(0, -300, -10).SetScale(scale, scale, 1)
-	tm.gm = tm.ground.NewModel("land", "tex:land", "mat:tint")
-	tm.gm.Make("msh:land").SetUniform("ratio", textureRatio)
-	tm.surface.Update(tm.gm, 0, 0)
+	tm.ground = tm.scene.AddPart().SetAt(0, -300, -10).SetScale(scale, scale, 1)
+	tm.ground.MakeModel("land", "tex:land", "mat:tint").GenMesh("land")
+	tm.ground.SetUniform("ratio", textureRatio)
+	tm.surface.update(tm.ground.Mesh(), 0, 0)
 
 	// Add water planes.
-	tm.ocean = eng.Root().NewPov()
-	tm.ocean.SetAt(256, 0, -10.5)
+	tm.ocean = tm.scene.AddPart().SetAt(256, 300, -10.5)
 	tm.ocean.SetScale(float64(s.W), float64(s.H), 1)
-	tm.ocean.NewModel("alpha", "msh:plane", "mat:blue")
-	tm.coast = eng.Root().NewPov().SetAt(256, 0, -10)
+	tm.ocean.MakeModel("alpha", "msh:plane", "mat:blue")
+	tm.coast = tm.scene.AddPart().SetAt(256, 300, -10)
 	tm.coast.SetScale(float64(s.W), float64(s.H), 1)
-	tm.coast.NewModel("alpha", "msh:plane", "mat:transparent_blue")
-	return
+	tm.coast.MakeModel("alpha", "msh:plane", "mat:transparent_blue")
 }
 
 // Update is the regular engine callback.
 func (tm *tmtag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
-	if in.Resized {
-		tm.cam.SetOrthographic(0, float64(s.W), 0, float64(s.H), 0, 50)
-	}
-
-	// process user presses.
+	dir := tm.scene.Cam().Lookat()
 	for press := range in.Down {
 		switch press {
 
 		// Change the water level.
 		case vu.KLBkt:
-			dir := tm.cam.Lookat()
 			tm.ocean.Move(0, 0, 1*in.Dt, dir)
 			tm.coast.Move(0, 0, 1*in.Dt, dir)
 		case vu.KRBkt:
-			dir := tm.cam.Lookat()
 			tm.ocean.Move(0, 0, -1*in.Dt, dir)
 			tm.coast.Move(0, 0, -1*in.Dt, dir)
 
@@ -144,7 +135,7 @@ func (tm *tmtag) evolve(rate float64) {
 			}
 		}
 	}
-	tm.surface.Update(tm.gm, 0, 0)
+	tm.surface.update(tm.ground.Mesh(), 0, 0)
 }
 
 // tm
@@ -203,9 +194,9 @@ func (s *surface) Resize(w, h int) {
 	}
 }
 
-// Update recalculates the vertex data needed to render the given land patch.
+// update recalculates the vertex data needed to render the given land patch.
 // It also uses the texture index to assign a textures from a texture atlas
-func (s *surface) Update(m vu.Model, xoff, yoff int) {
+func (s *surface) update(m *vu.Mesh, xoff, yoff int) {
 	vb := s.vb[:0] // keep any allocated memory.
 	nb := s.nb[:0] //   "
 	tb := s.tb[:0] //   "
@@ -317,10 +308,10 @@ func (s *surface) Update(m vu.Model, xoff, yoff int) {
 			nb = append(nb, norms[x+1][y+1].x, norms[x+1][y+1].y, norms[x+1][y+1].z)
 		}
 	}
-	m.Mesh().InitData(0, 3, vu.DynamicDraw, false).SetData(0, vb)
-	m.Mesh().InitData(1, 3, vu.DynamicDraw, false).SetData(1, nb)
-	m.Mesh().InitData(2, 4, vu.DynamicDraw, false).SetData(2, tb)
-	m.Mesh().InitFaces(vu.DynamicDraw).SetFaces(fb)
+	m.InitData(0, 3, vu.DynamicDraw, false).SetData(0, vb)
+	m.InitData(1, 3, vu.DynamicDraw, false).SetData(1, nb)
+	m.InitData(2, 4, vu.DynamicDraw, false).SetData(2, tb)
+	m.InitFaces(vu.DynamicDraw).SetFaces(fb)
 }
 
 type xyz struct{ x, y, z float32 } // temporary structure for generating normals.

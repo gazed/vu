@@ -18,7 +18,7 @@ func TestUuid(t *testing.T) {
 }
 
 func TestSphereProperties(t *testing.T) {
-	b := newBody(NewSphere(1)).SetMaterial(0.5, 0.8).(*body)
+	b := newBody(NewSphere(1)).SetProps(0.5, 0.8).(*body)
 	if b.movable != true || !lin.Aeq(b.imass, 2) {
 		t.Errorf("Expecting movable body with mass %f", b.imass)
 	}
@@ -27,20 +27,20 @@ func TestSphereProperties(t *testing.T) {
 	}
 }
 func TestBoxProperties(t *testing.T) {
-	b := newBody(NewBox(100, 1, 100)).SetMaterial(0, 0.1).(*body)
+	b := newBody(NewBox(100, 1, 100)).SetProps(0, 0.1).(*body)
 	if b.movable == true || b.imass != 0.0 {
 		t.Errorf("Expecting stationary body with no mass.")
 	}
 }
 func TestApplyGravity(t *testing.T) {
-	b := newBody(NewSphere(1)).SetMaterial(0.5, 0.8).(*body)
+	b := newBody(NewSphere(1)).SetProps(0.5, 0.8).(*body)
 	want := "{0.0 10.0 0.0}"
 	if b.applyGravity(10); dumpV3(b.lfor) != want {
 		t.Errorf("Expected forces %s, got %s", want, dumpV3(b.lfor))
 	}
 }
 func TestUpdateInertiaTensor(t *testing.T) {
-	b := newBody(NewSphere(1)).SetMaterial(0.5, 0.8).(*body)
+	b := newBody(NewSphere(1)).SetProps(0.5, 0.8).(*body)
 	b.updateInertiaTensor()
 	want := &lin.M3{
 		Xx: 5.0, Xy: 0.0, Xz: 0.0,
@@ -51,7 +51,7 @@ func TestUpdateInertiaTensor(t *testing.T) {
 	}
 }
 func TestIntegrateVelocities(t *testing.T) {
-	b := newBody(NewSphere(1)).SetMaterial(0.5, 0.8).(*body)
+	b := newBody(NewSphere(1)).SetProps(0.5, 0.8).(*body)
 	b.lfor.SetS(1, 1, 1)
 	b.lvel.SetS(2, 2, 2)
 	if b.integrateVelocities(0.2); dumpV3(b.lvel) != "{2.4 2.4 2.4}" {
@@ -65,7 +65,7 @@ func TestIntegrateVelocities(t *testing.T) {
 	}
 }
 func TestIntegrateLinearVelocity(t *testing.T) {
-	b := newBody(NewSphere(1)).SetMaterial(1, 0.8).(*body)
+	b := newBody(NewSphere(1)).SetProps(1, 0.8).(*body)
 	b.lfor.SetS(0, -10, 0)
 	b.lvel.SetS(0, 0, 0)
 	if b.integrateVelocities(0.02); dumpV3(b.lvel) != "{0.0 -0.2 0.0}" {
@@ -73,7 +73,7 @@ func TestIntegrateLinearVelocity(t *testing.T) {
 	}
 }
 func TestApplyDamping(t *testing.T) {
-	b := newBody(NewSphere(1)).SetMaterial(0.5, 0.8).(*body)
+	b := newBody(NewSphere(1)).SetProps(0.5, 0.8).(*body)
 	b.lvel.SetS(2, 2, 2)
 	b.avel.SetS(3, 3, 3)
 	b.ldamp, b.adamp = 0.5, 0.5
@@ -83,7 +83,7 @@ func TestApplyDamping(t *testing.T) {
 	}
 }
 func TestGetVelocityInLocalPoint(t *testing.T) {
-	b := newBody(NewSphere(1)).SetMaterial(0.5, 0.8).(*body)
+	b := newBody(NewSphere(1)).SetProps(0.5, 0.8).(*body)
 	b.lvel.SetS(2, 2, 2)
 	b.avel.SetS(3, 3, 3)
 	v, p, want := lin.NewV3(), lin.NewV3S(1, 1, 1), "{2.0 2.0 2.0}"
@@ -92,7 +92,7 @@ func TestGetVelocityInLocalPoint(t *testing.T) {
 	}
 }
 func TestUpdatePredictedTransform(t *testing.T) {
-	b := newBody(NewSphere(1)).SetMaterial(0.5, 0.8).(*body)
+	b := newBody(NewSphere(1)).SetProps(0.5, 0.8).(*body)
 	b.lvel.SetS(2, 2, 2)
 	b.avel.SetS(3, 3, 3)
 	want := "{0.4 0.4 0.4}{0.3 0.3 0.3 0.9}"
@@ -104,7 +104,7 @@ func TestUpdatePredictedTransform(t *testing.T) {
 	}
 }
 func TestUpdateWorldTransform(t *testing.T) {
-	b := newBody(NewSphere(1)).SetMaterial(0.5, 0.8).(*body)
+	b := newBody(NewSphere(1)).SetProps(0.5, 0.8).(*body)
 	b.lvel.SetS(2, 2, 2)
 	b.avel.SetS(3, 3, 3)
 	want := "{0.4 0.4 0.4}{0.3 0.3 0.3 0.9}"

@@ -1,4 +1,4 @@
-// Copyright © 2013-2016 Galvanized Logic Inc.
+// Copyright © 2013-2017 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -21,16 +21,25 @@ import (
 //
 // CONTROLS: NA
 func ld() {
-	ld := &ldtag{}
-	dev := device.New("Load Model", 400, 100, 800, 600)
+	device.Run(&ldtag{}) // Does not return!
+}
+
+// Init is a one-time callback before rendering updates.
+func (ld *ldtag) Init(dev device.Device) {
+	dev.SetTitle("Load Model")
+	dev.SetSize(500, 100, 800, 600)
 	ld.initScene()
-	dev.Open()
-	for dev.IsAlive() {
-		ld.update(dev)
-		ld.render()
-		dev.SwapBuffers()
+	ld.resize(0, 0, 800, 600)
+}
+
+// Refresh application state and render a new frame.
+func (ld *ldtag) Refresh(dev device.Device) {
+	p := dev.Down()
+	if p.Resized {
+		ld.resize(dev.Size())
 	}
-	dev.Dispose()
+	ld.render()
+	dev.SwapBuffers()
 }
 
 // Globally unique "tag" that encapsulates example specific data.
@@ -43,14 +52,6 @@ type ldtag struct {
 	mvp       render.Mvp // transform matrix for rendering.
 	faceCount int32
 	loc       load.Locator
-}
-
-// update handles user input
-func (ld *ldtag) update(dev device.Device) {
-	pressed := dev.Update()
-	if pressed.Resized {
-		ld.resize(dev.Size())
-	}
 }
 
 // resize handles user screen/window changes.

@@ -16,6 +16,9 @@ import (
 // The bulk of this method is error checking and returning error information
 // when there are compile or link problems.
 func BindProgram(program uint32, vertexSource, fragmentSource []string) error {
+	glslVersion := GetString(SHADING_LANGUAGE_VERSION)
+	vertexSource = addPrelude(vertexSource, glslVersion)
+	fragmentSource = addPrelude(fragmentSource, glslVersion)
 
 	// Compile and attach the vertex shader
 	var status int32
@@ -71,11 +74,29 @@ func BindProgram(program uint32, vertexSource, fragmentSource []string) error {
 		return errors.New(errmsg)
 	}
 
-	// Don't validate since validate checks as if the OpenGL state was ready to use
+	// Don't validate since validate checks as if the OpenGL state is ready for
 	// the program and the lack of a current VAO would cause validate to fail.
 	// The lack of a check allows bindProgram to work even if BindVertexArray(0)
 	// has not been called.
 	return nil
+}
+
+// addPrelude adds glsl version specific information to shader source.
+// This is needed for them to compile both on desktop OpenGL and
+// mobile OpenGLES.
+func addPrelude(source []string, glslVersion string) []string {
+	prelude := []string{}
+	switch glslVersion {
+	case "OpenGL ES GLSL ES 3.00": // iOS value
+		prelude = append(prelude, "#version 300 es\n")
+		prelude = append(prelude, "precision highp float;\n")
+	default:
+		prelude = append(prelude, "#version 330\n")
+	}
+	src := make([]string, len(source)+len(prelude))
+	copy(src[0:], prelude)
+	copy(src[len(prelude):], source)
+	return src
 }
 
 // Uniforms fills in the active uniform names and locations for a compiled

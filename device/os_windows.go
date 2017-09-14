@@ -1,4 +1,4 @@
-// Copyright © 2013-2016 Galvanized Logic Inc.
+// Copyright © 2013-2017 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package device
@@ -6,14 +6,14 @@ package device
 // The microsoft (windows) native layer. This wraps the c functions that
 // wrap the microsoft API's (where the real work is done).
 
-// // This is C code and cgo directvies.
+// // C code and cgo directvies.
 //
 // #cgo windows CFLAGS: -m64
 // #cgo windows,!dx LDFLAGS: -lopengl32 -lgdi32
 // #cgo windows,dx LDFLAGS: -ld3d11
 // #cgo windows,dx CXXFLAGS: -std=c++11
 //
-// #include "os_windows.h"
+// #include "os_windows.h" // native function signatures and constants.
 import "C" // must be located here.
 
 import (
@@ -21,257 +21,259 @@ import (
 	"unsafe"
 )
 
-// OS specific structure to differentiate it from the other native layers.
-// Two input structures are continually reused each time rather than allocating
-// a new input structure on each readAndDispatch.
-type win struct {
-	gsu *C.GSEvent
-}
-
 // OpenGL related, see: https://code.google.com/p/go-wiki/wiki/LockOSThread
 func init() { runtime.LockOSThread() }
 
-// nativeLayer gets a reference to the native operating system.  Each native
-// layer implements this factory method. Compiling will leave only the one that
-// matches the current platform.
-func nativeLayer() native { return &win{gsu: &C.GSEvent{}} }
+// Device instance needed to handle callbacks on exported methods.
+var dev = &win{}
 
-// Implement native interface.
-func (w *win) context(r *nrefs) int64 {
-	return int64(C.gs_context((*C.longlong)(&(r.display)), (*C.longlong)(&(r.shell))))
+// runApp is the per-device entry method. Compiling will find the one
+// that matches the requested or current platform.
+func runApp(app App) {
+	dev.app = app // The app receiving device callbacks.
+	C.dev_run()   // does not return!
 }
-func (w *win) display() int64              { return int64(C.gs_display_init()) }
-func (w *win) displayDispose(r *nrefs)     { C.gs_display_dispose(C.long(r.display)) }
-func (w *win) shell(r *nrefs) int64        { return int64(C.gs_shell(C.long(r.display))) }
-func (w *win) shellOpen(r *nrefs)          { C.gs_shell_open(C.long(r.display)) }
-func (w *win) shellAlive(r *nrefs) bool    { return uint(C.gs_shell_alive(C.long(r.shell))) == 1 }
-func (w *win) isFullscreen(r *nrefs) bool  { return uint(C.gs_fullscreen(C.long(r.display))) == 1 }
-func (w *win) toggleFullscreen(r *nrefs)   { C.gs_toggle_fullscreen(C.long(r.display)) }
-func (w *win) swapBuffers(r *nrefs)        { C.gs_swap_buffers(C.long(r.shell)) }
-func (w *win) setAlphaBufferSize(size int) { C.gs_set_attr_l(C.GS_AlphaSize, C.long(size)) }
-func (w *win) setDepthBufferSize(size int) { C.gs_set_attr_l(C.GS_DepthSize, C.long(size)) }
-func (w *win) setCursorAt(r *nrefs, x, y int) {
-	C.gs_set_cursor_location(C.long(r.display), C.long(x), C.long(y))
+
+// prepRender is called from os_windows.c after the underlying window
+// has been created and before the update render callbacks start.
+//
+//export prepRender
+func prepRender() {
+	dev.input = newInput()
+	dev.app.Init(dev)
 }
-func (w *win) showCursor(r *nrefs, show bool) {
-	tf1 := 0
-	if show {
-		tf1 = 1
+
+// renderFrame is the called from os_Windows.c as soon as the previous
+// frame has been rendered. Actual frame rate is still limited by the
+// monitor.
+//
+//export renderFrame
+func renderFrame(mx, my int64) {
+	if dev.input != nil {
+		dev.app.Refresh(dev)
 	}
-	C.gs_show_cursor(C.long(r.display), C.uchar(tf1))
 }
 
-// Implement native interface.
-func (w *win) readDispatch(r *nrefs, in *userInput) *userInput {
-	w.gsu.event = 0
-	w.gsu.mousex = -1
-	w.gsu.mousey = -1
-	w.gsu.key = 0
-	w.gsu.mods = 0
-	w.gsu.scroll = 0
-	C.gs_read_dispatch(C.long(r.display), w.gsu)
-
-	// transfer/translate the native event into the input buffer.
-	in.id = events[int(w.gsu.event)]
-	if in.id != 0 {
-		in.button = mouseButtons[int(w.gsu.event)]
-		in.key = int(w.gsu.key)
-		in.scroll = int(w.gsu.scroll)
-	} else {
-		in.button, in.key, in.scroll = 0, 0, 0
+// handleInput is called from os_windows.c to consolidate user input
+// events into a consumable summary of which keys are current pressed.
+// The summary is fowarded each update to the controlling application.
+//
+//export handleInput
+func handleInput(event, data int64) {
+	if dev.input == nil {
+		return // Ignore input before window is up.
 	}
-	in.mods = int(w.gsu.mods)
-	in.mouseX = int(w.gsu.mousex)
-	in.mouseY = int(w.gsu.mousey)
-	return in
+	in := dev.input
+	switch event {
+	case C.devUp:
+		in.recordRelease(int(data))
+	case C.devDown:
+		in.recordPress(int(data))
+	case C.devScroll:
+		in.curr.Scroll = int(data)
+	case C.devResize:
+		in.curr.Resized = true
+
+		// release all down keys on resize
+		// to avoid missing key release events.
+		in.releaseAll()
+	case C.devFocusIn, C.devFocusOut:
+		in.curr.Focus = event == C.devFocusIn
+	}
 }
 
-// Implement native interface.
-func (w *win) size(r *nrefs) (x int, y int, wx int, hy int) {
+// native layer callback functions. native->app calls.
+// =============================================================================
+// winOS Device implementation. app->native calls.
+
+// win is the macOS implementation of the Device interface.
+// See the Device interface for method descriptions.
+type win struct {
+	app   App    // update/render callback.
+	input *input // tracks current keys pressed.
+}
+
+// Implement the Device interface. See docs in device.go
+// Mostly call the underlying native layer.
+func (os *win) Down() *Pressed     { return os.input.getPressed(os.Cursor()) }
+func (os *win) Dispose()           { C.dev_dispose() }
+func (os *win) SwapBuffers()       { C.dev_swap() }
+func (os *win) ToggleFullScreen()  { C.dev_toggle_fullscreen() }
+func (os *win) IsFullScreen() bool { return uint(C.dev_fullscreen()) == 1 }
+func (os *win) SetCursorAt(x, y int) {
+	C.dev_set_cursor_location(C.long(x), C.long(y))
+}
+func (os *win) Cursor() (x, y int) {
+	var mx, my int32
+	C.dev_cursor((*C.long)(&mx), (*C.long)(&my))
+	return int(mx), int(my)
+}
+func (os *win) Size() (x, y, w, h int) {
 	var winx, winy, width, height int32
-	C.gs_size(C.long(r.display), (*C.long)(&winx), (*C.long)(&winy), (*C.long)(&width), (*C.long)(&height))
+	C.dev_size((*C.long)(&winx), (*C.long)(&winy), (*C.long)(&width), (*C.long)(&height))
 	return int(winx), int(winy), int(width), int(height)
 }
+func (os *win) SetSize(x, y, w, h int) {
+	C.dev_set_size(C.long(x), C.long(y), C.long(w), C.long(h))
 
-// Implement native interface.
-func (w *win) setSize(x, y, width, height int) {
-	C.gs_set_attr_l(C.GS_ShellX, C.long(x))
-	C.gs_set_attr_l(C.GS_ShellY, C.long(y))
-	C.gs_set_attr_l(C.GS_ShellWidth, C.long(width))
-	C.gs_set_attr_l(C.GS_ShellHeight, C.long(height))
+	// resising doesn't trigger an OS resize event so inform
+	// the application directly.
+	os.input.curr.Resized = true
 }
-
-// Implement native interface.
-func (w *win) setTitle(title string) {
+func (os *win) SetTitle(title string) {
 	cstr := C.CString(title)
 	defer C.free(unsafe.Pointer(cstr))
-	C.gs_set_attr_s(C.GS_AppName, cstr)
+	C.dev_set_title(cstr)
 }
-
-// Implement native interface.
-func (w *win) copyClip(r *nrefs) string {
-	if cstr := C.gs_clip_copy(C.long(r.display)); cstr != nil {
+func (os *win) ShowCursor(show bool) {
+	trueFalse := 0 // trueFalse needs to be 0 or 1.
+	if show {
+		trueFalse = 1
+	}
+	C.dev_show_cursor(C.uchar(trueFalse))
+}
+func (os *win) Copy() string {
+	if cstr := C.dev_clip_copy(); cstr != nil {
 		str := C.GoString(cstr)      // make a Go copy.
 		C.free(unsafe.Pointer(cstr)) // free the C copy.
 		return str
 	}
 	return ""
 }
-
-// Implement native interface.
-func (w *win) pasteClip(r *nrefs, s string) {
+func (os *win) Paste(s string) {
 	cstr := C.CString(s)
 	defer C.free(unsafe.Pointer(cstr))
-	C.gs_clip_paste(C.long(r.display), cstr)
+	C.dev_clip_paste(cstr)
 }
 
-// Transform os specific events to user events.
-var events = map[int]int{
-	C.GS_LeftMouseDown:     clickedMouse,
-	C.GS_RightMouseDown:    clickedMouse,
-	C.GS_OtherMouseDown:    clickedMouse,
-	C.GS_LeftMouseUp:       releasedMouse,
-	C.GS_RightMouseUp:      releasedMouse,
-	C.GS_OtherMouseUp:      releasedMouse,
-	C.GS_MouseMoved:        movedMouse,
-	C.GS_KeyDown:           pressedKey,
-	C.GS_KeyUp:             releasedKey,
-	C.GS_SysKeyUp:          releasedKey,
-	C.GS_ScrollWheel:       scrolled,
-	C.GS_WindowResized:     resizedShell,
-	C.GS_WindowMoved:       movedShell,
-	C.GS_WindowIconified:   iconifiedShell,
-	C.GS_WindowUniconified: uniconifiedShell,
-	C.GS_WindowActive:      activatedShell,
-	C.GS_WindowInactive:    deactivatedShell,
-}
+// winOS Device implementation.
+// =============================================================================
 
-// Also map the mice buttons into left and right.
-var mouseButtons = map[int]int{
-	C.GS_LeftMouseDown:  mouseLeft,
-	C.GS_RightMouseDown: mouseRight,
-	C.GS_OtherMouseDown: mouseMiddle,
-	C.GS_LeftMouseUp:    mouseLeft,
-	C.GS_RightMouseUp:   mouseRight,
-	C.GS_OtherMouseUp:   mouseMiddle,
-}
-
-// Expose the underlying Win key modifier masks.
-// Leave the ALT and CMD keys to the OS's.
-const (
-	shiftKeyMask    = C.GS_ShiftKeyMask
-	controlKeyMask  = C.GS_ControlKeyMask
-	functionKeyMask = C.GS_FunctionKeyMask
-	commandKeyMask  = C.GS_CommandKeyMask
-	altKeyMask      = C.GS_AlternateKeyMask
-)
-
-// Expose the underlying Win key codes as generic code.
-// Each native layer is expected to support the generic codes.
+// Expose the underlying Win key codes to the Vu device key codes
+// supported by each of the native layers.
 //
 // Windows virtual key codes.
 // http://msdn.microsoft.com/en-ca/library/windows/desktop/dd375731(v=vs.85).aspx
 const (
-	key0              = 0x30 // 0 key
-	key1              = 0x31 // 1 key
-	key2              = 0x32 // 2 key
-	key3              = 0x33 // 3 key
-	key4              = 0x34 // 4 key
-	key5              = 0x35 // 5 key
-	key6              = 0x36 // 6 key
-	key7              = 0x37 // 7 key
-	key8              = 0x38 // 8 key
-	key9              = 0x39 // 9 key
-	keyA              = 0x41 // A key
-	keyB              = 0x42 // B key
-	keyC              = 0x43 // C key
-	keyD              = 0x44 // D key
-	keyE              = 0x45 // E key
-	keyF              = 0x46 // F key
-	keyG              = 0x47 // G key
-	keyH              = 0x48 // H key
-	keyI              = 0x49 // I key
-	keyJ              = 0x4A // J key
-	keyK              = 0x4B // K key
-	keyL              = 0x4C // L key
-	keyM              = 0x4D // M key
-	keyN              = 0x4E // N key
-	keyO              = 0x4F // O key
-	keyP              = 0x50 // P key
-	keyQ              = 0x51 // Q key
-	keyR              = 0x52 // R key
-	keyS              = 0x53 // S key
-	keyT              = 0x54 // T key
-	keyU              = 0x55 // U key
-	keyV              = 0x56 // V key
-	keyW              = 0x57 // W key
-	keyX              = 0x58 // X key
-	keyY              = 0x59 // Y key
-	keyZ              = 0x5A // Z key
-	keyF1             = 0x70 // VK_F1            F1 key
-	keyF2             = 0x71 // VK_F2            F2 key
-	keyF3             = 0x72 // VK_F3            F3 key
-	keyF4             = 0x73 // VK_F4            F4 key
-	keyF5             = 0x74 // VK_F5            F5 key
-	keyF6             = 0x75 // VK_F6            F6 key
-	keyF7             = 0x76 // VK_F7            F7 key
-	keyF8             = 0x77 // VK_F8            F8 key
-	keyF9             = 0x78 // VK_F9            F9 key
-	keyF10            = 0x79 // VK_F10           F10 key  ---- on osx-kb
-	keyF11            = 0x7A // VK_F11           F11 key
-	keyF12            = 0x7B // VK_F12           F12 key
-	keyF13            = 0x7C // VK_F13           F13 key
-	keyF14            = 0x2C // VK_F14 0x7D      F14 key  0x2C on osx-kb
-	keyF15            = 0x91 // VK_F15 0x7E      F15 key  0x91
-	keyF16            = 0x13 // VK_F16 0x7F      F16 key  0x13
-	keyF17            = 0x80 // VK_F17           F17 key
-	keyF18            = 0x81 // VK_F18           F18 key
-	keyF19            = 0x82 // VK_F19           F19 key
-	keyF20            = 0x83 // VK_F20           F20 key
-	keyKeypad0        = 0x60 // VK_NUMPAD0  0x60 Numeric keypad 0 key :: VK_INSERT  0x20 on osx-kb
-	keyKeypad1        = 0x61 // VK_NUMPAD1  0x61 Numeric keypad 1 key :: VK_END     0x23 on osx-kb
-	keyKeypad2        = 0x62 // VK_NUMPAD2  0x62 Numeric keypad 2 key :: VK_DOWN    0x28 on osx-kb
-	keyKeypad3        = 0x63 // VK_NUMPAD3  0x63 Numeric keypad 3 key :: VK_NEXT    0x22 on osx-kb
-	keyKeypad4        = 0x64 // VK_NUMPAD4  0x64 Numeric keypad 4 key :: VK_LEFT    0x25 on osx-kb
-	keyKeypad5        = 0x65 // VK_NUMPAD5  0x65 Numeric keypad 5 key :: VK_CLEAR   0x0C on osx-kb
-	keyKeypad6        = 0x66 // VK_NUMPAD6  0x66 Numeric keypad 6 key :: VK_RIGHT   0x27 on osx-kb
-	keyKeypad7        = 0x67 // VK_NUMPAD7  0x67 Numeric keypad 7 key :: VK_HOME    0x26 on osx-kb
-	keyKeypad8        = 0x68 // VK_NUMPAD8  0x68 Numeric keypad 8 key :: VK_UP      0x21 on osx-kb
-	keyKeypad9        = 0x69 // VK_NUMPAD9  0x69 Numeric keypad 9 key :: VK_PRIOR
-	keyKeypadDecimal  = 0x6E // VK_DECIMAL       Decimal key :: VK_DELETE
-	keyKeypadMultiply = 0x6A // VK_MULTIPLY      Multiply key
-	keyKeypadPlus     = 0x6B // VK_ADD           Add key
-	keyKeypadClear    = 0x90 // VK_CLEAR    0x0C CLEAR key :: VK_OEM_CLEAR 0xFE     0x90 on osx-kb
-	keyKeypadDivide   = 0x6F // VK_DIVIDE        Divide key
-	keyKeypadEnter    = 0x2B // VK_EXECUTE                            :: VK_ENTER on osx-kb
-	keyKeypadMinus    = 0x6D // VK_SUBTRACT      Subtract key
-	keyKeypadEquals   = 0xE2 //
-	keyEqual          = 0xBB //
-	keyMinus          = 0xBD // VK_OEM_MINUS     For any country/region, the '-' key // VK_SEPARATOR 0x6C Separator key
-	keyLeftBracket    = 0xDB // VK_OEM_4         misc characters; varys: US standard keyboard, the '[{' key
-	keyRightBracket   = 0xDD // VK_OEM_6         misc characters; varys: US standard keyboard, the ']}' key
-	keyQuote          = 0xC0 // VK_OEM_7         misc characters; varys: US standard keyboard, the 'single/double-quote' key
-	keySemicolon      = 0xBA // VK_OEM_1         misc characters; varys: US standard keyboard, the ';:' key
-	keyBackslash      = 0xDE // VK_OEM_5         misc characters; varys: US standard keyboard, the '/?' key
-	keyGrave          = 0xDF // VK_OEM_3         misc characters; varys: US standard keyboard, the '`~' key
-	keySlash          = 0xBF //
-	keyComma          = 0xBC // VK_OEM_COMMA     For any country/region, the ',' key
-	keyPeriod         = 0xBE // VK_OEM_PERIOD    For any country/region, the '.' key
-	keyReturn         = 0x0D // VK_RETURN        ENTER key
-	keyTab            = 0x09 // VK_TAB           TAB key
-	keySpace          = 0x20 // VK_SPACE         SPACEBAR
-	keyDelete         = 0x08 // VK_BACK          BACKSPACE key
-	keyForwardDelete  = 0x2E // VK_DELETE        DEL key
-	keyEscape         = 0x1B // VK_ESCAPE        ESC key
-	keyHome           = 0x24 // VK_HOME          HOME key
-	keyPageUp         = 0x21 // VK_PRIOR         PAGE UP key
-	keyPageDown       = 0x22 // VK_NEXT          PAGE DOWN key
-	keyLeftArrow      = 0x25 // VK_LEFT          LEFT ARROW key
-	keyRightArrow     = 0x27 // VK_RIGHT         RIGHT ARROW key
-	keyDownArrow      = 0x28 // VK_DOWN          DOWN ARROW key
-	keyUpArrow        = 0x26 // VK_UP            UP ARROW key
-	keyEnd            = 0x23 // VK_END           END key
-	mouseLeft         = 0x01 // VK_LBUTTON Left mouse button (tack on unique values for mouse buttons)
-	mouseMiddle       = 0x04 // VK_MBUTTON Middle mouse button (three-button mouse)
-	mouseRight        = 0x02 // VK_RBUTTON Right mouse button
+	// keyboard numbers.
+	K0 = 0x30 // 0 key
+	K1 = 0x31 // 1 key
+	K2 = 0x32 // 2 key
+	K3 = 0x33 // 3 key
+	K4 = 0x34 // 4 key
+	K5 = 0x35 // 5 key
+	K6 = 0x36 // 6 key
+	K7 = 0x37 // 7 key
+	K8 = 0x38 // 8 key
+	K9 = 0x39 // 9 key
+
+	// keyboard letters.
+	KA = 0x41 // A key
+	KB = 0x42 // B key
+	KC = 0x43 // C key
+	KD = 0x44 // D key
+	KE = 0x45 // E key
+	KF = 0x46 // F key
+	KG = 0x47 // G key
+	KH = 0x48 // H key
+	KI = 0x49 // I key
+	KJ = 0x4A // J key
+	KK = 0x4B // K key
+	KL = 0x4C // L key
+	KM = 0x4D // M key
+	KN = 0x4E // N key
+	KO = 0x4F // O key
+	KP = 0x50 // P key
+	KQ = 0x51 // Q key
+	KR = 0x52 // R key
+	KS = 0x53 // S key
+	KT = 0x54 // T key
+	KU = 0x55 // U key
+	KV = 0x56 // V key
+	KW = 0x57 // W key
+	KX = 0x58 // X key
+	KY = 0x59 // Y key
+	KZ = 0x5A // Z key
+
+	// Function Keys
+	KF1  = 0x70 // VK_F1        F1 key
+	KF2  = 0x71 // VK_F2        F2 key
+	KF3  = 0x72 // VK_F3        F3 key
+	KF4  = 0x73 // VK_F4        F4 key
+	KF5  = 0x74 // VK_F5        F5 key
+	KF6  = 0x75 // VK_F6        F6 key
+	KF7  = 0x76 // VK_F7        F7 key
+	KF8  = 0x77 // VK_F8        F8 key
+	KF9  = 0x78 // VK_F9        F9 key
+	KF10 = 0x79 // VK_F10       F10 key  ---- on osx-kb
+	KF11 = 0x7A // VK_F11       F11 key
+	KF12 = 0x7B // VK_F12       F12 key
+	KF13 = 0x7C // VK_F13       F13 key
+	KF14 = 0x2C // VK_F14 0x7D  F14 key  0x2C on osx-kb
+	KF15 = 0x91 // VK_F15 0x7E  F15 key  0x91
+	KF16 = 0x13 // VK_F16 0x7F  F16 key  0x13
+	KF17 = 0x80 // VK_F17       F17 key
+	KF18 = 0x81 // VK_F18       F18 key
+	KF19 = 0x82 // VK_F19       F19 key
+	KF20 = 0x83 // VK_F20       F20 key
+
+	// Keypad keys
+	KKpDot = 0x6E // VK_DECIMAL   Decimal key    :: VK_DELETE
+	KKpMlt = 0x6A // VK_MULTIPLY  Multiply key
+	KKpAdd = 0x6B // VK_ADD       Add key
+	KKpClr = 0x90 // VK_CLEAR     0x0C CLEAR key :: VK_OEM_CLEAR 0xFE 0x90 on osx-kb
+	KKpDiv = 0x6F // VK_DIVIDE    Divide key
+	KKpEnt = 0x2B // VK_EXECUTE                  :: VK_ENTER on osx-kb
+	KKpSub = 0x6D // VK_SUBTRACT      Subtract key
+	KKpEql = 0xE2 //
+	KKp0   = 0x60 // VK_NUMPAD0  0x60 keypad 0 key :: VK_INSERT  0x20 on osx-kb
+	KKp1   = 0x61 // VK_NUMPAD1  0x61 keypad 1 key :: VK_END     0x23 on osx-kb
+	KKp2   = 0x62 // VK_NUMPAD2  0x62 keypad 2 key :: VK_DOWN    0x28 on osx-kb
+	KKp3   = 0x63 // VK_NUMPAD3  0x63 keypad 3 key :: VK_NEXT    0x22 on osx-kb
+	KKp4   = 0x64 // VK_NUMPAD4  0x64 keypad 4 key :: VK_LEFT    0x25 on osx-kb
+	KKp5   = 0x65 // VK_NUMPAD5  0x65 keypad 5 key :: VK_CLEAR   0x0C on osx-kb
+	KKp6   = 0x66 // VK_NUMPAD6  0x66 keypad 6 key :: VK_RIGHT   0x27 on osx-kb
+	KKp7   = 0x67 // VK_NUMPAD7  0x67 keypad 7 key :: VK_HOME    0x26 on osx-kb
+	KKp8   = 0x68 // VK_NUMPAD8  0x68 keypad 8 key :: VK_UP      0x21 on osx-kb
+	KKp9   = 0x69 // VK_NUMPAD9  0x69 keypad 9 key :: VK_PRIOR
+
+	// Misc and Punctuation keys.
+	KEqual = 0xBB //
+	KMinus = 0xBD // VK_OEM_MINUS  For any country/region, the '-' key // VK_SEPARATOR 0x6C Separator key
+	KLBkt  = 0xDB // VK_OEM_4      misc characters; varys: US keyboard, the '[{' key
+	KRBkt  = 0xDD // VK_OEM_6      misc characters; varys: US keyboard, the ']}' key
+	KQt    = 0xC0 // VK_OEM_7      misc characters; varys: US keyboard, the 'single/double-quote' key
+	KSemi  = 0xBA // VK_OEM_1      misc characters; varys: US keyboard, the ';:' key
+	KBSl   = 0xDE // VK_OEM_5      misc characters; varys: US keyboard, the '/?' key
+	KComma = 0xBC // VK_OEM_COMMA  For any country/region, the ',' key
+	KSlash = 0xBF //
+	KDot   = 0xBE // VK_OEM_PERIOD For any country/region, the '.' key
+	KGrave = 0xDF // VK_OEM_3      misc characters; varys: US keyboard, the '`~' key
+	KRet   = 0x0D // VK_RETURN     ENTER key
+	KTab   = 0x09 // VK_TAB        TAB key
+	KSpace = 0x20 // VK_SPACE      SPACEBAR
+	KDel   = 0x08 // VK_BACK       BACKSPACE key
+	KEsc   = 0x1B // VK_ESCAPE     ESC key
+
+	// Control keys.
+	KHome  = 0x24         // VK_HOME    HOME key
+	KPgUp  = 0x21         // VK_PRIOR   PAGE UP key
+	KFDel  = 0x2E         // VK_DELETE  DEL key
+	KEnd   = 0x23         // VK_END     END key
+	KPgDn  = 0x22         // VK_NEXT    PAGE DOWN key
+	KLa    = 0x25         // VK_LEFT    LEFT ARROW key
+	KRa    = 0x27         // VK_RIGHT   RIGHT ARROW key
+	KDa    = 0x28         // VK_DOWN    DOWN ARROW key
+	KUa    = 0x26         // VK_UP      UP ARROW key
+	KCtl   = C.VK_CONTROL // modifier masks and key codes.
+	KFn    = 0            // Did not find on windows.
+	KShift = C.VK_SHIFT
+	KCmd   = C.VK_LWIN | C.VK_RWIN
+	KAlt   = C.VK_MENU
+
+	// Mouse buttons are treated like keys.
+	// Values don't conflict with other key codes.
+	KLm = C.devMouseL // Mouse buttons
+	KMm = C.devMouseM //   "
+	KRm = C.devMouseR //   "
 )

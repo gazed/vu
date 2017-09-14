@@ -1,344 +1,496 @@
-// Copyright © 2013-2016 Galvanized Logic Inc.
+// Copyright © 2013-2017 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package vu
 
-// pov.go key application API for creating objects and managing world space.
-// DESIGN:
-//  o Pov is a location/orientation.
-//  o Pov is a transform hierarchy.
-//  o Pov passes user object creation requests through the engine entity manager.
+// pov.go controls world transforms and scene graph child parent
+//        relationships.
 
 import (
+	"log"
+
 	"github.com/gazed/vu/math/lin"
-	"github.com/gazed/vu/physics"
 	"github.com/gazed/vu/render"
 )
 
-// Pov, point-of-view, is a combination of position and orientation.
-// Pov's are created by the application and may have additional associated
-// components like rendered models and physics bodies. The associated
-// components use the location and orientation of the Pov.
+// AddPart creates a new entity with a point-of-view component (pov).
+// A pov adds a location and orientation to an entity. The entity can
+// now be positioned and rotated.
 //
-// A Pov can also have a child Pov's whose position and orientation are
-// relative to the parent. This hiearchy of parent-child Pov's forms the
-// transform scene graph. The hierarchy root is available through Eng.
-type Pov struct {
-	T *lin.T  // Transform combines location and orientation.
-	S *lin.V3 // Per axis scale: >1 to enlarge, fraction<1 to shrink.
-
-	// Cull set to true removes this Pov and its child Pov's
-	// from processing. Cull is false by default.
-	Cull bool // True to exclude from scene graph processing.
-
-	// Used to register entities with the eng component manager.
-	eng *engine // Overall component manager.
-	id  eid     // Unique entity identifier.
-
-	// transform hierarchy. Each pov node can have children which base
-	// their position and orientation relative to the parents.
-	parent *Pov   // nil if no parent: nil means root.
-	kids   []*Pov // child transforms.
-	stable bool   // avoid updating non-moving objects.
-
-	// variables for recalculating transforms each update.
-	toc float64 // distance to camera.
-	mm  *lin.M4 // model matrix world transform.
-	rot *lin.Q  // scratch rotation/orientation.
+// The entity is also added to the scene graph so that this entities
+// world pov is affected by its parents and will also affect any
+// child entities created from this one.
+func (e *Ent) AddPart() *Ent {
+	eid := e.app.eids.create()
+	e.app.povs.create(eid, e.eid)
+	return &Ent{app: e.app, eid: eid}
 }
 
-// newPov allocates and initialzes a point of view transform.
-// Called by the engine.
-func newPov(eng *engine, id eid, parent *Pov) *Pov {
-	p := &Pov{eng: eng, id: id, parent: parent}
-	p.T = lin.NewT()
-	p.S = &lin.V3{X: 1, Y: 1, Z: 1}
-
-	// add the pov to its parent.
-	if parent != nil {
-		parent.kids = append(parent.kids, p)
+// At gets the local space location. This is world space
+// if the entity does not have a parent.
+//
+// Depends on Ent.AddPart. Returns 0,0,0 if there is no part component.
+func (e *Ent) At() (x, y, z float64) {
+	if p := e.app.povs.get(e.eid); p != nil {
+		return p.at()
 	}
-
-	// allocate scratch variables.
-	p.rot = lin.NewQ()
-	p.mm = &lin.M4{}
-	return p
+	log.Printf("At needs AddPart %d", e.eid)
+	return 0, 0, 0
 }
 
-// NewPov creates, attaches, and returns a new child transform Pov.
-func (p *Pov) NewPov() *Pov { return p.eng.newPov(p) }
-
-// Dispose deletes and removes either the entire PovNode,
-// or one of its attachments, PovModel, PovBody, ...
-func (p *Pov) Dispose(kind int) { p.eng.dispose(p.id, kind) }
-
-// At gets the Pov's location.
-// Location is relative to parent. World space if no parent location.
-func (p *Pov) At() (x, y, z float64) {
-	return p.T.Loc.X, p.T.Loc.Y, p.T.Loc.Z
+// SetAt sets the local space location, ie: relative to its parent.
+// This is world space if there is no parent location.
+//
+// Depends on Ent.AddPart.
+func (e *Ent) SetAt(x, y, z float64) *Ent {
+	if p := e.app.povs.get(e.eid); p != nil {
+		p.tn.Loc.X, p.tn.Loc.Y, p.tn.Loc.Z = x, y, z
+		return e
+	}
+	log.Printf("SetAt needs AddPart %d", e.eid)
+	return e
 }
 
-// SetAt sets the Pov at the given location.
-// Location is relative to parent. World space if no parent location.
-func (p *Pov) SetAt(x, y, z float64) *Pov {
-	p.stable = false
-	p.T.Loc.X, p.T.Loc.Y, p.T.Loc.Z = x, y, z
-	return p
+// World returns the world space coordinates for this entity.
+// World space is recalculated after every update.
+//
+// Depends on Ent.AddPart.
+func (e *Ent) World() (wx, wy, wz float64) {
+	if p := e.app.povs.get(e.eid); p != nil {
+		return p.wx, p.wy, p.wz
+	}
+	log.Printf("World needs AddPart %d", e.eid)
+	return 0, 0, 0
 }
 
 // Move directly affects the location by the given translation amounts
 // along the given direction. Physics bodies should use Body.Push which
 // affects velocity.
-func (p *Pov) Move(x, y, z float64, dir *lin.Q) {
-	p.stable = false
-	dx, dy, dz := lin.MultSQ(x, y, z, dir)
-	p.T.Loc.X += dx
-	p.T.Loc.Y += dy
-	p.T.Loc.Z += dz
+//
+// Depends on Ent.AddPart.
+func (e *Ent) Move(x, y, z float64, dir *lin.Q) {
+	if p := e.app.povs.get(e.eid); p != nil {
+		dx, dy, dz := lin.MultSQ(x, y, z, dir)
+		p.tn.Loc.X += dx
+		p.tn.Loc.Y += dy
+		p.tn.Loc.Z += dz
+		return
+	}
+	log.Printf("Move missing AddPart %d", e.eid)
 }
 
-// World returns the world space location.
-// This method is valid in the Eng Update callback, not Create.
-func (p *Pov) World() (x, y, z float64) {
-	// The model matrix, mm, must have been set prior to calling
-	v := &lin.V4{X: 0, Y: 0, Z: 0, W: 1}
-	v.MultvM(v, p.mm)
-	return v.X, v.Y, v.Z
-}
-
-// View returns the orientation of the Pov. Orientation combines
+// View returns the orientation of the pov. Orientation combines
 // direction and rotation about the direction.
 // Orientation is relative to parent. World space if no parent orientation.
-func (p *Pov) View() (q *lin.Q) {
-	p.stable = false // referenced sometimes used to change.
-	return p.T.Rot
+//
+// Depends on Ent.AddPart.
+func (e *Ent) View() (q *lin.Q) {
+	if p := e.app.povs.get(e.eid); p != nil {
+		return p.tn.Rot
+	}
+	log.Printf("View needs AddPart %d", e.eid)
+	return lin.NewQ()
 }
 
-// SetView directly sets the Pov's orientation.
-// Often used to align this Pov with the orientation of another.
+// SetView directly sets the parts orientation.
+// Often used to align this part with the orientation of another.
 // Orientation is relative to parent. World space if no parent orientation.
-func (p *Pov) SetView(q *lin.Q) *Pov {
-	p.stable = false
-	r := p.T.Rot
-	r.X, r.Y, r.Z, r.W = q.X, q.Y, q.Z, q.W
-	return p
+//
+// Depends on Ent.AddPart.
+func (e *Ent) SetView(q *lin.Q) *Ent {
+	if p := e.app.povs.get(e.eid); p != nil {
+		r := p.tn.Rot
+		r.X, r.Y, r.Z, r.W = q.X, q.Y, q.Z, q.W
+		return e
+	}
+	log.Printf("SetView needs AddPart %d", e.eid)
+	return e
+}
+
+// Cull sets the culled state.
+//
+// Depends on Ent.AddPart.
+func (e *Ent) Cull(culled bool) {
+	if n := e.app.povs.getNode(e.eid); n != nil {
+		n.cull = culled
+		return
+	}
+	log.Printf("Cull needs AddPart %d", e.eid)
+}
+
+// Culled returns true if entity has been culled from rendering.
+//
+// Depends on Ent.AddPart. Returns true if there was no part component.
+func (e *Ent) Culled() bool {
+	if n := e.app.povs.getNode(e.eid); n != nil {
+		return n.cull
+	}
+	log.Printf("Culled needs AddPart %d", e.eid)
+	return true
 }
 
 // Spin rotates x,y,z degrees about the X,Y,Z axis.
 // The spins are combined in XYZ order, but generally this
 // is used to spin about a single axis at a time.
-func (p *Pov) Spin(x, y, z float64) {
-	p.stable = false
-	if x != 0 {
-		p.rot.SetAa(1, 0, 0, lin.Rad(x))
-		p.T.Rot.Mult(p.rot, p.T.Rot)
+//
+// Depends on Ent.AddPart.
+func (e *Ent) Spin(x, y, z float64) {
+	if p := e.app.povs.get(e.eid); p != nil {
+		p.spin(e.app.povs.rot, x, y, z)
+		return
 	}
-	if y != 0 {
-		p.rot.SetAa(0, 1, 0, lin.Rad(y))
-		p.T.Rot.Mult(p.rot, p.T.Rot)
-	}
-	if z != 0 {
-		p.rot.SetAa(0, 0, 1, lin.Rad(z))
-		p.T.Rot.Mult(p.rot, p.T.Rot)
-	}
+	log.Printf("Spin needs AddPart %d", e.eid)
 }
 
-// Scale retrieves the per-axis scale values at 3 separate XYZ values.
-func (p *Pov) Scale() (x, y, z float64) { return p.S.X, p.S.Y, p.S.Z }
+// SetSpin sets the rotation to 0 before spinning the entity
+// like the Spin method.
+//
+// Depends on Ent.AddPart.
+func (e *Ent) SetSpin(x, y, z float64) {
+	if p := e.app.povs.get(e.eid); p != nil {
+		p.clearSpin()
+		p.spin(e.app.povs.rot, x, y, z)
+		return
+	}
+	log.Printf("SetSpin needs AddPart %d", e.eid)
+}
+
+// Scale retrieves the local per-axis scale values at 3 separate XYZ values.
+// World scale needs to incorporate any parents values.
+//
+// Depends on Ent.AddPart. Returns 0,0,0 if there is no part component.
+func (e *Ent) Scale() (x, y, z float64) {
+	if p := e.app.povs.get(e.eid); p != nil {
+		return p.scale()
+	}
+	log.Printf("Scale needs AddPart %d", e.eid)
+	return 0, 0, 0
+}
 
 // SetScale assigns the XYZ per-axis scale values.
 // Scale default is 1, greater than 1 enlarges, a positive fraction shrinks.
-// Setting through this method causes world transform update while setting
-// the Pov.S directly does not.
-func (p *Pov) SetScale(x, y, z float64) *Pov {
-	p.stable = false
-	p.S.X, p.S.Y, p.S.Z = x, y, z
+//
+// Depends on Ent.AddPart.
+func (e *Ent) SetScale(x, y, z float64) *Ent {
+	if p := e.app.povs.get(e.eid); p != nil {
+		p.sn.X, p.sn.Y, p.sn.Z = x, y, z
+		return e
+	}
+	log.Printf("SetScale needs AddPart %d", e.eid)
+	return e
+}
+
+// pov entity methods
+// =============================================================================
+// pov data
+
+// pov point-of-view, is a combination of position and orientation.
+// A pov is created for each application entity.
+//
+// A pov's location factors in an update interpolation value to account
+// for timing differences between rendering and updating.
+//
+// FUTURE: Don't use pointers for the transform data so that the pov
+//         data is contiguous in memory. Will have to copy the transform
+//         data in and out of physics instead of sharing the pointer.
+//         In theory contiguous data means fewer cache misses.
+//         An initial attempt at this made things slower.
+type pov struct {
+	eid eid // Unique entity identifier.
+
+	// Local transform is relative to a parent.
+	// Effectively a world transform if no parent transform.
+	tp, tn     *lin.T  // Transform (prev, now) is location and orientation.
+	sp, sn     *lin.V3 // Per axis scale (prev, now): default value 1,1,1.
+	wx, wy, wz float64 // World coordinates set each display refresh.
+	mm         *lin.M4 // model matrix world transform.
+	stable     bool    // avoid updating non-moving objects.
+}
+
+// newPov allocates and initialzes a point of view transform.
+// Called by the engine.
+func newPov(eid eid) *pov {
+	p := &pov{eid: eid}
+	p.tn = lin.NewT()
+	p.tp = lin.NewT()
+	p.sn = &lin.V3{X: 1, Y: 1, Z: 1}
+	p.sp = &lin.V3{X: 1, Y: 1, Z: 1}
+	p.mm = &lin.M4{}
 	return p
 }
 
-// Cam returns nil if there is no camera for this Pov.
-func (p *Pov) Cam() *Camera { return p.eng.cam(p.id) }
-
-// NewCam adds a camera to a Pov. This means that all rendered models
-// in this Pov's hierarchy will be viewed with this camera settings.
-func (p *Pov) NewCam() *Camera { return p.eng.newCam(p.id) }
-
-// Body is an optional physics component associated with a Pov.
-// Body returns nil if there is no physics body for this Pov.
-func (p *Pov) Body() physics.Body { return p.eng.body(p.id) }
-
-// NewBody creates non-colliding body associated with this Pov.
-// Bodies are generally set on top level Pov transforms to ensure
-// valid world coordindates.
-func (p *Pov) NewBody(b physics.Body) physics.Body {
-	return p.eng.newBody(p.id, b, p)
+// at gets the pov's local space location.
+// Local space since location is relative to parent.
+// World space if no parent location.
+func (p *pov) at() (x, y, z float64) {
+	return p.tn.Loc.X, p.tn.Loc.Y, p.tn.Loc.Z
 }
 
-// SetSolid makes the existing Pov physics Body collide. Nothing happens
-// if there is no existing physics Body for this Pov.
-func (p *Pov) SetSolid(mass, bounce float64) {
-	p.eng.setSolid(p.id, mass, bounce)
-}
+// scale retrieves the local per-axis scale values at 3 separate XYZ values.
+// World scale needs to incorporate any parents values.
+func (p *pov) scale() (x, y, z float64) { return p.sn.X, p.sn.Y, p.sn.Z }
 
-// AddSound loads audio data associated with this Pov. Played sounds occur
-// at the associated Pov's location. Sounds that are played will be louder
-// as the distance between the played noise and listener decreases.
-// Place the single global noise listener at this Pov.
-func (p *Pov) AddSound(name string) { p.eng.addSound(p.id, name) }
+// clearSpin sets the rotation to default 0.
+func (p *pov) clearSpin() { p.tn.Rot.Set(lin.QI) }
 
-// PlaySound plays the sound associated with this Pov.
-// The sound index corresponds to the order the sound was added
-// to the Pov. The first sound added has index 0.
-func (p *Pov) PlaySound(index int) { p.eng.playSound(p.id, index) }
-
-// SetListener sets the location of the listener to be this Pov.
-func (p *Pov) SetListener() { p.eng.sounds.setListener(p) }
-
-// Light returns nil if no there light for this Pov.
-func (p *Pov) Light() *Light { return p.eng.lights.get(p.id) }
-
-// NewLight creates and associates a light with this Pov.
-// Light is optional. It affects lighting calculations for this Pov
-// and all child pov's.
-func (p *Pov) NewLight() *Light { return p.eng.lights.create(p.id) }
-
-// Layer returns nil if there is no layer for this Pov.
-func (p *Pov) Layer() Layer { return p.eng.layer(p.id) }
-
-// NewLayer creates a rendered texture at this Pov.
-// The model at this Pov and its children will be rendered to a texture
-// for this layer. The default texture size is 1024x1024.
-func (p *Pov) NewLayer() Layer { return p.eng.newLayer(p.id, render.ImageBuffer) }
-
-// NewLabel creates a Model that displays a small white text phrase.
-//   shader      expected to be a font aware shader like "txt" or "sdf".
-//   font        identifies bot the font mapping file and font texture file.
-func (p *Pov) NewLabel(shader, font string) Labeler {
-	m := p.NewModel(shader, "fnt:"+font, "tex:"+font)
-	m.StrColor(1, 1, 1) // default white.
-	return m
-}
-
-// Model returns nil if there is no model for this Pov.
-func (p *Pov) Model() Model { return p.eng.models.get(p.id) }
-
-// NewModel creates an optional rendered component associated with this Pov.
-// Returns nil if a model already exists.
-func (p *Pov) NewModel(shader string, attrs ...string) Model {
-	return p.eng.models.create(p.id, shader, attrs...)
-}
-
-// remChild is used by a pov removing itself from the hierarchy.
-func (p *Pov) remChild(c *Pov) {
-	for index, c := range p.kids {
-		if c.id == p.id {
-			p.kids = append(p.kids[:index], p.kids[index+1:]...)
-			return
-		}
+// spin using the given x,y,z values and the scratch quaternion.
+func (p *pov) spin(rot *lin.Q, x, y, z float64) {
+	if x != 0 {
+		rot.SetAa(1, 0, 0, lin.Rad(x))
+		p.tn.Rot.Mult(rot, p.tn.Rot)
+	}
+	if y != 0 {
+		rot.SetAa(0, 1, 0, lin.Rad(y))
+		p.tn.Rot.Mult(rot, p.tn.Rot)
+	}
+	if z != 0 {
+		rot.SetAa(0, 0, 1, lin.Rad(z))
+		p.tn.Rot.Mult(rot, p.tn.Rot)
 	}
 }
 
-// Pov
+// setLocal sets the local space model matrix for the pov.
+// Local space ignores the affect of any parent pov.
+// The location is an interpolation between the previous values
+// and the current value.
+func (p *pov) setLocal(lerp float64, rot *lin.Q, v3 *lin.V3) {
+	var sx, sy, sz float64
+	var lx, ly, lz float64
+
+	// only bother with interpolated values if the two values are
+	// relatively close. Otherwise the object has been teleported
+	// and should just appear where it is now.
+	threshold := 1.0
+	if dist := p.tn.Loc.DistSqr(p.tp.Loc); dist > threshold || lerp == 1.0 {
+		// get latest value - no sense interpolating.
+		sx, sy, sz = p.sn.GetS()     // scale
+		lx, ly, lz = p.tn.Loc.GetS() // position
+		rot.Set(p.tn.Rot)            // orientation.
+	} else {
+		// interpolate from the previous values.
+		sx, sy, sz = v3.Lerp(p.sp, p.sn, lerp).GetS()         // scale
+		lx, ly, lz = v3.Lerp(p.tp.Loc, p.tn.Loc, lerp).GetS() // position
+		rot.Nlerp(p.tp.Rot, p.tn.Rot, lerp)                   // orientation.
+	}
+
+	// Update the model matrix with
+	p.mm.SetQ(rot.Inv(rot))      // invert model rotation.
+	p.mm.ScaleSM(sx, sy, sz)     // scale is applied first: left of rotation.
+	p.mm.TranslateMT(lx, ly, lz) // ...right of rotation.
+}
+
+// draw sets the location render data needed for a single draw call.
+// The data is copied into a render.Draw instance. One of the key jobs
+// of this method is to put each draw request into a particular
+// render bucket so that they are drawn in order once sorted.
+func (p *pov) draw(d *render.Draw, mv, mvp *lin.M4, sc *scene, cam *Camera, rt uint32) {
+	d.SetMv(mv.Mult(p.mm, cam.vm)) // model-view
+	d.SetMvp(mvp.Mult(mv, cam.pm)) // model-view-projection
+	d.SetPm(cam.pm)                // projection only.
+	d.SetScale(p.scale())
+	d.Tag = uint32(p.eid) // for debugging.
+	d.Fbo = rt            // 0 for standard display back buffer.
+	d.Depth = !sc.is2D()
+	d.Bucket = setBucket(uint8(rt), sc.overlay)
+}
+
+// pov
 // =============================================================================
 // povs
-// FUTURE: break the Pov instance fields into individual arrays
+// FUTURE: break the pov instance fields into individual arrays
 //         as per Data Oriented programming and see if this speeds
 //         up transform processing. Benchmark!
 
-// povs manages all the active Pov instances.
-// Pov data is kept internally in order to facilitate optimizing
-// updateTransform which is called each update.
+// povs is the pov component manager.
 type povs struct {
-	index map[eid]uint32 // Map sparse entity-id to dense slice data.
-	data  []*Pov         // Dense array of Pov data...
+	// Data can change array location without updating eid references.
+	// Each of the dense data arrays has indexed data.
+	index map[eid]uint32 // Sparse entity-id to ordered slice data.
+	povs  []pov          // Dense array of pov data...
 	eids  []eid          // ...and associated entity identifiers.
+	nodes []node         // Scene graph parent-child data.
+
+	// Scratch for per update tick calculations.
+	rot *lin.Q  // scratch rotation/orientation.
+	v4  *lin.V4 // scratch vector location.
+	v3  *lin.V3 // scratch vector location.
 }
 
 // newPovs creates a manager for a group of Pov data.
 // There is only expected to be once instance created by the engine.
 func newPovs() *povs {
-	return &povs{data: []*Pov{}, eids: []eid{}, index: map[eid]uint32{}}
+	ps := &povs{}
+	ps.povs = []pov{}
+	ps.eids = []eid{}
+	ps.index = map[eid]uint32{}
+	ps.nodes = []node{}
+
+	// allocate scratch variables. These are used each update when
+	// updating world positions and rotations.
+	ps.rot = lin.NewQ()
+	ps.v4 = &lin.V4{}
+	ps.v3 = &lin.V3{}
+	return ps
 }
 
-// create a new Pov. Guarantees that child Pov's appear later in the
+// create a new pov. Guarantees that child pov's appear later in the
 // dense data array since children must be created after their parents.
-func (ps *povs) create(eng *engine, id eid, parent *Pov) *Pov {
-	p := newPov(eng, id, parent)
+func (ps *povs) create(eid eid, parent eid) *pov {
+	p := newPov(eid)
 
 	// add the pov and update the pov indicies.
-	ps.data = append(ps.data, p)
-	ps.eids = append(ps.eids, p.id)
-	ps.index[p.id] = uint32(len(ps.data)) - 1
+	index := len(ps.povs)
+	ps.index[p.eid] = uint32(index)
+	ps.povs = append(ps.povs, *p)
+	ps.eids = append(ps.eids, p.eid)
+	ps.nodes = append(ps.nodes, node{}) // node with no parent, no kids.
+
+	// if not root then add the pov to its parent.
+	if parent != 0 { // valid entities start at 1.
+		(&ps.nodes[index]).parent = parent
+		pi := ps.index[parent]
+		(&ps.nodes[pi]).kids = append((&ps.nodes[pi]).kids, eid)
+	}
 	return p
 }
 
-// dispose deletes the given Pov and all of its children.
-// The children are deleted since they are dependent on the parent
-// for their location. This also keeps all children located after
-// their parent in the data array.
-func (ps *povs) dispose(id eid) {
-	delIndex, ok := ps.index[id] // index to item for removal.
+// dispose deletes the given pov and all of its children.
+// Returns a list of deleted child entities. The returned list does not
+// contain eid - the passed in entity id.
+func (ps *povs) dispose(id eid, dead []eid) []eid {
+	di, ok := ps.index[id] // index to item being deleted.
+	delete(ps.index, id)
 	if !ok {
-		return // handle deletes on entities that don't exist.
+		return dead // ignore deletes for entities that do not exist.
 	}
-	deletee := ps.data[delIndex] // Pov to be removed.
+	node := ps.nodes[di]
 
-	// delete the requested item. Preserve order so that parents
-	// continue to appear before their children.
-	ps.data = append(ps.data[:delIndex], ps.data[delIndex+1:]...)
-	ps.eids = append(ps.eids[:delIndex], ps.eids[delIndex+1:]...)
-	for cnt, eid := range ps.eids[delIndex:] {
-		ps.index[eid] = delIndex + uint32(cnt)
+	// delete the requested item. Order is preserved so that
+	// parents continue to appear before their children.
+	ps.povs = append(ps.povs[:di], ps.povs[di+1:]...)
+	ps.eids = append(ps.eids[:di], ps.eids[di+1:]...)
+	ps.nodes = append(ps.nodes[:di], ps.nodes[di+1:]...)
+
+	// Fix up map indicies. Remove 1 from each index after the deleted index.
+	for _, eid := range ps.eids[di:] {
+		ps.index[eid] = ps.index[eid] - 1
 	}
 
-	// Deleting a Pov is the same as deleting an entity.
-	// Ensure other components get a chance to update by informing the engine.
-	if deletee.parent != nil {
-		deletee.parent.remChild(deletee) // remove the one back reference that matters.
+	// Remove deleted pov from its parent.
+	if pi, ok := ps.index[node.parent]; ok {
+		parent := &ps.nodes[pi]
+		for cnt, kid := range parent.kids {
+			if kid == id {
+				parent.kids = append(parent.kids[:cnt], parent.kids[cnt+1:]...)
+				break
+			}
+		}
 	}
-	for _, kid := range deletee.kids {
-		kid.parent = nil               // avoid unnecessary removing of back references
-		deletee.eng.disposePov(kid.id) // may delete other entities.
+
+	// At this point capture orphaned child nodes for deletion.
+	for _, kid := range node.kids {
+		ki := ps.index[kid]
+		(&ps.nodes[ki]).parent = 0 // mark as orphan.
+		dead = append(dead, kid)   // child needs to be deleted.
+		dead = ps.dispose(kid, dead)
 	}
+	return dead // entities that may have other components that need deleting.
 }
 
-// get the Pov for the given id, returning nil if
-// it does not exist.
-func (ps *povs) get(id eid) *Pov {
+// get the pov for the given id, returning nil if it does not exist.
+// Pointer reference only valid for this call.
+func (ps *povs) get(id eid) *pov {
 	if index, ok := ps.index[id]; ok {
-		return ps.data[index]
+		return &ps.povs[index]
 	}
 	return nil
 }
 
-// updateWorldTransforms ensures that world transforms match any changes to location
-// and orientation. Child transforms are relative to their parents. Thus parent
-// transforms must be, and are, positioned earlier in the slice than their children.
-func (ps *povs) updateWorldTransforms() {
-	for _, p := range ps.data {
-		if p.stable {
-			continue // ignore things that haven't moved.
-		}
-		p.mm.SetQ(p.rot.Inv(p.T.Rot))   // invert model rotation.
-		p.mm.ScaleSM(p.S.GetS())        // scale is applied first: left of rotation.
-		l := p.T.Loc                    // translate is applied last...
-		p.mm.TranslateMT(l.X, l.Y, l.Z) // ...right of rotation.
+// getNode returns the scene graph parent child information.
+func (ps *povs) getNode(id eid) *node {
+	if index, ok := ps.index[id]; ok {
+		return &ps.nodes[index]
+	}
+	return nil
+}
 
-		// world transform of a child is relative to its parent location.
-		if p.parent != nil {
-			p.mm.Mult(p.mm, p.parent.mm) // model transform + parent transform
-		}
-
-		// mark as processed and ensure all children are updated.
-		p.stable = true
-		for _, kid := range p.kids {
-			kid.stable = false
+// setPrev saves the previous locations and orientations.
+// It is called each update. It is needed to interpolate values when
+// multiple renders are called between state updates.
+//
+// FUTURE: immediate update so no updateWorld is necessary.
+func (ps *povs) setPrev() {
+	for i := 0; i < len(ps.povs); i++ {
+		p := &ps.povs[i] // update reference, not copy.
+		if !p.tp.Eq(p.tn) || !p.sp.Eq(p.sn) {
+			p.stable = false // mark as having moved for updateWorld.
+			p.tp.Set(p.tn)
+			p.sp.Set(p.sn)
 		}
 	}
 }
 
-// reset the pov manager dumping old data for garbage collection.
-func (ps *povs) reset() {
-	ps.data = []*Pov{}
-	ps.index = map[eid]uint32{}
+// renderAt sets the local world render matrix as an position/rotation
+// interpolated between the last 2 updated. Called once per display
+// frame update.
+func (ps *povs) renderAt(lerp float64) {
+	for index := 0; index < len(ps.povs); index++ {
+		p := &ps.povs[index] // want to update reference, not copy.
+		if p.stable {
+			// Anything that hasn't moved already has the correct
+			// transform matricies.
+			continue
+		}
+		p.stable = true // mark as processed.
+
+		// ensure all children are updated.
+		node := &ps.nodes[index]
+		for _, kid := range node.kids {
+			if index, ok := ps.index[kid]; ok {
+				(&ps.povs[index]).stable = false // update ref, not copy.
+			} else {
+				log.Printf("WTF Child")
+			}
+		}
+
+		// update transform and world location.
+		p.setLocal(lerp, ps.rot, ps.v3) // update local space transform.
+		if node.parent != 0 {
+			if pindex, ok := ps.index[node.parent]; ok {
+				parent := &ps.povs[pindex] // use ref, not copy.
+				// world transform of a child is relative to its parent.
+				// Parent's model matrix has already been set because parent
+				// pov's appear earlier in ps.data than their children.
+				p.mm.Mult(p.mm, parent.mm) // model + parent transform
+			} else {
+				log.Printf("WTF Parent")
+			}
+		}
+
+		// save the world location for other calculations.
+		v4 := ps.v4
+		v4.MultvM(v4.SetS(0, 0, 0, 1), p.mm)
+
+		// FUTURE: Remove side effect with move to immediate world updating.
+		p.wx, p.wy, p.wz = v4.X, v4.Y, v4.Z
+	}
+}
+
+// povs
+// =============================================================================
+// node - also tracked by the pov component manager.
+
+// node tracks the parent child relationship for an entity.
+// It creates a scene graph transform hierarchy. Each node can have
+// children which base their position and orientation relative to the parents.
+//
+// Used as part of the pov component manager to add child parent data
+// to data that have position and orientation.
+type node struct {
+	parent eid   // Parent entity identifier.
+	kids   []eid // Child entities.
+
+	// Cull set to true removes this node and its children
+	// from scene graph processing. Default false.
+	cull bool // True to exclude from scene graph processing.
 }
