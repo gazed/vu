@@ -18,7 +18,7 @@
 void RedirectIOToConsole();
 
 // Tests windows native library.
-// Example Objective-C program that ensures the graphic shell works.
+// Example C program that ensures the graphic shell works.
 // This tests the native layer implmentation without golang.
 int main()
 {

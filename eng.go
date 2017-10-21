@@ -68,11 +68,11 @@ type engine struct {
 func newEngine(app App) (eng *engine, err error) {
 	eng = &engine{}
 
-	// initialize audio .
+	// initialize audio.
 	eng.ac = audio.New()
 	if err = eng.ac.Init(); err != nil {
-		eng.shutdown()
-		return nil, fmt.Errorf("Failed starting audio %s.", err)
+		log.Printf("No audio. %s.", err)
+		eng.ac = &audio.NoAudio{} // Disable audio.
 	}
 	eng.app = newApplication(app)
 	return eng, nil
@@ -91,7 +91,7 @@ func (eng *engine) Init(d device.Device) {
 	eng.gc = render.New()
 	if err := eng.gc.Init(); err != nil {
 		log.Printf("Failed starting graphics %s.", err)
-		eng.shutdown()
+		eng.shutdown() // Can't continue without graphics.
 	}
 	eng.gc.Enable(Blend, true)    // expected application startup state.
 	eng.gc.Enable(CullFace, true) // expected application startup state.

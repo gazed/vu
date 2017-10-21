@@ -5,6 +5,7 @@ package main
 
 import (
 	"log"
+	"strings"
 	"time"
 
 	"github.com/gazed/vu/audio/al"
@@ -18,7 +19,16 @@ import (
 //
 // CONTROLS: NA
 func au() {
-	al.Init() // map the bindings to the OpenAL dynamic library.
+	// map the bindings to the OpenAL dynamic library.
+	al.Init()
+	if report := al.BindingReport(); len(report) > 0 {
+		for _, line := range report {
+			if strings.Contains(line, "[ ]") {
+				log.Printf("au: OpenAL not available")
+				return
+			}
+		}
+	}
 
 	// open the default device.
 	if dev := al.OpenDevice(""); dev != 0 {

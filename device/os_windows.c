@@ -129,7 +129,7 @@ LRESULT CALLBACK gs_wnd_proc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         }
         case WM_SIZE:
         {
-            if (wParam == SIZE_MAXIMIZED)
+            if (wParam == SIZE_MAXIMIZED || wParam == SIZE_RESTORED)
             {
                 handleInput(devResize, 0);
             }

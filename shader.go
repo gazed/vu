@@ -300,7 +300,7 @@ func phongShader() (vsh, fsh []string) {
 
 // sdfShader displays signed distance field fonts.
 //           This shader expects a font image file signed distance field
-//           values for the font images - it makes the images look blurry.
+//           values for the font images. SDF images appear blurry.
 func sdfShader() (vsh, fsh []string) {
 	vsh = []string{
 		"layout(location=0) in vec3 in_v;", // verticies

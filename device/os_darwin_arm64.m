@@ -78,13 +78,12 @@ extern void handleInput(long event, int d0, int d1);
     self.glview.userInteractionEnabled = YES;
     self.glview.enableSetNeedsDisplay = YES; // only invoked once
 
-    // FUTURE: profile the various devices for defaul values.
-    //         Would like 60 minimum. Is the ipad pro is upto 120?
-    // self.preferredFramesPerSecond = 30;
-    //
+    // All devices use the default 30fps unless otherwise set.
+    // The vu engine expects a minimum refresh of 60fps.
+    self.preferredFramesPerSecond = 60;
+
     // FUTURE: Enable multisampling? Check performance.
     // self.glview.drawableMultisample = GLKViewDrawableMultisample4X;
-    NSLog(@"%@", @"viewDidLoad");
 }
 
 - (void)viewWillTransitionToSize:(CGSize)size withTransitionCoordinator:(id<UIViewControllerTransitionCoordinator>)coordinator
@@ -93,7 +92,7 @@ extern void handleInput(long event, int d0, int d1);
     } completion:^(id<UIViewControllerTransitionCoordinatorContext> context) {
         handleInput(devResize, 0, 0);
     }];
-    NSLog(@"%@ %i %i", @"viewWillTransitionToSize", (int)size.width, (int)size.height);
+    // NSLog(@"%@ %i %i", @"viewWillTransitionToSize", (int)size.width, (int)size.height);
 }
 
 // update is called prior to each drawInRect render frame.
@@ -129,8 +128,8 @@ static void sendTouches(int change, NSSet* touches)
     CGSize size = [UIScreen mainScreen].bounds.size;
     for (UITouch* touch in touches) {
         CGPoint p = [touch locationInView:touch.view];
-        NSLog(@"%@ touchId:%i x:%i y:%i scale:%i", @"sendTouches",
-              change, (int)(p.x*scale), (int)(p.y*scale), (int)scale);
+        // NSLog(@"%@ touchId:%i x:%i y:%i scale:%i", @"sendTouches",
+        //       change, (int)(p.x*scale), (int)(p.y*scale), (int)scale);
         handleInput(change, p.x*scale, (size.height-p.y)*scale);
     }
 }

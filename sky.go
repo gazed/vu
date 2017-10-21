@@ -3,6 +3,10 @@
 
 package vu
 
+// FUTURE: Skyboxes rendering with a single quad.
+//   https://gamedev.stackexchange.com/questions/60313/implementing-a-skybox-with-glsl-version-330
+//   http://www.rioki.org/2013/03/07/glsl-skybox.html
+
 import (
 	"github.com/gazed/vu/math/lin"
 	"github.com/gazed/vu/render"

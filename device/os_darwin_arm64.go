@@ -3,11 +3,11 @@
 
 package device
 
-// The iOS (darwin) native layer. This wraps the c functions that wrap the
+// The iOS arm64 native layer. This wraps the c functions that wrap the
 // objective-c code that calls the iOS libraries (where the real work is done).
 //
 // Cross compile test can be run on macOS as follows:
-// env GOOS=darwin GOARCH=arm64 CC=/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang CXX=/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang CGO_CFLAGS="-isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS10.3.sdk -arch arm64 -miphoneos-version-min=8.0" CGO_LDFLAGS="-isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS10.3.sdk -arch arm64 -miphoneos-version-min=8.0" CGO_ENABLED=1 go build
+// env GOOS=darwin GOARCH=arm64 CC=/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang CXX=/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang CGO_CFLAGS="-isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS11.0.sdk -arch arm64 -miphoneos-version-min=11.0" CGO_LDFLAGS="-isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS11.0.sdk -arch arm64 -miphoneos-version-min=11.0" CGO_ENABLED=1 go build
 // Be-aware that this creates a cross compiled version of the go toolchain
 // each time, so it can be a bit slow.
 
@@ -104,8 +104,15 @@ type ios struct {
 }
 
 // Handled by iOS.
-func (os *ios) Dispose()       { C.dev_dispose() }
-func (os *ios) Down() *Pressed { return os.input.getPressed(os.tx, os.ty) }
+func (os *ios) Dispose() { C.dev_dispose() }
+func (os *ios) Down() *Pressed {
+	pressed := os.input.getPressed(os.tx, os.ty)
+	if down, ok := pressed.Down[KLm]; !ok || down < 0 {
+		// forget mouse location after touch end.
+		os.tx, os.ty = -1, -1
+	}
+	return pressed
+}
 func (os *ios) Size() (x, y, w, h int) {
 	var ww, wh, scale int32
 	C.dev_size((*C.int)(&ww), (*C.int)(&wh), (*C.int)(&scale))

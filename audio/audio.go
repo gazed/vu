@@ -37,3 +37,17 @@ type Audio interface {
 
 // New provides a default audio implementation.
 func New() Audio { return audioWrapper() }
+
+// ===========================================================================
+// Provide mock implementation.
+
+// NoAudio can be used to mock out audio when audio initialization fails.
+type NoAudio struct{}
+
+func (na *NoAudio) Init() error                                  { return nil }
+func (na *NoAudio) Dispose()                                     {}
+func (na *NoAudio) SetGain(gain float64)                         {}
+func (na *NoAudio) BindSound(sound, buff *uint64, d *Data) error { return nil }
+func (na *NoAudio) ReleaseSound(sound uint64)                    {}
+func (na *NoAudio) PlaceListener(x, y, z float64)                {}
+func (na *NoAudio) PlaySound(sound uint64, x, y, z float64)      {}

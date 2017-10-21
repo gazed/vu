@@ -37,6 +37,7 @@ func main() {
 		{"tr", "tr: Spinning Triangle", tr},
 		{"ld", "ld: Load .obj model", ld},
 		{"sh", "sh: Simple Shell", sh},
+		{"sz", "sz: Screen Resize", sz},
 		{"kc", "kc: Keyboard Controller", kc},
 		{"au", "au: Audio", au},
 		{"sf", "sf: Shader Fire", sf},

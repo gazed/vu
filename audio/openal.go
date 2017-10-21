@@ -36,24 +36,25 @@ func audioWrapper() Audio { return &openal{} }
 func (a *openal) Init() (err error) {
 	al.Init()
 	if err = a.validate(); err != nil {
-		return
+		return fmt.Errorf("%s", err)
 	}
 
-	// create an openal context for all sounds.
-	if a.dev = al.OpenDevice(""); a.dev != 0 {
-		if a.ctx = al.CreateContext(a.dev, nil); a.ctx != 0 {
-			al.MakeContextCurrent(a.ctx)
-			return // success
-		}
+	// Open the audio device create a context for all sounds.
+	if a.dev = al.OpenDevice(""); a.dev == 0 {
+		return fmt.Errorf("OpenAL device failed %d", al.GetError())
 	}
-	return fmt.Errorf("openal audio init failed")
+	if a.ctx = al.CreateContext(a.dev, nil); a.ctx == 0 {
+		return fmt.Errorf("OpenAL context failed %d", al.GetError())
+	}
+	al.MakeContextCurrent(a.ctx)
+	return nil // success
 }
 
 // validate that OpenAL is available. OSX has OpenAL.
 func (a *openal) validate() error {
 	if report := al.BindingReport(); len(report) > 0 {
 		for _, line := range report {
-			if strings.Contains(line, "[-]") {
+			if strings.Contains(line, "[ ]") {
 				return fmt.Errorf("OpenAL uninitialized")
 			}
 		}
