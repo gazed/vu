@@ -44,10 +44,23 @@ func New() Audio { return audioWrapper() }
 // NoAudio can be used to mock out audio when audio initialization fails.
 type NoAudio struct{}
 
-func (na *NoAudio) Init() error                                  { return nil }
-func (na *NoAudio) Dispose()                                     {}
-func (na *NoAudio) SetGain(gain float64)                         {}
+// Init is mocked method for Audio interface.
+func (na *NoAudio) Init() error { return nil }
+
+// Dispose is mocked method for Audio interface.
+func (na *NoAudio) Dispose() {}
+
+// SetGain is mocked method for Audio interface.
+func (na *NoAudio) SetGain(gain float64) {}
+
+// BindSound is mocked method for Audio interface.
 func (na *NoAudio) BindSound(sound, buff *uint64, d *Data) error { return nil }
-func (na *NoAudio) ReleaseSound(sound uint64)                    {}
-func (na *NoAudio) PlaceListener(x, y, z float64)                {}
-func (na *NoAudio) PlaySound(sound uint64, x, y, z float64)      {}
+
+// ReleaseSound is mocked method for Audio interface.
+func (na *NoAudio) ReleaseSound(sound uint64) {}
+
+// PlaceListener is mocked method for Audio interface.
+func (na *NoAudio) PlaceListener(x, y, z float64) {}
+
+// PlaySound is mocked method for Audio interface.
+func (na *NoAudio) PlaySound(sound uint64, x, y, z float64) {}

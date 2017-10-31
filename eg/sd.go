@@ -18,10 +18,10 @@ import (
 //   AD: move camera    : left right relative to camera direction.
 //   Rm: spin camera    : look around.
 func sd() {
+	defer catchErrors()
 	if err := vu.Run(&sdtag{}); err != nil {
 		log.Printf("sd: error starting engine %s", err)
 	}
-	defer catchErrors()
 }
 
 // Globally unique "tag" that encapsulates example specific data.

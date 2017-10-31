@@ -21,10 +21,10 @@ import (
 // CONTROLS:
 //   Sp    : pause while pressed
 func ff() {
+	defer catchErrors()
 	if err := vu.Run(&fftag{}); err != nil {
 		log.Printf("ff: error starting engine %s", err)
 	}
-	defer catchErrors()
 }
 
 // Globally unique "tag" that encapsulates example specific data.

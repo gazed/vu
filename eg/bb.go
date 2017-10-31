@@ -18,10 +18,10 @@ import (
 //   AD    : spin camera            : left right
 //    T    : shut down
 func bb() {
+	defer catchErrors()
 	if err := vu.Run(&bbtag{}); err != nil {
 		log.Printf("bb: error starting engine %s", err)
 	}
-	defer catchErrors()
 }
 
 // Globally unique "tag" that encapsulates example specific data.

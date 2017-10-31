@@ -23,10 +23,10 @@ import (
 //   ZX    : move light position    : up down
 //   LaRa  : spin the cube          : left right.
 func lt() {
+	defer catchErrors()
 	if err := vu.Run(&lttag{}); err != nil {
 		log.Printf("lt: error starting engine %s", err)
 	}
-	defer catchErrors()
 }
 
 // Globally unique "tag" that encapsulates example specific data.

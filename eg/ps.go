@@ -24,10 +24,10 @@ import (
 //   WS    : move camera            : forward back
 //   AD    : spin model             : left right
 func ps() {
+	defer catchErrors()
 	if err := vu.Run(&pstag{}); err != nil {
 		log.Printf("ps: error starting engine %s", err)
 	}
-	defer catchErrors()
 }
 
 // Globally unique "tag" for this example.

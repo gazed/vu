@@ -31,10 +31,10 @@ import (
 //   AD    : spin camera            : left right
 //   1-9,0 : select level           : larger with higher num. 0 is 10
 func rl() {
+	defer catchErrors()
 	if err := vu.Run(&rltag{}); err != nil {
 		log.Printf("rl: error starting engine %s", err)
 	}
-	defer catchErrors()
 }
 
 // Globally unique "tag" that encapsulates example specific data.

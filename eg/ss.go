@@ -30,10 +30,10 @@ import (
 //   AD    : rotate model           : left right
 //   1-9,0 : precanned shapes
 func ss() {
+	defer catchErrors()
 	if err := vu.Run(&superShape{}); err != nil {
 		log.Printf("ss: error starting engine %s", err)
 	}
-	defer catchErrors()
 }
 
 // superShape is the  unique "tag" to encapsulate the demo specific data.

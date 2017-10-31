@@ -21,10 +21,10 @@ import (
 //   key   : highlight key press
 //   mouse : highlight mouse click
 func kc() {
+	defer catchErrors()
 	if err := vu.Run(&kctag{}); err != nil {
 		log.Printf("kc: error starting engine %s", err)
 	}
-	defer catchErrors()
 }
 
 // Globally unique "tag" that encapsulates example specific data.

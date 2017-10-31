@@ -22,10 +22,10 @@ import (
 //   0-9   : select animation
 //   Tab   : switch model
 func ma() {
+	defer catchErrors()
 	if err := vu.Run(&matag{}); err != nil {
 		log.Printf("ma: error starting engine %s", err)
 	}
-	defer catchErrors()
 }
 
 // Globally unique "tag" that encapsulates example specific data.

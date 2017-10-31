@@ -23,10 +23,10 @@ import (
 //   WASD  : move hex grid          : up left down right
 //   ZX    : scale hex grid         : bigger smaller
 func hx() {
+	defer catchErrors()
 	if err := vu.Run(&hxtag{}); err != nil {
 		log.Printf("hx: error starting engine %s", err)
 	}
-	defer catchErrors()
 }
 
 // Encapsulate example specific data with a unique "tag".

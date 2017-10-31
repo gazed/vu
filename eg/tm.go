@@ -20,10 +20,10 @@ import (
 //   []    : move ocean level       : up down
 //   -=    : change texture         : greener browner
 func tm() {
+	defer catchErrors()
 	if err := vu.Run(&tmtag{}); err != nil {
 		log.Printf("tm: error starting engine %s", err)
 	}
-	defer catchErrors()
 }
 
 // Encapsulate example specific data with a unique "tag".

@@ -20,10 +20,10 @@ import (
 // CONTROLS:
 //   WASD  : move light position    : forward left back right
 func sm() {
+	defer catchErrors()
 	if err := vu.Run(&smtag{}); err != nil {
 		log.Printf("sm: error starting engine %s", err)
 	}
-	defer catchErrors()
 }
 
 // Globally unique "tag" that encapsulates example specific data.

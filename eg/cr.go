@@ -22,10 +22,10 @@ import (
 //   B     : generate new falling spheres.
 //   Space : accellerate the striker sphere.
 func cr() {
+	defer catchErrors()
 	if err := vu.Run(&crtag{}); err != nil {
 		log.Printf("cr: error initializing engine %s", err)
 	}
-	defer catchErrors()
 }
 
 // Globally unique "tag" that encapsulates example specific data.

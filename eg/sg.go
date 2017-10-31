@@ -25,10 +25,10 @@ import (
 //   0-5   : change cube size
 //   P     : print number of cubes
 func sg() {
+	defer catchErrors()
 	if err := vu.Run(&sgtag{}); err != nil {
 		log.Printf("sg: error starting engine %s", err)
 	}
-	defer catchErrors()
 }
 
 // Globally unique "tag" that encapsulates example specific data.

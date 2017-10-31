@@ -21,10 +21,10 @@ import (
 // CONTROLS:
 //   Lm    : show mouse hit
 func rc() {
+	defer catchErrors()
 	if err := vu.Run(&rctag{}); err != nil {
 		log.Printf("rc: error starting engine %s", err)
 	}
-	defer catchErrors()
 }
 
 // Globally unique "tag" for this example.

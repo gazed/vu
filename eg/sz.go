@@ -23,10 +23,10 @@ import (
 //
 // CONTROLS: Resize the window and see how the application responds.
 func sz() {
+	defer catchErrors()
 	if err := vu.Run(&sztag{}); err != nil {
 		log.Printf("sz: error starting engine %s", err)
 	}
-	defer catchErrors()
 }
 
 // Globally unique "tag" that encapsulates example specific data.

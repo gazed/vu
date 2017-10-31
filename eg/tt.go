@@ -23,10 +23,10 @@ import (
 //   AD    : spin model             : left right
 //   T     : shut down
 func tt() {
+	defer catchErrors()
 	if err := vu.Run(&toTex{}); err != nil {
 		log.Printf("tt: error starting engine %s", err)
 	}
-	defer catchErrors()
 }
 
 // Globally unique "tag" that encapsulates example specific data.
