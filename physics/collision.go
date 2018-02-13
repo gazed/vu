@@ -6,7 +6,7 @@ package physics
 // // The following block is C code and cgo directvies.
 // // It is used to include collision.c code.
 //
-// #cgo CFLAGS: -lm -std=c99
+// #cgo CFLAGS: -std=c99
 //
 // #include "collision.h"
 import "C" // must be located here.

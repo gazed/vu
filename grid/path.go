@@ -6,6 +6,7 @@ package grid
 // path is an A* implementation that works with 2D level layouts that conform
 // to Plan. See:
 //     http://en.wikipedia.org/wiki/A*_search_algorithm
+//     https://www.redblobgames.com/pathfinding/a-star/introduction.html
 //     http://www.policyalmanac.org/games/aStarTutorial.htm
 //     http://www.gamasutra.com/view/feature/131505/toward_more_realistic_pathfinding.php?print=1
 // Other pathfinding links:

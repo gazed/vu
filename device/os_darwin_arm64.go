@@ -7,18 +7,19 @@ package device
 // objective-c code that calls the iOS libraries (where the real work is done).
 //
 // Cross compile test can be run on macOS as follows:
-// env GOOS=darwin GOARCH=arm64 CC=/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang CXX=/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang CGO_CFLAGS="-isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS11.0.sdk -arch arm64 -miphoneos-version-min=11.0" CGO_LDFLAGS="-isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS11.0.sdk -arch arm64 -miphoneos-version-min=11.0" CGO_ENABLED=1 go build
+// env GOOS=darwin GOARCH=arm64 CC=/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang CXX=/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang CGO_CFLAGS="-isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS11.1.sdk -arch arm64 -miphoneos-version-min=11.0" CGO_LDFLAGS="-isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS11.1.sdk -arch arm64 -miphoneos-version-min=11.1" CGO_ENABLED=1 go build
 // Be-aware that this creates a cross compiled version of the go toolchain
 // each time, so it can be a bit slow.
 
 // // The following block is C code and cgo directvies.
 //
-// #cgo darwin CFLAGS: -x objective-c -fno-common
-// #cgo darwin LDFLAGS: -framework Foundation -framework UIKit -framework GLKit -framework OpenGLES
+// #cgo darwin CFLAGS: -x objective-c
+// #cgo darwin LDFLAGS: -framework Foundation -framework UIKit -framework GLKit -framework OpenGLES -framework AVFoundation
 //
 // #include <stdlib.h>
 // #include <UIKit/UIDevice.h>
 // #include <GLKit/GLKit.h>
+// #include <AVFoundation/AVFoundation.h>
 // #include "os_darwin_arm64.h"
 import "C" // must be located here.
 

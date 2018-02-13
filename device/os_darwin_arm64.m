@@ -8,6 +8,7 @@
 
 #import <UIKit/UIKit.h>
 #import <GLKit/GLKit.h>
+#import <AVFoundation/AVFoundation.h>
 #import "os_darwin_arm64.h"
 
 // The golang device callbacks that would normally be defined in _cgo_export.h
@@ -38,9 +39,15 @@ extern void handleInput(long event, int d0, int d1);
 // VuDelegate receives callbacks from the main event loop.
 // It mainly cares about reporting when the app is active and visible.
 // iOS apps can only make OpenGL calls when they are active and visible
-// or the app is force terminated.
+// (or else the app is force terminated).
 @implementation VuDelegate
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
+
+    // Make it so that music can be played while the app is running.
+    // FUTURE: optionally set this for games that need full audio control.
+    [[AVAudioSession sharedInstance] setCategory: AVAudioSessionCategoryAmbient error: nil];
+
+    // Allocate and initialize the app window.
     self.window = [[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]];
     self.controller = [[VuController alloc] initWithNibName:nil bundle:nil];
     self.window.rootViewController = self.controller;

@@ -1,4 +1,4 @@
-// Copyright © 2016 Galvanized Logic Inc.
+// Copyright © 2016-2018 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package synth
@@ -6,6 +6,7 @@ package synth
 // Z-order curve utility methods. A z-order number represents a single value
 // of a global x,y positioning. The number of bits in the z-order number
 // indicate the zoom level. Also known as Morton codes.
+//     https://en.wikipedia.org/wiki/Z-order_curve
 //     https://fgiesen.wordpress.com/2009/12/13/decoding-morton-codes
 //     http://graphics.stanford.edu/~seander/bithacks.html#InterleaveBMN
 

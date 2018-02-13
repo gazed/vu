@@ -12,7 +12,7 @@ package device
 
 // // The following block is C code and cgo directvies.
 //
-// #cgo darwin CFLAGS: -x objective-c -fno-common
+// #cgo darwin CFLAGS: -x objective-c
 // #cgo darwin LDFLAGS: -framework Cocoa -framework Quartz -framework OpenGL
 //
 // #import <stdlib.h>

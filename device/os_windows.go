@@ -18,6 +18,7 @@ import "C" // must be located here.
 
 import (
 	"runtime"
+	"time"
 	"unsafe"
 )
 
@@ -89,17 +90,30 @@ func handleInput(event, data int64) {
 // win is the macOS implementation of the Device interface.
 // See the Device interface for method descriptions.
 type win struct {
-	app   App    // update/render callback.
-	input *input // tracks current keys pressed.
+	app      App       // update/render callback.
+	input    *input    // tracks current keys pressed.
+	lastSwap time.Time // helps throttle very fast apps.
 }
 
 // Implement the Device interface. See docs in device.go
 // Mostly call the underlying native layer.
 func (os *win) Down() *Pressed     { return os.input.getPressed(os.Cursor()) }
 func (os *win) Dispose()           { C.dev_dispose() }
-func (os *win) SwapBuffers()       { C.dev_swap() }
 func (os *win) ToggleFullScreen()  { C.dev_toggle_fullscreen() }
 func (os *win) IsFullScreen() bool { return uint(C.dev_fullscreen()) == 1 }
+func (os *win) SwapBuffers() {
+	elapsed := time.Since(os.lastSwap)
+	os.lastSwap = time.Now()
+	C.dev_swap()
+
+	// Throttle unreasonable refresh rates since most monitors only
+	// refresh at 60 or 120 times a second. Generally an update is
+	// every 20ms, so start throttling if the app is twice that.
+	// Use a smaller sleep time since sleep is not exact.
+	if elapsed/time.Millisecond < 10 {
+		time.Sleep(5 * time.Millisecond)
+	}
+}
 func (os *win) SetCursorAt(x, y int) {
 	C.dev_set_cursor_location(C.long(x), C.long(y))
 }

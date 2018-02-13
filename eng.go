@@ -67,13 +67,6 @@ type engine struct {
 // if any problems are encountered. Called once by Run on startup.
 func newEngine(app App) (eng *engine, err error) {
 	eng = &engine{}
-
-	// initialize audio.
-	eng.ac = audio.New()
-	if err = eng.ac.Init(); err != nil {
-		log.Printf("No audio. %s.", err)
-		eng.ac = &audio.NoAudio{} // Disable audio.
-	}
 	eng.app = newApplication(app)
 	return eng, nil
 }
@@ -84,6 +77,14 @@ func newEngine(app App) (eng *engine, err error) {
 // starting the regular callbacks to the Update method.
 func (eng *engine) Init(d device.Device) {
 	eng.dev = d
+
+	// initialize audio. This is done here because iOS needs to
+	// configure shared audio before intializing OpenAL
+	eng.ac = audio.New()
+	if err := eng.ac.Init(); err != nil {
+		log.Printf("No audio. %s.", err)
+		eng.ac = &audio.NoAudio{} // Disable audio.
+	}
 
 	// initialize graphics now that context is available.
 	// Graphics can be initialized before device on OSX, but Windows
