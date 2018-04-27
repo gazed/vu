@@ -65,13 +65,21 @@ go build .
   Running the OpenAL installer results in a ``c:/Windows/System32/OpenAL32.dll``.
 * Building with Cygwin has not been attempted. It may have special needs.
 
+Games
+-----
+
+* [Bampf](https://github.com/gazed/bampf) Open source reference game.
+* [Jewel of Kings](http://jewelofkings.com) A game available for purchase from MacOS, iOS, and Windows stores.
+
 Limitations
 -----------
 
 The engine and its packages include the essentials by design. In particular:
 
-* There is no 3D editor.
-* There is no networking package.
+* Vu is programmer centric. For example, there is no 3D asset editor.
+  A working application is used as an editor replacement. Programmers create a
+  working application with stub 3D assets. Artists and modellers then polish
+  and finish the application by replacing the stub assets.
 * Physics only handles boxes and spheres.
 * The device layer interface provides only the absolute minimum from the underlying
   windowing system. OSX, iOS, and Windows 7+ are currently supported.
