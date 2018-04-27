@@ -1,4 +1,4 @@
-// Copyright © 2015-2017 Galvanized Logic Inc.
+// Copyright © 2015-2018 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package vu
@@ -56,20 +56,10 @@ func (p *Profile) Dump() {
 	fmt.Printf("E:%2.4f U:%2.4f #:%d\n", e, u, p.Renders)
 }
 
-// Modelled returns the total number of models and the total
-// number of verticies for all models.
-func (p *Profile) Modelled(eng Eng) (models, tris, verts int) {
-	return eng.(*application).models.stats()
-}
-
-// Rendered returns the number of models and the number
-// of verticies rendered in the last rendering pass.
-func (p *Profile) Rendered(eng Eng) (models, tris, verts int) {
-	fr := eng.(*application).frame
-	for _, dc := range fr {
-		tris += int(dc.FaceCnt)
-		verts += int(dc.VertCnt)
-	}
-	// 3 vertex indicies per triangle. Verticies reported correctly.
-	return len(fr), tris / 3, verts
+// Rendered returns the total number of models and the number
+// of models rendered in the last rendering pass.
+func (p *Profile) Rendered(eng Eng) (models, rendered int) {
+	models = eng.(*application).models.stats()
+	rendered = len(eng.(*application).frame)
+	return models, rendered
 }

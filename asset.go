@@ -1,4 +1,4 @@
-// Copyright © 2016-2017 Galvanized Logic Inc.
+// Copyright © 2016-2018 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package vu
@@ -7,7 +7,9 @@ package vu
 // See eid.go for entity identifiers.
 
 import (
+	"hash/crc64"
 	"math"
+	"math/rand"
 )
 
 // asset describes any data asset that can uniquely identify itself.
@@ -26,7 +28,7 @@ type asset interface {
 type aid uint64
 
 // kind returns the type of asset data for this aid.
-func (a aid) kind() uint32 { return uint32(a & math.MaxUint32) }
+func (a aid) kind() uint32 { return uint32(a & math.MaxUint8) }
 
 // Asset types used in aid and aid.kind.
 const (
@@ -44,18 +46,13 @@ const (
 // asset utility methods.
 
 // assetID produces a unique asset identifier using for the given
-// asset type t, and asset name.
-func assetID(t int, name string) aid { return aid(t) + aid(stringHash(name))<<32 }
+// asset type t, and asset name. Keep as many stringHash bits as possible
+// to avoid collisions.
+func assetID(t int, name string) aid { return aid(t) + aid(stringHash(name))<<8 }
+
+var crcTable = crc64.MakeTable(rand.Uint64())
 
 // stringHash turns a string into a number.
-// Algorithm based on java String.hashCode().
-//     s[0]*31^(n-1) + s[1]*31^(n-2) + ... + s[n-1]
-func stringHash(s string) uint32 {
-	bytes := []byte(s)
-	n := len(bytes)
-	hash := uint32(0)
-	for index, b := range bytes {
-		hash += uint32(b) * uint32(math.Pow(31, float64(n-index)))
-	}
-	return hash
+func stringHash(s string) (hash uint64) {
+	return crc64.Checksum([]byte(s), crcTable)
 }

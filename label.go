@@ -1,4 +1,4 @@
-// Copyright © 2017 Galvanized Logic Inc.
+// Copyright © 2017-2018 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package vu
@@ -27,11 +27,11 @@ func (e *Ent) MakeLabel(shader, font string) *Ent {
 	return e
 }
 
-// Typeset the given string, setting the labels string and
+// SetStr the given string, setting the labels string and
 // regenerating the existing mesh. Will cause a mesh rebind.
 //
 // Depends on Ent.MakeLabel.
-func (e *Ent) Typeset(s string) *Ent {
+func (e *Ent) SetStr(s string) *Ent {
 	l := e.app.models.getLabel(e.eid)
 	v := e.app.models.get(e.eid)
 	if l != nil && v != nil {

@@ -1,4 +1,4 @@
-// Copyright © 2014-2017 Galvanized Logic. All rights reserved.
+// Copyright © 2014-2018 Galvanized Logic. All rights reserved.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -51,15 +51,15 @@ func (rc *rctag) Create(eng vu.Eng, s *vu.State) {
 	rc.gsize = 32               // 4x8 ie. image is 4x4 grid, tile.obj is oversampled by 8.
 
 	// The ray cast target is a plane displaying the image of a 32x32 grid.
-	rc.fsize = 10.0                                  // 2x2 plane to 20x20 plane.
-	rc.floor = rc.scene.AddPart()                    // create the floor.
-	rc.floor.MakeBody(vu.Plane(0, 0, -1))            // the floors ray intersect shape.
-	rc.floor.SetScale(rc.fsize, rc.fsize, 0)         // scale the model to fsize.
-	rc.floor.MakeModel("uv", "msh:tile", "tex:tile") // put the image on the floor.
+	rc.fsize = 10.0                          // 2x2 plane to 20x20 plane.
+	rc.floor = rc.scene.AddPart()            // create the floor.
+	rc.floor.MakeBody(vu.Plane(0, 0, -1))    // the floors ray intersect shape.
+	rc.floor.SetScale(rc.fsize, rc.fsize, 0) // scale the model to fsize.
+	rc.floor.MakeModel("textured", "msh:tile", "tex:tile")
 
-	// create a selected tile tracker.
-	rc.hilite = rc.scene.AddPart().SetScale(0.625, 0.625, 0.001) // scale to cover a single tile.
-	rc.hilite.MakeModel("uv", "msh:icon", "tex:image")
+	// create a selected tile tracker scaled to cover a single tile.
+	rc.hilite = rc.scene.AddPart().SetScale(0.625, 0.625, 0.001)
+	rc.hilite.MakeModel("textured", "msh:icon", "tex:image")
 
 	// Put spheres at the floor corners.
 	rc.s0 = rc.makeSphere(rc.scene.AddPart(), 10, 10, 0, 1, 0, 0)
@@ -73,7 +73,7 @@ func (rc *rctag) Create(eng vu.Eng, s *vu.State) {
 	rc.banner = rc.ui.AddPart()
 	rc.banner.SetAt(100, 100, 0)
 	rc.banner.Cull(true)
-	rc.banner.MakeLabel("txt", "lucidiaSu22").Typeset("Overlay Text")
+	rc.banner.MakeLabel("labeled", "lucidiaSu22").SetStr("Overlay Text")
 }
 
 // makeSphere creates a sphere at the given x, y, z location and with
@@ -82,7 +82,7 @@ func (rc *rctag) makeSphere(sp *vu.Ent, x, y, z float64, r, g, b float32) *vu.En
 	sz := 0.5
 	sp.MakeBody(vu.Sphere(sz))
 	sp.SetAt(x, y, z).SetScale(sz, sz, sz)
-	model := sp.MakeModel("solid", "msh:sphere")
+	model := sp.MakeModel("colored", "msh:sphere")
 	model.SetUniform("kd", r, g, b)
 	return sp
 }
@@ -127,7 +127,7 @@ func (rc *rctag) raycast(mx, my int) {
 			xsize, ysize := top.X-bot.X, top.Y-bot.Y
 			gx := int(((x * 2 / xsize) + 1) / 2 * rc.gsize)
 			gy := int(((y * 2 / ysize) + 1) / 2 * rc.gsize)
-			rc.banner.Typeset(fmt.Sprintf("%d:%d", gx, gy))
+			rc.banner.SetStr(fmt.Sprintf("%d:%d", gx, gy))
 		} else {
 			rc.hilite.Cull(true) // missed the grid.
 			rc.banner.Cull(true)

@@ -1,10 +1,13 @@
-// Copyright © 2017 Galvanized Logic Inc.
+// Copyright © 2017-2018 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package vu
 
 import (
+	"fmt"
 	"testing"
+
+	"github.com/gazed/vu/math/lin"
 )
 
 func TestDeleteRoot(t *testing.T) {
@@ -48,4 +51,14 @@ func TestDeleteMiddle(t *testing.T) {
 	if len(kids) != 4 || povs.nodes[0].kids[0] != 3 {
 		t.Errorf("0:%d 3:%d", len(kids), povs.nodes[0].kids[0])
 	}
+}
+
+// Dump a matrix. Used to debug the pov transform methods.
+func DumpM4(m *lin.M4) string {
+	format := "[%+2.9f, %+2.9f, %+2.9f, %+2.9f]\n"
+	str := fmt.Sprintf(format, m.Xx, m.Xy, m.Xz, m.Xw)
+	str += fmt.Sprintf(format, m.Yx, m.Yy, m.Yz, m.Yw)
+	str += fmt.Sprintf(format, m.Zx, m.Zy, m.Zz, m.Zw)
+	str += fmt.Sprintf(format, m.Wx, m.Wy, m.Wz, m.Ww)
+	return str
 }

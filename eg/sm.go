@@ -1,4 +1,4 @@
-// Copyright © 2013-2017 Galvanized Logic Inc.
+// Copyright © 2013-2018 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -48,10 +48,10 @@ func (sm *smtag) Create(eng vu.Eng, s *vu.State) {
 
 	// create a few objects that cast shadows.
 	sm.cube = sm.scene.AddPart().SetAt(-1, -1, -4)
-	sm.cube.MakeModel("gouraud", "msh:box", "mat:gray")
+	sm.cube.MakeModel("phong", "msh:box", "mat:gray")
 	sm.cube.Spin(45, 45, 0)
 	sm.sphere = sm.scene.AddPart().SetAt(1, 1, -4)
-	sm.sphere.MakeModel("gouraud", "msh:sphere", "mat:red")
+	sm.sphere.MakeModel("phong", "msh:sphere", "mat:red")
 
 	// create a ground block to show shadows.
 	ground := sm.scene.AddPart().SetAt(0, 0, -20).SetScale(50, 50, 5)

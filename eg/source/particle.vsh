@@ -7,14 +7,14 @@ layout (location = 0) in vec3 in_v; // initial velocity
 layout (location = 1) in float start_time;
 
 uniform float time; // system time in seconds
-uniform mat4  mvm;  // model view matrix
-uniform mat4  pm;   // projection matrix
+uniform mat4  pm;     // projection transform matrix.
+uniform mat4  vm;     // view transform matrix
+uniform mat4  mm;     // model transform matrix
 
-// the fragment shader can use this for it's output colour's alpha component 
+// the fragment shader can use this for it's output colour's alpha component
 out float opacity;
 
-void main()
-{
+void main() {
 	// work out the elapsed time for _this particle_ after its start time
 	float t = time - start_time;
 
@@ -33,6 +33,7 @@ void main()
 
     // ensure the point size is adjusted for camera distance.
     float spriteSize = 0.2;
+    mat4 mvm = vm * mm;
     vec4 eyePos = mvm * vec4(p, 1);
     vec2 screenSize = vec2(800, 600);
     vec4 projVoxel = pm * vec4(spriteSize,spriteSize,eyePos.z,eyePos.w);

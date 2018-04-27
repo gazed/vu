@@ -1,4 +1,4 @@
-// Copyright © 2013-2015 Galvanized Logic Inc.
+// Copyright © 2013-2018 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package physics
@@ -184,10 +184,10 @@ type plane struct {
 // NewPlane creates a plane shape using the given plane normal x, y, z.
 func NewPlane(x, y, z float64) Shape { return &plane{x, y, z} }
 
-// SetPlane allows a ray direction to be changed. Body b is expected
+// SetPlane allows a plane to be updated. Body b is expected
 // to be a plane created from NewPlane().
 func SetPlane(b Body, x, y, z float64) {
-	p := b.(*body).shape.(*plane) // b had better be a ray.
+	p := b.(*body).shape.(*plane) // b had better be a plane.
 	p.nx, p.ny, p.nz = x, y, z
 }
 

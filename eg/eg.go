@@ -1,4 +1,4 @@
-// Copyright © 2013-2017 Galvanized Logic Inc.
+// Copyright © 2013-2018 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 // Package eg is used to test and demonstrate different aspects of the
@@ -32,31 +32,31 @@ type example struct {
 // to more complex/interesting at the bottom of the list.
 func main() {
 	examples := []example{
-		{"dg", "dg: Dump OpenGL Bindings", dg},
-		{"da", "da: Dump OpenAL Bindings", da},
-		{"tr", "tr: Spinning Triangle", tr},
-		{"ld", "ld: Load .obj model", ld},
-		{"sh", "sh: Simple Shell", sh},
-		{"sz", "sz: Screen Resize", sz},
-		{"kc", "kc: Keyboard Controller", kc},
-		{"au", "au: Audio", au},
-		{"sf", "sf: Shader Fire", sf},
-		{"bb", "bb: Banners & Billboards", bb},
-		{"lt", "lt: Lighting", lt},
-		{"rl", "rl: Random Levels", rl},
-		{"hx", "hx: Hex Grid", hx},
-		{"sg", "sg: Scene Graph", sg},
-		{"cr", "cr: Collision Resolution", cr},
-		{"tm", "tm: Terrain Map", tm},
-		{"ps", "ps: Particle System", ps},
-		{"rc", "rc: Ray Cast", rc},
-		{"sd", "sd: Sky Dome", sd},
-		{"ma", "ma: Model Animation", ma},
-		{"ff", "ff: Flow Field", ff},
-		{"rt", "rt: Ray Trace", rt},
-		{"tt", "tt: Render to Texture", tt},
-		{"sm", "sm: Shadow Map", sm},
-		{"ss", "ss: Super Shapes", ss},
+		{"dg", "Dump OpenGL Bindings", dg},
+		{"da", "Dump OpenAL Bindings", da},
+		{"tr", "Spinning Triangle", tr},
+		{"ld", "Load .obj model", ld},
+		{"sh", "Simple Shell", sh},
+		{"sz", "Screen Resize", sz},
+		{"kc", "Keyboard Controller", kc},
+		{"au", "Audio", au},
+		{"sf", "Shader Fire", sf},
+		{"bb", "Banners & Billboards", bb},
+		{"lt", "Lighting", lt},
+		{"rl", "Random Levels", rl},
+		{"hx", "Hex Grid", hx},
+		{"sg", "Scene Graph", sg},
+		{"cr", "Collision Resolution", cr},
+		{"tm", "Terrain Map", tm},
+		{"ps", "Particle System", ps},
+		{"rc", "Ray Cast", rc},
+		{"sd", "Sky Dome", sd},
+		{"ma", "Model Animation", ma},
+		{"ff", "Flow Field", ff},
+		{"rt", "Ray Trace", rt},
+		{"tt", "Render to Texture", tt},
+		{"sm", "Shadow Map", sm},
+		{"ss", "Super Shapes", ss},
 	}
 
 	// run the first matching example.
@@ -73,7 +73,7 @@ func main() {
 	fmt.Printf("Usage: eg [example]\n")
 	fmt.Printf("Examples are:\n")
 	for _, example := range examples {
-		fmt.Printf("   %s \n", example.description)
+		fmt.Printf("   %s: %s \n", example.tag, example.description)
 	}
 }
 

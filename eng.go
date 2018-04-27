@@ -1,4 +1,4 @@
-// Copyright © 2013-2017 Galvanized Logic Inc.
+// Copyright © 2013-2018 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package vu
@@ -162,8 +162,8 @@ func (eng *engine) render(lerp float64) {
 
 	// Use lerp to calculate positions between the two most recent updates.
 	// This smooths rendering between the different update and display rates.
-	app.povs.renderAt(lerp)
-	app.scenes.renderAt(lerp, app.state.W, app.state.H)
+	app.povs.setRenderTransforms(lerp)
+	app.scenes.setRenderTransforms(lerp, app.state.W, app.state.H)
 	app.frame = app.scenes.draw(app, app.frame)
 
 	// render by sending the frame draw calls to the render context.
@@ -175,7 +175,7 @@ func (eng *engine) render(lerp float64) {
 	app.prof.Render += time.Since(startRender)
 }
 
-// update does some work on the main thread and the reset on a goroutine.
+// update does some work on the main thread and the rest on a goroutine.
 // Access to the *application instance is relinquished until the update
 // goroutine completes.
 //
@@ -259,7 +259,7 @@ func (eng *engine) shutdown() {
 //
 // FUTURE: move all knowledge of asset binding into the render package.
 func (eng *engine) bind(a asset) error {
-	switch d := a.(type) {
+	switch d := a.(type) { // get data type for binding.
 	case *Mesh:
 		d.rebind = false // for bind() from loader instead of Mesh.bind().
 		return eng.gc.BindMesh(&d.vao, d.vdata, d.faces)

@@ -1,8 +1,8 @@
-// Copyright © 2017 Galvanized Logic Inc.
+// Copyright © 2017-2018 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 // Package sdf generates signed distance field images and font description
-// text files from a pair of angle code bmfont font files. It works with a
+// text files from a pair of angel code bmfont font files. It works with a
 // set of files generated from bmfont at 8x the expected final resolution.
 //
 // Some bmfont .bmfc config files are kept as examples and to be able to
@@ -34,7 +34,7 @@ import (
 	"strings"
 )
 
-// sdf generates a signed distance field image from a set of angle code bmfont
+// sdf generates a signed distance field image from a set of angel code bmfont
 // font files. Expects to work with a set of files generated at 8x the final
 // size. Ie: a 2048x2048 font image is scaled down to a 256x256 font image.
 //

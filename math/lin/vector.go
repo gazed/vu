@@ -1,4 +1,4 @@
-// Copyright © 2013-2015 Galvanized Logic Inc.
+// Copyright © 2013-2018 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package lin
@@ -211,24 +211,6 @@ func (v *V3) Mult(a, b *V3) *V3 {
 // Same behaviour as V3.Mult().
 func (v *V4) Mult(a, b *V4) *V4 {
 	v.X, v.Y, v.Z, v.W = a.X*b.X, a.Y*b.Y, a.Z*b.Z, a.W*b.W
-	return v
-}
-
-// MultQ (*) multiplies a vector by quaternion, effectively applying the
-// rotation of quaternion q to vector a and storing the result in v. The input
-// vector a, and quaternion q are unchanged.
-func (v *V3) MultQ(a *V3, q *Q) *V3 {
-	// A implementation based on:
-	//   http://molecularmusings.wordpress.com/2013/05/24/a-faster-quaternion-vector-multiplication/
-	// It benchmarked about 40% faster than the standard implementation at:
-	//   http://www.mathworks.com/help/aeroblks/quaternionrotation.html
-
-	// t = 2 * cross(q.xyz, v)
-	c0x, c0y, c0z := 2*(q.Y*a.Z-q.Z*a.Y), 2*(q.Z*a.X-q.X*a.Z), 2*(q.X*a.Y-q.Y*a.X) //cross(q.xyz, v)
-
-	// v' = v + q.w * t + cross(q.xyz, t)
-	c1x, c1y, c1z := q.Y*c0z-q.Z*c0y, q.Z*c0x-q.X*c0z, q.X*c0y-q.Y*c0x // cross(q.xyz, t)
-	v.X, v.Y, v.Z = a.X+q.W*c0x+c1x, a.Y+q.W*c0y+c1y, a.Z+q.W*c0z+c1z
 	return v
 }
 
@@ -470,8 +452,10 @@ func (v *V4) MultMv(m *M4, cv *V4) *V4 {
 // ============================================================================
 // vector-quaternion operations
 
-// MultvQ  updates vector v to be the rotation of vector a by quaternion q.
-func (v *V3) MultvQ(a *V3, q *Q) *V3 {
+// MultQ (*) multiplies a vector by quaternion, effectively applying the
+// rotation of quaternion q to vector a and storing the result in v. The input
+// vector a, and quaternion q are unchanged.
+func (v *V3) MultQ(a *V3, q *Q) *V3 {
 	v.X, v.Y, v.Z = multSQ(a.X, a.Y, a.Z, q.X, q.Y, q.Z, q.W)
 	return v
 }

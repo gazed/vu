@@ -1,4 +1,4 @@
-// Copyright © 2013-2017 Galvanized Logic Inc.
+// Copyright © 2013-2018 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -46,18 +46,18 @@ func (kc *kctag) Create(eng vu.Eng, s *vu.State) {
 
 	// Create the keyboard image.
 	kb := kc.ui.AddPart().SetScale(900, 255, 0).SetAt(450, 100+85, 0)
-	kb.MakeModel("uv", "msh:icon", "tex:keyboard")
+	kb.MakeModel("textured", "msh:icon", "tex:keyboard")
 
 	// Pressed key focus
 	kc.focus = kc.ui.AddPart().SetScale(50, 50, 0)
-	kc.focus.MakeModel("uv", "msh:icon", "tex:particle")
+	kc.focus.MakeModel("textured", "msh:icon", "tex:particle")
 
 	// Place the key symbols over the keys.
 	for code, key := range kc.positions { // map key is key code, map value is key struct
 		if char := vu.Symbol(code); char > 0 {
 			cx, cy := key.location()
 			letter := kc.ui.AddPart().SetAt(cx, cy, 0)
-			letter.MakeLabel("txt", "lucidiaSu18").Typeset(string(char))
+			letter.MakeLabel("labeled", "lucidiaSu18").SetStr(string(char))
 			letter.SetColor(0, 0, 0)
 		}
 	}

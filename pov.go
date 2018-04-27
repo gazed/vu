@@ -1,4 +1,4 @@
-// Copyright © 2013-2017 Galvanized Logic Inc.
+// Copyright © 2013-2018 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package vu
@@ -44,7 +44,10 @@ func (e *Ent) At() (x, y, z float64) {
 // Depends on Ent.AddPart.
 func (e *Ent) SetAt(x, y, z float64) *Ent {
 	if p := e.app.povs.get(e.eid); p != nil {
-		p.tn.Loc.X, p.tn.Loc.Y, p.tn.Loc.Z = x, y, z
+		if p.tn.Loc.X != x || p.tn.Loc.Y != y || p.tn.Loc.Z != z {
+			p.tn.Loc.X, p.tn.Loc.Y, p.tn.Loc.Z = x, y, z
+			e.app.povs.updateWorld(p, e.eid)
+		}
 		return e
 	}
 	log.Printf("SetAt needs AddPart %d", e.eid)
@@ -52,15 +55,28 @@ func (e *Ent) SetAt(x, y, z float64) *Ent {
 }
 
 // World returns the world space coordinates for this entity.
-// World space is recalculated after every update.
+// World space is recalculated immediately on any change.
 //
 // Depends on Ent.AddPart.
 func (e *Ent) World() (wx, wy, wz float64) {
 	if p := e.app.povs.get(e.eid); p != nil {
-		return p.wx, p.wy, p.wz
+		return p.world()
 	}
 	log.Printf("World needs AddPart %d", e.eid)
 	return 0, 0, 0
+}
+
+// WorldRot returns the world rotation for this entity.
+// WorldRot space is recalculated immediately on any change
+// and returns nil if the entity does not have a part.
+//
+// Depends on Ent.AddPart.
+func (e *Ent) WorldRot() (q *lin.Q) {
+	if p := e.app.povs.get(e.eid); p != nil {
+		return p.tw.Rot
+	}
+	log.Printf("WorldRot needs AddPart %d", e.eid)
+	return nil
 }
 
 // Move directly affects the location by the given translation amounts
@@ -74,14 +90,17 @@ func (e *Ent) Move(x, y, z float64, dir *lin.Q) {
 		p.tn.Loc.X += dx
 		p.tn.Loc.Y += dy
 		p.tn.Loc.Z += dz
+		e.app.povs.updateWorld(p, e.eid)
 		return
 	}
 	log.Printf("Move missing AddPart %d", e.eid)
 }
 
 // View returns the orientation of the pov. Orientation combines
-// direction and rotation about the direction.
-// Orientation is relative to parent. World space if no parent orientation.
+// direction and rotation about the direction. Orientation is relative
+// to parent. World space if no parent orientation.
+// Direct updates to the rotation matrix must be done with SetView
+// or SetAa.
 //
 // Depends on Ent.AddPart.
 func (e *Ent) View() (q *lin.Q) {
@@ -101,6 +120,21 @@ func (e *Ent) SetView(q *lin.Q) *Ent {
 	if p := e.app.povs.get(e.eid); p != nil {
 		r := p.tn.Rot
 		r.X, r.Y, r.Z, r.W = q.X, q.Y, q.Z, q.W
+		e.app.povs.updateWorld(p, e.eid)
+		return e
+	}
+	log.Printf("SetView needs AddPart %d", e.eid)
+	return e
+}
+
+// SetAa sets the orientation using the given axis and angle
+// information.
+//
+// Depends on Ent.AddPart.
+func (e *Ent) SetAa(x, y, z, angleInRadians float64) *Ent {
+	if p := e.app.povs.get(e.eid); p != nil {
+		p.tn.Rot.SetAa(x, y, z, angleInRadians)
+		e.app.povs.updateWorld(p, e.eid)
 		return e
 	}
 	log.Printf("SetView needs AddPart %d", e.eid)
@@ -137,6 +171,7 @@ func (e *Ent) Culled() bool {
 func (e *Ent) Spin(x, y, z float64) {
 	if p := e.app.povs.get(e.eid); p != nil {
 		p.spin(e.app.povs.rot, x, y, z)
+		e.app.povs.updateWorld(p, e.eid)
 		return
 	}
 	log.Printf("Spin needs AddPart %d", e.eid)
@@ -150,6 +185,7 @@ func (e *Ent) SetSpin(x, y, z float64) {
 	if p := e.app.povs.get(e.eid); p != nil {
 		p.clearSpin()
 		p.spin(e.app.povs.rot, x, y, z)
+		e.app.povs.updateWorld(p, e.eid)
 		return
 	}
 	log.Printf("SetSpin needs AddPart %d", e.eid)
@@ -174,6 +210,7 @@ func (e *Ent) Scale() (x, y, z float64) {
 func (e *Ent) SetScale(x, y, z float64) *Ent {
 	if p := e.app.povs.get(e.eid); p != nil {
 		p.sn.X, p.sn.Y, p.sn.Z = x, y, z
+		e.app.povs.updateWorld(p, e.eid)
 		return e
 	}
 	log.Printf("SetScale needs AddPart %d", e.eid)
@@ -199,12 +236,13 @@ type pov struct {
 	eid eid // Unique entity identifier.
 
 	// Local transform is relative to a parent.
-	// Effectively a world transform if no parent transform.
-	tp, tn     *lin.T  // Transform (prev, now) is location and orientation.
-	sp, sn     *lin.V3 // Per axis scale (prev, now): default value 1,1,1.
-	wx, wy, wz float64 // World coordinates set each display refresh.
-	mm         *lin.M4 // model matrix world transform.
-	stable     bool    // avoid updating non-moving objects.
+	// World transform combine parent transform.
+	tp, tn *lin.T  // Local transform (prev, now).
+	sp, sn *lin.V3 // Per axis scale (prev, now): default value 1,1,1.
+	tw     *lin.T  // World transform. Updated on any change.
+	sw     *lin.V3 // World scale. Updated on any change.
+	mm, wm *lin.M4 // render model matrix, world matrix.
+	stable bool    // avoid updating non-moving objects.
 }
 
 // newPov allocates and initialzes a point of view transform.
@@ -213,9 +251,12 @@ func newPov(eid eid) *pov {
 	p := &pov{eid: eid}
 	p.tn = lin.NewT()
 	p.tp = lin.NewT()
+	p.tw = lin.NewT()
 	p.sn = &lin.V3{X: 1, Y: 1, Z: 1}
 	p.sp = &lin.V3{X: 1, Y: 1, Z: 1}
-	p.mm = &lin.M4{}
+	p.sw = &lin.V3{X: 1, Y: 1, Z: 1}
+	p.mm = lin.NewM4I()
+	p.wm = lin.NewM4I()
 	return p
 }
 
@@ -224,6 +265,11 @@ func newPov(eid eid) *pov {
 // World space if no parent location.
 func (p *pov) at() (x, y, z float64) {
 	return p.tn.Loc.X, p.tn.Loc.Y, p.tn.Loc.Z
+}
+
+// world get the pov's world space.
+func (p *pov) world() (x, y, z float64) {
+	return p.tw.Loc.X, p.tw.Loc.Y, p.tw.Loc.Z
 }
 
 // scale retrieves the local per-axis scale values at 3 separate XYZ values.
@@ -249,49 +295,14 @@ func (p *pov) spin(rot *lin.Q, x, y, z float64) {
 	}
 }
 
-// setLocal sets the local space model matrix for the pov.
-// Local space ignores the affect of any parent pov.
-// The location is an interpolation between the previous values
-// and the current value.
-func (p *pov) setLocal(lerp float64, rot *lin.Q, v3 *lin.V3) {
-	var sx, sy, sz float64
-	var lx, ly, lz float64
-
-	// only bother with interpolated values if the two values are
-	// relatively close. Otherwise the object has been teleported
-	// and should just appear where it is now.
-	threshold := 1.0
-	if dist := p.tn.Loc.DistSqr(p.tp.Loc); dist > threshold || lerp == 1.0 {
-		// get latest value - no sense interpolating.
-		sx, sy, sz = p.sn.GetS()     // scale
-		lx, ly, lz = p.tn.Loc.GetS() // position
-		rot.Set(p.tn.Rot)            // orientation.
-	} else {
-		// interpolate from the previous values.
-		sx, sy, sz = v3.Lerp(p.sp, p.sn, lerp).GetS()         // scale
-		lx, ly, lz = v3.Lerp(p.tp.Loc, p.tn.Loc, lerp).GetS() // position
-		rot.Nlerp(p.tp.Rot, p.tn.Rot, lerp)                   // orientation.
-	}
-
-	// Update the model matrix with
-	p.mm.SetQ(rot.Inv(rot))      // invert model rotation.
-	p.mm.ScaleSM(sx, sy, sz)     // scale is applied first: left of rotation.
-	p.mm.TranslateMT(lx, ly, lz) // ...right of rotation.
-}
-
 // draw sets the location render data needed for a single draw call.
-// The data is copied into a render.Draw instance. One of the key jobs
-// of this method is to put each draw request into a particular
-// render bucket so that they are drawn in order once sorted.
-func (p *pov) draw(d *render.Draw, mv, mvp *lin.M4, sc *scene, cam *Camera, rt uint32) {
-	d.SetMv(mv.Mult(p.mm, cam.vm)) // model-view
-	d.SetMvp(mvp.Mult(mv, cam.pm)) // model-view-projection
-	d.SetPm(cam.pm)                // projection only.
+// The data is copied into a render.Draw instance.
+func (p *pov) draw(d *render.Draw, pm, vm *lin.M4) {
+	d.SetPm(pm)   // projection matrix.
+	d.SetVm(vm)   // view matrix.
+	d.SetMm(p.mm) // model matrix.
 	d.SetScale(p.scale())
 	d.Tag = uint32(p.eid) // for debugging.
-	d.Fbo = rt            // 0 for standard display back buffer.
-	d.Depth = !sc.is2D()
-	d.Bucket = setBucket(uint8(rt), sc.overlay)
 }
 
 // pov
@@ -314,6 +325,7 @@ type povs struct {
 	rot *lin.Q  // scratch rotation/orientation.
 	v4  *lin.V4 // scratch vector location.
 	v3  *lin.V3 // scratch vector location.
+	m3  *lin.M3 // scratch rotation matrix.
 }
 
 // newPovs creates a manager for a group of Pov data.
@@ -330,6 +342,7 @@ func newPovs() *povs {
 	ps.rot = lin.NewQ()
 	ps.v4 = &lin.V4{}
 	ps.v3 = &lin.V3{}
+	ps.m3 = &lin.M3{}
 	return ps
 }
 
@@ -350,6 +363,7 @@ func (ps *povs) create(eid eid, parent eid) *pov {
 		(&ps.nodes[index]).parent = parent
 		pi := ps.index[parent]
 		(&ps.nodes[pi]).kids = append((&ps.nodes[pi]).kids, eid)
+		ps.updateWorld(p, eid) // ensure initial world transforms.
 	}
 	return p
 }
@@ -417,62 +431,117 @@ func (ps *povs) getNode(id eid) *node {
 // setPrev saves the previous locations and orientations.
 // It is called each update. It is needed to interpolate values when
 // multiple renders are called between state updates.
-//
-// FUTURE: immediate update so no updateWorld is necessary.
-func (ps *povs) setPrev() {
-	for i := 0; i < len(ps.povs); i++ {
-		p := &ps.povs[i] // update reference, not copy.
-		if !p.tp.Eq(p.tn) || !p.sp.Eq(p.sn) {
-			p.stable = false // mark as having moved for updateWorld.
+// The eids of the moved povs are returned.
+func (ps *povs) setPrev(moved []eid) []eid {
+	moved = moved[:0] // reset preserving memory.
+	for index := 0; index < len(ps.povs); index++ {
+		p := &ps.povs[index] // update reference, not copy.
+		if !p.stable {
+			moved = append(moved, p.eid)
 			p.tp.Set(p.tn)
 			p.sp.Set(p.sn)
+			p.stable = true
+		}
+	}
+	return moved
+}
+
+// setRenderTransforms sets the local world render matrix as a position/rotation
+// is called once per render to set the pov.mm model matrix used for rendering.
+//
+// FUTURE: with update at 50fps and render expected at 60fps or higher
+//         there will be more renders than updates, resulting in multiple
+//         renders of the same information - effectively resulting in a
+//         overall 50fps display rate.
+// Option: Increase the update rate.
+// Option: Interpolate between previous and current. This was tried and
+//         seemed not worth the effort as the overall display improvement
+//         was marginal at best and the code got complex handling
+//         handle position, rotations, and scales changes. This included
+//         cases where interpolation shouldn't be used like teleporting
+//         an objects location.
+// Option: Use fixed step for physics and variable rate for updates
+//         or some other recent best in class design (unity?).
+//         https://docs.unity3d.com/Manual/ExecutionOrder.html
+func (ps *povs) setRenderTransforms(lerp float64) {
+	for index := 0; index < len(ps.povs); index++ {
+		p := &ps.povs[index]
+
+		// FUTURE: interpolate here; or use some other smooth render option.
+
+		// Use the latest transform updated by updateWorld.
+		p.mm.Set(p.wm) // copied on first render.
+	}
+}
+
+// updateWorld sets the world location for the given pov.
+// Called immediately on any change to any of the existing transform values.
+// Expected to be called for each object update to immediately refresh the
+// world transform values.
+func (ps *povs) updateWorld(p *pov, eid eid) {
+	rot := ps.rot
+	if index, ok := ps.index[eid]; ok {
+		p.stable = false              // object has changed.
+		sx, sy, sz := p.sn.GetS()     // scale
+		lx, ly, lz := p.tn.Loc.GetS() // position
+		rot.Set(p.tn.Rot)             // orientation.
+
+		// Update the model transform matrix the world space coordinates.
+		p.wm.SetQ(rot.Inv(rot))      // invert model rotation.
+		p.wm.ScaleSM(sx, sy, sz)     // scale is applied first: left of rotation.
+		p.wm.TranslateMT(lx, ly, lz) // translation applied last: right of rotation.
+
+		// Combine with parent transform. The world transform of a child is
+		// relative to its parent. Parent's model matrix has already been set
+		// because parent pov's appear earlier in ps.data than their children.
+		node := &ps.nodes[index]
+		if node.parent != 0 {
+			if pindex, ok := ps.index[node.parent]; ok {
+				parent := &ps.povs[pindex] // use ref, not copy.
+				p.wm.Mult(p.wm, parent.wm) // model + parent transform
+			} else {
+				log.Printf("Scene graph missing child.") // Dev error.
+			}
+		}
+
+		// Track absolute world transform values.
+		// See https://math.stackexchange.com/questions/237369/ and
+		// note the limitations when using uneven or negative scales.
+		m := p.wm
+		p.tw.Loc.SetS(m.Wx, m.Wy, m.Wz) // world space position.
+		sx = ps.v3.SetS(m.Xx, m.Xy, p.wm.Xz).Len()
+		sy = ps.v3.SetS(m.Yx, m.Yy, p.wm.Yz).Len()
+		sz = ps.v3.SetS(m.Zx, m.Zy, p.wm.Zz).Len()
+		p.sw.SetS(sx, sy, sz) // world scale
+		ps.m3.SetS(
+			m.Xx/sx, m.Xy/sx, p.wm.Xz/sx,
+			m.Yx/sy, m.Yy/sy, p.wm.Yz/sy,
+			m.Zx/sz, m.Zy/sz, p.wm.Zz/sz)
+		p.tw.Rot.SetM3(ps.m3)  // world rotation.
+		p.tw.Rot.Inv(p.tw.Rot) // Undo model matrix invert.
+
+		// Child nodes must also be updated.
+		for _, kid := range node.kids {
+			if index, ok := ps.index[kid]; ok {
+				ps.updateWorld(&ps.povs[index], kid)
+			} else {
+				log.Printf("Scene graph missing child.") // Dev error.
+			}
 		}
 	}
 }
 
-// renderAt sets the local world render matrix as an position/rotation
-// interpolated between the last 2 updated. Called once per display
-// frame update.
-func (ps *povs) renderAt(lerp float64) {
-	for index := 0; index < len(ps.povs); index++ {
-		p := &ps.povs[index] // want to update reference, not copy.
-		if p.stable {
-			// Anything that hasn't moved already has the correct
-			// transform matricies.
-			continue
-		}
-		p.stable = true // mark as processed.
-
-		// ensure all children are updated.
-		node := &ps.nodes[index]
-		for _, kid := range node.kids {
-			if index, ok := ps.index[kid]; ok {
-				(&ps.povs[index]).stable = false // update ref, not copy.
-			} else {
-				log.Printf("WTF Child")
+// updateBodies is called to update the transforms for physics bodies.
+func (ps *povs) updateBodies(bodies []eid) {
+	for _, eid := range bodies {
+		if p := ps.get(eid); p != nil {
+			if !p.tp.Eq(p.tn) {
+				p.tp.Set(p.tn)
+				ps.updateWorld(p, eid)
 			}
+		} else {
+			log.Printf("Physics body with no pov %d", eid)
 		}
-
-		// update transform and world location.
-		p.setLocal(lerp, ps.rot, ps.v3) // update local space transform.
-		if node.parent != 0 {
-			if pindex, ok := ps.index[node.parent]; ok {
-				parent := &ps.povs[pindex] // use ref, not copy.
-				// world transform of a child is relative to its parent.
-				// Parent's model matrix has already been set because parent
-				// pov's appear earlier in ps.data than their children.
-				p.mm.Mult(p.mm, parent.mm) // model + parent transform
-			} else {
-				log.Printf("WTF Parent")
-			}
-		}
-
-		// save the world location for other calculations.
-		v4 := ps.v4
-		v4.MultvM(v4.SetS(0, 0, 0, 1), p.mm)
-
-		// FUTURE: Remove side effect with move to immediate world updating.
-		p.wx, p.wy, p.wz = v4.X, v4.Y, v4.Z
 	}
 }
 

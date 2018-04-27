@@ -5,7 +5,7 @@ uniform float time;
 uniform vec2  screen;
 out     vec4  fragColor;
 
-float rand(vec2 n) { 
+float rand(vec2 n) {
 	return fract(sin(dot(n, vec2(12.9898, 4.1414))) * 43758.5453);
 }
 

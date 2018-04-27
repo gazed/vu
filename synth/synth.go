@@ -1,4 +1,4 @@
-// Copyright © 2016 Galvanized Logic Inc.
+// Copyright © 2016-2018 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 // Package synth is used to procedurally generate textures and models.

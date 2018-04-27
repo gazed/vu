@@ -1,4 +1,4 @@
-// Copyright © 2015-2017 Galvanized Logic Inc.
+// Copyright © 2015-2018 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -43,20 +43,21 @@ func (lt *lttag) Create(eng vu.Eng, s *vu.State) {
 	lt.scene.Cam().SetClip(0.1, 50).SetFov(60).SetAt(0.5, 2, 0.5)
 	lt.sun = lt.scene.AddPart().SetAt(0, 2.5, -1.75).SetScale(0.05, 0.05, 0.05)
 	lt.sun.MakeLight().SetLightColor(0.8, 0.8, 0.8)
-	lt.sun.MakeModel("solid", "msh:sphere", "mat:red")
+	lt.sun.MakeModel("colored", "msh:sphere", "mat:red")
 
 	// Create solid spheres to test the lighting shaders.
 	c4 := lt.scene.AddPart().SetAt(-0.5, 2, -2).SetScale(0.25, 0.25, 0.25)
 	c5 := lt.scene.AddPart().SetAt(0.5, 2, -2).SetScale(0.25, 0.25, 0.25)
 	c6 := lt.scene.AddPart().SetAt(1.5, 2, -2).SetScale(0.25, 0.25, 0.25)
 	c4.MakeModel("diffuse", "msh:sphere", "mat:blue")
-	c5.MakeModel("gouraud", "msh:sphere", "mat:red")
+	c5.MakeModel("toon", "msh:sphere", "tex:white")
 	c6.MakeModel("phong", "msh:sphere", "mat:blue")
 
 	// Angle a large flat box with normal map lighting behind the spheres.
 	lt.box = lt.scene.AddPart().SetAt(0, 2, -10)
 	lt.box.SetScale(5, 5, 5).Spin(45, 45, 0)
-	lt.box.MakeModel("nmap", "msh:box", "mat:tile", "tex:tile", "tex:tile_nrm", "tex:tile_spec")
+	lt.box.MakeModel("normalMapped", "msh:box", "mat:tile",
+		"tex:tile", "tex:tile_nrm", "tex:tile_spec")
 }
 
 // Update is the regular engine callback.

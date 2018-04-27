@@ -1,4 +1,4 @@
-// Copyright © 2017 Galvanized Logic Inc.
+// Copyright © 2017-2018 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -41,11 +41,11 @@ func (sd *sdtag) Create(eng vu.Eng, s *vu.State) {
 
 	// Add a sky dome that is slightly lower than the camera
 	// so that the bottom of the dome is rendered as well.
-	sd.scene.AddSky().MakeModel("uv", "msh:dome", "tex:sky")
+	sd.scene.AddSky().MakeModel("textured", "msh:dome", "tex:sky")
 
 	// Add one block model to give the sky some context.
 	block := sd.scene.AddPart().SetAt(0, 0, -10)
-	block.MakeModel("nmap", "msh:box", "mat:tile", "tex:tile",
+	block.MakeModel("normalMapped", "msh:box", "mat:tile", "tex:tile",
 		"tex:tile_nrm", "tex:tile_spec")
 }
 

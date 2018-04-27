@@ -1,4 +1,4 @@
-// Copyright © 2014-2017 Galvanized Logic Inc.
+// Copyright © 2014-2018 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package vu
@@ -17,7 +17,7 @@ import (
 // Meshes are generally loaded from assets, but can also be generated.
 // Mesh data is closely tied to a given shader. When generating and refreshing
 // vertex data note that InitData must be called once and SetData is called as
-// needed to refresh. Data parameters are:
+// needed to change the data. Data parameters are:
 //    lloc     : layout location is the shader input reference.
 //    span     : indicates the number of data points per vertex.
 //    usage    : StaticDraw or DynamicDraw.
@@ -43,6 +43,9 @@ type Mesh struct {
 	// Per-vertex and vertex index data.
 	faces render.Data            // Triangle face indicies.
 	vdata map[uint32]render.Data // Per-vertex data values.
+
+	// Instance data count when rendering multiple instances.
+	instances int // Non-zero when mesh is to be drawn instanced.
 }
 
 // newMesh allocates space for a mesh structure,
@@ -75,13 +78,30 @@ func (m *Mesh) InitData(lloc, span, usage uint32, normalize bool) *Mesh {
 	return m
 }
 
-// SetData stores data in the specified vertex buffer.
-// May be called one or more times after a one-time call to InitData.
+// SetData stores data in the specified vertex buffer. May be called one
+// or more times after a one-time call to InitData or InitInstances.
 // Marks the mesh as needing a rebind.
 func (m *Mesh) SetData(lloc uint32, data interface{}) {
 	if _, ok := m.vdata[lloc]; ok {
 		m.vdata[lloc].Set(data)
 		m.rebind = true
+	}
+}
+
+// InitInstances allocates space for an array of instance transform
+// matricies. The instance data needs to be set using SetData where
+// the float data is an array of 4x4 transform matricies.
+func (m *Mesh) InitInstances(lloc uint32) {
+	_, ok0 := m.vdata[lloc]
+	_, ok1 := m.vdata[lloc+1]
+	_, ok2 := m.vdata[lloc+2]
+	_, ok3 := m.vdata[lloc+3]
+	if !ok0 && !ok1 && !ok2 && !ok3 {
+		vd := render.NewInstancedData(lloc)
+		m.vdata[lloc] = vd
+		m.vdata[lloc+1] = vd // mark shader location as used.
+		m.vdata[lloc+2] = vd //  ""
+		m.vdata[lloc+3] = vd //  ""
 	}
 }
 
@@ -108,4 +128,16 @@ func (m *Mesh) SetFaces(data []uint16) {
 func (m *Mesh) bind(eng *engine) error {
 	m.rebind = false
 	return eng.bind(m)
+}
+
+// clone makes a copy of this mesh.
+func (m *Mesh) clone() (c *Mesh) {
+	c = &Mesh{}
+	*c = *m                   // copy by value
+	c.faces = m.faces.Clone() // Triangle face indicies.
+	c.vdata = map[uint32]render.Data{}
+	for k, v := range m.vdata {
+		c.vdata[k] = v.Clone() // Per-vertex data values.
+	}
+	return c
 }

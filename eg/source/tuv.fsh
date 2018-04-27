@@ -1,8 +1,7 @@
-in      vec2      uvCoord;
-uniform sampler2D uv;
-out     vec4      fragColor;
+in      vec2      v_t;     // interpolated texture coordinates.
+uniform sampler2D uv;      // texture sampler.
+out     vec4      f_color; // final fragment color.
 
-void main()
-{
-	fragColor = texture(uv, uvCoord);
+void main() {
+	f_color = texture(uv, v_t);
 }

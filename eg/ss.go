@@ -1,4 +1,4 @@
-// Copyright © 2016-2017 Galvanized Logic. All rights reserved.
+// Copyright © 2016-2018 Galvanized Logic. All rights reserved.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -70,13 +70,13 @@ func (ss *superShape) Create(eng vu.Eng, s *vu.State) {
 
 	// hiliting the selected shape parameters.
 	ss.rowbg = ss.ui.AddPart().SetAt(115, 110, 0).SetScale(55, 20, 0)
-	ss.rowbg.MakeModel("alpha", "msh:icon", "mat:transparent_blue")
+	ss.rowbg.MakeModel("colored", "msh:icon", "mat:blue").SetAlpha(0.5)
 
 	// mesh for 2D shapes.
 	scale := 100.0
 	ss.shape = synth.NewForm()
 	ss.m2D = ss.ui.AddPart().SetAt(400, 300, 0).SetScale(scale, scale, 0)
-	ss.m2D.MakeModel("solid").GenMesh("gen2d")
+	ss.m2D.MakeModel("colored").GenMesh("gen2d")
 	ss.m2D.SetDraw(vu.Lines).SetColor(1, 1, 1)
 	ss.m2D.Cull(ss.show3D)
 	ss.genSquare(ss.m2D.Mesh()) // use hand generated model to start.
@@ -84,7 +84,7 @@ func (ss *superShape) Create(eng vu.Eng, s *vu.State) {
 	// mesh for 3D shapes.
 	// debug with .SetDrawMode(vu.Points) and "solid" shader.
 	ss.m3D = ss.scene.AddPart().SetAt(0, 0, -8).SetScale(2.5, 2.5, 2.5)
-	ss.m3D.MakeModel("gouraud", "mat:blue").GenMesh("gen3d")
+	ss.m3D.MakeModel("phong", "mat:blue").GenMesh("gen3d")
 	ss.genSquare(ss.m3D.Mesh()) // use hand generated model to start.
 	ss.m3D.Cull(!ss.show3D)
 
@@ -93,19 +93,19 @@ func (ss *superShape) Create(eng vu.Eng, s *vu.State) {
 	font := "lucidiaSu18"
 	ss.labels = []*vu.Ent{nil, nil, nil, nil, nil, nil, nil}
 	ss.labels[M] = ss.ui.AddPart().SetAt(left, 120, 0)
-	ss.labels[M].MakeLabel("txt", font)
+	ss.labels[M].MakeLabel("labeled", font)
 	ss.labels[N1] = ss.ui.AddPart().SetAt(left, 100, 0)
-	ss.labels[N1].MakeLabel("txt", font)
+	ss.labels[N1].MakeLabel("labeled", font)
 	ss.labels[N2] = ss.ui.AddPart().SetAt(left, 80, 0)
-	ss.labels[N2].MakeLabel("txt", font)
+	ss.labels[N2].MakeLabel("labeled", font)
 	ss.labels[N3] = ss.ui.AddPart().SetAt(left, 60, 0)
-	ss.labels[N3].MakeLabel("txt", font)
+	ss.labels[N3].MakeLabel("labeled", font)
 	ss.labels[A] = ss.ui.AddPart().SetAt(left, 40, 0)
-	ss.labels[A].MakeLabel("txt", font)
+	ss.labels[A].MakeLabel("labeled", font)
 	ss.labels[B] = ss.ui.AddPart().SetAt(left, 20, 0)
-	ss.labels[B].MakeLabel("txt", font)
+	ss.labels[B].MakeLabel("labeled", font)
 	ss.amount = ss.ui.AddPart().SetAt(left+120, 0, 0)
-	ss.amount.MakeLabel("txt", font)
+	ss.amount.MakeLabel("labeled", font)
 	ss.positionLabels()
 	ss.updateLabels()
 }
@@ -395,21 +395,21 @@ func (ss *superShape) positionLabels() {
 // updateLabels regenerates the labels for the parameter labels.
 func (ss *superShape) updateLabels() {
 	s := fmt.Sprintf("m  = %5.4f", ss.shape.M)
-	ss.labels[M].Typeset(s)
+	ss.labels[M].SetStr(s)
 	s = fmt.Sprintf("n1 = %5.4f", ss.shape.N1)
-	ss.labels[N1].Typeset(s)
+	ss.labels[N1].SetStr(s)
 	s = fmt.Sprintf("n2 = %5.4f", ss.shape.N2)
-	ss.labels[N2].Typeset(s)
+	ss.labels[N2].SetStr(s)
 	s = fmt.Sprintf("n3 = %5.4f", ss.shape.N3)
-	ss.labels[N3].Typeset(s)
+	ss.labels[N3].SetStr(s)
 	s = fmt.Sprintf("a   = %5.4f", ss.shape.A)
-	ss.labels[A].Typeset(s)
+	ss.labels[A].SetStr(s)
 	s = fmt.Sprintf("b   = %5.4f", ss.shape.B)
-	ss.labels[B].Typeset(s)
+	ss.labels[B].SetStr(s)
 
 	// show the magnitude when changing param amounts.
 	s = fmt.Sprintf("+/-   %3.1f", ss.mag)
-	ss.amount.Typeset(s)
+	ss.amount.SetStr(s)
 }
 
 // genSquare is an example of manually creating a square using lines.

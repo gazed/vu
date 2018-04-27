@@ -1,4 +1,4 @@
-// Copyright © 2013-2016 Galvanized Logic Inc.
+// Copyright © 2013-2018 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package render
@@ -12,7 +12,7 @@ import (
 	"github.com/gazed/vu/render/gl"
 )
 
-// opengl is the OpenGL implemntation of Renderer. See the Renderer interface
+// opengl is the OpenGL implementation of Renderer. See the Renderer interface
 // for comments. See the OpenGL documentation for OpenGL methods and constants.
 type opengl struct {
 	depthTest bool   // Track current depth setting to reduce state switching.
@@ -84,6 +84,11 @@ func (gc *opengl) Enable(attribute uint32, enabled bool) {
 //           • uniform buffers http://www.opengl.org/wiki/Uniform_Buffer_Object.
 //           • ... lots more possibilities... leave your fav here.
 func (gc *opengl) Render(d *Draw) {
+	if d.Scissor {
+		gl.Enable(gl.SCISSOR_TEST)         // Each scissor draw needs to...
+		gl.Scissor(d.Sx, d.Sy, d.Sw, d.Sh) // ... define its own area.
+	}
+
 	// switch state only if necessary.
 	if gc.depthTest != d.Depth {
 		if d.Depth {
@@ -118,6 +123,7 @@ func (gc *opengl) Render(d *Draw) {
 	gc.bindUniforms(d)
 
 	// bind the data buffers and render.
+	// FUTURE: support instanced for more than triangles.
 	gl.BindVertexArray(d.Vao)
 	switch d.Mode {
 	case Lines:
@@ -129,7 +135,15 @@ func (gc *opengl) Render(d *Draw) {
 		gl.DrawArrays(gl.POINTS, 0, d.VertCnt)
 		gl.Disable(gl.PROGRAM_POINT_SIZE)
 	case Triangles:
-		gl.DrawElements(gl.TRIANGLES, d.FaceCnt, gl.UNSIGNED_SHORT, 0)
+		if d.Instances > 0 {
+			gl.DrawElementsInstanced(gl.TRIANGLES, d.FaceCnt, gl.UNSIGNED_SHORT, 0, d.Instances)
+		} else {
+			gl.DrawElements(gl.TRIANGLES, d.FaceCnt, gl.UNSIGNED_SHORT, 0)
+		}
+	}
+	gl.BindVertexArray(0)
+	if d.Scissor {
+		gl.Disable(gl.SCISSOR_TEST)
 	}
 }
 
@@ -138,14 +152,14 @@ func (gc *opengl) Render(d *Draw) {
 func (gc *opengl) bindUniforms(d *Draw) {
 	for key, ref := range d.Uniforms {
 		switch {
-		case key == "mvpm":
-			gc.bindUniform(ref, x4, 1, d.Mvp.Pointer())
-		case key == "mvm":
-			gc.bindUniform(ref, x4, 1, d.Mv.Pointer())
 		case key == "dbm":
 			gc.bindUniform(ref, x4, 1, d.Dbm.Pointer())
 		case key == "pm":
 			gc.bindUniform(ref, x4, 1, d.Pm.Pointer())
+		case key == "vm":
+			gc.bindUniform(ref, x4, 1, d.Vm.Pointer())
+		case key == "mm":
+			gc.bindUniform(ref, x4, 1, d.Mm.Pointer())
 		case key == "sm":
 			gc.useTexture(ref, 15, d.Shtex) // always use 15 for shadow maps.
 		case key == "bpos": // bone position animation data.
@@ -242,10 +256,12 @@ func (gc *opengl) BindMesh(vao *uint32, vdata map[uint32]Data, fdata Data) error
 	if glerr := gl.GetError(); glerr != gl.NO_ERROR {
 		return fmt.Errorf("BindMesh failed to bind fb %X", glerr)
 	}
+	gl.BindVertexArray(0)
 	return nil
 }
 
 // bindVertexBuffer copies per-vertex data from the CPU to the GPU.
+// The vao is needed only for instanced meshes.
 func (gc *opengl) bindVertexBuffer(vdata Data) {
 	vd, ok := vdata.(*vertexData)
 	if !ok {
@@ -262,10 +278,26 @@ func (gc *opengl) bindVertexBuffer(vdata Data) {
 			gl.BindBuffer(gl.ARRAY_BUFFER, vd.ref)
 			gl.BufferData(gl.ARRAY_BUFFER, int64(len(vd.floats)*bytes), gl.Pointer(&(vd.floats[0])), vd.usage)
 			gl.VertexAttribPointer(vd.lloc, vd.span, gl.FLOAT, false, 0, 0)
+			if vd.instanced {
+				// Instanced data are 4x4 transform matricies of floats.
+				rowBytes := uint32(4 * 4)       // 4 floats of 4 bytes each per row.
+				matrixBytes := int32(4 * 4 * 4) // 4 rows of 4 floats of 4 bytes.
+				for cnt := uint32(0); cnt < 4; cnt++ {
+					gl.EnableVertexAttribArray(vd.lloc + cnt)
+					gl.VertexAttribPointer(vd.lloc+cnt, 4, gl.FLOAT, false, matrixBytes, int64(cnt*rowBytes))
+
+					// Ensure the matrix values are the same for each vertex and
+					// will only be updated once the instance changes.
+					gl.VertexAttribDivisor(vd.lloc+cnt, 1)
+				}
+			} else {
+				gl.EnableVertexAttribArray(vd.lloc)
+			}
 		case len(vd.bytes) > 0:
 			gl.BindBuffer(gl.ARRAY_BUFFER, vd.ref)
 			gl.BufferData(gl.ARRAY_BUFFER, int64(len(vd.bytes)), gl.Pointer(&(vd.bytes[0])), vd.usage)
 			gl.VertexAttribPointer(vd.lloc, vd.span, gl.UNSIGNED_BYTE, vd.normalize, 0, 0)
+			gl.EnableVertexAttribArray(vd.lloc)
 		}
 	case DynamicDraw:
 		var null gl.Pointer // zero.
@@ -278,9 +310,10 @@ func (gc *opengl) bindVertexBuffer(vdata Data) {
 			gl.BufferData(gl.ARRAY_BUFFER, int64(cap(vd.floats)*bytes), null, vd.usage)
 			gl.BufferSubData(gl.ARRAY_BUFFER, 0, int64(len(vd.floats)*bytes), gl.Pointer(&(vd.floats[0])))
 			gl.VertexAttribPointer(vd.lloc, vd.span, gl.FLOAT, false, 0, 0)
+			gl.EnableVertexAttribArray(vd.lloc)
 		}
 	}
-	gl.EnableVertexAttribArray(vd.lloc)
+	gl.BindBuffer(gl.ARRAY_BUFFER, 0)
 }
 
 // bindFaceBuffer copies triangle face data from the CPU to the GPU.

@@ -1,4 +1,4 @@
-// Copyright © 2013-2016 Galvanized Logic Inc.
+// Copyright © 2013-2018 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package render
@@ -14,6 +14,7 @@ type Data interface {
 	Set(data interface{}) // Copy data in. Invalid types are logged.
 	Len() int             // Number of elements.
 	Size() uint32         // Number of bytes
+	Clone() Data          // Duplicate.
 }
 
 // NewVertexData creates and specifies usage for a set of vertex data.
@@ -22,7 +23,7 @@ type Data interface {
 // Data can now be loaded and updated using Data.Set().
 //     lloc      : shader layout location index.
 //     span      : values per vertex.
-//     usage     : STATIC or DYNAMIC
+//     usage     : StaticDraw or DynamicDraw
 //     normalize : true to normalize data to the 0-1 range.
 func NewVertexData(lloc, span, usage uint32, normalize bool) Data {
 	vd := &vertexData{}
@@ -32,6 +33,21 @@ func NewVertexData(lloc, span, usage uint32, normalize bool) Data {
 	vd.lloc = lloc
 	vd.usage = usage
 	vd.normalize = normalize
+	return vd
+}
+
+// NewInstancedData creates instanced vertex data for storing 4x4 transform
+// matricies. The shader lloc location value consumes 4 values in total,
+// ie: if lloc is 3, then 3,4,5,6 are used to represent the 4 vectors of
+// the matrix.
+func NewInstancedData(lloc uint32) Data {
+	vd := &vertexData{}
+	vd.floats = []float32{}
+	vd.bytes = []byte{} // not used.
+	vd.span = 4         // 4 floats per vector in the matrix.
+	vd.lloc = lloc
+	vd.usage = StaticDraw
+	vd.instanced = true
 	return vd
 }
 
@@ -65,12 +81,13 @@ type vertexData struct {
 	usage     uint32    // STATIC_DRAW, DYNAMIC_DRAW.
 	vcnt      int       // Number of verticies covered by this data.
 	rebind    bool      // Data was updated and needs GPU rebind.
+	instanced bool      // Data is array of matricies for instanced meshes.
 	floats    []float32 // Vertex buffer arranged as [][span]float32
 	bytes     []byte    // Vertex buffer arranged as [][span]byte
 }
 
 // Set makes a copy of the given data, replacing any existing data, and marks
-// the data as needed to be resent to the GPU.
+// the data as needing to be resent to the GPU.
 func (vd *vertexData) Set(data interface{}) {
 	vd.vcnt = 0
 	switch d := data.(type) {
@@ -103,6 +120,17 @@ func (vd *vertexData) Size() uint32 {
 // Len returns the number of verticies where one vertex is a set of points.
 func (vd *vertexData) Len() int { return vd.vcnt }
 
+// Clone returns a copy of the Data, including any GPU refs.
+func (vd *vertexData) Clone() Data {
+	c := &vertexData{}
+	*c = *vd // copy by value.
+	c.floats = make([]float32, len(vd.floats))
+	copy(c.floats, vd.floats)
+	c.bytes = make([]byte, len(vd.bytes))
+	copy(c.bytes, vd.bytes)
+	return c
+}
+
 // vertexData
 // =============================================================================
 // faceData
@@ -117,7 +145,7 @@ type faceData struct {
 }
 
 // Set makes a copy of the given data, replacing any existing data, and marks
-// the data as needed to be rebinding. Data is expected as []uint16.
+// the data as needing to be resent to the GPU. Data is expected as []uint16.
 func (fd *faceData) Set(data interface{}) {
 	switch d := data.(type) {
 	case []uint16:
@@ -134,3 +162,12 @@ func (fd *faceData) Size() uint32 { return uint32(len(fd.data)) * 2 }
 
 // Len returns the number of face indicies.
 func (fd *faceData) Len() int { return len(fd.data) }
+
+// Clone returns a copy of the Data, including any GPU refs.
+func (fd *faceData) Clone() Data {
+	c := &faceData{}
+	*c = *fd // copy by value
+	c.data = make([]uint16, len(fd.data))
+	copy(c.data, fd.data)
+	return c
+}

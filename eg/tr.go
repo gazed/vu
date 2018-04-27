@@ -1,4 +1,4 @@
-// Copyright © 2013-2017 Galvanized Logic Inc.
+// Copyright © 2013-2018 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -122,18 +122,16 @@ func (tag *trtag) initScene() {
 	gl.GenBuffers(1, &vbuff)
 	gl.BindBuffer(gl.ARRAY_BUFFER, vbuff)
 	gl.BufferData(gl.ARRAY_BUFFER, int64(len(tag.verticies)*4), gl.Pointer(&(tag.verticies[0])), gl.STATIC_DRAW)
-	vattr := uint32(gl.GetAttribLocation(tag.shaders, "in_v"))
-	gl.EnableVertexAttribArray(vattr)
-	gl.VertexAttribPointer(vattr, 3, gl.FLOAT, false, 0, 0)
+	gl.VertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0)
+	gl.EnableVertexAttribArray(0)
 
 	// color data.
 	var cbuff uint32
 	gl.GenBuffers(1, &cbuff)
 	gl.BindBuffer(gl.ARRAY_BUFFER, cbuff)
 	gl.BufferData(gl.ARRAY_BUFFER, int64(len(tag.color)*4), gl.Pointer(&(tag.color[0])), gl.STATIC_DRAW)
-	cattr := uint32(gl.GetAttribLocation(tag.shaders, "in_c"))
-	gl.EnableVertexAttribArray(cattr)
-	gl.VertexAttribPointer(cattr, 4, gl.FLOAT, false, 0, 0)
+	gl.VertexAttribPointer(3, 4, gl.FLOAT, false, 0, 0)
+	gl.EnableVertexAttribArray(3)
 
 	// faces data.
 	var ebuff uint32
@@ -150,7 +148,7 @@ func (tag *trtag) initScene() {
 // initShader compiles shaders and links them into a shader program.
 func (tag *trtag) initShader() {
 	shader := &load.ShdData{}
-	if err := shader.Load("basic", load.NewLocator()); err == nil {
+	if err := shader.Load("vcolor", load.NewLocator()); err == nil {
 		tag.shaders = gl.CreateProgram()
 		if err := gl.BindProgram(tag.shaders, shader.Vsh, shader.Fsh); err != nil {
 			fmt.Printf("Failed to create program: %s\n", err)

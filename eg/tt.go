@@ -1,4 +1,4 @@
-// Copyright © 2015-2017 Galvanized Logic. All rights reserved.
+// Copyright © 2015-2018 Galvanized Logic. All rights reserved.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -43,9 +43,9 @@ func (tt *toTex) Create(eng vu.Eng, s *vu.State) {
 	scene0 := eng.AddScene().AsTex(true)
 	scene0.Cam().SetClip(0.1, 50).SetFov(60)
 	background := scene0.AddPart().SetAt(0, 0, -10).SetScale(100, 100, 1)
-	background.MakeModel("uv", "msh:icon", "tex:wall")
+	background.MakeModel("textured", "msh:icon", "tex:wall")
 	tt.monkey = scene0.AddPart().SetAt(0, 0, -5)
-	tt.monkey.MakeModel("monkey", "msh:monkey", "mat:gray")
+	tt.monkey.MakeModel("nshade", "msh:monkey", "mat:gray")
 
 	// scene consisting of a single quad. The quad will display
 	// the rendered texture from scene0. The texture image is flipped
@@ -53,7 +53,7 @@ func (tt *toTex) Create(eng vu.Eng, s *vu.State) {
 	scene1 := eng.AddScene()
 	scene1.Cam().SetClip(0.1, 50).SetFov(60)
 	tt.frame = scene1.AddPart().SetAt(0, 0, -0.5).SetScale(0.25, 0.25, 0.25)
-	model := tt.frame.MakeModel("uv", "msh:flipboard")
+	model := tt.frame.MakeModel("textured", "msh:flipboard")
 	model.SetTex(scene0) // use rendered texture from scene0.
 }
 

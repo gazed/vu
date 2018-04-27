@@ -1,4 +1,4 @@
-// Copyright © 2013-2015 Galvanized Logic Inc.
+// Copyright © 2013-2018 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package lin
@@ -490,6 +490,37 @@ func (m *M4) SetQ(q *Q) *M4 {
 	return m
 }
 
+// SetAa set axis-angle, updates m to be a rotation matrix from the
+// given axis (ax, ay, az) and angle (in radians). See:
+//    http://en.wikipedia.org/wiki/Rotation_matrix#Rotation_matrix_from_axis_and_angle
+//    http://web.archive.org/web/20041029003853/...
+//    ...http://www.j3d.org/matrix_faq/matrfaq_latest.html#Q38 (*note column order)
+// The updated matrix m is returned.
+func (m *M3) SetAa(ax, ay, az, ang float64) *M3 {
+	alenSqr := ax*ax + ay*ay + az*az
+	if alenSqr == 0 {
+		log.Printf("SetAa Zero length axis.")
+		return m
+	}
+
+	// ensure normalized unit vector.
+	ilen := 1 / math.Sqrt(alenSqr)
+	ax, ay, az = ax*ilen, ay*ilen, az*ilen
+
+	// now set the rotation.
+	rcos, rsin := math.Cos(ang), math.Sin(ang)
+	m.Xx = rcos + ax*ax*(1-rcos)
+	m.Xy = -az*rsin + ay*ax*(1-rcos)
+	m.Xz = ay*rsin + az*ax*(1-rcos)
+	m.Yx = az*rsin + ax*ay*(1-rcos)
+	m.Yy = rcos + ay*ay*(1-rcos)
+	m.Yz = -ax*rsin + az*ay*(1-rcos)
+	m.Zx = -ay*rsin + ax*az*(1-rcos)
+	m.Zy = ax*rsin + ay*az*(1-rcos)
+	m.Zz = rcos + az*az*(1-rcos)
+	return m
+}
+
 // SetSkewSym sets the matrix m to be a skew-symetric matrix based
 // on the elements of vector v. Wikipedia states:
 //    "A skew-symmetric matrix is a square matrix
@@ -570,37 +601,6 @@ func (m *M3) Inv(a *M3) *M3 {
 		m.Yx, m.Yy, m.Yz = yx, yy, yz
 		m.Zx, m.Zy, m.Zz = zx, zy, zz
 	}
-	return m
-}
-
-// SetAa set axis-angle, updates m to be a rotation matrix from the
-// given axis (ax, ay, az) and angle (in radians). See:
-//    http://en.wikipedia.org/wiki/Rotation_matrix#Rotation_matrix_from_axis_and_angle
-//    http://web.archive.org/web/20041029003853/...
-//    ...http://www.j3d.org/matrix_faq/matrfaq_latest.html#Q38 (*note column order)
-// The updated matrix m is returned.
-func (m *M3) SetAa(ax, ay, az, ang float64) *M3 {
-	alenSqr := ax*ax + ay*ay + az*az
-	if alenSqr == 0 {
-		log.Printf("quaternion.Q.SetAa Zero length axis.")
-		return m
-	}
-
-	// ensure normalized unit vector.
-	ilen := 1 / math.Sqrt(alenSqr)
-	ax, ay, az = ax*ilen, ay*ilen, az*ilen
-
-	// now set the rotation.
-	rcos, rsin := math.Cos(ang), math.Sin(ang)
-	m.Xx = rcos + ax*ax*(1-rcos)
-	m.Xy = -az*rsin + ay*ax*(1-rcos)
-	m.Xz = ay*rsin + az*ax*(1-rcos)
-	m.Yx = az*rsin + ax*ay*(1-rcos)
-	m.Yy = rcos + ay*ay*(1-rcos)
-	m.Yz = -ax*rsin + az*ay*(1-rcos)
-	m.Zx = -ay*rsin + ax*az*(1-rcos)
-	m.Zy = ax*rsin + ay*az*(1-rcos)
-	m.Zz = rcos + az*az*(1-rcos)
 	return m
 }
 

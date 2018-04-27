@@ -1,4 +1,4 @@
-// Copyright © 2014-2016 Galvanized Logic Inc.
+// Copyright © 2014-2018 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package synth

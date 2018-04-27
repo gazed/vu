@@ -1,4 +1,4 @@
-// Copyright © 2013-2015 Galvanized Logic Inc.
+// Copyright © 2013-2018 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package lin
@@ -81,7 +81,7 @@ func (t *T) SetRot(x, y, z, w float64) *T {
 // the input transforms. The updated transform t is returned.
 func (t *T) Mult(a, b *T) *T {
 	tx, ty, tz := t.Loc.GetS() // preserve original translation.
-	t.Loc.MultvQ(b.Loc, a.Rot) // apply rotation to incoming translation.
+	t.Loc.MultQ(b.Loc, a.Rot)  // apply rotation to incoming translation.
 	t.Loc.X, t.Loc.Y, t.Loc.Z = t.Loc.X+tx, t.Loc.Y+ty, t.Loc.Z+tz
 	t.Rot.Mult(a.Rot, b.Rot)
 	return t
@@ -89,8 +89,8 @@ func (t *T) Mult(a, b *T) *T {
 
 // App applies its transform to vector v. The updated vector v is returned.
 func (t *T) App(v *V3) *V3 {
-	v.MultvQ(v, t.Rot) // apply rotation.
-	v.Add(v, t.Loc)    // apply translation.
+	v.MultQ(v, t.Rot) // apply rotation.
+	v.Add(v, t.Loc)   // apply translation.
 	return v
 }
 

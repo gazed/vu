@@ -1,4 +1,4 @@
-// Copyright © 2017 Galvanized Logic Inc.
+// Copyright © 2017-2018 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package vu
@@ -23,7 +23,6 @@ func (e *Ent) SetUI() *Ent {
 		s.isOrtho = true // orthographic projection
 		s.cam.vt = vo    // orthographic view transform.
 		s.cam.it = nv    // no inverse view transform needed.
-		s.cam.steady = false
 		return e
 	}
 	log.Printf("SetUI needs AddScene %d", e.eid)
@@ -54,6 +53,29 @@ func (e *Ent) Cam() *Camera {
 	return nil
 }
 
+// SetScissor restricts the scene to the given screen area.
+// Scissor can be disabled by setting all values to 0.
+// Any negative parameter values causes the call to be ignored.
+//
+// Depends on Eng.AddScene.
+func (e *Ent) SetScissor(x, y, w, h int) *Ent {
+	if s := e.app.scenes.get(e.eid); s != nil {
+		switch {
+		case x < 0 || y < 0 || w < 0 || h < 0:
+			// ignore.
+		case x == 0 && y == 0 && w == 0 && h == 0:
+			s.scissor = false
+		default:
+			s.scissor = true
+			s.sx, s.sy = int32(x), int32(y)
+			s.sw, s.sh = int32(w), int32(h)
+		}
+		return e
+	}
+	log.Printf("SetCuller needs AddScene %d", e.eid)
+	return e
+}
+
 // SetCuller sets a method that reduces the number of Models rendered
 // each update. It can be application supplied or engine supplied.
 //
@@ -72,7 +94,6 @@ func (e *Ent) SetCuller(culler Culler) {
 func (e *Ent) SetOrtho() *Ent {
 	if s := e.app.scenes.get(e.eid); s != nil {
 		s.isOrtho = true // orthographic projection
-		s.cam.steady = false
 		return e
 	}
 	log.Printf("SetOrtho needs AddScene %d", e.eid)
@@ -108,6 +129,11 @@ type scene struct {
 	cam     *Camera // Created automatically with a new scene.
 	isOrtho bool    // 2D or 3D orthographic projection
 
+	// scissor the scene to be drawn within the following area.
+	scissor bool // Set true to scissor the scene.
+	sx, sy  int32
+	sw, sh  int32
+
 	// Overlay determines if this scene is a 3D or 2D. Default 0 means 3D.
 	// Any other value means 2D. In all cases higher Overlay values are
 	// drawn over scenes with lower Overlay values.
@@ -138,6 +164,22 @@ func (s *scene) setProjection(ww, wh int) {
 	default:
 		c.setPerspective(c.fov, w/h, c.near, c.far)
 	}
+	c.focus = true
+}
+
+// draw sets the scene attributes that affect every object within
+// the scene.
+func (s *scene) draw(d *render.Draw) {
+	d.Fbo = s.fbo // 0 for standard display back buffer.
+	d.Depth = !s.is2D()
+	d.Bucket = setBucket(uint8(s.fbo), s.overlay)
+
+	// Set the optional scissor for all draw calls in the scene.
+	if s.scissor {
+		d.Scissor = true
+		d.Sx, d.Sy = s.sx, s.sy
+		d.Sw, d.Sh = s.sw, s.sh
+	}
 }
 
 // scene data.
@@ -157,8 +199,6 @@ type scenes struct {
 
 	// Scratch variables: reused each update.
 	parts []uint32 // flattened pov hiearchy.
-	mv    *lin.M4  // Scratch model-view matrix.
-	mvp   *lin.M4  // Scratch model-view-proj matrix.
 	v0    *lin.V4  // Scratch for location calculations.
 	t0    *lin.T   // Scratch transform for 'tweening interpolation.
 }
@@ -174,10 +214,8 @@ func newScenes() *scenes {
 	ss.rebinds = map[eid][]asset{}
 	ss.parts = []uint32{} // updated each frame
 	ss.white = newLight() // default light.
-	ss.mv = &lin.M4{}
-	ss.mvp = &lin.M4{}
-	ss.v0 = &lin.V4{}  // scratch
-	ss.t0 = lin.NewT() // scratch
+	ss.v0 = &lin.V4{}     // scratch
+	ss.t0 = lin.NewT()    // scratch
 	return ss
 }
 
@@ -257,10 +295,6 @@ func (ss *scenes) draw(app *application, fr frame) frame {
 		}
 	}
 	render.SortDraws(fr)
-	// fmt.Printf("========= %d scenes, %d draw calls\n", len(s.all), len(fr))
-	// for cnt, d := range fr {
-	// 	fmt.Printf("    %4d %4d %016x\n", cnt, d.Tag, d.Bucket)
-	// }
 	return fr
 }
 
@@ -273,17 +307,18 @@ func (ss *scenes) filter(app *application, sc *scene, index uint32, parts []uint
 	p := app.povs.povs[index]
 	n := app.povs.nodes[index]
 	if culled := n.cull; !culled {
+		w := p.tw.Loc
 		if ready := app.models.getReady(p.eid); ready != nil {
-			if sc.culler == nil || !sc.culler.Culled(sc.cam, p.wx, p.wy, p.wz) {
+			if sc.culler == nil || !sc.culler.Culled(sc.cam, w.X, w.Y, w.Z) {
 				parts = append(parts, index)
 				if !sc.is2D() {
 					// save distance to camera for transparency sorting.
-					ready.tocam = sc.cam.normalizedDistance(p.wx, p.wy, p.wz)
+					ready.tocam = sc.cam.normalizedDistance(w.X, w.Y, w.Z)
 				}
 			}
 		}
 		if l := app.lights.get(p.eid); l != nil {
-			l.wx, l.wy, l.wz = p.wx, p.wy, p.wz
+			l.wx, l.wy, l.wz = w.X, w.Y, w.Z
 			sc.light = l
 		}
 
@@ -304,7 +339,7 @@ func (ss *scenes) filter(app *application, sc *scene, index uint32, parts []uint
 func (ss *scenes) drawScene(app *application, sc *scene, parts []uint32, f frame) frame {
 	if sky, ok := ss.skys[sc.eid]; ok {
 		// Optional skydome for 3D scenes.
-		f = sky.draw(app, sc, f, ss.mv, ss.mvp)
+		f = sky.draw(app, sc, f)
 	}
 	shadows, drawShadows := ss.shadows[sc.eid]
 
@@ -315,15 +350,12 @@ func (ss *scenes) drawScene(app *application, sc *scene, parts []uint32, f frame
 
 		// generate draw calls for all models with loaded assets.
 		if m := app.models.getReady(p.eid); m != nil && m.msh != nil {
-			if m.msh == nil {
-				log.Printf("bad mesh %d", p.eid)
-				continue // Engine error: should have mesh to render.
-			}
 			if m.msh.vao <= 0 {
 				log.Printf("bad mesh vao %d %s", p.eid, m.msh.name)
 				continue // Engine error: should have generated vao.
 			}
 			if f, draw = f.getDraw(); draw != nil {
+				sc.draw(*draw) // Apply scene attributes to the draw call.
 
 				// Scenes with shadows generates extra draw calls that are sorted
 				// so they are executed before the models that need the shadow map.
@@ -332,13 +364,14 @@ func (ss *scenes) drawScene(app *application, sc *scene, parts []uint32, f frame
 					// render from the lights position into the shadow map.
 					shadows.drawShadow(*draw, p, sc, m)
 					f, draw = f.getDraw() // need new draw call.
+					sc.draw(*draw)        // apply scene attributes.
 
 					// render using the shadow map.
 					shadows.drawShade(*draw, p)
 				}
 
 				// always render model normally from scene camera.
-				p.draw(*draw, ss.mv, ss.mvp, sc, sc.cam, sc.fbo)
+				p.draw(*draw, sc.cam.pm, sc.cam.vm)
 				sc.light.draw(*draw)
 				app.models.draw(p.eid, m, *draw)
 			}
@@ -352,40 +385,36 @@ func (ss *scenes) drawScene(app *application, sc *scene, parts []uint32, f frame
 func (ss *scenes) setPrev() {
 	for _, scene := range ss.all {
 		c := scene.cam
-		if !c.prev.Eq(c.at) {
-			c.prev.Set(c.at)
-			c.steady = false
-		}
+		c.prev.Set(c.at)
 	}
 }
 
-// renderAt calculates the current render frame camera locations and
-// orientations. Called each render frame.
-func (ss *scenes) renderAt(lerp float64, w, h int) {
+// setRenderTransforms calculates the current render frame camera locations
+// and orientations. Called each render frame.
+func (ss *scenes) setRenderTransforms(lerp float64, w, h int) {
 	for _, scene := range ss.all {
 		c := scene.cam
 
 		// update projection matrix if necessary.
 		if c.focus {
 			scene.setProjection(w, h)
-			c.focus = false
 			if sky, ok := ss.skys[scene.eid]; ok {
 				sky.cam.pm.Set(c.pm)
 			}
 		}
 
 		// update location and orientations if necessary
-		if c.steady {
-			// Cameras that haven't moved already have the correct
-			// transform matricies.
+		if !c.focus && c.prev.Eq(c.at) {
+			// Cameras that haven't moved during update already
+			// have the correct transform matricies.
 			continue
 		}
-		c.steady = true // processed camera motion.
+		c.focus = false
 
 		// interpolate the camera position and orientation.
 		// This helps smooth motion when there are more renders than updates.
-		ss.t0.Loc.Lerp(c.at.Loc, c.prev.Loc, lerp)
-		ss.t0.Rot.Nlerp(c.at.Rot, c.prev.Rot, lerp)
+		ss.t0.Loc.Lerp(c.prev.Loc, c.at.Loc, lerp)
+		ss.t0.Rot.Nlerp(c.prev.Rot, c.at.Rot, lerp)
 
 		// Set the view transform. Updates c.vm.
 		c.vt(ss.t0, c.q0, c.vm) // view transform
@@ -403,8 +432,8 @@ func (ss *scenes) renderAt(lerp float64, w, h int) {
 
 			// interpolate the camera position and orientation.
 			// This helps smooth motion when there are more renders than updates.
-			ss.t0.Loc.Lerp(c.at.Loc, c.prev.Loc, lerp)
-			ss.t0.Rot.Nlerp(c.at.Rot, c.prev.Rot, lerp)
+			ss.t0.Loc.Lerp(c.prev.Loc, c.at.Loc, lerp)
+			ss.t0.Rot.Nlerp(c.prev.Rot, c.at.Rot, lerp)
 
 			// Set the view transform. Updates c.vm. Ignore inverse.
 			c.vt(ss.t0, c.q0, c.vm) // view transform

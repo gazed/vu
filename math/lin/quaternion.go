@@ -1,4 +1,4 @@
-// Copyright © 2013-2015 Galvanized Logic Inc.
+// Copyright © 2013-2018 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package lin
@@ -156,7 +156,7 @@ func (q *Q) Nlerp(r, s *Q, ratio float64) *Q {
 	q.Y = (s.Y-r.Y)*ratio + r.Y
 	q.Z = (s.Z-r.Z)*ratio + r.Z
 	q.W = (s.W-r.W)*ratio + r.W
-	return q.Unit()
+	return q.Unit() // normalize the linear interpolation for a rotation.
 }
 
 // quaternion operations
@@ -181,11 +181,11 @@ func (q *Q) MultQV(r *Q, v *V3) *Q {
 //    http://web.archive.org/web/20041029003853/...
 //    ...http://www.j3d.org/matrix_faq/matrfaq_latest.html#Q57
 func (q *Q) Aa() (ax, ay, az, angle float64) {
-	sinSqr := 1 - q.W*q.W
+	sinSqr := 1.0 - q.W*q.W
 	if AeqZ(sinSqr) {
 		return 1, 0, 0, 2 * math.Acos(q.W)
 	}
-	sin := 1 / math.Sqrt(sinSqr)
+	sin := 1.0 / math.Sqrt(sinSqr)
 	return q.X * sin, q.Y * sin, q.Z * sin, 2 * math.Acos(q.W)
 }
 
@@ -194,7 +194,16 @@ func (q *Q) Aa() (ax, ay, az, angle float64) {
 //    http://web.archive.org/web/20041029003853/...
 //    ...http://www.j3d.org/matrix_faq/matrfaq_latest.html#Q56
 // The updated quaternion q is returned.
-// The quaternion q is not updated if the axis length is 0.
+// The quaternion q is set to 0,0,0,1 if the axis length is 0.
+//
+// Ensure SetAa returns quaternions consistent with SetM3.
+// Convention 5 from "Consistent Representations of and Conversions
+// Between 3D Rotations":
+//    "The rotation angle ω is limited to the interval [0, π].
+//     For angles in the range ]π, 2π[, the sign of the unit axis vector nˆ
+//     must be reversed, and ω replaced by 2π − ω. For angles outside the range
+//     [0, 2π[, the angle must first be reduced to the interval [0, 2π[ by
+//     adding or subtracting the appropriate integer multiple of 2π."
 func (q *Q) SetAa(ax, ay, az, angle float64) *Q {
 	alenSqr := ax*ax + ay*ay + az*az
 	if alenSqr == 0 {
@@ -202,7 +211,15 @@ func (q *Q) SetAa(ax, ay, az, angle float64) *Q {
 		return q
 	}
 
-	// now set the rotation.
+	// Convention 5 matches output of SetM3.
+	tau := 2 * math.Pi
+	for angle > tau {
+		angle -= tau // reduce multiples of 2π
+	}
+	if angle > math.Pi {
+		angle = tau - angle        // restrict to 180...
+		ax, ay, az = -ax, -ay, -az // ...and flip rotation axis.
+	}
 	s := math.Sin(angle*0.5) / math.Sqrt(alenSqr)
 	q.X, q.Y, q.Z, q.W = ax*s, ay*s, az*s, math.Cos(angle*0.5)
 	return q
@@ -212,49 +229,42 @@ func (q *Q) SetAa(ax, ay, az, angle float64) *Q {
 // ============================================================================
 // quaternion-matrix operations
 
-// SetM updates quaternion q to be the rotation of matrix m. See
+// SetM3 updates quaternion q to be the rotation of matrix m. See
 //     http://www.flipcode.com/documents/matrfaq.html#Q55
 //     http://www.euclideanspace.com/maths/geometry/rotations/conversions/matrixToQuaternion/
+//     https://d3cw3dd2w32x2b.cloudfront.net/wp-content/uploads/2015/01/matrix-to-quat.pdf
 // The updated q is returned.
-func (q *Q) SetM(m *M3) *Q {
-	trace := m.Xx + m.Yy + m.Zz
-	switch {
-	case trace > 0:
-		s := math.Sqrt(trace+1) * 2 // s=4*qw
-		q.W = 0.25 * s
-		q.X = (m.Zy - m.Yz) / s
-		q.Y = (m.Xz - m.Zx) / s
-		q.Z = (m.Yx - m.Xy) / s
-	case m.Xx > m.Yy && m.Xx > m.Zz:
-		s := math.Sqrt(m.Xx-m.Yy-m.Zz+1) * 2 // s=4*qx
-		q.W = (m.Zy - m.Yz) / s
-		q.X = 0.25 * s
-		q.Y = (m.Xy + m.Yx) / s
-		q.Z = (m.Xz + m.Zx) / s
-	case m.Yy > m.Zz:
-		s := math.Sqrt(m.Yy-m.Xx-m.Zz+1) * 2 // s=4*qy
-		q.W = (m.Xz - m.Zx) / s
-		q.X = (m.Xy + m.Yx) / s
-		q.Y = 0.25 * s
-		q.Z = (m.Yz + m.Zy) / s
-	default:
-		s := math.Sqrt(m.Zz-m.Xx-m.Yy+1) * 2 // s=4*qz
-		q.W = (m.Yx - m.Xy) / s
-		q.X = (m.Xz + m.Zx) / s
-		q.Y = (m.Yz + m.Zy) / s
-		q.Z = 0.25 * s
+//
+// SetM3 outputs quaternions that are consistent with SetAa.
+func (q *Q) SetM3(m *M3) *Q {
+	t := 0.0
+	if m.Zz < 0 {
+		if m.Xx > m.Yy {
+			t = 1.0 + m.Xx - m.Yy - m.Zz
+			q.SetS(t, m.Xy+m.Yx, m.Zx+m.Xz, m.Zy-m.Yz)
+		} else {
+			t = 1.0 - m.Xx + m.Yy - m.Zz
+			q.SetS(m.Xy+m.Yx, t, m.Yz+m.Zy, m.Xz-m.Zx)
+		}
+	} else {
+		if m.Xx < -m.Yy {
+			t = 1.0 - m.Xx - m.Yy + m.Zz
+			q.SetS(m.Zx+m.Xz, m.Yz+m.Zy, t, m.Yx-m.Xy)
+		} else {
+			t = 1.0 + m.Xx + m.Yy + m.Zz
+			q.SetS(m.Zy-m.Yz, m.Xz-m.Zx, m.Yx-m.Xy, t)
+		}
 	}
-	q.X, q.Y, q.Z, q.W = math.Abs(q.X), math.Abs(q.Y), math.Abs(q.Z), math.Abs(q.W)
+	q.Scale(0.5 / math.Sqrt(t))
+	if q.W < 0 {
+		return q.Scale(-1)
+	}
 	return q
 }
 
 // quaternion-matrix operations
 // ============================================================================
 // quaternion-transform operations
-
-// MultT applies the rotation in transform t to the quaternion q.
-// The updated quaternion q is returned.
-func (q *Q) MultT(t *T) *Q { return q.Mult(q, t.Rot) }
 
 // SetT updates quaternion q to have the rotation in transform t.
 // The updated quaternion q is returned.

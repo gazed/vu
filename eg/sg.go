@@ -1,4 +1,4 @@
-// Copyright © 2013-2017 Galvanized Logic Inc.
+// Copyright © 2013-2018 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -34,7 +34,7 @@ func sg() {
 // Globally unique "tag" that encapsulates example specific data.
 type sgtag struct {
 	scene  *vu.Ent
-	tr     *trooper
+	meld   *meld
 	run    float64
 	spin   float64
 	dt     float64
@@ -52,7 +52,7 @@ func (sg *sgtag) Create(eng vu.Eng, s *vu.State) {
 	sg.scene.Cam().SetClip(0.1, 50).SetFov(60).SetAt(0, 0, 6)
 	sg.run = 10   // move so many cubes worth in one second.
 	sg.spin = 270 // spin so many degrees in one second.
-	sg.tr = newTrooper(sg.scene.AddPart(), 1)
+	sg.meld = newMeld(sg.scene.AddPart(), 1)
 
 	// initialize the reactions
 	sg.reacts = map[int]inputHandler{
@@ -83,112 +83,113 @@ func (sg *sgtag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 // User actions.
 func (sg *sgtag) stats(i *vu.Input, down int) {
 	if down == 1 {
-		log.Printf("Cubes %d", sg.tr.health())
+		log.Printf("Cubes %d", sg.meld.health())
 	}
 }
-func (sg *sgtag) left(i *vu.Input, down int)  { sg.tr.top.Spin(0, sg.dt*sg.spin, 0) }
-func (sg *sgtag) right(i *vu.Input, down int) { sg.tr.top.Spin(0, sg.dt*-sg.spin, 0) }
+func (sg *sgtag) left(i *vu.Input, down int)  { sg.meld.top.Spin(0, sg.dt*sg.spin, 0) }
+func (sg *sgtag) right(i *vu.Input, down int) { sg.meld.top.Spin(0, sg.dt*-sg.spin, 0) }
 func (sg *sgtag) back(i *vu.Input, down int) {
-	sg.tr.top.Move(0, 0, sg.dt*sg.run, sg.scene.Cam().Look)
+	sg.meld.top.Move(0, 0, sg.dt*sg.run, sg.scene.Cam().Look)
 }
 func (sg *sgtag) forward(i *vu.Input, down int) {
-	sg.tr.top.Move(0, 0, sg.dt*-sg.run, sg.scene.Cam().Look)
+	sg.meld.top.Move(0, 0, sg.dt*-sg.run, sg.scene.Cam().Look)
 }
-func (sg *sgtag) attach(i *vu.Input, down int) { sg.tr.attach() }
-func (sg *sgtag) detach(i *vu.Input, down int) { sg.tr.detach() }
+func (sg *sgtag) attach(i *vu.Input, down int) { sg.meld.attach() }
+func (sg *sgtag) detach(i *vu.Input, down int) { sg.meld.detach() }
 func (sg *sgtag) setTr(down, lvl int) {
 	if down == 1 {
-		sg.tr.trash()
-		sg.tr = newTrooper(sg.scene.AddPart(), lvl)
+		sg.meld.trash()
+		sg.meld = newMeld(sg.scene.AddPart(), lvl)
 	}
 }
 
-// trooper is an attempt to keep polygon growth linear while the player
-// statistics grows exponentially. A trooper is rendered using a single mesh
-// that is replicated 1 or more times depending on the health of the trooper.
-type trooper struct {
+// =============================================================================
+
+// meld plays around with a composite object made up of small pieces that
+// are combined or separated as bits are added or removed.
+type meld struct {
 	top    *vu.Ent
-	neo    *vu.Ent // un-injured trooper
+	neo    *vu.Ent // un-injured meld
 	center *vu.Ent // center always represented as one piece
-	bits   []box   // injured troopers have panels and edge cubes.
+	bits   []box   // panels and edge cubes.
 	lvl    int
 	mid    int // level entry number of cells.
 }
 
-// newTrooper creates a trooper at the starting size for the given level.
+// newMeld creates a meld at the starting size for the given level.
 //    level 0: 1x1x1 :  1 cube
 //    level 1: 2x2x2 :  8 edge cubes + 6 panels of 0x0 cubes + 0x0x0 center.
 //    level 2: 3x3x3 : 20 edge cubes + 6 panels of 1x1 cubes + 1x1x1 center.
 //    level 3: 4x4x4 : 32 edge cubes + 6 panels of 2x2 cubes + 2x2x2 center.
 //    ...
-func newTrooper(pov *vu.Ent, level int) *trooper {
-	tr := &trooper{top: pov}
-	tr.lvl = level
-	tr.bits = []box{}
-	tr.mid = tr.lvl*tr.lvl*tr.lvl*8 - (tr.lvl-1)*(tr.lvl-1)*(tr.lvl-1)*8
+func newMeld(pov *vu.Ent, level int) *meld {
+	m := &meld{top: pov}
+	m.lvl = level
+	m.bits = []box{}
+	m.mid = m.lvl*m.lvl*m.lvl*8 - (m.lvl-1)*(m.lvl-1)*(m.lvl-1)*8
 
 	//
-	if tr.lvl == 0 {
-		cube := newCube(tr.top, 0, 0, 0, 1)
+	if m.lvl == 0 {
+		cube := newCube(m.top, 0, 0, 0, 1)
 		cube.edgeSort(1)
-		tr.bits = append(tr.bits, cube)
-		return tr
+		m.bits = append(m.bits, cube)
+		return m
 	}
 
 	// create the panels. These are used in each level but the first.
-	cubeSize := 1.0 / float64(tr.lvl+1)
+	cubeSize := 1.0 / float64(m.lvl+1)
 	centerOffset := cubeSize * 0.5
-	panelCenter := float64(tr.lvl) * centerOffset
-	tr.bits = append(tr.bits, newBlock(tr.top, panelCenter, 0.0, 0.0, tr.lvl))
-	tr.bits = append(tr.bits, newBlock(tr.top, -panelCenter, 0.0, 0.0, tr.lvl))
-	tr.bits = append(tr.bits, newBlock(tr.top, 0.0, panelCenter, 0.0, tr.lvl))
-	tr.bits = append(tr.bits, newBlock(tr.top, 0.0, -panelCenter, 0.0, tr.lvl))
-	tr.bits = append(tr.bits, newBlock(tr.top, 0.0, 0.0, panelCenter, tr.lvl))
-	tr.bits = append(tr.bits, newBlock(tr.top, 0.0, 0.0, -panelCenter, tr.lvl))
+	panelCenter := float64(m.lvl) * centerOffset
+	m.bits = append(m.bits, newBlock(m.top, panelCenter, 0.0, 0.0, m.lvl))
+	m.bits = append(m.bits, newBlock(m.top, -panelCenter, 0.0, 0.0, m.lvl))
+	m.bits = append(m.bits, newBlock(m.top, 0.0, panelCenter, 0.0, m.lvl))
+	m.bits = append(m.bits, newBlock(m.top, 0.0, -panelCenter, 0.0, m.lvl))
+	m.bits = append(m.bits, newBlock(m.top, 0.0, 0.0, panelCenter, m.lvl))
+	m.bits = append(m.bits, newBlock(m.top, 0.0, 0.0, -panelCenter, m.lvl))
 
-	// troopers are made out of cubes and panels.
-	mx := float64(-tr.lvl)
-	for cx := 0; cx <= tr.lvl; cx++ {
-		my := float64(-tr.lvl)
-		for cy := 0; cy <= tr.lvl; cy++ {
-			mz := float64(-tr.lvl)
-			for cz := 0; cz <= tr.lvl; cz++ {
+	// meld are made out of cubes and panels.
+	mx := float64(-m.lvl)
+	for cx := 0; cx <= m.lvl; cx++ {
+		my := float64(-m.lvl)
+		for cy := 0; cy <= m.lvl; cy++ {
+			mz := float64(-m.lvl)
+			for cz := 0; cz <= m.lvl; cz++ {
 
 				// create the outer edges.
 				newCells := 0
-				if (cx == 0 || cx == tr.lvl) && (cy == 0 || cy == tr.lvl) && (cz == 0 || cz == tr.lvl) {
+				if (cx == 0 || cx == m.lvl) && (cy == 0 || cy == m.lvl) && (cz == 0 || cz == m.lvl) {
 
 					// corner cube
 					newCells = 1
-				} else if (cx == 0 || cx == tr.lvl) && (cy == 0 || cy == tr.lvl) ||
-					(cx == 0 || cx == tr.lvl) && (cz == 0 || cz == tr.lvl) ||
-					(cy == 0 || cy == tr.lvl) && (cz == 0 || cz == tr.lvl) {
+				} else if (cx == 0 || cx == m.lvl) && (cy == 0 || cy == m.lvl) ||
+					(cx == 0 || cx == m.lvl) && (cz == 0 || cz == m.lvl) ||
+					(cy == 0 || cy == m.lvl) && (cz == 0 || cz == m.lvl) {
 
 					// edge cube
 					newCells = 2
-				} else if cx == 0 || cx == tr.lvl || cy == 0 || cy == tr.lvl || cz == 0 || cz == tr.lvl {
+				} else if cx == 0 || cx == m.lvl || cy == 0 || cy == m.lvl || cz == 0 || cz == m.lvl {
 
 					// side cubes are added to (controlled by) a panel.
 					x, y, z := mx*centerOffset, my*centerOffset, mz*centerOffset
-					if cx == tr.lvl && x > y && x > z {
-						tr.bits[0].(*block).addCube(x, y, z, float64(cubeSize))
+					if cx == m.lvl && x > y && x > z {
+						m.bits[0].(*block).addCube(x, y, z, float64(cubeSize))
 					} else if cx == 0 && x < y && x < z {
-						tr.bits[1].(*block).addCube(x, y, z, float64(cubeSize))
-					} else if cy == tr.lvl && y > x && y > z {
-						tr.bits[2].(*block).addCube(x, y, z, float64(cubeSize))
+						m.bits[1].(*block).addCube(x, y, z, float64(cubeSize))
+					} else if cy == m.lvl && y > x && y > z {
+						m.bits[2].(*block).addCube(x, y, z, float64(cubeSize))
 					} else if cy == 0 && y < x && y < z {
-						tr.bits[3].(*block).addCube(x, y, z, float64(cubeSize))
-					} else if cz == tr.lvl && z > x && z > y {
-						tr.bits[4].(*block).addCube(x, y, z, float64(cubeSize))
+						m.bits[3].(*block).addCube(x, y, z, float64(cubeSize))
+					} else if cz == m.lvl && z > x && z > y {
+						m.bits[4].(*block).addCube(x, y, z, float64(cubeSize))
 					} else if cz == 0 && z < x && z < y {
-						tr.bits[5].(*block).addCube(x, y, z, float64(cubeSize))
+						m.bits[5].(*block).addCube(x, y, z, float64(cubeSize))
 					}
 				}
 				if newCells > 0 {
 					x, y, z := mx*centerOffset, my*centerOffset, mz*centerOffset
-					cube := newCube(tr.top, x, y, z, float64(cubeSize))
+					cube := newCube(m.top, x, y, z, float64(cubeSize))
 					cube.edgeSort(newCells)
-					tr.bits = append(tr.bits, cube)
+					m.bits = append(m.bits, cube)
 				}
 				mz += 2
 			}
@@ -196,93 +197,92 @@ func newTrooper(pov *vu.Ent, level int) *trooper {
 		}
 		mx += 2
 	}
-	tr.addCenter()
-	return tr
+	m.addCenter()
+	return m
 }
 
-// The interior center of the trooper is a single cube the size of the previous level.
+// The interior center of the meld is a single cube the size of the previous level.
 // This will be nothing on the first level.
-func (tr *trooper) addCenter() {
-	if tr.lvl > 0 {
-		cubeSize := 1.0 / float64(tr.lvl+1)
-		scale := float64(tr.lvl-1) * cubeSize * 0.9 // leave a gap.
-		tr.center = tr.top.AddPart().SetScale(scale, scale, scale)
-		tr.center.MakeModel("alpha", "msh:box", "mat:transparent_red")
+func (m *meld) addCenter() {
+	if m.lvl > 0 {
+		cubeSize := 1.0 / float64(m.lvl+1)
+		scale := float64(m.lvl-1) * cubeSize * 0.9 // leave a gap.
+		m.center = m.top.AddPart().SetScale(scale, scale, scale)
+		m.center.MakeModel("colored", "msh:box", "mat:red").SetAlpha(0.5)
 	}
 }
 
-// health returns the number of cells in the troopers outer layer.
-func (tr *trooper) health() int {
+// health returns the number of cells in the meld outer layer.
+func (m *meld) health() int {
 	ccnt := 0
-	for _, b := range tr.bits {
+	for _, b := range m.bits {
 		ccnt += b.box().ccnt
 	}
 	return ccnt
 }
 
-// attach currently tries to fill in panels first.
-func (tr *trooper) attach() {
-	for _, b := range tr.bits {
+// attach tries to fill in panels first.
+func (m *meld) attach() {
+	for _, b := range m.bits {
 		if b.attach() {
 			return
 		}
 	}
-	tr.evolve()
+	m.evolve()
 }
 
-// detach currently tries to remove from edges first.
-func (tr *trooper) detach() {
-	if tr.neo != nil {
-		tr.demerge()
+// detach tries to remove from edges first.
+func (m *meld) detach() {
+	if m.neo != nil {
+		m.demerge()
 		return
 	}
-	for _, b := range tr.bits {
+	for _, b := range m.bits {
 		if b.detach() {
 			return
 		}
 	}
-	tr.devolve()
+	m.devolve()
 }
 
-func (tr *trooper) merge() {
-	tr.trash()
-	tr.neo = tr.top.AddPart().MakeModel("alpha", "msh:box", "mat:blue")
-	tr.addCenter()
+func (m *meld) merge() {
+	m.trash()
+	m.neo = m.top.AddPart().MakeModel("colored", "msh:box", "mat:blue")
+	m.addCenter()
 }
 
-func (tr *trooper) demerge() {
-	tr.trash()
-	tr.addCenter()
-	for _, b := range tr.bits {
+func (m *meld) demerge() {
+	m.trash()
+	m.addCenter()
+	for _, b := range m.bits {
 		b.reset(b.box().cmax)
 	}
-	tr.bits[0].detach()
+	m.bits[0].detach()
 }
 
-func (tr *trooper) trash() {
-	for _, b := range tr.bits {
+func (m *meld) trash() {
+	for _, b := range m.bits {
 		b.trash()
 	}
-	if tr.center != nil {
-		tr.center.Dispose()
-		tr.center = nil
+	if m.center != nil {
+		m.center.Dispose()
+		m.center = nil
 	}
-	if tr.neo != nil {
-		tr.neo.Dispose()
+	if m.neo != nil {
+		m.neo.Dispose()
 	}
-	tr.neo = nil
+	m.neo = nil
 }
 
-func (tr *trooper) evolve() {
-	if tr.neo == nil {
-		// trooper evolved - should be replaced by trooper at next level
-		tr.merge()
+func (m *meld) evolve() {
+	if m.neo == nil {
+		// meld evolved - should be replaced by meld at next level
+		m.merge()
 	}
 }
 
-func (tr *trooper) devolve() {
-	// trooper devolved - should be replaced by trooper at previous level
-}
+// meld devolved - should be replaced by meld at previous level
+func (m *meld) devolve() {}
 
 // ===========================================================================
 
@@ -354,7 +354,7 @@ func (c *cbox) box() *cbox { return c }
 
 // ===========================================================================
 
-// blocks group 0 or more cubes into the center of one of the troopers
+// blocks group 0 or more cubes into the center of one of the melds
 // six sides.
 type block struct {
 	part  *vu.Ent // each panel is its own part.
@@ -423,7 +423,7 @@ func (b *block) removeCell() {
 func (b *block) merge() {
 	b.trash()
 	b.slab = b.part.AddPart().SetAt(b.cx, b.cy, b.cz)
-	b.slab.MakeModel("alpha", "msh:box", "mat:blue")
+	b.slab.MakeModel("colored", "msh:box", "mat:blue")
 	scale := float64(b.lvl-1) * b.csize
 	if (b.cx > b.cy && b.cx > b.cz) || (b.cx < b.cy && b.cx < b.cz) {
 		b.slab.SetScale(b.csize, scale, scale)
@@ -448,7 +448,7 @@ func (b *block) trash() {
 
 // ===========================================================================
 
-// cube is the building blocks for troopers and panels.  Cube takes a size
+// cube is the building blocks for meld and panels.  Cube takes a size
 // and location and creates an 8 part cube out of it.  Cubes can be queried
 // as to their current number of cells which is between 0 (nothing visible),
 // 1-7 (partial) and 8 (merged).
@@ -460,9 +460,9 @@ type cube struct {
 }
 
 // newCube's are often started with 1 corner, 2 edges, or 4 bottom side pieces.
-func newCube(tr *vu.Ent, x, y, z, cubeSize float64) *cube {
+func newCube(meld *vu.Ent, x, y, z, cubeSize float64) *cube {
 	c := &cube{}
-	c.part = tr.AddPart()
+	c.part = meld.AddPart()
 	c.cells = []*vu.Ent{}
 	c.cx, c.cy, c.cz, c.csize = x, y, z, cubeSize
 	c.ccnt, c.cmax = 0, 8
@@ -501,7 +501,7 @@ func (c *cube) panelSort(rx, ry, rz float64, startCount int) {
 func (c *cube) addCell() {
 	center := c.centers[c.ccnt-1]
 	cell := c.part.AddPart().SetAt(center.X, center.Y, center.Z)
-	cell.MakeModel("alpha", "msh:box", "mat:green")
+	cell.MakeModel("colored", "msh:box", "mat:green")
 	scale := c.csize * 0.40 // leave a gap (0.5 for no gap).
 	cell.SetScale(scale, scale, scale)
 	c.cells = append(c.cells, cell)
@@ -520,7 +520,7 @@ func (c *cube) removeCell() {
 func (c *cube) merge() {
 	c.trash()
 	cell := c.part.AddPart().SetAt(c.cx, c.cy, c.cz)
-	cell.MakeModel("alpha", "msh:box", "mat:green")
+	cell.MakeModel("colored", "msh:box", "mat:green")
 	scale := c.csize - (c.csize * 0.15) // leave a gap (just c.csize for no gap)
 	cell.SetScale(scale, scale, scale)
 	c.cells = append(c.cells, cell)

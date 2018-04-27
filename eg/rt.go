@@ -1,4 +1,4 @@
-// Copyright © 2015-2017 Galvanized Logic. All rights reserved.
+// Copyright © 2015-2018 Galvanized Logic. All rights reserved.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main

@@ -1,4 +1,4 @@
-// Copyright © 2015-2017 Galvanized Logic Inc.
+// Copyright © 2015-2018 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package vu
@@ -41,6 +41,23 @@ func (e *Ent) MakeModel(shader string, attrs ...string) *Ent {
 	mod := e.app.models.create(e)
 	e.app.models.loadAssets(e, mod, append(attrs, "shd:"+shader)...)
 	return e
+}
+
+// MakeInstancedModel is similar to MakeModel except this model is marked
+// as having multiple instances that will be rendered in a single draw call.
+// An instanced model needs child Parts to be rendered. Each child Part
+// provides the instance transform data (postion,rotation,scale) for one
+// instance of this model.
+//
+// This model cannot be a composite model in that its child Parts do not
+// have models - only transform data.
+// Works only with the default SetDraw mode of Triangles.
+func (e *Ent) MakeInstancedModel(shader string, attrs ...string) *Ent {
+	mod := e.app.models.create(e)
+	mod.isInstanced = true
+	e.app.models.loadAssets(e, mod, append(attrs, "shd:"+shader)...)
+	return e
+	// Design Note: https://learnopengl.com/Advanced-OpenGL/Instancing
 }
 
 // Load more model assets after the model has been created.
@@ -218,7 +235,7 @@ func (e *Ent) SetColor(r, g, b float64) *Ent {
 // Depends on Ent.MakeModel.
 func (e *Ent) SetDraw(mode int) *Ent {
 	if m := e.app.models.get(e.eid); m != nil {
-		m.drawMode = mode
+		m.mode = mode
 		return e
 	}
 	log.Printf("SetDraw needs MakeModel %d", e.eid)
@@ -248,12 +265,16 @@ func (e *Ent) Clamp(name string) *Ent {
 // Model, Particle, Actor, and Label.
 type model struct {
 	// Base asset instances will be nil until loaded.
-	msh      *Mesh      // Mandatory vertex buffer data.
-	shd      *shader    // Mandatory GPU render program.
-	texs     []*Texture // Optional: one or more texture images.
-	mat      *material  // Optional: material lighting info.
-	tocam    float64    // distance to camera helps with 3D render order.
-	drawMode int        // Render mesh as Triangles, Points, Lines.
+	msh   *Mesh      // Mandatory vertex buffer data.
+	shd   *shader    // Mandatory GPU render program.
+	texs  []*Texture // Optional: one or more texture images.
+	mat   *material  // Optional: material lighting info.
+	tocam float64    // distance to camera helps with 3D render order.
+	mode  int        // Render as Triangles, Points, Lines, or Instanced.
+
+	// Mark as instanced, meanings all child Pov's are treated
+	// as the same model with different transforms.
+	isInstanced bool // True renders all instances in one draw call.
 
 	// Mark as a effect since GPU effects don't have effect data.
 	isEffect bool // Mark GPU and CPU particle effects.
@@ -331,7 +352,7 @@ func (m *model) draw(d *render.Draw, shd *shader) {
 	if shd == nil {
 		shd = m.shd
 	}
-	d.SetRefs(shd.program, m.msh.vao, m.drawMode)
+	d.SetRefs(shd.program, m.msh.vao, m.mode)
 	d.SetCounts(m.msh.counts())
 	for cnt, t := range m.texs {
 		d.SetTex(len(m.texs), cnt, m.tpos[t.name], t.tid, t.f0, t.fn)
@@ -348,6 +369,12 @@ func (m *model) draw(d *render.Draw, shd *shader) {
 		d.SetFloats(uniform, uvalues...)
 	}
 	d.SetFloats("time", float32(time.Since(m.time).Seconds()))
+
+	// If instanced then get the current number of instances from
+	// the mesh data.
+	if m.isInstanced {
+		d.Instances = int32(m.msh.instances)
+	}
 
 	// Update bucket draw order information for transparent objects.
 	d.Bucket = setDist(d.Bucket, m.tocam)
@@ -395,6 +422,7 @@ type models struct {
 	acting  map[eid]*actor  // Actors ready for animations.
 	effects map[eid]*effect // CPU particle effect.
 	labels  map[eid]*label  // Depends on fnt asset.
+	idata   []float32       // Scratch for instance model transform data.
 
 	// Texture clamps are textures that need clamping. Need to remember
 	// which ones because the request often happens when the texture
@@ -460,7 +488,7 @@ func (ms *models) createActor(e *Ent, assets ...string) *model {
 func (ms *models) createEffect(e *Ent, assets ...string) *model {
 	m := e.app.models.create(e)
 	m.msh = newMesh("effect")
-	m.drawMode = Points
+	m.mode = Points
 	m.isEffect = true
 	e.app.models.loadAssets(e, m, assets...)
 	return m
@@ -472,7 +500,7 @@ func (ms *models) createEffect(e *Ent, assets ...string) *model {
 // callback before all tracking data is updated.
 func (ms *models) loadAssets(e *Ent, m *model, assets ...string) {
 	ld, id := e.app.ld, e.eid
-	callback := func(a asset) { ms.loaded(id, a) }
+	callback := func(a asset) { ms.loaded(id, a, e.app) }
 	for _, attribute := range assets {
 		attr := strings.Split(attribute, ":")
 		if len(attr) != 2 {
@@ -508,11 +536,10 @@ func (ms *models) loadAssets(e *Ent, m *model, assets ...string) {
 
 // loaded is called from the update goroutine when a model asset
 // has finished loading.
-func (ms *models) loaded(eid eid, a asset) {
+func (ms *models) loaded(eid eid, a asset, app *application) {
 	m := ms.get(eid)
 	if m == nil {
-		// This is not a dev error... the model may have been disposed
-		// before it finished loading.
+		// The model may have been disposed before it finished loading.
 		log.Printf("No model for %d asset %s", eid, a.label())
 		return
 	}
@@ -526,6 +553,16 @@ func (ms *models) loaded(eid eid, a asset) {
 		ms.rebinds[eid] = m
 	case *Mesh:
 		m.msh = la
+		if m.isInstanced {
+			// clone the underlying mesh to get separate vao and data instances.
+			// Each instanced model stores the transform data for its children
+			// so it can't use the cached mesh.
+			// The cached mesh remains available for non-instanced use.
+			m.msh = m.msh.clone()
+			m.msh.vao = 0          // get new vao on upcoming rebind.
+			m.msh.InitInstances(6) // allocate instance transform space.
+			ms.setInstanced(eid, m, app)
+		}
 		ms.rebinds[eid] = m
 	case *material:
 		m.mat = la
@@ -598,6 +635,58 @@ func (ms *models) canRender(m *model, eid eid) bool {
 	return true
 }
 
+// updateInstanced is called each refresh to check if any of the instanced
+// models child parts has moved. Ie, if a part has a loaded parent model that
+// is instanced, then the parent model mesh needs to be updated with the
+// childs new transform data.
+func (ms *models) updateInstanced(app *application, changed []eid) {
+	needsUpdating := map[eid]*model{}
+	for _, eid := range changed {
+		if node := app.povs.getNode(eid); node.parent != 0 {
+			if m := app.models.getReady(node.parent); m != nil && m.isInstanced {
+				needsUpdating[node.parent] = m
+			}
+		}
+	}
+	for eid, m := range needsUpdating {
+		app.models.setInstanced(eid, m, app)
+	}
+}
+
+// setInstanced updates the transform data for an instanced model.
+func (ms *models) setInstanced(eid eid, m *model, app *application) {
+	if !m.isInstanced {
+		log.Printf("Called on non-instanced model")
+		return
+	}
+	if m.msh == nil {
+		log.Printf("Called on non-mesh model")
+		return
+	}
+	n := app.povs.getNode(eid)
+	if n == nil {
+		log.Printf("No node %d", eid)
+		return
+	}
+	ms.idata = ms.idata[:0] // reset keeping capacity.
+	if len(n.kids) > 0 {    // need kids to render.
+		for _, kidEid := range n.kids {
+			if kid := app.povs.get(kidEid); kid != nil {
+				m4 := kid.wm // world transform matrix.
+
+				// Copy same as memory order, as expected by the shader.
+				ms.idata = append(ms.idata, float32(m4.Xx), float32(m4.Xy), float32(m4.Xz), float32(m4.Xw)) // X-Axis
+				ms.idata = append(ms.idata, float32(m4.Yx), float32(m4.Yy), float32(m4.Yz), float32(m4.Yw)) // Y-Axis
+				ms.idata = append(ms.idata, float32(m4.Zx), float32(m4.Zy), float32(m4.Zz), float32(m4.Zw)) // Z-Axis
+				ms.idata = append(ms.idata, float32(m4.Wx), float32(m4.Wy), float32(m4.Wz), float32(m4.Ww)) // Transform.
+			}
+		}
+		m.msh.SetData(6, ms.idata)    // convention: 6 matches models.loaded method
+		m.msh.instances = len(n.kids) // Non-zero when mesh is to be drawn instanced.
+		ms.rebinds[eid] = m
+	}
+}
+
 // get loading or loaded models for the given entity.
 func (ms *models) get(eid eid) *model      { return ms.all[eid] }
 func (ms *models) getLabel(eid eid) *label { return ms.labels[eid] }
@@ -659,8 +748,8 @@ func (ms *models) processTexture(eid eid, m *model, t *Texture) {
 }
 
 // rebind is called from main thread each loop to move asset data to the GPU.
-// Assets that have trickled in from the loader are rebound. The update adds
-// assets for binding, this method run on the main thread, processes them.
+// Assets that have trickled in from the loader are rebound. Each update can
+// add assets for binding and this method, run on the main thread, processes them.
 func (ms *models) rebind(eng *engine) {
 	for eid, m := range ms.rebinds {
 		if m.shd != nil && m.shd.program == 0 {
@@ -720,16 +809,5 @@ func (ms *models) dispose(eid eid) {
 	delete(ms.clamps, eid)
 }
 
-// stats returns the number of models and verticies over
-// all models. Used by profile.go.
-func (ms *models) stats() (models, tris, verts int) {
-	models = len(ms.all)
-	for _, m := range ms.all {
-		if m.msh != nil && len(m.msh.vdata) > 0 {
-			tris += m.msh.faces.Len()
-			verts += m.msh.vdata[0].Len()
-		}
-	}
-	// 3 vertex indicies per triangle. Verticies reported correctly.
-	return models, tris / 3, verts
-}
+// stats returns the number of all models. Used by profile.go.
+func (ms *models) stats() (models int) { return len(ms.all) }

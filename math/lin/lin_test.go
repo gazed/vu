@@ -1,4 +1,4 @@
-// Copyright © 2013-2015 Galvanized Logic Inc.
+// Copyright © 2013-2018 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package lin
@@ -93,7 +93,7 @@ func BenchmarkAtan2F(b *testing.B) {
 // Test helpers for the other test case files in this package.
 
 // Dictate how errors get printed.
-const format = "\ngot\n%s\nwanted\n%s"
+const format = "\ngot\n%s wanted\n%s"
 
 // Dumps the matrix to a string.
 func (m *M3) Dump() string {
@@ -119,4 +119,4 @@ func (v *V3) Dump() string { return fmt.Sprintf("%2.9f", *v) }
 func (v *V4) Dump() string { return fmt.Sprintf("%2.9f", *v) }
 
 // Convienience method for getting a quaternion as a string.
-func (q *Q) Dump() string { return fmt.Sprintf("%2.9f", *q) }
+func (q *Q) Dump() string { return fmt.Sprintf("%2.5f", *q) }

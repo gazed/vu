@@ -1,4 +1,4 @@
-// Copyright © 2013-2017 Galvanized Logic Inc.
+// Copyright © 2013-2018 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -106,7 +106,7 @@ func (cr *crtag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 			ball := cr.scene.AddPart()
 			ball.SetAt(-2.5+rand.Float64(), 15, -1.5-rand.Float64())
 			ball.MakeBody(vu.Sphere(1)).SetSolid(1, 0.9)
-			m := ball.MakeModel("gouraud", "msh:sphere", "mat:red")
+			m := ball.MakeModel("phong", "msh:sphere", "mat:red")
 			m.SetUniform("kd", rand.Float64(), rand.Float64(), rand.Float64())
 		case vu.KSpace:
 			cr.striker.Push(-2.5, 0, -0.5)
@@ -117,12 +117,12 @@ func (cr *crtag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 // getBall creates a visible sphere physics body.
 func (cr *crtag) getBall(p *vu.Ent) {
 	p.MakeBody(vu.Sphere(1)).SetSolid(1, 0.5)
-	p.MakeModel("gouraud", "msh:sphere", "mat:red")
+	p.MakeModel("phong", "msh:sphere", "mat:red")
 }
 
 // getBox creates a visible box physics body.
 func (cr *crtag) getBox(p *vu.Ent) {
 	p.SetScale(2, 2, 2)
 	p.MakeBody(vu.Box(1, 1, 1)).SetSolid(1, 0)
-	p.MakeModel("gouraud", "msh:box", "mat:red")
+	p.MakeModel("phong", "msh:box", "mat:red")
 }

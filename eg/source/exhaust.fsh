@@ -1,10 +1,11 @@
+// Particle shader effect.
+
 in      float     alpha; // Particle transparency.
 in      float     index; // Particle index for texture atlas.
 uniform sampler2D uv;    // Texture sampler.
 out     vec4      ffc;   // Final fragment colour.
 
-void main(void) 
-{
+void main(void) {
 	// generate the texture coordinates.
     float cols = 2;                  // Expecting 2x2 texture atlas.
     float quad = mod(index, 4);      // Random quadrant based on index.

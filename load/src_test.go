@@ -12,15 +12,16 @@ import (
 func TestLoadSource(t *testing.T) {
 	shd := &ShdData{}
 	loc := NewLocator().Dir("VSH", "../eg/source").Dir("FSH", "../eg/source")
-	err := shd.Load("basic", loc)
+	err := shd.Load("tuv", loc)
 	expect := []string{
-		"in  vec4 ex_Color;\n",
-		"out vec4 out_Color;\n",
+		"in      vec2      v_t;     // interpolated texture coordinates.\n",
+		"uniform sampler2D uv;      // texture sampler.\n",
+		"out     vec4      f_color; // final fragment color.\n",
 		"\n",
-		"void main(void)\n",
-		"{\n",
-		"out_Color = ex_Color;\n",
-		"}\n"}
+		"void main() {\n",
+		"f_color = texture(uv, v_t);\n",
+		"}\n",
+	}
 	got, want := fmt.Sprintf("%s", shd.Fsh), fmt.Sprintf("%s", expect)
 	if err != nil || got != want {
 		t.Errorf(format, got, want)

@@ -1,4 +1,4 @@
-// Copyright © 2013-2015 Galvanized Logic Inc.
+// Copyright © 2013-2018 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package lin
@@ -85,18 +85,6 @@ func TestLenQ(t *testing.T) {
 	}
 }
 
-func TestAngQ(t *testing.T) {
-	q, a := NewQ().SetAa(1, 0, 0, Rad(90)), NewQ().SetAa(1, 0, 0, Rad(135))
-	angle := Deg(q.Ang(a))
-	if !Aeq(angle, 45) {
-		t.Errorf("Angle is %+2.7f", angle)
-	}
-	angle = Deg(q.Ang(q)) // angle between the same.
-	if !Aeq(angle, 0) {
-		t.Errorf("Angle is %+2.7f", angle)
-	}
-}
-
 func TestNLerpQ(t *testing.T) {
 	q, b, want := (&Q{1, 2, 3, 4}).Unit(), (&Q{8, 2, 6, 10}).Unit(), &Q{0.38151321, 0.25950587, 0.49715611, 0.73480630}
 	if !q.Nlerp(q, b, 0.5).Aeq(want) {
@@ -114,12 +102,6 @@ func TestMultiplyQV(t *testing.T) {
 	}
 }
 
-func TestGetAxisAngle(t *testing.T) {
-	q, v, angle, want := &Q{0.40824829, 0.40824829, 0.40824829, 0.707106781}, &V3{}, 0.0, NewV3().SetS(1, 1, 1).Unit()
-	if v.X, v.Y, v.Z, angle = q.Aa(); !v.Aeq(want) || !Aeq(Deg(angle), 90) {
-		t.Errorf("Got axis %s and angle %+2.7f", v.Dump(), Deg(angle))
-	}
-}
 func TestDefaultAxisAngle(t *testing.T) {
 	q, v, angle, want := &Q{0, 0, 0, 1}, &V3{}, 0.0, &V3{1, 0, 0}
 	if v.X, v.Y, v.Z, angle = q.Aa(); !v.Aeq(want) || !Aeq(Deg(angle), 0) {
@@ -127,27 +109,66 @@ func TestDefaultAxisAngle(t *testing.T) {
 	}
 }
 
-func TestSetAxisAngleQ(t *testing.T) {
-	q, want := &Q{}, &Q{0.40824829, 0.40824829, 0.40824829, 0.707106781}
-	if !q.SetAa(1, 1, 1, Rad(90)).Aeq(want) {
-		t.Errorf(format, q.Dump(), want.Dump())
+func TestAngQ(t *testing.T) {
+	q, a := NewQ().SetAa(1, 0, 0, Rad(90)), NewQ().SetAa(1, 0, 0, Rad(135))
+	angle := Deg(q.Ang(a))
+	if !Aeq(angle, 45) {
+		t.Errorf("Angle is %+2.7f", angle)
+	}
+	angle = Deg(q.Ang(q)) // angle between the same.
+	if !Aeq(angle, 0) {
+		t.Errorf("Angle is %+2.7f", angle)
+	}
+}
+
+func TestAa(t *testing.T) {
+	for deg := 0; deg <= 360; deg++ {
+		q := NewQ().SetAa(0, 1, 0, Rad(float64(deg)))
+		if !Aeq(q.Len(), 1) {
+			t.Errorf("Need unit quat for angle %d", deg)
+		}
+		x, y, z, rot := q.Aa()
+		switch {
+		case deg >= 0 && deg < 180:
+			if !Aeq(float64(deg), Deg(rot)) { // positive axis.
+				t.Errorf("Wanted %d got %+2.5f : %f %f %f %f", deg, Deg(rot), x, y, z, q.W)
+			}
+		case deg >= 180 && deg <= 360: // negative axis.
+			if !Aeq(float64(deg), 360-Deg(rot)) {
+				t.Errorf("Wanted %d got %+2.5f : %f %f %f %f", deg, Deg(rot), x, y, z, q.W)
+			}
+		}
 	}
 }
 
 func TestSetRotationM(t *testing.T) {
-	q := NewQ().SetAa(1, 1, 1, Rad(90))
-	m := NewM3().SetQ(q)
-	want := &Q{0.40824831, 0.40824831, 0.40824831, 0.70710677}
-	if !q.SetM(m).Aeq(want) {
-		t.Errorf(format, q.Dump(), want.Dump())
+	q2 := &Q{}
+	m := NewM3()
+	for deg := 0; deg < 360; deg++ {
+		q := NewQ().SetAa(0, 1, 0, Rad(float64(deg)))
+		m.SetQ(q)
+		q2.SetM3(m)
+		if !q.Aeq(q2) {
+			t.Errorf("SetM deg %d : %s : %s", deg, q.Dump(), q2.Dump())
+		}
 	}
 }
 
-// Rotation 45deg * transform of another rotation of 45deg should give 90deg rotation.
-func TestMultTransformQ(t *testing.T) {
-	q, want := NewQ().SetAa(1, 1, 1, Rad(45)), &Q{0.40824831, 0.40824831, 0.40824831, 0.70710677}
-	transform := NewT().SetLoc(10, 0, 0).SetAa(1, 1, 1, Rad(45))
-	if !q.MultT(transform).Aeq(want) {
-		t.Errorf(format, q.Dump(), want.Dump())
+// =============================================================================
+
+// Check when/if the rotation matrix to quaternion is changed.
+// BenchmarkSetM3-8     200000000       8.22 ns/op
+func BenchmarkSetM3(b *testing.B) {
+	q, m := &Q{}, (&M3{}).SetAa(0, 1, 0, Rad(45))
+	for cnt := 0; cnt < b.N; cnt++ {
+		q.SetM3(m)
+	}
+}
+
+// BenchmarkSetAa-8   	50000000	        28.4 ns/op
+func BenchmarkSetAa(b *testing.B) {
+	q := &Q{}
+	for cnt := 0; cnt < b.N; cnt++ {
+		q.SetAa(0, 1, 0, Rad(45))
 	}
 }

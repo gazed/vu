@@ -1,4 +1,4 @@
-// Copyright © 2015-2017 Galvanized Logic Inc.
+// Copyright © 2015-2018 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package vu
@@ -34,6 +34,8 @@ func (f frame) getDraw() (frame, **render.Draw) {
 			// clean up old data.
 			f[size].SetPose(nil)             // Clear animation.
 			f[size].SetTex(0, 0, 0, 0, 0, 0) // Clear texture info.
+			f[size].Scissor = false          // Clear scissor
+			f[size].Instances = 0            // Clear instance data.
 		}
 	}
 	return f, &f[size]

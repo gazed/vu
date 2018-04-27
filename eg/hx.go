@@ -1,4 +1,4 @@
-// Copyright © 2016-2017 Galvanized Logic Inc.
+// Copyright © 2016-2018 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -70,8 +70,9 @@ func (hx *hxtag) Create(eng vu.Eng, s *vu.State) {
 
 	// create the hilite marker last so it appears on top.
 	hx.hg.hilite = hx.hg.models.AddPart()
-	hx.hg.hilite.MakeModel("uv", "msh:icon", "tex:halo")
+	hx.hg.hilite.MakeModel("textured", "msh:icon", "tex:halo")
 	hx.hg.hilite.Cull(true)
+	hx.hg.updateLabels()
 }
 
 // Update is the regular engine callback.
@@ -103,7 +104,6 @@ func (hx *hxtag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 		}
 	}
 	hx.hg.spinMark()
-	hx.hg.updateLabels()
 }
 
 // hx example
@@ -147,6 +147,7 @@ func (hg *hexGrid) scale() float64 {
 // The scale is set to the given value s.
 func (hg *hexGrid) setScale(s float64) {
 	hg.models.SetScale(s, s, 0)
+	hg.updateLabels()
 }
 
 // move repositions the grid of hexes. The parameters are
@@ -154,6 +155,7 @@ func (hg *hexGrid) setScale(s float64) {
 func (hg *hexGrid) move(x, y int) {
 	bx, by, _ := hg.models.At()
 	hg.models.SetAt(bx+float64(x), by+float64(y), 0)
+	hg.updateLabels()
 }
 
 // flipOrientation changes from flat to pointy and back.
@@ -174,6 +176,7 @@ func (hg *hexGrid) flipOrientation() {
 		}
 	}
 	hg.hilite.Cull(true)
+	hg.updateLabels()
 }
 
 // updateLabels is a kludge to update labels in the Update
@@ -263,12 +266,12 @@ func newHexTile(root, board *vu.Ent, q, r int32) *hexTile {
 	// A hex image is in a square that overlaps adjacent squares.
 	hx, hy := t.hex.ToPointy(0.52) // greater than 0.5 for a gap between hexes.
 	t.model = board.AddPart().SetAt(hx, hy, 0)
-	t.model.MakeModel("uv", "msh:icon", "tex:hextile")
+	t.model.MakeModel("textured", "msh:icon", "tex:hextile")
 
 	// labels use a different parent pov so they are not scaled with the board
 	font := "lucidiaSu22"
-	t.str = root.AddPart().MakeLabel("txt", font)
-	t.str.Typeset(fmt.Sprintf("%d %d %d", t.hex.Q, t.hex.R, t.hex.S))
+	t.str = root.AddPart().MakeLabel("labeled", font)
+	t.str.SetStr(fmt.Sprintf("%d %d %d", t.hex.Q, t.hex.R, t.hex.S))
 	return t
 }
 
@@ -280,5 +283,8 @@ func (t *hexTile) id() uint64 { return t.hex.ID() }
 func (t *hexTile) updateLabel() {
 	wx, wy, _ := t.model.World()
 	textWidth, _ := t.str.Size()
+	if textWidth == 0 {
+		textWidth = 60 // use default prior to font assets loading.
+	}
 	t.str.SetAt(wx-float64(textWidth)*0.5, wy-11, 0)
 }

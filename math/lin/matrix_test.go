@@ -1,4 +1,4 @@
-// Copyright © 2013-2015 Galvanized Logic Inc.
+// Copyright © 2013-2018 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package lin
@@ -233,25 +233,6 @@ func TestScaleMS(t *testing.T) {
 	}
 }
 
-func TestSetQ(t *testing.T) {
-	m, q, want := &M3{}, &Q{0.2, 0.4, 0.5, 0.7},
-		&M3{+0.18, -0.54, +0.76,
-			+0.86, +0.42, +0.12,
-			-0.36, +0.68, +0.60}
-	if !m.SetQ(q).Aeq(want) {
-		t.Errorf(format, m.Dump(), want.Dump())
-	}
-
-	// check identity quaternion
-	q, want = &Q{0, 0, 0, 1},
-		&M3{1, 0, 0,
-			0, 1, 0,
-			0, 0, 1}
-	if !m.SetQ(q).Eq(want) {
-		t.Errorf(format, m.Dump(), want.Dump())
-	}
-}
-
 func TestSetSkewSymetric(t *testing.T) {
 	m, mi, v := &M3{}, &M3{}, &V3{1, 2, 3}
 	m.SetSkewSym(v)            // the skew symetric matrix
@@ -306,22 +287,6 @@ func TestInvM3(t *testing.T) {
 	}
 }
 
-func TestSetAxisAngle(t *testing.T) {
-	m, want := &M3{},
-		&M3{1, 0, 0, // rotation 90 degrees around X.
-			0, 0, -1,
-			0, 1, 0}
-	if !m.SetAa(1, 0, 0, Rad(90)).Aeq(want) {
-		t.Errorf(format, m.Dump(), want.Dump())
-	}
-
-	// same check with quaternion.
-	q := NewQ().SetAa(1, 0, 0, Rad(90))
-	if !m.SetQ(q).Aeq(want) {
-		t.Errorf(format, m.Dump(), want.Dump())
-	}
-}
-
 func TestOrthographicM4(t *testing.T) {
 	m, want := NewM4().Ortho(2, 3, 4, 5, 6, 7),
 		&M4{+2, +0, +0, +0,
@@ -339,6 +304,22 @@ func TestPerspectiveInv(t *testing.T) {
 	ip := NewM4().PerspInv(45, 800.0/600.0, 0.1, 50)
 	if !m.Mult(p, ip).Aeq(M4I) {
 		t.Errorf(format, m.Dump(), M4I.Dump())
+	}
+}
+
+// Check rotation matricies are correctly created by comparing
+// two create methods:
+//    1 directly from axis/angle and
+//    2 creating from a quaternion.
+func TestSetAxisAngle(t *testing.T) {
+	m, q, mq := &M3{}, &Q{}, &M3{}
+	for deg := 0; deg <= 360; deg++ {
+		m.SetAa(0, 1, 0, Rad(float64(deg)))
+		q.SetAa(0, 1, 0, Rad(float64(deg)))
+		mq.SetQ(q)
+		if !m.Aeq(mq) {
+			t.Errorf("Deg %d got\n%s wanted\n%s", deg, m.Dump(), mq.Dump())
+		}
 	}
 }
 

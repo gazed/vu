@@ -1,4 +1,4 @@
-// Copyright © 2013-2017 Galvanized Logic Inc.
+// Copyright © 2013-2018 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -36,61 +36,60 @@ func (bb *bbtag) Create(eng vu.Eng, s *vu.State) {
 	eng.Set(vu.Title("Billboarding & Banners"), vu.Size(400, 100, 800, 600))
 	eng.Set(vu.Color(0.3, 0.3, 0.3, 1))
 
-	// New scene and camera.
+	// 3D scene and camera.
 	bb.scene = eng.AddScene()
 	bb.scene.Cam().SetClip(0.1, 50).SetFov(60).SetAt(0.5, 2, 2.5)
 	sun := bb.scene.AddPart().SetAt(0, 3, -3)
 	sun.MakeLight().SetLightColor(0.4, 0.7, 0.9) // need light for gouraud shader.
 
-	// The floor model gives context to the labels.
+	// // The floor model gives context to the labels.
 	floor := bb.scene.AddPart().SetAt(0, 0, -10)
-	floor.MakeModel("gouraud", "msh:floor", "mat:gray")
+	floor.MakeModel("diffuse", "msh:floor", "mat:gray")
 
-	// Create a single image from multiple textures using a shader.
+	// Show a billboarded texture.
 	c4 := bb.scene.AddPart().SetAt(0.5, 2, -1).SetScale(0.25, 0.25, 0.25)
-	c4.MakeModel("spinball", "msh:billboard", "tex:core", "tex:halo")
-	c4.Clamp("core").Clamp("halo")
-	c4.SetAlpha(0.4)
+	c4.MakeModel("billboarded", "msh:billboard", "tex:core")
+	c4.Clamp("core").SetAlpha(0.4)
 
 	// Try banner text with the 3D scene perspective camera.
 	font := "lucidiaSu22"
 	banner := bb.scene.AddPart().SetScale(0.1, 0.1, 0.1).SetAt(-10, 2, -15)
-	banner.MakeLabel("txt", font).Typeset("Floating Text")
+	banner.MakeLabel("labeled", font).SetStr("Floating Text")
 
 	// Try billboard banner text with the 3D scene perspective camera.
 	banner = bb.scene.AddPart().SetScale(0.025, 0.025, 0.025).SetAt(-10, 1, -15)
-	banner.MakeLabel("bb", font).Typeset("Billboard Text")
+	banner.MakeLabel("billboarded", font).SetStr("Billboard Text")
 
-	// Banner text with an ortho overlay.
+	// 2D scene and camera.
 	bb.ui = eng.AddScene().SetUI()
 	bb.ui.Cam().SetClip(0, 10)
 
 	// 2D static location.
 	banner = bb.ui.AddPart().SetAt(100, 100, 0)
-	banner.MakeLabel("txt", font).Typeset("Overlay Text")
+	banner.MakeLabel("labeled", font).SetStr("Overlay Text")
 
 	// 3D world to 2D screen location.
 	bb.screenText = bb.ui.AddPart()
-	bb.screenText.MakeLabel("txt", font).Typeset("Screen Text")
+	bb.screenText.MakeLabel("labeled", font).SetStr("Screen Text")
 
 	// 3D signed distance field font.
 	sdf := bb.scene.AddPart().SetScale(0.1, 0.1, 0.1).SetAt(5, -1, -15)
-	sdf.MakeLabel("sdf", "lucidiaSdf").Typeset("SDF").SetColor(1, 1, 0)
+	sdf.MakeLabel("sdf", "lucidiaSdf").SetStr("SDF").SetColor(1, 1, 0)
 
 	// 2D signed distance field font.
 	sdf2D := bb.ui.AddPart().SetAt(500, 100, 0).SetScale(0.5, 0.5, 1)
-	sdf2D.MakeLabel("sdf", "lucidiaSdf").Typeset("SDF Overlay").SetColor(0, 1, 1)
+	sdf2D.MakeLabel("sdf", "lucidiaSdf").SetStr("SDF Overlay").SetColor(0, 1, 1)
 
 	// 2D static location with text wrap and txt shader with color.
 	banner = bb.ui.AddPart().SetAt(100, 200, 0)
-	banner.MakeLabel("txt", "lucidiaSu16").SetWrap(100).SetColor(1, 0, 1)
-	banner.Typeset("A very long pink overlay string that should wrap over at least 3 lines.")
+	banner.MakeLabel("labeled", "lucidiaSu16").SetWrap(100).SetColor(1, 0, 1)
+	banner.SetStr("A very long pink overlay string that should wrap over at least 3 lines.")
 }
 
 // Update is the regular engine callback.
 func (bb *bbtag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
-	run := 10.0   // move so many cubes worth in one second.
-	spin := 270.0 // spin so many degrees in one second.
+	run := 10.0  // move so many cubes worth in one second.
+	spin := 90.0 // spin so many degrees in one second.
 	dt := in.Dt
 	cam := bb.scene.Cam()
 	for press := range in.Down {

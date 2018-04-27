@@ -1,4 +1,4 @@
-// Copyright © 2017 Galvanized Logic Inc.
+// Copyright © 2017-2018 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package vu
@@ -34,7 +34,7 @@ import (
 // Part  : AddPart creates a new entity with a point-of-view
 // and a scene graph node.
 //         AddPart, At, SetAt, World, Move, Cull, Culled,
-//         View, SetView, Spin, SetSpin, Scale, SetScale,
+//         View, SetView, SetAa, Spin, SetSpin, Scale, SetScale,
 // Model : MakeModel attaches model data to a part entity.
 //         MakeModel, Load, Mesh, GenMesh, Tex, GenTex, SetTex, SetFirst,
 //         SetUniform, Alpha, SetAlpha, SetColor, SetDraw, Clamp.

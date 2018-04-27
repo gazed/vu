@@ -1,4 +1,4 @@
-// Copyright © 2017 Galvanized Logic Inc.
+// Copyright © 2017-2018 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package vu
@@ -51,6 +51,7 @@ type application struct {
 	state *State   // Refreshed each update.
 	prof  *Profile // Track render and update times.
 	frame frame    // Reusable render frame.
+	moved []eid    // Reusable list of povs with changed transforms.
 
 	// Application entities are grouped into components,
 	// where each component has a corresponding manager.
@@ -93,6 +94,12 @@ func (app *application) update(ut uint64,
 	start time.Time, elapsed time.Duration,
 	done chan *application) {
 
+	// Remember where everything was prior to the update so that the display
+	// can interpolate renders between current and previous states.
+	app.moved = app.povs.setPrev(app.moved)
+	app.models.updateInstanced(app, app.moved)
+	app.scenes.setPrev()
+
 	// get user input since last update.
 	if app.input.Resized {
 		app.scenes.resize(app.state.W, app.state.H)
@@ -102,6 +109,7 @@ func (app *application) update(ut uint64,
 	// Update physics and particles using a fixed timestep so that
 	// each update advances by the same amount.
 	app.bodies.stepVelocities(timeStepSecs)
+	app.povs.updateBodies(app.bodies.eids)
 	app.models.moveParticles(timeStepSecs)
 
 	// Advance model animations by elapsed time, not at fixed rate like physics.
@@ -112,11 +120,6 @@ func (app *application) update(ut uint64,
 	// deleting game objects, or even shutting down the engine.
 	app.app.Update(app, app.input, app.state)
 	if !app.stop {
-
-		// Remember where everything was last update so that the display
-		// can interpolate between current and previous states.
-		app.povs.setPrev()
-		app.scenes.setPrev()
 
 		// Reset profile data and start counting times for the next update.
 		// This updates time is returned next update.

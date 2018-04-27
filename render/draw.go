@@ -1,4 +1,4 @@
-// Copyright © 2016 Galvanized Logic Inc.
+// Copyright © 2016-2017 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package render
@@ -35,16 +35,20 @@ type Draw struct {
 	Floats   map[string][]float32 // Uniform values.
 
 	// Rendering hints.
-	Bucket  uint64 // Used to sort draws. Lower buckets rendered first.
-	Depth   bool   // True to render with depth.
-	Fbo     uint32 // Framebuffer id. 0 for default.
-	FaceCnt int32  // Number of triangles to be rendered.
-	VertCnt int32  // Number of verticies to be rendered.
+	Bucket    uint64 // Used to sort draws. Lower buckets rendered first.
+	Depth     bool   // True to render with depth.
+	Scissor   bool   // True to render with within scissor dimensions.
+	Sx, Sy    int32  // Start of scissor area. First 2 parameters.
+	Sw, Sh    int32  // Scissor width and height. Last 2 parameters.
+	Fbo       uint32 // Framebuffer id. 0 for default.
+	FaceCnt   int32  // Number of triangles to be rendered.
+	VertCnt   int32  // Number of verticies to be rendered.
+	Instances int32  // Postive instance count for instanced mesh.
 
 	// Transform data.
-	Mv   *m4   // Model View.
-	Mvp  *m4   // Model View projection.
-	Pm   *m4   // Projection only.
+	Pm   *m4   // Projection matrix.
+	Vm   *m4   // View matrix.
+	Mm   *m4   // Model world matrix.
 	Dbm  *m4   // Depth bias matrix for shadow maps.
 	Pose []m34 // Per render frame of animation bone data.
 }
@@ -53,22 +57,22 @@ type Draw struct {
 // Scale is initialized to all 1's. Everything else is default.
 func NewDraw() *Draw {
 	d := &Draw{}
-	d.Mv = &m4{}
 	d.Pm = &m4{}
-	d.Mvp = &m4{}
+	d.Vm = &m4{}
+	d.Mm = &m4{}
 	d.Dbm = &m4{}
 	d.Floats = map[string][]float32{} // Float uniform values.
 	return d
 }
 
-// SetMv sets the Model-View transform.
-func (d *Draw) SetMv(mv *lin.M4) { d.Mv.tom4(mv) }
-
-// SetMvp sets the Model-View-Projection transform.
-func (d *Draw) SetMvp(mvp *lin.M4) { d.Mvp.tom4(mvp) }
-
 // SetPm sets the Projection matrix.
 func (d *Draw) SetPm(pm *lin.M4) { d.Pm.tom4(pm) }
+
+// SetVm sets the View matrix.
+func (d *Draw) SetVm(vm *lin.M4) { d.Vm.tom4(vm) }
+
+// SetMm sets the Model matrix.
+func (d *Draw) SetMm(mm *lin.M4) { d.Mm.tom4(mm) }
 
 // SetDbm sets the depth bias matrix for shadow maps.
 func (d *Draw) SetDbm(dbm *lin.M4) { d.Dbm.tom4(dbm) }

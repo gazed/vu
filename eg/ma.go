@@ -1,4 +1,4 @@
-// Copyright © 2014-2017 Galvanized Logic Inc.
+// Copyright © 2014-2018 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -61,7 +61,7 @@ func (ma *matag) Create(eng vu.Eng, s *vu.State) {
 
 		// Most IQ* files are expected to be animated.
 		// Use a "uv" shader to handle IQ* files without animations.
-		pov.MakeActor("anim", modelFile)
+		pov.MakeActor("animated", modelFile)
 		ma.models = append(ma.models, pov)
 		ma.names = append(ma.names, modelFile)
 	}
@@ -72,7 +72,7 @@ func (ma *matag) Create(eng vu.Eng, s *vu.State) {
 	ma.ui = eng.AddScene().SetUI()
 	ma.ui.Cam().SetClip(0, 10)
 	ma.label = ma.ui.AddPart().SetAt(10, 5, 0)
-	ma.label.MakeLabel("txt", "lucidiaSu22")
+	ma.label.MakeLabel("labeled", "lucidiaSu22")
 }
 
 // Update is the recurring callback to update state based on user actions.
@@ -138,7 +138,7 @@ func (ma *matag) showAction() {
 		index, frame, maxFrames := ma.model.Action()
 		name := names[index]
 		stats := fmt.Sprintf("[%d] %s %d/%d", index, name, frame, maxFrames)
-		ma.label.Typeset(ma.names[ma.index] + ":" + stats)
+		ma.label.SetStr(ma.names[ma.index] + ":" + stats)
 	}
 }
 

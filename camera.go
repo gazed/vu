@@ -1,4 +1,4 @@
-// Copyright © 2014-2017 Galvanized Logic Inc.
+// Copyright © 2014-2018 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package vu
@@ -40,10 +40,9 @@ type Camera struct {
 	Look  *lin.Q  // Y-axis quaternion rotation updated by SetYaw.
 
 	// Position and orientation.
-	at     *lin.T // Combined location and Pitch/Yaw orientation.
-	prev   *lin.T // Previous location and orientation.
-	xrot   *lin.Q // X-axis rotation: from Pitch.
-	steady bool   // false when camera moves.
+	at   *lin.T // Combined location and Pitch/Yaw orientation.
+	prev *lin.T // Previous location and orientation.
+	xrot *lin.Q // X-axis rotation: from Pitch.
 
 	// Camera perspective values used to set projection matricies.
 	near, far float64 // Frustum clip set by application.
@@ -109,9 +108,11 @@ func (c *Camera) At() (x, y, z float64) {
 	return c.at.Loc.GetS()
 }
 
-// SetAt positions the camera in world space.
-func (c *Camera) SetAt(x, y, z float64) {
+// SetAt positions the camera in world space
+// The camera instance is returned.
+func (c *Camera) SetAt(x, y, z float64) *Camera {
 	c.at.Loc.SetS(x, y, z)
+	return c
 }
 
 // Move adjusts the camera location relative to the given orientation.
@@ -128,19 +129,21 @@ func (c *Camera) Move(x, y, z float64, q *lin.Q) {
 func (c *Camera) Lookat() *lin.Q { return c.at.Rot }
 
 // SetPitch sets the rotation around the X axis and updates
-// the Look direction.
-func (c *Camera) SetPitch(deg float64) {
+// the Look direction. The camera instance is returned.
+func (c *Camera) SetPitch(deg float64) *Camera {
 	c.Pitch = deg
 	c.xrot.SetAa(1, 0, 0, lin.Rad(c.Pitch))
 	c.at.Rot.Mult(c.xrot, c.Look)
+	return c
 }
 
 // SetYaw sets the rotation around the Y axis and updates the
-// Look and Lookat directions.
-func (c *Camera) SetYaw(deg float64) {
+// Look and Lookat directions. The camera instance is returned.
+func (c *Camera) SetYaw(deg float64) *Camera {
 	c.Yaw = deg
 	c.Look.SetAa(0, 1, 0, lin.Rad(c.Yaw))
 	c.at.Rot.Mult(c.xrot, c.Look)
+	return c
 }
 
 // Distance returns the distance squared of the camera to the given Pov.

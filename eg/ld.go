@@ -1,4 +1,4 @@
-// Copyright © 2013-2017 Galvanized Logic Inc.
+// Copyright © 2013-2018 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -44,14 +44,14 @@ func (ld *ldtag) Refresh(dev device.Device) {
 
 // Globally unique "tag" that encapsulates example specific data.
 type ldtag struct {
-	shaders   uint32
-	vao       uint32
-	mvpref    int32
-	persp     *lin.M4    // perspective matrix.
-	mvp64     *lin.M4    // scratch for transform calculations.
-	mvp       render.Mvp // transform matrix for rendering.
-	faceCount int32
-	loc       load.Locator
+	shaders    uint32
+	vao        uint32
+	pm, vm, mm int32      // shader uniform matrix references.
+	persp      *lin.M4    // perspective matrix.
+	mvp64      *lin.M4    // scratch for transform calculations.
+	mvp        render.Mvp // transform matrix for rendering.
+	faceCount  int32
+	loc        load.Locator
 }
 
 // resize handles user screen/window changes.
@@ -108,13 +108,15 @@ func (ld *ldtag) initScene() {
 // initShader compiles shaders and links them into a shader program.
 func (ld *ldtag) initShader() {
 	shader := &load.ShdData{}
-	if err := shader.Load("monkey", ld.loc); err == nil {
+	if err := shader.Load("nshade", ld.loc); err == nil {
 		ld.shaders = gl.CreateProgram()
 		if err := gl.BindProgram(ld.shaders, shader.Vsh, shader.Fsh); err != nil {
 			fmt.Printf("Failed to create program: %s\n", err)
 		}
-		ld.mvpref = gl.GetUniformLocation(ld.shaders, "mvpm")
-		if ld.mvpref < 0 {
+		ld.pm = gl.GetUniformLocation(ld.shaders, "pm")
+		ld.vm = gl.GetUniformLocation(ld.shaders, "vm")
+		ld.mm = gl.GetUniformLocation(ld.shaders, "mm")
+		if ld.pm < 0 || ld.vm < 0 || ld.mm < 0 {
 			fmt.Printf("No modelViewProjectionMatrix in vertex shader\n")
 		}
 	}
@@ -126,10 +128,14 @@ func (ld *ldtag) render() {
 	gl.UseProgram(ld.shaders)
 	gl.BindVertexArray(ld.vao)
 
-	// use a model-view-projection matrix
+	// Set the a model-view-projection transform data.
+	ld.mvp.Set(ld.persp) // Projection transform.
+	gl.UniformMatrix4fv(ld.pm, 1, false, ld.mvp.Pointer())
+	ld.mvp.Set(lin.M4I) // Identity: no view transform needed.
+	gl.UniformMatrix4fv(ld.vm, 1, false, ld.mvp.Pointer())
 	ld.mvp64.Set(lin.M4I).ScaleSM(0.5, 0.5, 0.5).TranslateMT(0, 0, -2)
-	ld.mvp.Set(ld.mvp64.Mult(ld.mvp64, ld.persp))
-	gl.UniformMatrix4fv(ld.mvpref, 1, false, ld.mvp.Pointer())
+	ld.mvp.Set(ld.mvp64) // Model transform.
+	gl.UniformMatrix4fv(ld.mm, 1, false, ld.mvp.Pointer())
 	gl.DrawElements(gl.TRIANGLES, ld.faceCount, gl.UNSIGNED_SHORT, 0)
 
 	// cleanup

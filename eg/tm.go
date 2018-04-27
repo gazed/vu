@@ -1,4 +1,4 @@
-// Copyright © 2014-2017 Galvanized Logic Inc.
+// Copyright © 2014-2018 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -86,10 +86,10 @@ func (tm *tmtag) Create(eng vu.Eng, s *vu.State) {
 	// Add water planes.
 	tm.ocean = tm.scene.AddPart().SetAt(256, 300, -10.5)
 	tm.ocean.SetScale(float64(s.W), float64(s.H), 1)
-	tm.ocean.MakeModel("alpha", "msh:plane", "mat:blue")
+	tm.ocean.MakeModel("colored", "msh:plane", "mat:blue")
 	tm.coast = tm.scene.AddPart().SetAt(256, 300, -10)
 	tm.coast.SetScale(float64(s.W), float64(s.H), 1)
-	tm.coast.MakeModel("alpha", "msh:plane", "mat:transparent_blue")
+	tm.coast.MakeModel("colored", "msh:plane", "mat:blue").SetAlpha(0.6)
 }
 
 // Update is the regular engine callback.

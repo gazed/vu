@@ -1,4 +1,4 @@
-// Copyright © 2013-2017 Galvanized Logic Inc.
+// Copyright © 2013-2018 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -19,12 +19,15 @@ import (
 //   • vu 2D overlay scene, in this case a minimap.
 //   • vu grid generation. Try numbers 0-9.
 //   • vu engine statistics.
+//   • vu engine instanced models.
 // rl also tests camera movement that includes holding multiple movement keys
 // at the same time. The example does not have collision detection so you can
 // literally run through the maze.
 //
 // This is the one example that displays and tests statistics that can
-// be queried from the vu engine.
+// be queried from the vu engine. The main statistic is the number of
+// models drawn, ie: draw calls - fewer draw calls means faster rendering.
+// Try rebuilding with instancedModels set to false to see the effect.
 //
 // CONTROLS:
 //   WSQE  : move camera            : forward back left right
@@ -101,14 +104,9 @@ func (rl *rltag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 
 	// show some stats to see the effectiveness of culling.
 	stats := eng.Times()
-	allModels, allTris, allVerts := stats.Modelled(eng)
-	renModels, renTris, renVerts := stats.Rendered(eng)
-	modelStats := fmt.Sprintf("%d models    culled to %d", allModels, renModels)
-	triStats := fmt.Sprintf("%d triangles culled to %d", allTris, renTris)
-	vertexStats := fmt.Sprintf("%d verticies culled to %d", allVerts, renVerts)
-	rl.flr.modelStats.Typeset(modelStats)
-	rl.flr.triStats.Typeset(triStats)
-	rl.flr.vertexStats.Typeset(vertexStats)
+	allModels, renModels := stats.Rendered(eng)
+	modelStats := fmt.Sprintf("%d models culled to %d", allModels, renModels)
+	rl.flr.modelStats.SetStr(modelStats)
 
 	// http://stackoverflow.com/questions/87304/calculating-frames-per-second-in-a-game
 	updates := uint64(50)       // Expecting 50 updates/second.
@@ -124,7 +122,7 @@ func (rl *rltag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 		update := (rl.update.Seconds() / float64(updates)) * 1000      // in milliseconds.
 		render := ((rl.render).Seconds() / float64(rl.renders)) * 1000 //      "
 		timings := fmt.Sprintf("FPS %2.4f Update %2.4fms Render %2.4fms", fps, update, render)
-		rl.flr.times.Typeset(timings)
+		rl.flr.times.SetStr(timings)
 		rl.renders = 0
 		rl.elapsed = 0
 		rl.update = 0
@@ -142,17 +140,19 @@ type floor struct {
 	arrow *vu.Ent // cam minimap location.
 
 	// 2D user interface including timing stats.
-	ui          *vu.Ent // 2D overlay camera.
-	mmap        *vu.Ent // how its drawn on the minimap.
-	mapPart     *vu.Ent // allows the minimap to be moved around.
-	modelStats  *vu.Ent // Show some render statistics.
-	vertexStats *vu.Ent //    "
-	triStats    *vu.Ent //    "
-	times       *vu.Ent // Show some render statistics.
+	ui         *vu.Ent // 2D overlay camera.
+	mmap       *vu.Ent // how its drawn on the minimap.
+	mapPart    *vu.Ent // allows the minimap to be moved around.
+	modelStats *vu.Ent // Show some render statistics.
+	times      *vu.Ent //  ""
 }
 
 // setLevel switches to the indicated level.
 func (rl *rltag) setLevel(eng vu.Eng, keyCode int) {
+	// instancedModels uses a lot fewer draw calls when there are many
+	// identical models in different locations. Set this to false and
+	// rebuild to see the effect of non-instanced models.
+	instancedModels := true
 	if _, ok := rl.floors[keyCode]; !ok {
 		var gridSizes = map[int]int{
 			vu.K1: 15,
@@ -184,7 +184,10 @@ func (rl *rltag) setLevel(eng vu.Eng, keyCode int) {
 		flr.scene = eng.AddScene()
 		flr.scene.Cam().SetClip(0.1, 50).SetFov(60).SetAt(1, 0, -1)
 		flr.plan = flr.scene.AddPart()
-		flr.scene.SetCuller(vu.NewFrontCull(10))
+		if !instancedModels {
+			// need to cull some models if not instanced.
+			flr.scene.SetCuller(vu.NewFrontCull(10))
+		}
 
 		// create the overlay
 		flr.ui = eng.AddScene().SetUI()
@@ -194,9 +197,17 @@ func (rl *rltag) setLevel(eng vu.Eng, keyCode int) {
 
 		// display some rendering statistics.
 		flr.modelStats = rl.newText(flr.mmap, 0)
-		flr.triStats = rl.newText(flr.mmap, 1)
-		flr.vertexStats = rl.newText(flr.mmap, 2)
-		flr.times = rl.newText(flr.mmap, 3)
+		flr.times = rl.newText(flr.mmap, 1)
+
+		// Populate the scene with instanced models.
+		// Note that different shaders are used for instanced models.
+		var block2D, block3D *vu.Ent
+		if instancedModels {
+			block2D = flr.mapPart.AddPart() // minimap overlay
+			block2D.MakeInstancedModel("coloredInstanced", "msh:cube", "mat:gray").SetAlpha(0.6)
+			block3D = flr.plan.AddPart()
+			block3D.MakeInstancedModel("texturedInstanced", "msh:box", "tex:tile")
+		}
 
 		// populate the scenes
 		lsize := gridSizes[keyCode]
@@ -207,17 +218,27 @@ func (rl *rltag) setLevel(eng vu.Eng, keyCode int) {
 			for y := 0; y < height; y++ {
 				if flr.layout.IsOpen(x, y) {
 					// minimap overlay
-					block := flr.mapPart.AddPart().SetAt(float64(x), float64(y), 0)
-					block.MakeModel("alpha", "msh:cube", "mat:transparent_gray")
+					if instancedModels {
+						// Add 2D model instance.
+						block2D.AddPart().SetAt(float64(x), float64(y), 0)
+					} else {
+						block := flr.mapPart.AddPart().SetAt(float64(x), float64(y), 0)
+						block.MakeModel("colored", "msh:cube", "mat:gray").SetAlpha(0.6)
+					}
 				} else {
 					// floor level.
-					block := flr.plan.AddPart().SetAt(float64(x), 0, float64(-y))
-					block.MakeModel("uv", "msh:box", "tex:tile")
+					if instancedModels {
+						// Add 3D model instance.
+						block3D.AddPart().SetAt(float64(x), 0, float64(-y))
+					} else {
+						block := flr.plan.AddPart().SetAt(float64(x), 0, float64(-y))
+						block.MakeModel("textured", "msh:box", "tex:tile")
+					}
 				}
 			}
 		}
 		flr.arrow = flr.mapPart.AddPart().SetAt(1, 1, 0)
-		flr.arrow.MakeModel("solid", "msh:arrow", "mat:transparent_blue")
+		flr.arrow.MakeModel("colored", "msh:arrow", "mat:blue").SetAlpha(0.6)
 		rl.floors[keyCode] = flr
 	}
 	if rl.flr != nil {
@@ -241,11 +262,11 @@ func (f *floor) move(x, y, z float64) {
 func (f *floor) look(spin float64) {
 	cam := f.scene.Cam()
 	cam.SetYaw(cam.Yaw + spin)
-	f.arrow.View().SetAa(0, 0, 1, lin.Rad(cam.Yaw))
+	f.arrow.SetAa(0, 0, 1, lin.Rad(cam.Yaw))
 }
 
 // newText is a utility method for creating a new text label.
 func (rl *rltag) newText(parent *vu.Ent, gap int) *vu.Ent {
 	text := parent.AddPart().SetAt(10, float64(rl.wh-(40+gap*24)), 0)
-	return text.MakeLabel("txt", "lucidiaSu16")
+	return text.MakeLabel("labeled", "lucidiaSu16")
 }

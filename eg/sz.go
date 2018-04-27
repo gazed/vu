@@ -1,4 +1,4 @@
-// Copyright © 2017 Galvanized Logic Inc.
+// Copyright © 2017-2018 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 // images/robot.png Copyright © 2017 Julien Ruest.
 
@@ -51,15 +51,15 @@ func (sz *sztag) Create(eng vu.Eng, s *vu.State) {
 	sz.gui.Cam().SetClip(0, 10)
 
 	// background image has a core 16x10 ratio.
-	sz.bg = sz.gui.AddPart().MakeModel("uv", "msh:icon", "tex:robot7")
+	sz.bg = sz.gui.AddPart().MakeModel("textured", "msh:icon", "tex:robot7")
 
 	// button will be placed in top left corner.
-	sz.button = sz.gui.AddPart().MakeModel("uv", "msh:icon", "tex:core")
+	sz.button = sz.gui.AddPart().MakeModel("textured", "msh:icon", "tex:core")
 
 	// Show the best fit ratio.
 	sz.ratio = sz.gui.AddPart()
-	sz.ratio.MakeModel("solid", "msh:square").SetDraw(vu.Lines)
-	sz.label = sz.gui.AddPart().MakeLabel("txt", "lucidiaSu22").Typeset("None")
+	sz.ratio.MakeModel("colored", "msh:square").SetDraw(vu.Lines)
+	sz.label = sz.gui.AddPart().MakeLabel("labeled", "lucidiaSu22").SetStr("None")
 }
 
 // Update is the regular engine callback.
@@ -106,7 +106,7 @@ func (sz *sztag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
 		x, y := int(cx-w/2), int(cy-h/2)
 		sz.ratio.SetAt(cx, cy, 0).SetScale(w-1, h-1, 0)
 		txt := fmt.Sprintf("%s\n%d %d %d %d", fit, x, y, int(w), int(h))
-		sz.label.Typeset(txt)
+		sz.label.SetStr(txt)
 
 		// place a static sized button in the top right corner.
 		sz.button.SetAt(float64(x)+40, (h+float64(y))-40, 0).SetScale(64, 64, 1)

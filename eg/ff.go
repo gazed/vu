@@ -1,4 +1,4 @@
-// Copyright © 2014-2017 Galvanized Logic Inc.
+// Copyright © 2014-2018 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
@@ -51,6 +51,10 @@ func (ff *fftag) Create(eng vu.Eng, s *vu.State) {
 	ff.mmap = ff.ui.AddPart().SetScale(10, 10, 0)
 	ff.mmap.SetAt(30, 30, 0)
 
+	// Use model instances to draw all the unmoving blocks.
+	block := ff.mmap.AddPart()
+	block.MakeInstancedModel("texturedInstanced", "msh:icon", "tex:wall")
+
 	// populate the map
 	ff.msize = 69
 	ff.plan = grid.New(grid.RoomSkirmish)
@@ -63,9 +67,7 @@ func (ff *fftag) Create(eng vu.Eng, s *vu.State) {
 				ff.spots = append(ff.spots, ff.id(x, y))
 			} else {
 				// less resources used showing walls rather than open spots.
-				block := ff.mmap.AddPart()
-				block.SetAt(float64(x), float64(y), 0)
-				block.MakeModel("uv", "msh:icon", "tex:wall")
+				block.AddPart().SetAt(float64(x), float64(y), 0)
 			}
 		}
 	}
@@ -75,7 +77,7 @@ func (ff *fftag) Create(eng vu.Eng, s *vu.State) {
 	for cnt := 0; cnt < numChasers; cnt++ {
 		ff.chasers = append(ff.chasers, newChaser(ff.mmap))
 	}
-	ff.goal = ff.mmap.AddPart().MakeModel("uv", "msh:icon", "tex:goal")
+	ff.goal = ff.mmap.AddPart().MakeModel("textured", "msh:icon", "tex:goal")
 	ff.flow = grid.NewFlow(ff.plan) // flow field for the given plan.
 	ff.resetLocations()
 }
@@ -134,7 +136,7 @@ type chaser struct {
 // chaser moves towards a goal.
 func newChaser(parent *vu.Ent) *chaser {
 	c := &chaser{}
-	c.pov = parent.AddPart().MakeModel("uv", "msh:icon", "tex:token")
+	c.pov = parent.AddPart().MakeModel("textured", "msh:icon", "tex:token")
 	return c
 }
 

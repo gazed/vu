@@ -1,11 +1,11 @@
-// Copyright © 2017 Galvanized Logic Inc.
+// Copyright © 2017-2018 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
 // +build ignore
 //
 // Ignored because cgo attempts to compile it during normal builds.
 // Here is the command line to cross-compile an ios test application:
-//     clang -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS11.1.sdk -framework Foundation -framework UIKit -framework GLKit -framework OpenGLES -framework AVFoundation -arch arm64 -miphoneos-version-min=8.0 -o iosApp os_darwin_arm64_test.m
+//     clang -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS11.2.sdk -framework Foundation -framework UIKit -framework GLKit -framework OpenGLES -framework AVFoundation -arch arm64 -miphoneos-version-min=8.0 -o iosApp os_darwin_arm64_test.m
 // The above just creates the executable. In order to test the executable it has
 // to be packaged with xcodebuild into an app with valid signing certificates.
 

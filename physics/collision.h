@@ -1,22 +1,22 @@
-// Copyright © 2013-2015 Galvanized Logic Inc.
+// Copyright © 2013-2018 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
-// The basic types that are needed by box-box collision. 
-// All kinds of nice allocation, memory alignment, and C++ class functionality 
+// The basic types that are needed by box-box collision.
+// All kinds of nice allocation, memory alignment, and C++ class functionality
 // are lost from the original bullet physics types, but it gets things working.
 typedef double btScalar;
 typedef btScalar dMatrix3[4*3];
 typedef btScalar btVector3[4];
 
-// Consolidate the input box-box information into a single structure. 
+// Consolidate the input box-box information into a single structure.
 typedef struct {
-	btVector3 orgA, orgB; // Origin of boxes in world space. 
+	btVector3 orgA, orgB; // Origin of boxes in world space.
 	dMatrix3  rotA, rotB; // 3x3 rotation transforms for boxes.
 	btVector3 lenA, lenB; // Half-lengths of boxes.
 } BoxBoxInput;
 
-// Consolidate the output box-box collision information into a structure. 
-typedef struct { 
+// Consolidate the output box-box collision information into a structure.
+typedef struct {
 	btVector3 n; // Normal of collision.
 	btVector3 p; // Point of contact of collision.
 	btScalar  d; // Depth of collision.
