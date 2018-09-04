@@ -78,10 +78,9 @@ func (s *shadows) label() string { return s.tex.name }
 
 // drawShadow renders the models shadow from light position.
 // Its a directional light so no need to account for orientation.
-func (s *shadows) drawShadow(draw *render.Draw, p *pov, sc *scene, m *model) {
-	lx, ly, lz := sc.light.wx, sc.light.wy, sc.light.wz
-
+func (s *shadows) drawShadow(draw *render.Draw, p *pov, sc *scene, m *model, lx, ly, lz float64) {
 	// calculate draw transforms using lights position instead of camera.
+	// Use the view position transform in drawShade.
 	s.vp.Set(lin.M4I)
 	s.vp.TranslateTM(lx, ly, lz) // (light) view
 	s.vp.Mult(s.vp, sc.cam.pm)   // projection.
@@ -89,16 +88,17 @@ func (s *shadows) drawShadow(draw *render.Draw, p *pov, sc *scene, m *model) {
 	// render using the shader that creates the shadow map.
 	draw.Fbo = s.bid // Override scene buffer target with shadow buffer.
 	draw.Bucket = setBucket(uint8(s.bid), sc.overlay)
-	p.draw(draw, sc.cam.pm, sc.cam.vm)
-	m.draw(draw, s.caster) // override default shader with shadow castor.
+	m.draw(draw, s.caster, p, sc.cam) // override default shader with shadow castor.
 }
 
 // drawShade uses the shadow map to show shadows on an object.
 func (s *shadows) drawShade(d *render.Draw, p *pov) {
-	d.SetShadowmap(s.tex.tid)
-	// Shadow depth bias is the mvp matrix from the light.
-	// It is adjusted as needed by shadow maps.
-	s.sm.Mult(p.mm, s.vp) // model (light) view.
-	s.sm.Mult(s.sm, s.bm) // incorporate shadow bias.
-	d.SetDbm(s.sm)
+	if ref, ok := d.Uniforms["dbm"]; ok {
+		d.SetShadowmap(s.tex.tid)
+		// Shadow depth bias is the mvp matrix from the light.
+		// It is adjusted as needed by shadow maps.
+		s.sm.Mult(p.mm, s.vp)  // model (light) view.
+		s.sm.Mult(s.sm, s.bm)  // incorporate shadow bias.
+		d.SetM4Data(ref, s.sm) // shadow map depth bias matrix.
+	}
 }

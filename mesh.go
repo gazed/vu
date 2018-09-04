@@ -43,9 +43,6 @@ type Mesh struct {
 	// Per-vertex and vertex index data.
 	faces render.Data            // Triangle face indicies.
 	vdata map[uint32]render.Data // Per-vertex data values.
-
-	// Instance data count when rendering multiple instances.
-	instances int // Non-zero when mesh is to be drawn instanced.
 }
 
 // newMesh allocates space for a mesh structure,

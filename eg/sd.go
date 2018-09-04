@@ -38,6 +38,7 @@ func (sd *sdtag) Create(eng vu.Eng, s *vu.State) {
 	eng.Set(vu.Color(0.3, 0.3, 0.3, 1))
 	sd.scene = eng.AddScene()
 	sd.scene.Cam().SetClip(0.1, 50).SetFov(60)
+	sd.scene.MakeLight(vu.DirectionalLight)
 
 	// Add a sky dome that is slightly lower than the camera
 	// so that the bottom of the dome is rendered as well.

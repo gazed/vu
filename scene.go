@@ -118,12 +118,11 @@ func (e *Ent) SetOver(over uint8) *Ent {
 // scene data
 
 // scene contains application created resources used to render screen images.
-// A scene groups one camera and one light with a group of application created
-// entities. Scene is created by the Application calling Eng.AddScene().
+// A scene groups one camera with a group of application created entities.
+// Scene is created by the Application calling Eng.AddScene().
 type scene struct {
-	eid   eid    // Scene and top level scene graph node.
-	fbo   uint32 // Render target. Default 0: display buffer.
-	light *light // Active light.
+	eid eid    // Scene and top level scene graph node.
+	fbo uint32 // Render target. Default 0: display buffer.
 
 	// Cam is this scenes camera data. Guaranteed to be non-nil.
 	cam     *Camera // Created automatically with a new scene.
@@ -190,7 +189,6 @@ func (s *scene) draw(d *render.Draw) {
 // There's not many scenes so not much to optimize.
 type scenes struct {
 	all      map[eid]*scene   // Scene instance data.
-	white    *light           // default light.
 	shadows  map[eid]*shadows // Optional scene shadows.
 	targets  map[eid]*target  // Optional scene render targets.
 	skys     map[eid]*sky     // Optional sky dome.
@@ -213,7 +211,6 @@ func newScenes() *scenes {
 	ss.skys = map[eid]*sky{}
 	ss.rebinds = map[eid][]asset{}
 	ss.parts = []uint32{} // updated each frame
-	ss.white = newLight() // default light.
 	ss.v0 = &lin.V4{}     // scratch
 	ss.t0 = lin.NewT()    // scratch
 	return ss
@@ -288,7 +285,6 @@ func (ss *scenes) draw(app *application, fr frame) frame {
 	fr = fr[:0] // reset keeping underlying memory.
 	for _, sc := range ss.all {
 		if n := app.povs.getNode(sc.eid); n != nil && !n.cull {
-			sc.light = ss.white // ensure a default light.
 			index := app.povs.index[sc.eid]
 			ss.parts = ss.filter(app, sc, index, ss.parts[:0])
 			fr = ss.drawScene(app, sc, ss.parts, fr)
@@ -317,10 +313,6 @@ func (ss *scenes) filter(app *application, sc *scene, index uint32, parts []uint
 				}
 			}
 		}
-		if l := app.lights.get(p.eid); l != nil {
-			l.wx, l.wy, l.wz = w.X, w.Y, w.Z
-			sc.light = l
-		}
 
 		// recurse scene graph processing children of viable elements.
 		if !culled {
@@ -335,7 +327,7 @@ func (ss *scenes) filter(app *application, sc *scene, index uint32, parts []uint
 }
 
 // drawScene prepares for rendering by converting a sequenced list
-// of Pov's into render system draw call requests.
+// of pov's into render draw call requests.
 func (ss *scenes) drawScene(app *application, sc *scene, parts []uint32, f frame) frame {
 	if sky, ok := ss.skys[sc.eid]; ok {
 		// Optional skydome for 3D scenes.
@@ -359,21 +351,24 @@ func (ss *scenes) drawScene(app *application, sc *scene, parts []uint32, f frame
 
 				// Scenes with shadows generates extra draw calls that are sorted
 				// so they are executed before the models that need the shadow map.
+				// FUTURE: cast shadows for all lights.
 				if drawShadows {
+					lx, ly, lz := app.lights.position(sc.eid, app)
 
 					// render from the lights position into the shadow map.
-					shadows.drawShadow(*draw, p, sc, m)
-					f, draw = f.getDraw() // need new draw call.
-					sc.draw(*draw)        // apply scene attributes.
+					shadows.drawShadow(*draw, p, sc, m, lx, ly, lz)
+					f, draw = f.getDraw() // Need new draw call.
+					sc.draw(*draw)        // Apply scene attributes to new draw call.
+				}
 
+				// render model normally from scene camera.
+				// This sets the expected shader uniforms into the draw call.
+				app.models.draw(p.eid, m, *draw, p, sc)
+				app.lights.draw(sc.eid, *draw, app)
+				if drawShadows {
 					// render using the shadow map.
 					shadows.drawShade(*draw, p)
 				}
-
-				// always render model normally from scene camera.
-				p.draw(*draw, sc.cam.pm, sc.cam.vm)
-				sc.light.draw(*draw)
-				app.models.draw(p.eid, m, *draw)
 			}
 		}
 	}
@@ -410,11 +405,11 @@ func (ss *scenes) setRenderTransforms(lerp float64, w, h int) {
 			continue
 		}
 		c.focus = false
-
-		// interpolate the camera position and orientation.
-		// This helps smooth motion when there are more renders than updates.
-		ss.t0.Loc.Lerp(c.prev.Loc, c.at.Loc, lerp)
-		ss.t0.Rot.Nlerp(c.prev.Rot, c.at.Rot, lerp)
+		ss.t0.Loc.Set(c.at.Loc)
+		ss.t0.Rot.Set(c.at.Rot)
+		// FUTURE interpolate small camera position changes
+		// ss.t0.Loc.Lerp(c.prev.Loc, c.at.Loc, lerp)
+		// ss.t0.Rot.Nlerp(c.prev.Rot, c.at.Rot, lerp)
 
 		// Set the view transform. Updates c.vm.
 		c.vt(ss.t0, c.q0, c.vm) // view transform

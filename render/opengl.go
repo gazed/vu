@@ -149,55 +149,60 @@ func (gc *opengl) Render(d *Draw) {
 
 // bindUniforms links model data to the uniforms discovered
 // in the model shader.
+// FUTURE: create design that incorporates special cases like
+//         textures and animation bone poses.
 func (gc *opengl) bindUniforms(d *Draw) {
-	for key, ref := range d.Uniforms {
+	for key, ref := range d.Uniforms { // Uniforms expected by the shader.
 		switch {
-		case key == "dbm":
-			gc.bindUniform(ref, x4, 1, d.Dbm.Pointer())
-		case key == "pm":
-			gc.bindUniform(ref, x4, 1, d.Pm.Pointer())
-		case key == "vm":
-			gc.bindUniform(ref, x4, 1, d.Vm.Pointer())
-		case key == "mm":
-			gc.bindUniform(ref, x4, 1, d.Mm.Pointer())
-		case key == "sm":
-			gc.useTexture(ref, 15, d.Shtex) // always use 15 for shadow maps.
-		case key == "bpos": // bone position animation data.
-			if d.Pose != nil && len(d.Pose) > 0 {
-				gc.bindUniform(ref, x34, len(d.Pose), d.Pose[0].Pointer())
+		case key == "bpos":
+			if d.Poses != nil && len(d.Poses) > 0 {
+				gl.UniformMatrix3x4fv(ref, int32(d.NumPoses), false, &(d.Poses[0]))
+			} else {
+				log.Printf("Animation data expected for %d", d.Tag)
 			}
+		case key == "sm":
+			gl.Uniform1i(ref, 15) // Convention for shadow maps.
+			gl.ActiveTexture(gl.TEXTURE0 + 15)
+			gl.BindTexture(gl.TEXTURE_2D, d.Shtex)
 		case strings.HasPrefix(key, "uv"):
+			// Map the texture order to the texture variable names.
 			index := 0
 			fmt.Sscanf(key, "uv%d", &index)
 			for _, t := range d.Texs {
 				if t.order == index {
-					gc.useTexture(ref, int32(index), t.tid)
+					gl.Uniform1i(ref, int32(t.order))
+					gl.ActiveTexture(gl.TEXTURE0 + uint32(t.order))
+					gl.BindTexture(gl.TEXTURE_2D, t.tid)
 					break
 				}
 			}
 		default:
-			// bind individual float based uniforms.
-			// eg: "alpha", "time", "l", "ld", "kd", "ks", "ka"
-			if floats, ok := d.Floats[key]; ok {
-				switch len(floats) {
-				case 1:
-					gc.bindUniform(ref, f1, 1, floats[0])
-				case 2:
-					gc.bindUniform(ref, f2, 1, floats[0], floats[1])
-				case 3:
-					gc.bindUniform(ref, f3, 1, floats[0], floats[1], floats[2])
-				case 4:
-					gc.bindUniform(ref, f4, 1, floats[0], floats[1], floats[2], floats[3])
-				}
-			} else {
-				log.Printf("No uniform bound for %s %d", key, d.Tag)
+			// Everything else is uniform float or matrix data.
+			data, ok := d.UniformData[ref] // Uniform data set by engine and App.
+			if !ok {
+				log.Printf("No uniform data for %d %s", d.Tag, key)
+				continue
+			}
+			switch len(data) {
+			case 1:
+				gl.Uniform1f(ref, data[0])
+			case 2:
+				gl.Uniform2f(ref, data[0], data[1])
+			case 3:
+				gl.Uniform3f(ref, data[0], data[1], data[2])
+			case 4:
+				gl.Uniform4f(ref, data[0], data[1], data[2], data[3])
+			case 16:
+				// 4x4 matrix.
+				gl.UniformMatrix4fv(ref, 1, false, &(data[0]))
+			default:
+				log.Printf("Failed to bind %d %s %d", d.Tag, key, len(data))
 			}
 		}
 		if glerr := gl.GetError(); glerr != gl.NO_ERROR {
-			log.Printf("BindUniforms error %X for %s %d", glerr, key, d.Tag)
+			log.Printf("bindUniforms %d failed %X %d %s", ref, d.Tag, glerr, key)
 		}
 	}
-
 }
 
 // validate that OpenGL is available at the right version.
@@ -349,7 +354,13 @@ func (gc *opengl) BindShader(vsh, fsh []string, uniforms map[string]int32,
 	if glerr := gl.GetError(); glerr != gl.NO_ERROR {
 		log.Printf("shader:Bind need to find and fix error %X", glerr)
 	}
-	return
+
+	// // Deubugging code: dumps shader uniforms once on startup.
+	// log.Printf("BindShader")
+	// for k, v := range uniforms {
+	// 	log.Printf("  uniform %s %d", k, v)
+	// }
+	return program, err
 }
 
 // Renderer implementation.
@@ -477,62 +488,6 @@ func (gc *opengl) BindMap(fbo, tid *uint32) (err error) {
 	}
 	gl.BindFramebuffer(gl.FRAMEBUFFER, 0) // clean up by resetting to default framebuffer.
 	return err
-}
-
-// bindUniform links data to uniforms expected by shaders.
-// It expects the variable parameter list types to match the uniform type.
-func (gc *opengl) bindUniform(uniform int32, utype, cnt int, udata ...interface{}) {
-	switch utype {
-	case i1:
-		i1 := udata[0].(int32)
-		gl.Uniform1i(uniform, i1)
-	case f1:
-		f1 := udata[0].(float32)
-		gl.Uniform1f(uniform, f1)
-	case f2:
-		f1 := udata[0].(float32)
-		f2 := udata[1].(float32)
-		gl.Uniform2f(uniform, f1, f2)
-	case f3:
-		f1 := udata[0].(float32)
-		f2 := udata[1].(float32)
-		f3 := udata[2].(float32)
-		gl.Uniform3f(uniform, f1, f2, f3)
-	case f4:
-		f1 := udata[0].(float32)
-		f2 := udata[1].(float32)
-		f3 := udata[2].(float32)
-		f4 := udata[3].(float32)
-		gl.Uniform4f(uniform, f1, f2, f3, f4)
-	case x3:
-		mptr := udata[0].(*float32)
-		gl.UniformMatrix3fv(uniform, int32(cnt), false, mptr)
-	case x34:
-		mptr := udata[0].(*float32)
-		gl.UniformMatrix3x4fv(uniform, int32(cnt), false, mptr)
-	case x4:
-		mptr := udata[0].(*float32)
-		gl.UniformMatrix4fv(uniform, int32(cnt), false, mptr)
-	}
-}
-
-// Current list of supported uniform types.
-const (
-	i1  = iota // glUniform1i
-	f1         // glUniform1f
-	f2         // glUniform2f
-	f3         // glUniform3f
-	f4         // glUniform4f
-	x3         // glUniformMatrix3fv
-	x34        // glUniformMatrix3x4fv
-	x4         // glUniformMatrix4fv
-)
-
-// useTexture makes the given texture the active texture.
-func (gc *opengl) useTexture(sampler, texUnit int32, tid uint32) {
-	gc.bindUniform(sampler, i1, 1, texUnit)
-	gl.ActiveTexture(gl.TEXTURE0 + uint32(texUnit))
-	gl.BindTexture(gl.TEXTURE_2D, tid)
 }
 
 // Remove graphic resources.

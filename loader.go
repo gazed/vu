@@ -5,6 +5,10 @@ package vu
 
 // loader.go gets data from disk. Puts disk loads on worker goroutines.
 // FUTURE: handle releaseData requests. See eng.dispose design note.
+//
+// FUTURE lookat "gltf v2" godot importer.
+//      wikipedia claims there is a golang gltf importer.
+// https://github.com/godotengine/godot/blob/master/editor/import/editor_scene_importer_gltf.cpp
 
 import (
 	"fmt"

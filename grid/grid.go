@@ -19,8 +19,6 @@
 //          }
 //       }
 //
-// Package grid also provides A-star and flow field path finding algorihms.
-//
 // Package grid is provided as part of the vu (virtual universe) 3D engine.
 package grid
 
@@ -34,7 +32,13 @@ import (
 // or a floor. The expected usage is to generate a random level and then to
 // use the level by traversing it with the Size and IsOpen methods.
 type Grid interface {
-	Plan // Grids have sizes and can be queried as to wall/floor status.
+	// Size returns the current size of the grid. This will be 0, 0 if
+	// Generate has not yet been called.
+	Size() (width, depth int) // The current size of the plan.
+
+	// IsOpen returns true if the cell at the given location is traversable.
+	// Otherwise the cell is blocked and can be considered a wall.
+	IsOpen(x, y int) bool // Return true if the given location is traversable.
 
 	// Seed can be set to generate the same map each time. Leave it unset
 	// to get a random map each time.
@@ -84,22 +88,6 @@ const (
 	// of rooms connected by corridors.
 	Dungeon
 )
-
-// Grid interface and grid types.
-// =============================================================================
-
-// Plan describes a 2D grid where each location in the grid is either open
-// and traversable (passage/floor) or blocked (wall).
-type Plan interface {
-
-	// Size returns the current size of the grid. This will be 0, 0 if
-	// Generate has not yet been called.
-	Size() (width, depth int) // The current size of the plan.
-
-	// IsOpen returns true if the cell at the given location is traversable.
-	// Otherwise the cell is blocked and can be considered a wall.
-	IsOpen(x, y int) bool // Return true if the given location is traversable.
-}
 
 // ===========================================================================
 // grid implements Grid

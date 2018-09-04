@@ -10,7 +10,6 @@ import (
 	"log"
 
 	"github.com/gazed/vu/math/lin"
-	"github.com/gazed/vu/render"
 )
 
 // AddPart creates a new entity with a point-of-view component (pov).
@@ -96,11 +95,10 @@ func (e *Ent) Move(x, y, z float64, dir *lin.Q) {
 	log.Printf("Move missing AddPart %d", e.eid)
 }
 
-// View returns the orientation of the pov. Orientation combines
-// direction and rotation about the direction. Orientation is relative
-// to parent. World space if no parent orientation.
-// Direct updates to the rotation matrix must be done with SetView
-// or SetAa.
+// View returns the orientation of the Part. Orientation is a rotation
+// about a axis. Orientation is relative to any parent Parts.
+// It is world space if there is no parent orientation. Direct updates
+// to the rotation matrix must be done with SetView or SetAa.
 //
 // Depends on Ent.AddPart.
 func (e *Ent) View() (q *lin.Q) {
@@ -181,14 +179,15 @@ func (e *Ent) Spin(x, y, z float64) {
 // like the Spin method.
 //
 // Depends on Ent.AddPart.
-func (e *Ent) SetSpin(x, y, z float64) {
+func (e *Ent) SetSpin(x, y, z float64) *Ent {
 	if p := e.app.povs.get(e.eid); p != nil {
 		p.clearSpin()
 		p.spin(e.app.povs.rot, x, y, z)
 		e.app.povs.updateWorld(p, e.eid)
-		return
+		return e
 	}
 	log.Printf("SetSpin needs AddPart %d", e.eid)
+	return e
 }
 
 // Scale retrieves the local per-axis scale values at 3 separate XYZ values.
@@ -293,16 +292,6 @@ func (p *pov) spin(rot *lin.Q, x, y, z float64) {
 		rot.SetAa(0, 0, 1, lin.Rad(z))
 		p.tn.Rot.Mult(rot, p.tn.Rot)
 	}
-}
-
-// draw sets the location render data needed for a single draw call.
-// The data is copied into a render.Draw instance.
-func (p *pov) draw(d *render.Draw, pm, vm *lin.M4) {
-	d.SetPm(pm)   // projection matrix.
-	d.SetVm(vm)   // view matrix.
-	d.SetMm(p.mm) // model matrix.
-	d.SetScale(p.scale())
-	d.Tag = uint32(p.eid) // for debugging.
 }
 
 // pov

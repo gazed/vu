@@ -1,7 +1,7 @@
-// Copyright © 2014-2015 Galvanized Logic Inc.
+// Copyright © 2014-2018 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
-package grid
+package ai
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 )
 
 func TestFlowId(t *testing.T) {
-	f := newFlow(&emptyPlan{})
+	f := newGridFlow(&emptyGrid{})
 	id := f.id(5, 7)
 	if x, y := f.at(id); x != 5 || y != 7 {
 		t.Errorf("Invalid id conversion. Expecting, 5, 7. Got %d %d", x, y)
@@ -17,7 +17,7 @@ func TestFlowId(t *testing.T) {
 }
 
 func TestFlowEmpty(t *testing.T) {
-	f := newFlow(&emptyPlan{})
+	f := newGridFlow(&emptyGrid{})
 	gx, gy := gridSize/2, gridSize/2
 	f.Create(gx, gy)
 
@@ -39,13 +39,13 @@ func TestFlowEmpty(t *testing.T) {
 		printFlowmap(f)
 	}
 
-	// uncomment to see visual repsentations of the grid and flow maps.
+	// uncomment to see visual representations of the grid and flow maps.
 	// printGridmap(f)
 	// printFlowmap(f)
 }
 
 func TestFlowBlock(t *testing.T) {
-	f := newFlow(&blockedPlan{})
+	f := newGridFlow(&blockedGrid{})
 	f.Create(0, 0)
 
 	bl := f.goalmap[0][0]
@@ -66,13 +66,13 @@ func TestFlowBlock(t *testing.T) {
 		printFlowmap(f)
 	}
 
-	// uncomment to see visual repsentations of the grid and flow maps.
+	// uncomment to see text representations of the grid and flow maps.
 	// printGridmap(f)
 	// printFlowmap(f)
 }
 
 func TestFlowNext(t *testing.T) {
-	f := newFlow(&blockedPlan{})
+	f := newGridFlow(&blockedGrid{})
 	f.Create(0, 0)
 	dx, dy := f.Next(gridSize-1, gridSize-1)
 	if dx != -1 || dy != -1 {
@@ -86,7 +86,7 @@ func TestFlowNext(t *testing.T) {
 
 // printGridmap dumps the gridmap where 0,0 is the bottom left corner and
 // size, size is the top right corner.
-func printGridmap(f *flow) {
+func printGridmap(f *gridFlow) {
 	for y := f.ysz - 1; y >= 0; y-- {
 		for x := 0; x < f.xsz; x++ {
 			fmt.Printf("%3d ", f.goalmap[x][y])
@@ -97,7 +97,7 @@ func printGridmap(f *flow) {
 
 // printFlowmap dumps the flowmap where 0,0 is the bottom left corner and
 // size, size is the top right corner.
-func printFlowmap(f *flow) {
+func printFlowmap(f *gridFlow) {
 	for y := f.ysz - 1; y >= 0; y-- {
 		for x := 0; x < f.xsz; x++ {
 			dir := f.flowmap[x][y]
@@ -128,25 +128,50 @@ func printFlowmap(f *flow) {
 	}
 }
 
+// emptyGrid creates a floor plan with no barriers.
+type emptyGrid struct{}
+
+func (ep *emptyGrid) Size() (width, depth int) { return gridSize, gridSize }
+func (ep *emptyGrid) IsOpen(x, y int) bool {
+	return x >= 0 && x < gridSize && y >= 0 && y < gridSize
+}
+
+// ============================================================================
+
+// blocked plan creates a floor plan with a large block in the center.
+type blockedGrid struct{}
+
+func (bp *blockedGrid) Size() (width, depth int) { return gridSize, gridSize }
+func (bp *blockedGrid) IsOpen(x, y int) bool {
+	blockSize := 4
+	center := gridSize / 2
+	bot, top := center-blockSize, center+blockSize
+	switch {
+	case x >= bot && x <= top && y >= bot && y <= top:
+		return false
+	default:
+		return x >= 0 && x < gridSize && y >= 0 && y < gridSize
+	}
+}
+
 // utility methods
 // ============================================================================
 // benchmarking.
 
 // Check flow field creation efficiency.
-// Run "go test -bench ." to get something like:
-// BenchmarkFlowEmpty	   50000	     64254 ns/op
-// BenchmarkFlowBlock	   50000	     45827 ns/op
+// Run 'go test -bench "Flow*"' to get something like:
+// BenchmarkFlowEmpty-8   	   30000	     45274 ns/op
+// BenchmarkFlowBlock-8   	   50000	     31162 ns/op
 
-// No walls or barriers is slightly slower than when there are some walls.
 func BenchmarkFlowEmpty(b *testing.B) {
-	f := newFlow(&emptyPlan{})
+	f := newGridFlow(&emptyGrid{})
 	gx, gy := gridSize/2, gridSize/2
 	for cnt := 0; cnt < b.N; cnt++ {
 		f.Create(gx, gy)
 	}
 }
 func BenchmarkFlowBlock(b *testing.B) {
-	f := newFlow(&blockedPlan{})
+	f := newGridFlow(&blockedGrid{})
 	for cnt := 0; cnt < b.N; cnt++ {
 		f.Create(0, 0)
 	}

@@ -31,11 +31,7 @@ func (f frame) getDraw() (frame, **render.Draw) {
 		if f[size] == nil {
 			f[size] = render.NewDraw()
 		} else {
-			// clean up old data.
-			f[size].SetPose(nil)             // Clear animation.
-			f[size].SetTex(0, 0, 0, 0, 0, 0) // Clear texture info.
-			f[size].Scissor = false          // Clear scissor
-			f[size].Instances = 0            // Clear instance data.
+			f[size].Reset()
 		}
 	}
 	return f, &f[size]

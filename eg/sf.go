@@ -50,12 +50,12 @@ func (sf *sftag) Refresh(dev device.Device) {
 // Globally unique "tag" that encapsulates example specific data.
 type sftag struct {
 	vao     uint32
-	sTime   time.Time  // start time.
-	gTime   int32      // uniform reference to time in seconds since startup.
-	sizes   int32      // uniform reference to the viewport sizes vector.
-	shaders uint32     // program reference.
-	mvp     render.Mvp // transform matrix for rendering.
-	mvpref  int32      // mvp uniform id
+	sTime   time.Time // start time.
+	gTime   int32     // uniform reference to time in seconds since startup.
+	sizes   int32     // uniform reference to the viewport sizes vector.
+	shaders uint32    // program reference.
+	mvpref  int32     // mvp uniform reference id
+	mvp     []float32 // transform matrix uniform data.
 
 	// mesh information
 	verticies []float32
@@ -103,7 +103,7 @@ func (sf *sftag) initScene() {
 		sf.mvpref = gl.GetUniformLocation(sf.shaders, "mvpm")
 		sf.gTime = gl.GetUniformLocation(sf.shaders, "time")
 		sf.sizes = gl.GetUniformLocation(sf.shaders, "screen")
-		sf.mvp = render.NewMvp().Set(lin.NewM4().Ortho(0, 4, 0, 4, 0, 10))
+		sf.mvp = render.M4ToData(lin.NewM4().Ortho(0, 4, 0, 4, 0, 10), sf.mvp)
 
 		// set some state that doesn't need to change during drawing.
 		gl.ClearColor(0.0, 0.0, 0.0, 1.0)
@@ -132,7 +132,7 @@ func (sf *sftag) drawScene() {
 	timeSinceStart := time.Since(sf.sTime).Seconds()
 	gl.Uniform1f(sf.gTime, float32(timeSinceStart))
 	gl.Uniform2f(sf.sizes, 500, 500)
-	gl.UniformMatrix4fv(sf.mvpref, 1, false, sf.mvp.Pointer())
+	gl.UniformMatrix4fv(sf.mvpref, 1, false, &(sf.mvp[0]))
 	gl.DrawElements(gl.TRIANGLES, int32(len(sf.faces)), gl.UNSIGNED_BYTE, 0)
 
 	// cleanup

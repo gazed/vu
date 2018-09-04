@@ -39,8 +39,8 @@ func (bb *bbtag) Create(eng vu.Eng, s *vu.State) {
 	// 3D scene and camera.
 	bb.scene = eng.AddScene()
 	bb.scene.Cam().SetClip(0.1, 50).SetFov(60).SetAt(0.5, 2, 2.5)
-	sun := bb.scene.AddPart().SetAt(0, 3, -3)
-	sun.MakeLight().SetLightColor(0.4, 0.7, 0.9) // need light for gouraud shader.
+	sun := bb.scene.MakeLight(vu.DirectionalLight).SetLightColor(0.4, 0.7, 0.9)
+	sun.SetAt(0, 3, -3)
 
 	// // The floor model gives context to the labels.
 	floor := bb.scene.AddPart().SetAt(0, 0, -10)

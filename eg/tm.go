@@ -42,8 +42,9 @@ func (tm *tmtag) Create(eng vu.Eng, s *vu.State) {
 	eng.Set(vu.Title("Terrain Map"), vu.Size(400, 100, 800, 600))
 	tm.scene = eng.AddScene().SetOrtho()
 	tm.scene.Cam().SetClip(0, 50)
-	sun := tm.scene.AddPart().SetAt(0, 5, 0)
-	sun.MakeLight().SetLightColor(0.4, 0.7, 0.9)
+
+	sun := tm.scene.MakeLight(vu.DirectionalLight).SetLightColor(0.4, 0.7, 0.9)
+	sun.SetAt(0, 5, 0)
 
 	// create the world surface.
 	seed := int64(123)

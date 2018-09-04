@@ -1,7 +1,7 @@
-// Copyright © 2014-2015 Galvanized Logic Inc.
+// Copyright © 2014-2018 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
-package grid
+package ai
 
 // Flow is based mainly on continuum crowds [Treuille 2006]
 // See implemetation example at:
@@ -17,7 +17,7 @@ import (
 
 // Flow creates a map to help units move towards their goal. The flow is
 // initialized with a map and a goal. Afterwards each unit can query the flow
-// for the best diretion to move towards their goal.
+// for the best direction to move towards their goal.
 type Flow interface {
 
 	// Create a new flow field based on the given goal location.
@@ -31,18 +31,29 @@ type Flow interface {
 	Next(gx, gy int) (nx, ny int)
 }
 
-// NewFlow creates a flow based on a plan.
-func NewFlow(p Plan) Flow { return newFlow(p) }
+// Grid describes a 2D grid where each location in the grid is either
+// traversable (passage/floor) or blocked (wall). See vu.grid package.
+type Grid interface {
+
+	// Size returns the current size of the grid.
+	Size() (width, depth int) // 0,0 for uninitialized or invalid grids.
+
+	// Grid cells are either open or closed to passage.
+	IsOpen(x, y int) bool // Return true if x,y is traversable.
+}
+
+// NewGridFlow creates a flow based on a grid.
+func NewGridFlow(g Grid) Flow { return newGridFlow(g) }
 
 // public interface
 // =============================================================================
 // private implementaiton
 
-// flow is the default implementation of Flow. It keeps a flow field map
-// for the given plan.
-type flow struct {
-	xsz, ysz   int     // floor plan x,y dimensions.
-	costmap    Plan    // base map with impassable and avoidance areas.
+// gridFlow is the default implementation of Flow.
+// It generates a flow field map for a grid.
+type gridFlow struct {
+	xsz, ysz   int     // grid x,y dimensions.
+	costmap    Grid    // base map with impassable and avoidance areas.
 	goalmap    [][]int // holds the cost to the goal for each cell.
 	flowmap    [][]int // direction to goal for each cell.
 	neighbours []int   // scratch for calculating valid neighbours.
@@ -63,14 +74,14 @@ const (
 	nw           // x-1, y+1
 )
 
-// newFlow creates a flow map towards the given goal using the plan
+// newGridFlow creates a flow map towards the given goal using the plan
 // as the cost map. Note that using MaxUint8 to mean impassable implies
 // flow map sizes less than 512x512. Flow maps really should be limited
 // to 100x100 or smaller.
-func newFlow(p Plan) *flow {
-	f := &flow{max: math.MaxUint8}
-	f.xsz, f.ysz = p.Size()
-	f.costmap = p
+func newGridFlow(g Grid) *gridFlow {
+	f := &gridFlow{max: math.MaxUint8}
+	f.xsz, f.ysz = g.Size()
+	f.costmap = g
 	f.flowmap = make([][]int, f.ysz)
 	f.goalmap = make([][]int, f.ysz)
 	for y := range f.flowmap {
@@ -82,13 +93,13 @@ func newFlow(p Plan) *flow {
 }
 
 // Create implements Flow.
-func (f *flow) Create(goalx, goaly int) {
+func (f *gridFlow) Create(goalx, goaly int) {
 	f.createGoalmap(goalx, goaly) // create goal map from cost map.
 	f.createFlowmap(goalx, goaly) // create flow map from goal map.
 }
 
 // Next implements Flow.
-func (f *flow) Next(gx, gy int) (nx, ny int) {
+func (f *gridFlow) Next(gx, gy int) (nx, ny int) {
 	switch f.flowmap[gx][gy] {
 	case north:
 		return 0, 1
@@ -115,7 +126,7 @@ func (f *flow) Next(gx, gy int) (nx, ny int) {
 // createGoalmap creates the goal map from the cost map.
 // This spreads out from the goalnode until each reachable node
 // has been processed.
-func (f *flow) createGoalmap(goalx, goaly int) {
+func (f *gridFlow) createGoalmap(goalx, goaly int) {
 
 	// reset all node costs to a large values.
 	for y, row := range f.goalmap {
@@ -169,7 +180,7 @@ func (f *flow) createGoalmap(goalx, goaly int) {
 }
 
 // createFlowmap creates the flow map from the goal map.
-func (f *flow) createFlowmap(goalx, goaly int) {
+func (f *gridFlow) createFlowmap(goalx, goaly int) {
 	for y, row := range f.goalmap {
 		for x := range row {
 			costToGoal := f.max
@@ -214,7 +225,7 @@ func (f *flow) createFlowmap(goalx, goaly int) {
 
 // Find the all neighbours including diagonals. Relies on f.neighbours
 // scratch variable. Returns the direction of the valid neighbour.
-func (f *flow) findNeighbours(x, y int) []int {
+func (f *gridFlow) findNeighbours(x, y int) []int {
 	f.neighbours = f.neighbours[:0] // reset while preserving memory.
 	if y+1 < f.ysz {
 		f.neighbours = append(f.neighbours, north)
@@ -245,7 +256,7 @@ func (f *flow) findNeighbours(x, y int) []int {
 
 // Find the N,S,E,W neighbours. Relies on f.neighbours scratch variable.
 // Returns the direction of the valid neighbour.
-func (f *flow) directNeighbours(x, y int) []int {
+func (f *gridFlow) directNeighbours(x, y int) []int {
 	f.neighbours = f.neighbours[:0] // reset while preserving memory.
 	if y+1 < f.ysz {
 		f.neighbours = append(f.neighbours, north)
@@ -263,7 +274,7 @@ func (f *flow) directNeighbours(x, y int) []int {
 }
 
 // scan the list of candidates for the given identifier.
-func (f *flow) alreadyCandidate(id int) bool {
+func (f *gridFlow) alreadyCandidate(id int) bool {
 	for _, candidateID := range f.candidates {
 		if id == candidateID {
 			return true
@@ -273,7 +284,7 @@ func (f *flow) alreadyCandidate(id int) bool {
 }
 
 // The cost for a plan is very high for walls and 1 for open areas.
-func (f *flow) cost(x, y int) int {
+func (f *gridFlow) cost(x, y int) int {
 	if f.costmap.IsOpen(x, y) {
 		return 1 // open area.
 	}
@@ -281,7 +292,7 @@ func (f *flow) cost(x, y int) int {
 }
 
 // Turn x,y map indicies to unique identifiers.
-func (f *flow) id(x, y int) int { return x*f.ysz + y }
+func (f *gridFlow) id(x, y int) int { return x*f.ysz + y }
 
 // Turn unique identifiers to x,y map indicies.
-func (f *flow) at(id int) (x, y int) { return id / f.ysz, id % f.ysz }
+func (f *gridFlow) at(id int) (x, y int) { return id / f.ysz, id % f.ysz }

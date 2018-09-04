@@ -54,10 +54,10 @@ type trtag struct {
 	vao         uint32
 	rotateAngle float64
 	mvpRef      int32
-	persp       *lin.M4    // Perspective matrix.
-	mvp64       *lin.M4    // Scratch for transform calculations.
-	mvp         render.Mvp // transform matrix for rendering.
-	lastTime    time.Time  // Controls triangle rotation speed.
+	persp       *lin.M4   // Perspective matrix.
+	mvp64       *lin.M4   // Scratch for transform calculations.
+	mvp         []float32 // transform matrix uniform data.
+	lastTime    time.Time // Controls triangle rotation speed.
 
 	// mesh information
 	verticies []float32
@@ -101,7 +101,7 @@ func (tag *trtag) resize(width int, height int) {
 func (tag *trtag) initScene() {
 	tag.mvp64 = lin.NewM4()
 	tag.persp = lin.NewM4().Persp(60, float64(600)/float64(600), 0.1, 50)
-	tag.mvp = render.NewMvp()
+	tag.mvp = make([]float32, 16) // 4x4 matrix uniform data.
 	tag.initData()
 
 	// Bind the OpenGL calls and dump some version info.
@@ -172,8 +172,8 @@ func (tag *trtag) drawScene() {
 	// Use a modelview matrix and quaternion to rotate the 3D object.
 	tag.mvp64.SetQ(lin.NewQ().SetAa(0, 1, 0, lin.Rad(-tag.rotateAngle)))
 	tag.mvp64.TranslateMT(0, 0, -4)
-	tag.mvp.Set(tag.mvp64.Mult(tag.mvp64, tag.persp))
-	gl.UniformMatrix4fv(tag.mvpRef, 1, false, tag.mvp.Pointer())
+	tag.mvp = render.M4ToData(tag.mvp64.Mult(tag.mvp64, tag.persp), tag.mvp)
+	gl.UniformMatrix4fv(tag.mvpRef, 1, false, &(tag.mvp[0]))
 	if err := gl.GetError(); err != 0 {
 		fmt.Printf("gl.UniformMatrix error %d\n", err)
 	}

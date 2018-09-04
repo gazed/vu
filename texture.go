@@ -24,11 +24,6 @@ type Texture struct {
 	tid    uint32      // Graphics card texture identifier.
 	rebind bool        // True if data needs to be sent to the GPU.
 	clamp  bool        // Set to True to trigger a one time clamp.
-
-	// When models have more than one texture the f0, fn
-	// fields are used to indicate which model faces apply to this texture.
-	// First face index and number of faces.
-	f0, fn uint32 // Non-zero if texture only applies to particular faces.
 }
 
 // newTexture allocates space for a texture object.

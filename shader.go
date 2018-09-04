@@ -295,19 +295,19 @@ var diffuseShaderV = []string{
 	"layout(location=0) in vec3 in_v;", // verticies
 	"layout(location=1) in vec3 in_n;", // vertex normals
 	"",
-	"uniform mat4  pm;",      // projection matrix
-	"uniform mat4  vm;",      // view matrix
-	"uniform mat4  mm;",      // model matrix
-	"uniform vec3  lp;",      // light position in world space.
-	"uniform vec3  lc;",      // light color.
-	"uniform vec3  kd;",      // material diffuse color.
-	"out     vec3  v_color;", // vertex color
+	"uniform mat4 pm;",            // projection matrix
+	"uniform mat4 vm;",            // view matrix
+	"uniform mat4 mm;",            // model matrix
+	"uniform vec3 lightPosition;", //
+	"uniform vec3 lightColor;",    //
+	"uniform vec3 kd;",            // material diffuse color.
+	"out     vec3 v_color;",       // vertex color
 	"void main() {",
-	"   mat4 mvm = vm * mm;",                             // view-model matrix.
-	"   vec4 vmod = vec4(in_v, 1.0);",                    // vertex in model space.
+	"   mat4 mvm = vm * mm;",          // view-model matrix.
+	"   vec4 vmod = vec4(in_v, 1.0);", // vertex in model space.
 	"   vec3 nm = normalize((mvm * vec4(in_n, 0)).xyz);", // unit normal in world space.
-	"   vec3 lightDir = normalize(lp - vec3(mvm*vmod));",
-	"   v_color = lc * kd * max(dot(lightDir, nm), 0.0);",
+	"   vec3 lightDir = normalize(lightPosition - vec3(mvm*vmod));",
+	"   v_color = lightColor * kd * max(dot(lightDir, nm), 0.0);",
 	"   gl_Position = pm * mvm * vmod;", // pass on the transformed vertex position
 	"}",
 }
@@ -331,42 +331,43 @@ var phongShaderV = []string{
 	"layout(location=0) in vec3 in_v;", // verticies
 	"layout(location=1) in vec3 in_n;", // vertex normals
 	"",
-	"uniform mat4  pm;", // projection matrix
-	"uniform mat4  vm;", // view matrix
-	"uniform mat4  mm;", // model matrix
-	"uniform vec3  lp;", // light position in world space.
-	"out   vec3  v_n;",  // vertex normal
-	"out   vec3  v_s;",  // vector from vertex to light.
-	"out   vec3  v_e;",  // vertex eye position.
+	"uniform mat4 pm;",            // projection matrix
+	"uniform mat4 vm;",            // view matrix
+	"uniform mat4 mm;",            // model matrix
+	"uniform vec3 lightPosition;", // light position in world space.
+	"",
+	"out     vec3 v_n;", // vertex normal
+	"out     vec3 v_s;", // vector from vertex to light.
+	"out     vec3 v_e;", // vertex eye position.
 	"void main() {",
-	"   mat4 mvm = vm * mm;",                         // view-model matrix.
-	"   vec4 vmod = vec4(in_v, 1.0);",                // vertex in model space.
-	"   vec4 vworld = mvm * vmod;",                   // vertex in world space
-	"   v_s = normalize(lp - vworld.xyz);",           // light vector
-	"   v_e = normalize(-vworld.xyz);",               // view vector
-	"   v_n = normalize((mvm * vec4(in_n, 0)).xyz);", // unit normal in world space.
-	"   gl_Position = pm * mvm * vmod;",              // vertex in clip space",
+	"   mat4 mvm = vm * mm;",          // view-model matrix.
+	"   vec4 vmod = vec4(in_v, 1.0);", // vertex in model space.
+	"   vec4 vworld = mvm * vmod;",    // vertex in world space
+	"   v_s = normalize(lightPosition - vworld.xyz);", // light vector
+	"   v_e = normalize(-vworld.xyz);",                // view vector
+	"   v_n = normalize((mvm * vec4(in_n, 0)).xyz);",  // unit normal in world space.
+	"   gl_Position = pm * mvm * vmod;",               // vertex in clip space",
 	"}",
 }
 var phongShaderF = []string{
-	"in      vec3  v_n;",     // interpolated normal
-	"in      vec3  v_s;",     // interpolated vector from vertex to light.
-	"in      vec3  v_e;",     // interpolated vector from eye to vertex.
-	"uniform vec3  lc;",      // light color
-	"uniform vec3  ka;",      // material ambient value
-	"uniform vec3  ks;",      // material specular value
-	"uniform vec3  kd;",      // material diffuse value
-	"uniform float alpha;",   // transparency
-	"uniform float ns;",      // material specular exponent
-	"out     vec4  f_color;", // final fragment color
+	"in      vec3  v_n;",        // interpolated normal
+	"in      vec3  v_s;",        // interpolated vector from vertex to light.
+	"in      vec3  v_e;",        // interpolated vector from eye to vertex.
+	"uniform vec3  lightColor;", //
+	"uniform vec3  ka;",         // material ambient value
+	"uniform vec3  ks;",         // material specular value
+	"uniform vec3  kd;",         // material diffuse value
+	"uniform float alpha;",      // transparency
+	"uniform float ns;",         // material specular exponent
+	"out     vec4  f_color;",    // final fragment color
 	"void main() {",
 	"   vec3 r = reflect(-v_s, v_n);",
 	"   float sDotN = max( dot(v_s,v_n), 0.0 );",
-	"   vec3 ambient = lc * ka;",
-	"   vec3 diffuse = lc * kd * sDotN;",
+	"   vec3 ambient = lightColor * ka;",
+	"   vec3 diffuse = lightColor * kd * sDotN;",
 	"   vec3 spec = vec3(0.0);",
 	"   if (sDotN > 0.0)",
-	"      spec = lc * ks * pow( max( dot(r,v_e), 0.0 ), ns);",
+	"      spec = lightColor * ks * pow( max( dot(r,v_e), 0.0 ), ns);",
 	"   vec3 color = ambient + diffuse + spec;", // combine all the values.
 	"   f_color = vec4(color, alpha);",          // final fragment color
 	"}",
@@ -381,21 +382,22 @@ var toonShaderV = []string{
 	"layout(location=1) in vec3 in_n;", // vertex normals
 	"layout(location=2) in vec2 in_t;", // texture coordinates
 	"",
-	"uniform mat4 pm;",  // projection matrix
-	"uniform mat4 vm;",  // view matrix
-	"uniform mat4 mm;",  // model matrix
-	"uniform vec3 lp;",  // light position in world space.
+	"uniform mat4 pm;",            // projection matrix
+	"uniform mat4 vm;",            // view matrix
+	"uniform mat4 mm;",            // model matrix
+	"uniform vec3 lightPosition;", // light position in world space.
+	"",
 	"out     vec3 v_s;", // vector from vertex to light.
 	"out     vec3 v_n;", // vertex normal
 	"out     vec2 v_t;", // pass texture coordinates through
 	"void main() {",
-	"   mat4 mvm = vm * mm;",                         // view-model matrix.
-	"   vec4 vmod = vec4(in_v, 1.0);",                // vertex in model space.
-	"   vec4 vworld = mvm * vmod;",                   // vertex in world space
-	"   v_s = normalize(lp - vworld.xyz);",           // light vector
-	"   v_n = normalize((mvm * vec4(in_n, 0)).xyz);", // unit normal in world space.
-	"   v_t = in_t;",                                 //
-	"   gl_Position = pm * mvm * vmod;",              // vertex in clip space,
+	"   mat4 mvm = vm * mm;",          // view-model matrix.
+	"   vec4 vmod = vec4(in_v, 1.0);", // vertex in model space.
+	"   vec4 vworld = mvm * vmod;",    // vertex in world space
+	"   v_s = normalize(lightPosition - vworld.xyz);", // light vector
+	"   v_n = normalize((mvm * vec4(in_n, 0)).xyz);",  // unit normal in world space.
+	"   v_t = in_t;",                    //
+	"   gl_Position = pm * mvm * vmod;", // vertex in clip space,
 	"}",
 }
 var toonShaderF = []string{
@@ -428,20 +430,21 @@ var normalMappedShaderV = []string{
 	"layout(location = 1) in vec3 in_n;", // vertex normal in modespace
 	"layout(location = 2) in vec2 in_t;", // vertex uv texture coordinates
 	"",
-	"uniform mat4 pm;", // projection matrix
-	"uniform mat4 vm;", // view matrix
-	"uniform mat4 mm;", // model matrix
-	"uniform vec3 lp;", // directional light.
-	"out vec2 v_t;",    // vertex texture coords
-	"out vec3 v_n;",    // vertex normal
-	"out vec3 v_l;",    // light to vertex vector
-	"out vec3 v_v;",    // view vector: ie: camera to vertex
+	"uniform mat4 pm;",            // projection matrix
+	"uniform mat4 vm;",            // view matrix
+	"uniform mat4 mm;",            // model matrix
+	"uniform vec3 lightPosition;", // light position.
+	"",
+	"out vec2 v_t;", // vertex texture coords
+	"out vec3 v_n;", // vertex normal
+	"out vec3 v_l;", // light to vertex vector
+	"out vec3 v_v;", // view vector: ie: camera to vertex
 	"",
 	"void main() {",
 	"   mat4 mvm = vm * mm;", // view-model matrix.
 	"	vec4 vmod = vec4(in_v, 1.0);", // vertex in local model space.
 	"	vec4 vcam = mvm * vmod;", // vertex in camera view space
-	"	v_l = normalize(lp - vcam.xyz);", // normalized vertex to light vector
+	"	v_l = normalize(lightPosition - vcam.xyz);", // normalized vertex to light vector
 	"	v_v = -vcam.xyz;", // non-normalized vertex view vector in view space
 	"   v_n = (mvm * vec4(in_n, 0)).xyz;", // non-normalized vertex normal in view space.
 	"   v_t = in_t;",                      // vertex UV texture coordinates.
@@ -450,39 +453,29 @@ var normalMappedShaderV = []string{
 }
 
 // Fragment shader based on http://www.thetenthplanet.de/archives/1180
-// cotangent_frame creates the cotangent frame necessary to
-// map from the cotangent space to world space. Note that the
-// GLSL methods used are only available in the fragment shader.
-// Parameters:",
-//   N  : the interpolated vertex normal in world space
-//   p  : the reverse view vector in world space
-//   tuv: texture coordinates
-//
-// perturb_normal transforms a normal from cotangent space
-// Note original code handles different normal map texture encodings.
-//   map = map * 255./127. - 128./127.;      #ifdef WITH_NORMALMAP_UNSIGNED
-//   map.z = sqrt(1. - dot(map.xy, map.xy)); #ifdef WITH_NORMALMAP_2CHANNEL
-//   map.y = -map.y;                         #ifdef WITH_NORMALMAP_GREEN_UP
-// Parameters:
-//   N  : the interpolated vertex normal in world space
-//   V  : the view vector in world space
-//   tuv: texture coordinates
 var normalMappedShaderF = []string{
 	"in vec2 v_t;", // vertex texture coords
 	"in vec3 v_n;", // non-normalized vertex normal
 	"in vec3 v_v;", // non-normalized view vector
 	"in vec3 v_l;", // normalized light to vertex vector
 	"",
-	"uniform sampler2D uv;",  // base diffuse color
-	"uniform sampler2D uv1;", // normal map texture in tangent space
-	"uniform sampler2D uv2;", // specular texture
-	"uniform vec3      lc;",  // light color
-	"uniform vec3      ka;",  // material ambient color
-	"uniform vec3      kd;",  // material diffuse color
-	"uniform vec3      ks;",  // material specular color
-	"uniform float     ns;",  // material specular shininess.
+	"uniform sampler2D uv;",         // base diffuse color
+	"uniform sampler2D uv1;",        // normal map texture in tangent space
+	"uniform sampler2D uv2;",        // specular texture
+	"uniform vec3      lightColor;", //
+	"uniform vec3      ka;",         // material ambient color
+	"uniform vec3      kd;",         // material diffuse color
+	"uniform vec3      ks;",         // material specular color
+	"uniform float     ns;",         // material specular shininess.
 	"out     vec4      f_color;",
 	"",
+	// cotangent_frame creates the cotangent frame necessary to
+	// map from the cotangent space to world space. Note that the
+	// GLSL methods used are only available in the fragment shader.
+	// Parameters:",
+	//   N  : the interpolated vertex normal in world space
+	//   p  : the reverse view vector in world space
+	//   tuv: texture coordinates
 	"mat3 cotangent_frame( vec3 N, vec3 p, vec2 tuv ) {",
 	"", // get edge vectors of the pixel triangle
 	"    vec3 dp1 = dFdx( p );",
@@ -498,6 +491,15 @@ var normalMappedShaderF = []string{
 	"    float invmax = inversesqrt( max( dot(T,T), dot(B,B) ) );",
 	"    return mat3( T * invmax, B * invmax, N );",
 	"}",
+	// perturb_normal transforms a normal from cotangent space
+	// Note original code handles different normal map texture encodings.
+	//   map = map * 255./127. - 128./127.;      #ifdef WITH_NORMALMAP_UNSIGNED
+	//   map.z = sqrt(1. - dot(map.xy, map.xy)); #ifdef WITH_NORMALMAP_2CHANNEL
+	//   map.y = -map.y;                         #ifdef WITH_NORMALMAP_GREEN_UP
+	// Parameters:
+	//   N  : the interpolated vertex normal in world space
+	//   V  : the view vector in world space
+	//   v_t: texture coordinates
 	"vec3 perturb_normal( vec3 N, vec3 V, vec2 tuv ) {",
 	"    vec3 map = texture(uv1, tuv).xyz;",       // perturbed normal in cotangent space
 	"    map = map * 255./127. - 128./127.;",      // #ifdef WITH_NORMALMAP_UNSIGNED
@@ -508,20 +510,20 @@ var normalMappedShaderF = []string{
 	"    vec3 normal = normalize(v_n);",
 	"    normal = perturb_normal(normal, v_v, v_t);", // normal in view space.
 	"    vec3 nv_v = normalize(v_v);",
-	"    vec3 ambient = lc * ka;",
+	"    vec3 ambient = lightColor * ka;",
 	"    float intensity = max(dot(v_l, normal), 0.0);",
-	"    vec3 diffuse = lc * kd * intensity;",
+	"    vec3 diffuse = lightColor * kd * intensity;",
 	"", // Blinn-Phong half vector.
 	"    vec3 halfDir = normalize(v_l + nv_v);",
 	"    float specAngle = max(dot(halfDir, normal), 0.0);",
 	"    float specFac = pow(clamp(specAngle, 0.0, 1.0), ns);",
 	"    vec3 smap = texture(uv2, v_t).rgb;",
-	"    vec3 specular = lc * ks * smap * specFac;",
-	"", // Combine into final fragment color.
-	"    vec4 t = texture(uv, v_t);",                             // pure texture color.
+	"    vec3 specular = lightColor * ks * smap * specFac;",
+	"",                               // Combine into final fragment color.
+	"    vec4 t = texture(uv, v_t);", // pure texture color.
 	"    vec3 color = ambient*t.rgb + diffuse*t.rgb + specular;", // combine all the values.
 	"    f_color = vec4(color, t.a);",                            // final fragment color
-	" }",
+	"}",
 }
 
 // =============================================================================

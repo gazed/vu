@@ -41,8 +41,9 @@ func (lt *lttag) Create(eng vu.Eng, s *vu.State) {
 	eng.Set(vu.Title("Lighting"), vu.Size(400, 100, 800, 600))
 	lt.scene = eng.AddScene()
 	lt.scene.Cam().SetClip(0.1, 50).SetFov(60).SetAt(0.5, 2, 0.5)
-	lt.sun = lt.scene.AddPart().SetAt(0, 2.5, -1.75).SetScale(0.05, 0.05, 0.05)
-	lt.sun.MakeLight().SetLightColor(0.8, 0.8, 0.8)
+
+	lt.sun = lt.scene.MakeLight(vu.DirectionalLight).SetLightColor(0.8, 0.8, 0.8)
+	lt.sun.SetAt(0, 2.5, -1.75).SetScale(0.05, 0.05, 0.05)
 	lt.sun.MakeModel("colored", "msh:sphere", "mat:red")
 
 	// Create solid spheres to test the lighting shaders.

@@ -63,6 +63,7 @@ func (ss *superShape) Create(eng vu.Eng, s *vu.State) {
 	eng.Set(vu.Title("Super Shapes"), vu.Size(400, 100, 800, 600))
 	ss.scene = eng.AddScene()
 	ss.scene.Cam().SetClip(0.1, 50).SetFov(60)
+	ss.scene.MakeLight(vu.DirectionalLight)
 	ss.ui = eng.AddScene().SetUI()
 	ss.ui.Cam().SetClip(0, 50)
 	ss.orig = []float64{0, 1, 1, 1}

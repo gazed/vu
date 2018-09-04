@@ -240,12 +240,14 @@ func (eng *engine) shutdown() {
 		eng.ac.Dispose()
 		eng.ac = nil
 	}
+	if eng.app != nil {
+		eng.app.shutdown()
+	}
+
+	// No logs or prints or profiles after the device has been disposed.
 	if eng.dev != nil {
 		eng.dev.Dispose()
 		eng.dev = nil
-	}
-	if eng.app != nil {
-		eng.app.shutdown()
 	}
 }
 

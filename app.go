@@ -157,20 +157,19 @@ func (app *application) AddSound(name string) uint32 {
 
 // Shutdown is an application request to close down the engine.
 // Expected to be called once on Application exit.
-func (app *application) Shutdown() { app.shutdown() }
+func (app *application) Shutdown() { app.stop = true }
 
 // shutdown is called on the update goroutine by the application.
 // A shutdown by the device layer just kills everything and stops
 // the device layer callbacks to the engine.
 func (app *application) shutdown() {
-	app.stop = true    // signal engine to shutdown.
 	if app.ld != nil { // close the loader.
 		app.ld.dispose()
 		app.ld = nil
 	}
-	for _, s := range app.scenes.all {
-		app.dispose(s.eid) // Delete all scenes deletes everything.
-	}
+
+	// FUTURE: Dispose of the scenes and pov's. Currently this is
+	//         to inefficient to bother.
 }
 
 // dispose asks each of the component managers to completely remove any
@@ -182,7 +181,7 @@ func (app *application) shutdown() {
 // to (re)use the underlying data again. Likely need another API for the
 // application to indicate when assets are to be completely unloaded.
 func (app *application) dispose(id eid) {
-	dead := []eid{} // need new one each time for recursion.
+	dead := []eid{} // collect other identies that need disposing.
 	if s := app.scenes.get(id); s != nil {
 		dead = app.scenes.dispose(id, dead)
 	}

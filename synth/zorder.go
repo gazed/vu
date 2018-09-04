@@ -20,7 +20,7 @@ func ZMerge(a, b uint32) (m uint64) { return expand(a) | (expand(b) << 1) }
 func ZSplit(m uint64) (a, b uint32) { return compact(m), compact(m >> 1) }
 
 // expand prepares a number to be bit interleaved with another number
-// by inserting zeros before each bit. Based on:
+// by inserting zeros before each bit.
 func expand(n uint32) uint64 {
 	a := uint64(n) & 0x00000000ffffffff      // ---- ---- ---- ---- ---- ---- ---- ---- fedc ba98 7654 3210 fedc ba98 7654 3210
 	a = (a ^ (a << 16)) & 0x0000ffff0000ffff // ---- ---- ---- ---- fedc ba98 7654 3210 ---- ---- ---- ---- fedc ba98 7654 3210
@@ -31,7 +31,7 @@ func expand(n uint32) uint64 {
 	return a
 }
 
-// compact reverses ZExpand by discarding every other bit
+// compact reverses expand by discarding every other bit
 // and collapsing the remaining 32 bits together.
 func compact(n uint64) uint32 {
 	a := n & 0x5555555555555555              // -f-e -d-c -b-a -9-8 -7-6 -5-4 -3-2 -1-0 -f-e -d-c -b-a -9-8 -7-6 -5-4 -3-2 -1-0

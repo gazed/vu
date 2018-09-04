@@ -31,6 +31,7 @@ type example struct {
 // Examples are roughly ordered from simple/basic at the top of the list
 // to more complex/interesting at the bottom of the list.
 func main() {
+	log.SetFlags(log.Lshortfile | log.Lmicroseconds)
 	examples := []example{
 		{"dg", "Dump OpenGL Bindings", dg},
 		{"da", "Dump OpenAL Bindings", da},

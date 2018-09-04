@@ -36,16 +36,19 @@ import (
 //         AddPart, At, SetAt, World, Move, Cull, Culled,
 //         View, SetView, SetAa, Spin, SetSpin, Scale, SetScale,
 // Model : MakeModel attaches model data to a part entity.
-//         MakeModel, Load, Mesh, GenMesh, Tex, GenTex, SetTex, SetFirst,
-//         SetUniform, Alpha, SetAlpha, SetColor, SetDraw, Clamp.
+//         MakeModel, Load, Mesh, GenMesh, GenTex, SetTex, SetFirst,
+//         SetUniform, Alpha, SetAlpha, SetColor, SetDraw, Clamp,
+//         MakeInstancedModel, DrawInstances.
 // Actor : MakeActor attaches an animated model with a part entity.
-//          MakeActor, Animate, Action, Actions, Pose.
+//         MakeActor, Animate, Action, Actions, Pose.
 // Label : MakeLabel attaches a string model with a part entity.
 //         MakeLabel, Typeset, SetWrap, Size.
 // Body  : MakeBody attaches a physics body with a part entity.
 //         MakeBody, Body, DisposeBody, SetSolid, Cast, Push.
-// Light : MakeLight attaches light data to a part entity.
-//         MakeLight, SetLightColor.
+// Light : MakeLight creates and attaches light data to a scene entity.
+//         MakeLight, AffectAmbient, AffectDiffuse, AffectSpecular.
+//         SetAttenuation - for PointLights and SpotLights
+//         SetCutoffs - for SpotLights
 // Sound : Eng.AddSound creates a new sound entity.
 //         PlaySound, SetListener.
 // Shadow: SetShadows adds shadows to an existing scene entity.

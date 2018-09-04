@@ -61,10 +61,10 @@ func (rt *rtrace) Refresh(dev device.Device) {
 
 // Encapsulate this examples methods using this structure.
 type rtrace struct {
-	vao     uint32     // vertex array object reference.
-	mvp     render.Mvp // transform matrix for rendering.
-	mvpID   int32      // mvp uniform id
-	shaders uint32     // shader program reference.
+	vao     uint32    // vertex array object reference.
+	mvpID   int32     // mvp uniform id
+	mvp     []float32 // transform matrix uniform data.
+	shaders uint32    // shader program reference.
 
 	// texture information.
 	img   *image.NRGBA // Texture data.
@@ -156,7 +156,7 @@ func (rt *rtrace) initRender() {
 	}
 	rt.mvpID = gl.GetUniformLocation(rt.shaders, "mvpm")
 	rt.tex2D = gl.GetUniformLocation(rt.shaders, "sampler2D")
-	rt.mvp = render.NewMvp().Set(lin.NewM4().Ortho(0, 4, 0, 4, 0, 10))
+	rt.mvp = render.M4ToData(lin.NewM4().Ortho(0, 4, 0, 4, 0, 10), rt.mvp)
 
 	// set some state that doesn't need to change during drawing.
 	gl.ClearColor(0.0, 0.0, 0.0, 1.0)
@@ -169,7 +169,7 @@ func (rt *rtrace) drawScene() {
 	gl.Uniform1i(rt.tex2D, 0)
 	gl.ActiveTexture(gl.TEXTURE0 + 0)
 	gl.BindVertexArray(rt.vao)
-	gl.UniformMatrix4fv(rt.mvpID, 1, false, rt.mvp.Pointer())
+	gl.UniformMatrix4fv(rt.mvpID, 1, false, &(rt.mvp[0]))
 	gl.DrawElements(gl.TRIANGLES, int32(len(rt.faces)), gl.UNSIGNED_BYTE, 0)
 
 	// cleanup

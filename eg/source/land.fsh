@@ -4,7 +4,7 @@ in      vec2      tuv1;   // texture coordinates
 in      float     weight; // texture blend weighting
 uniform sampler2D uv;     //
 uniform vec3      ka;     // material ambient value
-uniform vec3      lp;     // light position in world space
+uniform vec3      lightPosition;
 out     vec4      ffc;    // final fragment colour
 
 vec4 surfaceColour() {
@@ -15,7 +15,7 @@ vec4 surfaceColour() {
 }
 
 void main() {
-   float diffuse = max(0.0, dot(normalize(f_nm), lp));
+   float diffuse = max(0.0, dot(normalize(f_nm), lightPosition));
    vec4 light = vec4(ka, 1.0) * diffuse;
    vec4 surface = surfaceColour();
    ffc = light * surface;

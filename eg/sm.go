@@ -43,8 +43,7 @@ func (sm *smtag) Create(eng vu.Eng, s *vu.State) {
 	sm.scene.Cam().SetClip(0.1, 50).SetFov(60).SetAt(0, 0, 10)
 
 	// need a light for shadows.
-	sm.sun = sm.scene.AddPart().SetAt(0, 0, 0)
-	sm.sun.MakeLight().SetLightColor(0.8, 0.8, 0.8)
+	sm.sun = sm.scene.MakeLight(vu.DirectionalLight).SetLightColor(0.8, 0.8, 0.8)
 
 	// create a few objects that cast shadows.
 	sm.cube = sm.scene.AddPart().SetAt(-1, -1, -4)

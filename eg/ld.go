@@ -46,10 +46,10 @@ func (ld *ldtag) Refresh(dev device.Device) {
 type ldtag struct {
 	shaders    uint32
 	vao        uint32
-	pm, vm, mm int32      // shader uniform matrix references.
-	persp      *lin.M4    // perspective matrix.
-	mvp64      *lin.M4    // scratch for transform calculations.
-	mvp        render.Mvp // transform matrix for rendering.
+	pm, vm, mm int32     // shader uniform matrix references.
+	persp      *lin.M4   // perspective matrix.
+	mvp64      *lin.M4   // scratch for transform calculations.
+	mvp        []float32 // transform matrix uniform data.
 	faceCount  int32
 	loc        load.Locator
 }
@@ -64,8 +64,8 @@ func (ld *ldtag) resize(x, y, width, height int) {
 func (ld *ldtag) initScene() {
 	ld.persp = lin.NewM4()
 	ld.mvp64 = lin.NewM4()
-	ld.mvp = render.NewMvp()
 	ld.loc = load.NewLocator()
+	ld.mvp = make([]float32, 16) // 4x4 array.
 	gl.Init()
 	mesh := &load.MshData{}
 	mesh.Load("monkey", ld.loc)
@@ -129,13 +129,13 @@ func (ld *ldtag) render() {
 	gl.BindVertexArray(ld.vao)
 
 	// Set the a model-view-projection transform data.
-	ld.mvp.Set(ld.persp) // Projection transform.
-	gl.UniformMatrix4fv(ld.pm, 1, false, ld.mvp.Pointer())
-	ld.mvp.Set(lin.M4I) // Identity: no view transform needed.
-	gl.UniformMatrix4fv(ld.vm, 1, false, ld.mvp.Pointer())
+	ld.mvp = render.M4ToData(ld.persp, ld.mvp) // Projection transform.
+	gl.UniformMatrix4fv(ld.pm, 1, false, &(ld.mvp[0]))
+	ld.mvp = render.M4ToData(lin.M4I, ld.mvp) // Identity: no view transform needed.
+	gl.UniformMatrix4fv(ld.vm, 1, false, &(ld.mvp[0]))
 	ld.mvp64.Set(lin.M4I).ScaleSM(0.5, 0.5, 0.5).TranslateMT(0, 0, -2)
-	ld.mvp.Set(ld.mvp64) // Model transform.
-	gl.UniformMatrix4fv(ld.mm, 1, false, ld.mvp.Pointer())
+	ld.mvp = render.M4ToData(ld.mvp64, ld.mvp) // Model transform.
+	gl.UniformMatrix4fv(ld.mm, 1, false, &(ld.mvp[0]))
 	gl.DrawElements(gl.TRIANGLES, ld.faceCount, gl.UNSIGNED_SHORT, 0)
 
 	// cleanup

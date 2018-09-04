@@ -38,8 +38,9 @@ import (
 // A model is attached to an entity with a point-of-view to give
 // it a 3D location and orientation.
 func (e *Ent) MakeModel(shader string, attrs ...string) *Ent {
-	mod := e.app.models.create(e)
-	e.app.models.loadAssets(e, mod, append(attrs, "shd:"+shader)...)
+	if mod := e.app.models.create(e); mod != nil {
+		e.app.models.loadAssets(e, mod, append(attrs, "shd:"+shader)...)
+	}
 	return e
 }
 
@@ -60,6 +61,27 @@ func (e *Ent) MakeInstancedModel(shader string, attrs ...string) *Ent {
 	// Design Note: https://learnopengl.com/Advanced-OpenGL/Instancing
 }
 
+// DrawInstances overrides the number of instances that will be drawn.
+// This applies to instanced models created with MakeInstancedModel.
+// The value must be less or equal to the the number of child parts
+// for this Ent. Setting to 0 (default) draws all instances.
+//
+// Depends on Ent.MakeInstancedModel.
+func (e *Ent) DrawInstances(instances int) *Ent {
+	if m := e.app.models.get(e.eid); m != nil && m.isInstanced {
+		if n := e.app.povs.getNode(e.eid); n != nil &&
+			instances >= 0 && instances <= len(n.kids) {
+			m.drawInstances = instances
+			return e
+		} else {
+			log.Printf("DrawInstances %d: %d %d", e.eid, instances, len(n.kids))
+		}
+	} else {
+		log.Printf("DrawInstances needs MakeInstancedModel %d", e.eid)
+	}
+	return e
+}
+
 // Load more model assets after the model has been created.
 // The assets can be in any order and are prefixed with an asset type.
 // Names must be unique within an asset type.
@@ -78,7 +100,7 @@ func (e *Ent) Load(assets ...string) *Ent {
 }
 
 // Mesh returns the vertex data for an entity with a model component.
-// The Mesh will be marked for rebinding as the expected reason
+// The mesh will be marked for rebinding as the expected reason
 // to get a mesh is to modify it.
 //
 // Depends on Ent.MakeModel. Returns nil if missing model component.
@@ -88,6 +110,23 @@ func (e *Ent) Mesh() *Mesh {
 		return m.msh
 	}
 	log.Printf("Mesh needs MakeModel %d", e.eid)
+	return nil
+}
+
+// Texture returns the texture image at the given index for an entity.
+// The texture will be marked for rebinding as the expected reason
+// to get a texture is to modify it.
+//
+// Depends on Ent.MakeModel. Returns nil if missing model component
+// or texture.
+func (e *Ent) Texture(index int) *Texture {
+	if m := e.app.models.get(e.eid); m != nil {
+		if len(m.texs) > 0 && index >= 0 && index < len(m.texs) {
+			e.app.models.rebinds[e.eid] = m
+			return m.texs[index]
+		}
+	}
+	log.Printf("Tex needs MakeModel %d", e.eid)
 	return nil
 }
 
@@ -106,22 +145,6 @@ func (e *Ent) GenMesh(name string) *Mesh {
 		return m.msh
 	}
 	log.Printf("GenMesh needs MakeModel %d", e.eid)
-	return nil
-}
-
-// Tex returns the texture for an entity with a model component and
-// a texture at the given index. The Texture will be marked for rebinding
-// as the expected reason  to get a texture is to modify it.
-//
-// Depends on Ent.MakeModel. Returns nil if missing model component.
-func (e *Ent) Tex(index int) *Texture {
-	if m := e.app.models.get(e.eid); m != nil {
-		e.app.models.rebinds[e.eid] = m
-		if index >= 0 && index < len(m.texs) {
-			return m.texs[index]
-		}
-	}
-	log.Printf("Tex needs MakeModel %d", e.eid)
 	return nil
 }
 
@@ -274,7 +297,9 @@ type model struct {
 
 	// Mark as instanced, meanings all child Pov's are treated
 	// as the same model with different transforms.
-	isInstanced bool // True renders all instances in one draw call.
+	isInstanced   bool // True renders all instances in one draw call.
+	instances     int  // Number of child instances (default draw num).
+	drawInstances int  // Overrides number of instances to draw if positive.
 
 	// Mark as a effect since GPU effects don't have effect data.
 	isEffect bool // Mark GPU and CPU particle effects.
@@ -297,21 +322,12 @@ func newModel() *model {
 	m.uniforms = map[string][]float32{}
 	m.track = map[int]int{shd: 0, msh: 0, tex: 0, mat: 0, fnt: 0, anm: 0}
 	m.tpos = map[string]int{}
-	m.setUniforms("alpha", 1)
 	m.time = time.Now()
 	return m
 }
 
-// alpha returns the uniform alpha value, returning the default 1
-// if there is none.
-func (m *model) alpha() float64 {
-	if values, ok := m.uniforms["alpha"]; ok && len(values) > 0 {
-		return float64(values[0])
-	}
-	return 1
-}
-
 // setUniforms is a helper method for externally visible SetUniform.
+// It turns user set data into float32 values expected by the shaders.
 func (m *model) setUniforms(id string, floats ...interface{}) {
 	values, ok := m.uniforms[id]
 	if !ok {
@@ -346,39 +362,44 @@ func (m *model) setFirstTexture(name string) {
 	}
 }
 
+// alpha returns the uniform alpha value, returning the default 1
+// if there is none. SetAlpha values overrides the material.
+func (m *model) alpha() (a float64) {
+	a = 1 // default fully opaque.
+	if m.mat != nil {
+		a = float64(m.mat.tr) // from material data.
+	}
+	if values, ok := m.uniforms["alpha"]; ok && len(values) > 0 {
+		a = float64(values[0]) // App can override.
+	}
+	return a
+}
+
 // draw turns a Model instance into draw call data.
 // Expects to be called after pov.draw()
-func (m *model) draw(d *render.Draw, shd *shader) {
+func (m *model) draw(d *render.Draw, shd *shader, p *pov, cam *Camera) {
+	d.Tag = uint32(p.eid) // Use eid for debugging draw calls.
 	if shd == nil {
 		shd = m.shd
 	}
 	d.SetRefs(shd.program, m.msh.vao, m.mode)
 	d.SetCounts(m.msh.counts())
 	for cnt, t := range m.texs {
-		d.SetTex(len(m.texs), cnt, m.tpos[t.name], t.tid, t.f0, t.fn)
+		d.SetTex(len(m.texs), cnt, m.tpos[t.name], t.tid)
 	}
-
-	// Set uniform names and references needed by the shader.
-	d.SetUniforms(shd.uniforms)   // shader integer uniform references.
-	if mat := m.mat; mat != nil { // Material color uniforms.
-		mat.draw(d)
-	}
-
-	// Set the shader data reference by the uniform names.
-	for uniform, uvalues := range m.uniforms {
-		d.SetFloats(uniform, uvalues...)
-	}
-	d.SetFloats("time", float32(time.Since(m.time).Seconds()))
 
 	// If instanced then get the current number of instances from
 	// the mesh data.
 	if m.isInstanced {
-		d.Instances = int32(m.msh.instances)
+		d.Instances = int32(m.instances)
+		if m.drawInstances > 0 {
+			d.Instances = int32(m.drawInstances)
+		}
 	}
 
 	// Update bucket draw order information for transparent objects.
+	alpha := m.alpha()
 	d.Bucket = setDist(d.Bucket, m.tocam)
-	alpha := m.uniforms["alpha"][0]
 	switch {
 	case alpha == 1:
 		d.Bucket = setOpaque(d.Bucket)
@@ -387,19 +408,82 @@ func (m *model) draw(d *render.Draw, shd *shader) {
 	default:
 		log.Printf("Alpha outside range 0->1 %f", alpha) // Dev error.
 	}
+	d.Uniforms = shd.uniforms // expected shader uniforms.
+	m.setUniformData(d, p, cam)
 }
 
 // drawEffect converts a model particle effect into a draw call.
-func (m *model) drawEffect(d *render.Draw) {
+func (m *model) drawEffect(d *render.Draw, p *pov, sc *scene) {
 	d.SetRefs(m.shd.program, m.msh.vao, render.Points)
 	d.Depth = false
 	d.SetCounts(m.msh.counts())
-	d.SetTex(1, 0, 0, m.texs[0].tid, 0, 0)
-	d.SetUniforms(m.shd.uniforms)
-	d.SetFloats("time", float32(time.Since(m.time).Seconds()))
+	d.SetTex(1, 0, 0, m.texs[0].tid)
 	d.Bucket = setOpaque(d.Bucket)
-	for uniform, uvalues := range m.uniforms {
-		d.SetFloats(uniform, uvalues...)
+	d.Uniforms = m.shd.uniforms // expected shader uniforms.
+	m.setUniformData(d, p, sc.cam)
+}
+
+// setUniformData for the uniform data expected by the shader.
+// It relies on a shared naming convention with the shaders.
+func (m *model) setUniformData(d *render.Draw, p *pov, cam *Camera) {
+	for key, ref := range d.Uniforms {
+		switch key {
+		case "pm":
+			d.SetM4Data(ref, cam.pm) // projection matrix.
+		case "vm":
+			d.SetM4Data(ref, cam.vm) // view matrix.
+		case "mm":
+			d.SetM4Data(ref, p.mm) // model matrix.
+		case "alpha":
+			d.SetUniformData(ref, float32(m.alpha()))
+		case "kd":
+			d.SetUniformData(ref, 1, 1, 1) // default white.
+			if m.mat != nil {
+				d.SetUniformData(ref, m.mat.kd.R, m.mat.kd.G, m.mat.kd.B)
+			}
+			if data, ok := m.uniforms["kd"]; ok && len(data) == 3 {
+				d.SetUniformData(ref, data[0], data[1], data[2])
+			}
+		case "ks":
+			d.SetUniformData(ref, 0, 0, 0) // default none.
+			if m.mat != nil {
+				d.SetUniformData(ref, m.mat.ks.R, m.mat.ks.G, m.mat.ks.B)
+			}
+			if data, ok := m.uniforms["ks"]; ok && len(data) == 3 {
+				d.SetUniformData(ref, data[0], data[1], data[2])
+			}
+		case "ka":
+			d.SetUniformData(ref, 0.1, 0.1, 0.1) // small default.
+			if m.mat != nil {
+				d.SetUniformData(ref, m.mat.ka.R, m.mat.ka.G, m.mat.ka.B)
+			}
+			if data, ok := m.uniforms["ka"]; ok && len(data) == 3 {
+				d.SetUniformData(ref, data[0], data[1], data[2])
+			}
+		case "ns":
+			d.SetUniformData(ref, 32) // default.
+			if m.mat != nil {
+				d.SetUniformData(ref, m.mat.ns)
+			}
+			if data, ok := m.uniforms["ns"]; ok && len(data) > 0 {
+				d.SetUniformData(ref, data[0])
+			}
+		case "time":
+			d.SetUniformData(ref, float32(time.Since(m.time).Seconds()))
+		case "scale":
+			sx, sy, sz := p.scale()
+			d.SetUniformData(ref, float32(sx), float32(sy), float32(sz))
+		case "viewPos": // TODO better name than viewPos.
+			// TODO calculate viewpos from vworld.
+			camx, camy, camz := cam.At() // world space.
+			d.SetUniformData(ref, float32(camx), float32(camy), float32(camz))
+		default:
+			if data, ok := m.uniforms[key]; ok {
+				d.SetUniformData(ref, data...)
+			}
+			// Otherwise the uniform is set somewhere else like lights
+			// or textures.
+		}
 	}
 }
 
@@ -463,35 +547,40 @@ func (ms *models) create(e *Ent) *model {
 
 // createLabel adds extra label data in addition to the model data.
 func (ms *models) createLabel(e *Ent, assets ...string) *model {
-	m := ms.create(e)
-	if _, ok := ms.labels[e.eid]; !ok {
-		ms.labels[e.eid] = &label{str: " "} // nil strings invalidates mesh.
+	if m := ms.create(e); m != nil {
+		if _, ok := ms.labels[e.eid]; !ok {
+			ms.labels[e.eid] = &label{str: " "} // nil strings invalidates mesh.
+		}
+		m.msh = newMesh("phrase") // dynamic mesh for phrase backing.
+		m.track[msh] = 1          // track generated mesh.
+		e.app.models.loadAssets(e, m, assets...)
+		return m
 	}
-	m.msh = newMesh("phrase")    // dynamic mesh for phrase backing.
-	m.track[msh] = 1             // track generated mesh.
-	m.setUniforms("kd", 1, 1, 1) // default color is white.
-	e.app.models.loadAssets(e, m, assets...)
-	return m
+	return nil
 }
 
 // createActor adds extra actor data in addition to the model data.
 func (ms *models) createActor(e *Ent, assets ...string) *model {
-	m := ms.create(e)
-	if _, ok := ms.actors[e.eid]; !ok {
-		ms.actors[e.eid] = &actor{}
+	if m := ms.create(e); m != nil {
+		if _, ok := ms.actors[e.eid]; !ok {
+			ms.actors[e.eid] = &actor{}
+		}
+		e.app.models.loadAssets(e, m, assets...)
+		return m
 	}
-	e.app.models.loadAssets(e, m, assets...)
-	return m
+	return nil
 }
 
 // createEffect adds particle effect tracking data in addition to the model data.
 func (ms *models) createEffect(e *Ent, assets ...string) *model {
-	m := e.app.models.create(e)
-	m.msh = newMesh("effect")
-	m.mode = Points
-	m.isEffect = true
-	e.app.models.loadAssets(e, m, assets...)
-	return m
+	if m := e.app.models.create(e); m != nil {
+		m.msh = newMesh("effect")
+		m.mode = Points
+		m.isEffect = true
+		e.app.models.loadAssets(e, m, assets...)
+		return m
+	}
+	return nil
 }
 
 // loadAssets adds assets to the current model.
@@ -566,11 +655,6 @@ func (ms *models) loaded(eid eid, a asset, app *application) {
 		ms.rebinds[eid] = m
 	case *material:
 		m.mat = la
-		if m.alpha() == 1.0 {
-			// Set with material alpha if app has not
-			// overridden the default alpha value.
-			m.setUniforms("alpha", m.mat.tr)
-		}
 	case *animation:
 		a := ms.getActor(eid)
 		if a == nil {
@@ -674,15 +758,15 @@ func (ms *models) setInstanced(eid eid, m *model, app *application) {
 			if kid := app.povs.get(kidEid); kid != nil {
 				m4 := kid.wm // world transform matrix.
 
-				// Copy same as memory order, as expected by the shader.
+				// Copy memory as expected by the shader.
 				ms.idata = append(ms.idata, float32(m4.Xx), float32(m4.Xy), float32(m4.Xz), float32(m4.Xw)) // X-Axis
 				ms.idata = append(ms.idata, float32(m4.Yx), float32(m4.Yy), float32(m4.Yz), float32(m4.Yw)) // Y-Axis
 				ms.idata = append(ms.idata, float32(m4.Zx), float32(m4.Zy), float32(m4.Zz), float32(m4.Zw)) // Z-Axis
 				ms.idata = append(ms.idata, float32(m4.Wx), float32(m4.Wy), float32(m4.Wz), float32(m4.Ww)) // Transform.
 			}
 		}
-		m.msh.SetData(6, ms.idata)    // convention: 6 matches models.loaded method
-		m.msh.instances = len(n.kids) // Non-zero when mesh is to be drawn instanced.
+		m.msh.SetData(6, ms.idata) // shader attr 6 matches models.loaded method
+		m.instances = len(n.kids)  // Non-zero when mesh is to be drawn instanced.
 		ms.rebinds[eid] = m
 	}
 }
@@ -781,15 +865,15 @@ func (ms *models) rebind(eng *engine) {
 
 // draw populates the render.Draw data depending on the model data
 // for this entity.
-func (ms *models) draw(eid eid, m *model, d *render.Draw) {
+func (ms *models) draw(eid eid, m *model, d *render.Draw, p *pov, sc *scene) {
 	if _, ok := ms.effects[eid]; ok || m.isEffect {
-		m.drawEffect(d)
+		m.drawEffect(d, p, sc)
 	} else {
-		m.draw(d, nil)
+		m.draw(d, nil, p, sc.cam)
 
 		// Set animation pose data for actors.
 		if a, ok := ms.acting[eid]; ok && len(a.pose) > 0 {
-			d.SetPose(a.pose)
+			d.SetPoses(a.pose)
 		}
 	}
 }

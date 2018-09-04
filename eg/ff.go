@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gazed/vu"
+	"github.com/gazed/vu/ai"
 	"github.com/gazed/vu/grid"
 )
 
@@ -29,14 +30,15 @@ func ff() {
 
 // Globally unique "tag" that encapsulates example specific data.
 type fftag struct {
-	ui      *vu.Ent   // transform hierarchy root.
-	chasers []*chaser // map chasers.
-	goal    *vu.Ent   // chasers goal.
-	mmap    *vu.Ent   // allows the main map to be moved around.
-	msize   int       // map width and height.
-	spots   []int     // unique ids of open spots.
-	plan    grid.Grid // the floor layout.
-	flow    grid.Flow // the flow field.
+	ui        *vu.Ent   // transform hierarchy root.
+	chaseRoot *vu.Ent   // parent of chaser instances.
+	chasers   []*chaser // map chasers.
+	goal      *vu.Ent   // chasers goal.
+	mmap      *vu.Ent   // allows the main map to be moved around.
+	msize     int       // map width and height.
+	spots     []int     // unique ids of open spots.
+	plan      grid.Grid // the floor layout.
+	flow      ai.Flow   // the flow field.
 }
 
 // Create is the engine callback for initial asset creation.
@@ -74,11 +76,13 @@ func (ff *fftag) Create(eng vu.Eng, s *vu.State) {
 
 	// populate chasers and a goal.
 	numChasers := 30
+	ff.chaseRoot = ff.mmap.AddPart()
+	ff.chaseRoot.MakeInstancedModel("texturedInstanced", "msh:icon", "tex:token")
 	for cnt := 0; cnt < numChasers; cnt++ {
-		ff.chasers = append(ff.chasers, newChaser(ff.mmap))
+		ff.chasers = append(ff.chasers, newChaser(ff.chaseRoot))
 	}
 	ff.goal = ff.mmap.AddPart().MakeModel("textured", "msh:icon", "tex:goal")
-	ff.flow = grid.NewFlow(ff.plan) // flow field for the given plan.
+	ff.flow = ai.NewGridFlow(ff.plan) // grid flow field for the given plan.
 	ff.resetLocations()
 }
 
@@ -136,12 +140,12 @@ type chaser struct {
 // chaser moves towards a goal.
 func newChaser(parent *vu.Ent) *chaser {
 	c := &chaser{}
-	c.pov = parent.AddPart().MakeModel("textured", "msh:icon", "tex:token")
+	c.pov = parent.AddPart() // new instance.
 	return c
 }
 
 // move the chaser a bit closer to its goal.
-func (c *chaser) move(flow grid.Flow) (moved bool) {
+func (c *chaser) move(flow ai.Flow) (moved bool) {
 	sx, sy, _ := c.pov.At() // actual screen location.
 	atx := math.Abs(float64(sx-float64(c.nx))) < 0.05
 	aty := math.Abs(float64(sy-float64(c.ny))) < 0.05

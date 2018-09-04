@@ -41,8 +41,8 @@ func (cr *crtag) Create(eng vu.Eng, s *vu.State) {
 	// New scene with default camera.
 	cr.scene = eng.AddScene()
 	cr.scene.Cam().SetClip(0.1, 100).SetFov(60).SetAt(0, 10, 25)
-	sun := cr.scene.AddPart().SetAt(0, 10, 10)
-	sun.MakeLight().SetLightColor(0.8, 0.8, 0.8)
+	sun := cr.scene.MakeLight(vu.DirectionalLight).SetLightColor(0.8, 0.8, 0.8)
+	sun.SetAt(0, 10, 10)
 
 	// load the static slab.
 	slab := cr.scene.AddPart().SetScale(50, 50, 50).SetAt(0, -25, 0)

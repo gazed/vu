@@ -55,8 +55,7 @@ func (s *sky) draw(app *application, scene *scene, f frame) frame {
 
 			// sky needs to be drawn with sky cam.
 			// Sky cam is updated by the scene component manager.
-			p.draw(*draw, s.cam.pm, s.cam.vm)
-			m.draw(*draw, nil) // draw dome model.
+			m.draw(*draw, nil, p, s.cam) // draw dome model.
 			(*draw).Depth = false
 			(*draw).Bucket = setSky((*draw).Bucket) // specify render order.
 		}
