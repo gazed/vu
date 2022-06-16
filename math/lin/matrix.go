@@ -1,21 +1,14 @@
-// Copyright © 2013-2018 Galvanized Logic Inc.
-// Use is governed by a BSD-style license found in the LICENSE file.
+// Copyright © 2013-2024 Galvanized Logic Inc.
 
 package lin
 
-// Matrix functions deal with 3x3 and 4x4 matrices expected to be used
-// in CPU 3D transform or physics calculations. An example of CPU math is
-// providing precalculated per-frame transform matricies to the GPU rather than
-// having the GPU calculate identical per-vertex or per-fragment matricies.
-// Large scale, time-critical, repetitive math operations are expected to use
-// a GPGPU based package, ie. OpenCL.
-//
-// Note that this matrix implementation does not attempt to be all inclusive.
-// Unused matrix methods, like rotation, are excluded since rotations are
-// tracked using quaternions.
+// matrix.go provides 3x3 and 4x4 matrices for transform or physics calculations.
+// This matrix implementation is not all inclusive. For example some basic
+// matrix methods, like rotation, are excluded since rotations are tracked
+// using quaternions.
 //
 // Row or Column Major order? No matter the convention, the end result of a
-// vector point (x, y, z, 1) multiplied with a transform matrix must be:
+// vector (x, y, z, 1) multiplied with a transform matrix must be:
 //   x' = x*Xx + y*Yx + z*Zx + Tx
 //   y' = x*Xy + y*Yy + z*Zy + Ty
 //	 z' = x*Xz + y*Yz + z*Zz + Tz
@@ -25,32 +18,21 @@ package lin
 //    vectors laid out contiguously in memory. The translation components occupy
 //    the 13th, 14th, and 15th elements of the 16-element matrix, where indices
 //    are numbered from 1 to 16"
-// This means the memory layout expected by OpenGL is:
+// This means the memory layout expected by OpenGL and Vulkan is:
 //    Xx, Xy, Xz, Xw, Yx, Yy, Yz, Yw, Zx, Zy, Zz, Zw, Wx, Wy, Wz, Ww
-// with the translation values Tx, Ty, Tz at Wx, Wy, Wz. Note that OpenGL
-// GLSL shaders interpret each base vector as a column (Column-Major)
-// although it is appears as Row-Major when viewed from Golang. Note that
-// DirectX HLSL shaders interpret the same memory layout as Row-Major.
-// In either case, consistency is key, especially for transforms where it
-// is always apply Scale first, then Rotatate, then Translate.
+// with the translation values Tx, Ty, Tz at Wx, Wy, Wz.
 //
-// Conforming to the above memory layout, this matrix implementation uses
-// explicitly indexed, Row-Major, matrix members as follows:
+// The following structurs conform to the above memory layout:
 //          3x3 M3          4x4 M4
 //	     [Xx, Xy, Xz]  [Xx, Xy, Xz, Xw]  X-Axis
 //	     [Yx, Yy, Yz]  [Yx, Yy, Yz, Yw]  Y-Axis
 //	     [Zx, Zy, Zz]  [Zx, Zy, Zz, Zw]  Z-Axis
 //	                   [Wx, Wy, Wz, Ww]  Translation vector, Ww == 1.
 // This layout allows the entire structure to be passed as a pointer to the
-// underlying (C-language) graphics layer.
-//
-// See appendix G of OpenGL Red Book for matrix algorithms. Also see:
-// http://steve.hollasch.net/cgindex/math/matrix/column-vec.html
-// http://stackoverflow.com/questions/17784791/4x4-matrix-pre-multiplication-vs-post-multiplication
-// http://www.scratchapixel.com/lessons/3d-basic-lessons/lesson-4-geometry/conventions-again-row-major-vs-column-major-vector/
+// underlying graphics layer.
 
 import (
-	"log"
+	"log/slog"
 	"math"
 )
 
@@ -141,9 +123,10 @@ func (m *M4) Aeq(a *M4) bool {
 
 // SetS (=) explicitly sets the matrix scaler values using the given scalers.
 // The source matrix a is unchanged. The updated matrix m is returned.
-// 	  Xx, Xy, Xz is the X Axis.
-// 	  Yx, Yy, Yz is the Y Axis.
-// 	  Zx, Zy, Zz is the Z Axis.
+//
+//	Xx, Xy, Xz is the X Axis.
+//	Yx, Yy, Yz is the Y Axis.
+//	Zx, Zy, Zz is the Z Axis.
 func (m *M3) SetS(Xx, Xy, Xz, Yx, Yy, Yz, Zx, Zy, Zz float64) *M3 {
 	m.Xx, m.Xy, m.Xz = Xx, Xy, Xz
 	m.Yx, m.Yy, m.Yz = Yx, Yy, Yz
@@ -164,10 +147,11 @@ func (m *M3) Set(a *M3) *M3 {
 // SetM4 (=) updates calling matrix m to be the 3x3 matrix from the top left
 // corner of the given 4x4 matrix m4. The source matrix a is unchanged.
 // The updated matrix m is returned.
-//    [ Xx Xy Xz Xw ]    [ Xx Xy Xz ]
-//    [ Yx Yy Yz Yw ] => [ Yx Yy Yz ]
-//    [ Zx Zy Zz Zw ]    [ Zx Zy Zz ]
-//    [ Wx Wy Wz Ww ]
+//
+//	[ Xx Xy Xz Xw ]    [ Xx Xy Xz ]
+//	[ Yx Yy Yz Yw ] => [ Yx Yy Yz ]
+//	[ Zx Zy Zz Zw ]    [ Zx Zy Zz ]
+//	[ Wx Wy Wz Ww ]
 func (m *M3) SetM4(a *M4) *M3 {
 	m.Xx, m.Xy, m.Xz = a.Xx, a.Xy, a.Xz
 	m.Yx, m.Yy, m.Yz = a.Yx, a.Yy, a.Yz
@@ -199,9 +183,11 @@ func (m *M3) Abs(a *M3) *M3 {
 // Transpose updates m to be the reflection of matrix a over its diagonal.
 // This essentially changes row-major order to column-major order
 // or vice-versa.
-//    [ Xx Xy Xz ]    [ Xx Yx Zx ]
-//    [ Yx Yy Yz ] => [ Xy Yy Zy ]
-//    [ Zx Zy Zz ]    [ Xz Yz Zz ]
+//
+//	[ Xx Xy Xz ]    [ Xx Yx Zx ]
+//	[ Yx Yy Yz ] => [ Xy Yy Zy ]
+//	[ Zx Zy Zz ]    [ Xz Yz Zz ]
+//
 // The input matrix a is not changed. Matrix m may be used as the input parameter.
 // The updated matrix m is returned.
 func (m *M3) Transpose(a *M3) *M3 {
@@ -213,10 +199,12 @@ func (m *M3) Transpose(a *M3) *M3 {
 }
 
 // Transpose updates m to be the reflection of matrix a over its diagonal.
-//    [ Xx Xy Xz Xw ]    [ Xx Yx Zx Wx ]
-//    [ Yx Yy Yz Yw ] => [ Xy Yy Zy Wy ]
-//    [ Zx Zy Zz Zw ]    [ Xz Yz Zz Wz ]
-//    [ Wx Wy Wz Ww ]    [ Xw Yw Zw Ww ]
+//
+//	[ Xx Xy Xz Xw ]    [ Xx Yx Zx Wx ]
+//	[ Yx Yy Yz Yw ] => [ Xy Yy Zy Wy ]
+//	[ Zx Zy Zz Zw ]    [ Xz Yz Zz Wz ]
+//	[ Wx Wy Wz Ww ]    [ Xw Yw Zw Ww ]
+//
 // Same behaviour as M3.Transpose()
 func (m *M4) Transpose(a *M4) *M4 {
 	ttXy, ttXz, ttYz := a.Xy, a.Xz, a.Yz
@@ -232,7 +220,9 @@ func (m *M4) Transpose(a *M4) *M4 {
 // Each element of matrix b is added to the corresponding matrix a element.
 // It is safe to use the calling matrix m as one or both of the parameters.
 // For example the plus.equals operation (+=) is
-//     m.Add(m, b)
+//
+//	m.Add(m, b)
+//
 // The updated matrix m is returned.
 func (m *M3) Add(a, b *M3) *M3 {
 	m.Xx, m.Xy, m.Xz = a.Xx+b.Xx, a.Xy+b.Xy, a.Xz+b.Xz
@@ -255,7 +245,9 @@ func (m *M4) Add(a, b *M4) *M4 {
 // Each element of matrix b is subtracted from the corresponding matrix a element.
 // It is safe to use the calling matrix m as one or both of the parameters.
 // For example the minus.equals operation (-=) is
-//     m.Sub(m, b)
+//
+//	m.Sub(m, b)
+//
 // The updated matrix m is returned.
 func (m *M3) Sub(a, b *M3) *M3 {
 	m.Xx, m.Xy, m.Xz = a.Xx-b.Xx, a.Xy-b.Xy, a.Xz-b.Xz
@@ -265,12 +257,16 @@ func (m *M3) Sub(a, b *M3) *M3 {
 }
 
 // Mult (*) multiplies matrices l and r storing the results in m.
-//    [ lXx lXy lXz ] [ rXx rXy rXz ]    [ mXx mXy mXz ]
-//    [ lYx lYy lYz ]x[ rYx rYy rYz ] => [ mYx mYy mYz ]
-//    [ lZx lZy lZz ] [ rZx rZy rZz ]    [ mZx mZy mZz ]
+//
+//	[ lXx lXy lXz ] [ rXx rXy rXz ]    [ mXx mXy mXz ]
+//	[ lYx lYy lYz ]x[ rYx rYy rYz ] => [ mYx mYy mYz ]
+//	[ lZx lZy lZz ] [ rZx rZy rZz ]    [ mZx mZy mZz ]
+//
 // It is safe to use the calling matrix m as one or both of the parameters.
 // For example (*=) is
-//     m.Mult(m, r)
+//
+//	m.Mult(m, r)
+//
 // The updated matrix m is returned.
 func (m *M3) Mult(l, r *M3) *M3 {
 	xx := l.Xx*r.Xx + l.Xy*r.Yx + l.Xz*r.Zx
@@ -289,10 +285,12 @@ func (m *M3) Mult(l, r *M3) *M3 {
 }
 
 // Mult updates matrix m to be the multiplication of input matrices l, r.
-//    [ lXx lXy lXz lXw ] [ rXx rXy rXz rXw ]    [ mXx mXy mXz mXw ]
-//    [ lYx lYy lYz lYw ]x[ rYx rYy rYz rYw ] => [ mYx mYy mYz mYw ]
-//    [ lZx lZy lZz lZw ] [ rZx rZy rZz rZw ]    [ mZx mZy mZz mZw ]
-//    [ lWx lWy lWz lWw ] [ rWx rWy rWz rWw ]    [ mWx mWy mWz mWw ]
+//
+//	[ lXx lXy lXz lXw ] [ rXx rXy rXz rXw ]    [ mXx mXy mXz mXw ]
+//	[ lYx lYy lYz lYw ]x[ rYx rYy rYz rYw ] => [ mYx mYy mYz mYw ]
+//	[ lZx lZy lZz lZw ] [ rZx rZy rZz rZw ]    [ mZx mZy mZz mZw ]
+//	[ lWx lWy lWz lWw ] [ rWx rWy rWz rWw ]    [ mWx mWy mWz mWw ]
+//
 // Same behaviour as M3.Mult()
 func (m *M4) Mult(l, r *M4) *M4 {
 	xx := l.Xx*r.Xx + l.Xy*r.Yx + l.Xz*r.Zx + l.Xw*r.Wx
@@ -321,9 +319,11 @@ func (m *M4) Mult(l, r *M4) *M4 {
 // MultLtR multiplies the transpose of matrix l on left of matrix r
 // and stores the result in m. This can be used for saving a method call
 // when calculating inverse transforms.
-//    [ lXx lYx lZx ] [ rXx rXy rXz ]    [ mXx mXy mXz ]
-//    [ lXy lYy lZy ]x[ rYx rYy rYz ] => [ mYx mYy mYz ]
-//    [ lXz lYz lZz ] [ rZx rZy rZz ]    [ mZx mZy mZz ]
+//
+//	[ lXx lYx lZx ] [ rXx rXy rXz ]    [ mXx mXy mXz ]
+//	[ lXy lYy lZy ]x[ rYx rYy rYz ] => [ mYx mYy mYz ]
+//	[ lXz lYz lZz ] [ rZx rZy rZz ]    [ mZx mZy mZz ]
+//
 // It is safe to use the calling matrix m as one or both of the parameters.
 // The updated matrix m is returned.
 func (m *M3) MultLtR(lt, r *M3) *M3 {
@@ -344,10 +344,12 @@ func (m *M3) MultLtR(lt, r *M3) *M3 {
 
 // TranslateTM updates m to be the multiplication of a translation matrix
 // T created from x, y, z, and itself. The updated matrix m is returned.
-//    [ 1 0 0 0 ]   [ mXx mXy mXz mXw ]     [ mXx  mXy  mXz  mXw  ]
-//    [ 0 1 0 0 ] x [ mYx mYy mYz mYw ]  => [ mYx  mYy  mYz  mYw  ]
-//    [ 0 0 1 0 ]   [ mZx mZy mZz mZw ]     [ mZx  mZy  mZz  mZw  ]
-//    [ x y z 1 ]   [ mWx mWy mWz mWw ]     [ mWx' mWy' mWz' mWw' ]
+//
+//	[ 1 0 0 0 ]   [ mXx mXy mXz mXw ]     [ mXx  mXy  mXz  mXw  ]
+//	[ 0 1 0 0 ] x [ mYx mYy mYz mYw ]  => [ mYx  mYy  mYz  mYw  ]
+//	[ 0 0 1 0 ]   [ mZx mZy mZz mZw ]     [ mZx  mZy  mZz  mZw  ]
+//	[ x y z 1 ]   [ mWx mWy mWz mWw ]     [ mWx' mWy' mWz' mWw' ]
+//
 // Be sure to pick the correct translate (TM or MT) when doing transforms.
 func (m *M4) TranslateTM(x, y, z float64) *M4 {
 	wx := x*m.Xx + y*m.Yx + z*m.Zx + m.Wx
@@ -361,10 +363,12 @@ func (m *M4) TranslateTM(x, y, z float64) *M4 {
 // TranslateMT updates m to be the multiplication of itself
 // and a translation matrix created from x, y, z.
 // The updated matrix m is returned.
-//    [ mXx mXy mXz mXw ]   [ 1 0 0 0 ]    [ mXx' mXy' mXz' mXw ]
-//    [ mYx mYy mYz mYw ] x [ 0 1 0 0 ] => [ mYx' mYy' mYz' mYw ]
-//    [ mZx mZy mZz mZw ]   [ 0 0 1 0 ]    [ mZx' mZy' mZz' mZw ]
-//    [ mWx mWy mWz mWw ]   [ x y z 1 ]    [ mWx' mWy' mWz' mWw ]
+//
+//	[ mXx mXy mXz mXw ]   [ 1 0 0 0 ]    [ mXx' mXy' mXz' mXw ]
+//	[ mYx mYy mYz mYw ] x [ 0 1 0 0 ] => [ mYx' mYy' mYz' mYw ]
+//	[ mZx mZy mZz mZw ]   [ 0 0 1 0 ]    [ mZx' mZy' mZz' mZw ]
+//	[ mWx mWy mWz mWw ]   [ x y z 1 ]    [ mWx' mWy' mWz' mWw ]
+//
 // Be sure to pick the correct translate (TM or MT) when doing transforms.
 func (m *M4) TranslateMT(x, y, z float64) *M4 {
 	m.Xx, m.Xy, m.Xz = m.Xx+m.Xw*x, m.Xy+m.Xw*y, m.Xz+m.Xw*z
@@ -413,10 +417,12 @@ func (m *M3) ScaleV(v *V3) *M3 {
 
 // ScaleSM updates m to be the multiplication of a scale matrix
 // created from x, y, z and itself. The updated matrix m is
-// returned so that it may be immediately used in another operation.
-//    [ x 0 0 ]   [ mXx mXy mXz ]    [ mXx' mXy' mXz' ]
-//    [ 0 y 0 ] x [ mYx mYy mYz ] => [ mYx' mYy' mYz' ]
-//    [ 0 0 z ]   [ mZx mZy mZz ]    [ mZx' mZy' mZz' ]
+// returned.
+//
+//	[ x 0 0 ]   [ mXx mXy mXz ]    [ mXx' mXy' mXz' ]
+//	[ 0 y 0 ] x [ mYx mYy mYz ] => [ mYx' mYy' mYz' ]
+//	[ 0 0 z ]   [ mZx mZy mZz ]    [ mZx' mZy' mZz' ]
+//
 // Be sure to pick the correct scale (SM or MS) when doing transforms.
 func (m *M3) ScaleSM(x, y, z float64) *M3 {
 	m.Xx, m.Xy, m.Xz = m.Xx*x, m.Xy*x, m.Xz*x
@@ -427,10 +433,11 @@ func (m *M3) ScaleSM(x, y, z float64) *M3 {
 
 // ScaleSM updates m to be the multiplication of a scale matrix
 // created from x, y, z and itself. Same behaviours as M3.ScaleSM.
-//    [ x 0 0 0 ]   [ mXx mXy mXz mXw ]    [ mXx' mXy' mXz' mXw' ]
-//    [ 0 y 0 0 ] x [ mYx mYy mYz mYw ] => [ mYx' mYy' mYz' mYw' ]
-//    [ 0 0 z 0 ]   [ mZx mZy mZz mZw ]    [ mZx' mZy' mZz' mZw' ]
-//    [ 0 0 0 1 ]   [ mWx mWy mWz mWw ]    [ mWx  mWy  mWz  mWw  ]
+//
+//	[ x 0 0 0 ]   [ mXx mXy mXz mXw ]    [ mXx' mXy' mXz' mXw' ]
+//	[ 0 y 0 0 ] x [ mYx mYy mYz mYw ] => [ mYx' mYy' mYz' mYw' ]
+//	[ 0 0 z 0 ]   [ mZx mZy mZz mZw ]    [ mZx' mZy' mZz' mZw' ]
+//	[ 0 0 0 1 ]   [ mWx mWy mWz mWw ]    [ mWx  mWy  mWz  mWw  ]
 func (m *M4) ScaleSM(x, y, z float64) *M4 {
 	m.Xx, m.Xy, m.Xz, m.Xw = m.Xx*x, m.Xy*x, m.Xz*x, m.Xw*x
 	m.Yx, m.Yy, m.Yz, m.Yw = m.Yx*y, m.Yy*y, m.Yz*y, m.Yw*y
@@ -439,12 +446,13 @@ func (m *M4) ScaleSM(x, y, z float64) *M4 {
 }
 
 // ScaleMS updates m to be the multiplication of m and a scale matrix created
-// from x, y, z. The updated matrix m is returned so that it may be immediately
-// used in another operation.
-//    [ mXx mXy mXz mXw ]   [ x 0 0 0 ]    [ mXx' mXy' mXz' mXw ]
-//    [ mYx mYy mYz mYw ] x [ 0 y 0 0 ] => [ mYx' mYy' mYz' mYw ]
-//    [ mZx mZy mZz mZw ]   [ 0 0 z 0 ]    [ mZx' mZy' mZz' mZw ]
-//    [ mWx mWy mWz mWw ]   [ 0 0 0 1 ]    [ mWx' mWy' mWz' mWw ]
+// from x, y, z. The updated matrix m is returned.
+//
+//	[ mXx mXy mXz mXw ]   [ x 0 0 0 ]    [ mXx' mXy' mXz' mXw ]
+//	[ mYx mYy mYz mYw ] x [ 0 y 0 0 ] => [ mYx' mYy' mYz' mYw ]
+//	[ mZx mZy mZz mZw ]   [ 0 0 z 0 ]    [ mZx' mZy' mZz' mZw ]
+//	[ mWx mWy mWz mWw ]   [ 0 0 0 1 ]    [ mWx' mWy' mWz' mWw ]
+//
 // Be sure to pick the correct scale (SM or MS) when doing transforms.
 func (m *M4) ScaleMS(x, y, z float64) *M4 {
 	m.Xx, m.Xy, m.Xz = m.Xx*x, m.Xy*y, m.Xz*z
@@ -457,9 +465,11 @@ func (m *M4) ScaleMS(x, y, z float64) *M4 {
 // SetQ converts a quaternion rotation representation to a matrix
 // rotation representation. SetQ updates matrix m to be the rotation
 // matrix representing the rotation described by unit-quaternion q.
-//                       [ mXx mXy mXz ]
-//    [ qx qy qz qw ] => [ mYx mYy mYz ]
-//                       [ mZx mZy mZz ]
+//
+//	                   [ mXx mXy mXz ]
+//	[ qx qy qz qw ] => [ mYx mYy mYz ]
+//	                   [ mZx mZy mZz ]
+//
 // The parameter q is unchanged. The updated matrix m is returned.
 func (m *M3) SetQ(q *Q) *M3 {
 	xx, yy, zz := q.X*q.X, q.Y*q.Y, q.Z*q.Z
@@ -474,10 +484,12 @@ func (m *M3) SetQ(q *Q) *M3 {
 // SetQ converts a quaternion rotation representation to a matrix
 // rotation representation. SetQ updates matrix m to be the rotation
 // matrix representing the rotation described by unit-quaternion q.
-//                       [ mXx mXy mXz 0 ]
-//    [ qx qy qz qw ] => [ mYx mYy mYz 0 ]
-//                       [ mZx mZy mZz 0 ]
-//                       [  0   0   0  1 ]
+//
+//	                   [ mXx mXy mXz 0 ]
+//	[ qx qy qz qw ] => [ mYx mYy mYz 0 ]
+//	                   [ mZx mZy mZz 0 ]
+//	                   [  0   0   0  1 ]
+//
 // The parameter q is unchanged. The updated matrix m is returned.
 func (m *M4) SetQ(q *Q) *M4 {
 	xx, yy, zz := q.X*q.X, q.Y*q.Y, q.Z*q.Z
@@ -492,14 +504,16 @@ func (m *M4) SetQ(q *Q) *M4 {
 
 // SetAa set axis-angle, updates m to be a rotation matrix from the
 // given axis (ax, ay, az) and angle (in radians). See:
-//    http://en.wikipedia.org/wiki/Rotation_matrix#Rotation_matrix_from_axis_and_angle
-//    http://web.archive.org/web/20041029003853/...
-//    ...http://www.j3d.org/matrix_faq/matrfaq_latest.html#Q38 (*note column order)
+//
+//	http://en.wikipedia.org/wiki/Rotation_matrix#Rotation_matrix_from_axis_and_angle
+//	http://web.archive.org/web/20041029003853/...
+//	...http://www.j3d.org/matrix_faq/matrfaq_latest.html#Q38 (*note column order)
+//
 // The updated matrix m is returned.
 func (m *M3) SetAa(ax, ay, az, ang float64) *M3 {
 	alenSqr := ax*ax + ay*ay + az*az
 	if alenSqr == 0 {
-		log.Printf("SetAa Zero length axis.")
+		slog.Error("SetAa Zero length axis.")
 		return m
 	}
 
@@ -523,8 +537,9 @@ func (m *M3) SetAa(ax, ay, az, ang float64) *M3 {
 
 // SetSkewSym sets the matrix m to be a skew-symetric matrix based
 // on the elements of vector v. Wikipedia states:
-//    "A skew-symmetric matrix is a square matrix
-//     whose transpose is also its negative."
+//
+//	"A skew-symmetric matrix is a square matrix
+//	 whose transpose is also its negative."
 func (m *M3) SetSkewSym(v *V3) *M3 {
 	m.Xx, m.Xy, m.Xz = 0, -v.Z, v.Y
 	m.Yx, m.Yy, m.Yz = v.Z, 0, -v.X
@@ -534,9 +549,10 @@ func (m *M3) SetSkewSym(v *V3) *M3 {
 
 // Det returns the determinant of matrix m. Determinants are helpful
 // when calculating the inverse of transform matrices. Wikipedia states:
-//    "The determinant provides important information about [..] a matrix that
-//     corresponds to a linear transformation of a vector space [..] the transformation
-//     has an inverse operation exactly when the determinant is nonzero."
+//
+//	"The determinant provides important information about [..] a matrix that
+//	 corresponds to a linear transformation of a vector space [..] the transformation
+//	 has an inverse operation exactly when the determinant is nonzero."
 func (m *M3) Det() float64 {
 	return m.Xx*(m.Yy*m.Zz-m.Yz*m.Zy) + m.Xy*(m.Yz*m.Zx-m.Yx*m.Zz) + m.Xz*(m.Yx*m.Zy-m.Yy*m.Zx)
 }
@@ -544,8 +560,9 @@ func (m *M3) Det() float64 {
 // Cof returns one of the possible cofactors of a 3x3 matrix given the
 // input minor (the row and column removed from the calculation).
 // Wikipedia states:
-//      "cofactors [...] are useful for computing both the determinant
-//       and inverse of square matrices".
+//
+//	"cofactors [...] are useful for computing both the determinant
+//	 and inverse of square matrices".
 func (m *M3) Cof(row, col int) float64 {
 	minor := row*10 + col // minor given by the removed row and column.
 	switch minor {
@@ -568,15 +585,17 @@ func (m *M3) Cof(row, col int) float64 {
 	case 22:
 		return m.Xx*m.Yy - m.Xy*m.Yx
 	}
-	log.Printf("matrix M3.Cof developer error %d", minor)
+	slog.Error("matrix M3.Cof developer error", "error", minor)
 	return 0
 }
 
 // Adj updates m to be the adjoint matrix of matrix a. The adjoint matrix is
 // created by the transpose of the cofactor matrix of the original matrix.
-//     [ a.cof(0,0) a.cof(1,0) a.cof(2,0) ]    [ mXx mXy mXz ]
-//     [ a.cof(0,1) a.cof(1,1) a.cof(2,1) ] => [ mYx mYy mYz ]
-//     [ a.cof(0,2) a.cof(1,2) a.cof(2,2) ]    [ mZx mZy mZz ]
+//
+//	[ a.cof(0,0) a.cof(1,0) a.cof(2,0) ]    [ mXx mXy mXz ]
+//	[ a.cof(0,1) a.cof(1,1) a.cof(2,1) ] => [ mYx mYy mYz ]
+//	[ a.cof(0,2) a.cof(1,2) a.cof(2,2) ]    [ mZx mZy mZz ]
+//
 // The updated matrix m is returned.
 func (m *M3) Adj(a *M3) *M3 {
 	xx, xy, xz := a.Cof(0, 0), a.Cof(1, 0), a.Cof(2, 0)
@@ -604,104 +623,6 @@ func (m *M3) Inv(a *M3) *M3 {
 	return m
 }
 
-// Ortho sets matrix m with projection values needed to
-// transform a 3 dimensional model to a 2 dimensional plane.
-// Orthographic projection ignores depth. The input arguments are:
-//     left, right:  Vertical clipping planes.
-//     bottom, top:  Horizontal clipping planes.
-//     near, far  :  Depth clipping planes. The depth values are
-//                   negative if the plane is to be behind the viewer
-// An orthographic matrix fills the following matrix locations:
-//    [ a 0 0 0 ]    [ Xx Xy Xz Xw ]
-//    [ 0 b 0 0 ] => [ Yx Yy Yz Yw ]
-//    [ 0 0 c 0 ]    [ Zx Zy Zz Zw ]
-//    [ d e f 1 ]    [ Wx Wy Wz Ww ]
-func (m *M4) Ortho(left, right, bottom, top, near, far float64) *M4 {
-	m.Xx = 2 / (right - left)
-	m.Xy = 0
-	m.Xz = 0
-	m.Xw = 0
-	m.Yx = 0
-	m.Yy = 2 / (top - bottom)
-	m.Yz = 0
-	m.Yw = 0
-	m.Zx = 0
-	m.Zy = 0
-	m.Zz = -2 / (far - near)
-	m.Zw = 0
-	m.Wx = -(right + left) / (right - left)
-	m.Wy = -(top + bottom) / (top - bottom)
-	m.Wz = -(far + near) / (far - near)
-	m.Ww = 1
-	return m
-}
-
-// Persp sets matrix m with projection values needed to
-// transform a 3 dimensional model to a 2 dimensional plane.
-// Objects that are further away from the viewer will appear smaller.
-// The input arguments are:
-//    fov        An amount in degrees indicating how much of the
-//               scene is visible.
-//    aspect     The ratio of height to width of the model.
-//    near, far  The depth clipping planes. The depth values are
-//               negative if the plane is to be behind the viewer
-// A perspective projection matrix fills the following matrix locations:
-//    [ a 0 0 0 ]    [ Xx Xy Xz Xw ]
-//    [ 0 b 0 0 ] => [ Yx Yy Yz Yw ]
-//    [ 0 0 c d ]    [ Zx Zy Zz Zw ]
-//    [ 0 0 e 0 ]    [ Wx Wy Wz Ww ]
-func (m *M4) Persp(fov, aspect, near, far float64) *M4 {
-	f := 1 / float64(math.Tan(Rad(fov)*0.5))
-	m.Xx = f / aspect
-	m.Yx = 0
-	m.Zx = 0
-	m.Wx = 0
-	m.Xy = 0
-	m.Yy = f
-	m.Zy = 0
-	m.Wy = 0
-	m.Xz = 0
-	m.Yz = 0
-	m.Zz = (far + near) / (near - far)
-	m.Wz = 2 * far * near / (near - far)
-	m.Xw = 0
-	m.Yw = 0
-	m.Zw = -1
-	m.Ww = 0
-	return m
-}
-
-// PerspInv sets matrix m to be a new inverse matrix of the given
-// perspective matrix values (see NewPersp()).
-//   [ a' 0  0  0 ] where a' = 1/a     d' = 1/e    [ Xx Xy Xz Xw ]
-//   [ 0  b' 0  0 ]       b' = 1/b     e' = 1/d => [ Yx Yy Yz Yw ]
-//   [ 0  0  0  d']       c' = -(c/de)             [ Zx Zy Zz Zw ]
-//   [ 0  0  e' c']                                [ Wx Wy Wz Ww ]
-// This is used when going from screen x,y coordinates to 3D coordinates.
-// as in the case when creating a picking ray from a mouse location.
-func (m *M4) PerspInv(fov, aspect, near, far float64) *M4 {
-	f := float64(math.Tan(Rad(fov) * 0.5))
-	c := 2 * far * near / (near - far)
-	m.Xx = f * aspect
-	m.Yx = 0
-	m.Zx = 0
-	m.Wx = 0
-	m.Xy = 0
-	m.Yy = f
-	m.Zy = 0
-	m.Wy = 0
-	m.Xz = 0
-	m.Yz = 0
-	m.Zz = 0
-	m.Wz = -1
-	m.Xw = 0
-	m.Yw = 0
-	m.Zw = 1 / c
-	m.Ww = -((far + near) / (near - far) / (-1 * c))
-	return m
-}
-
-// methods above do not allocate memory.
 // ============================================================================
 // convenience functions for allocating matrices. Nothing else should allocate.
 
@@ -712,14 +633,115 @@ func NewM3() *M3 { return &M3{} }
 func NewM4() *M4 { return &M4{} }
 
 // NewM3I creates a new 3x3 identity matrix.
-//    [ 1 0 0 ]    [ Xx Xy Xz ]
-//    [ 0 1 0 ] => [ Yx Yy Yz ]
-//    [ 0 0 1 ]    [ Zx Zy Zz ]
+//
+//	[ 1 0 0 ]    [ Xx Xy Xz ]
+//	[ 0 1 0 ] => [ Yx Yy Yz ]
+//	[ 0 0 1 ]    [ Zx Zy Zz ]
 func NewM3I() *M3 { return &M3{Xx: 1, Yy: 1, Zz: 1} }
 
 // NewM4I creates a new 4x4 identity matrix.
-//    [ 1 0 0 0 ]    [ Xx Xy Xz Xw ]
-//    [ 0 1 0 0 ] => [ Yx Yy Yz Yw ]
-//    [ 0 0 1 0 ]    [ Zx Zy Zz Zw ]
-//    [ 0 0 0 1 ]    [ Wx Wy Wz Ww ]
+//
+//	[ 1 0 0 0 ]    [ Xx Xy Xz Xw ]
+//	[ 0 1 0 0 ] => [ Yx Yy Yz Yw ]
+//	[ 0 0 1 0 ]    [ Zx Zy Zz Zw ]
+//	[ 0 0 0 1 ]    [ Wx Wy Wz Ww ]
 func NewM4I() *M4 { return &M4{Xx: 1, Yy: 1, Zz: 1, Ww: 1} }
+
+// ============================================================================
+// matrix projections.
+
+// OrthographicProjection for Vulkan sets matrix m with
+// values needed to transform a view vector to clip space.
+// Objects apparent size will not be affected by distance
+// the camera. Input arguments are:
+//
+//	width, height: clipping planes.
+//	near, far    : depth clipping planes.
+//
+// Assumes frustrum is centered on the z-axis.
+//
+// based on https://github.com/vkngwrapper/math/blob/main/mat4x4.go: SetOrthographic
+// FUTURE: consider using SetOrthographic2D for 2D render pass.
+func (m *M4) OrthographicProjection(left, right, bottom, top, near, far float64) *M4 {
+	m.Xx = 2 / (right - left)
+	m.Xy = 0
+	m.Xz = 0
+	m.Xw = 0
+	m.Yx = 0
+	m.Yy = 2 / (top - bottom)
+	m.Yz = 0
+	m.Yw = 0
+	m.Zx = 0
+	m.Zy = 0
+	m.Zz = -1 / (far - near)
+	m.Zw = 0
+	m.Wx = -(right + left) / (right - left)
+	m.Wy = -(top + bottom) / (top - bottom)
+	m.Wz = -near / (far - near)
+	m.Ww = 1
+	return m
+}
+
+// PerspectiveProjection for Vulkan sets matrix m with values
+// needed to convert a view vector to clip space. Objects further
+// away from the viewer will appear smaller.
+// The input arguments are:
+//
+//	fov        field of view in degrees indicating how much of the
+//	           scene is visible.
+//	aspect     The ratio of height to width.
+//	near, far  The depth clipping planes.
+//
+// Assumes frustrum is centered on the z-axis.
+func (m *M4) PerspectiveProjection(fov, aspect, near, far float64) *M4 {
+	// ported from https://github.com/vkngwrapper/math/blob/main/mat4x4.go
+	tanHalfFovY := math.Tan(Rad(fov) * 0.5)
+	m.Xx = 1.0 / (aspect * tanHalfFovY)
+	m.Xy = 0
+	m.Xz = 0
+	m.Xw = 0
+	m.Yx = 0
+	m.Yy = -1.0 / tanHalfFovY
+	m.Yz = 0
+	m.Yw = 0
+	m.Zx = 0
+	m.Zy = 0
+	m.Zz = far / (near - far)
+	m.Zw = -1.0
+	m.Wx = 0
+	m.Wy = 0
+	m.Wz = -(far * near) / (far - near)
+	m.Ww = 0
+	return m
+}
+
+// PerspectiveInverse sets matrix m to be a new inverse perspective
+// projection matrix. Can be used when going from screen x,y coordinates
+// to 3D coordinates. as in the case when creating a picking ray from
+// a mouse location.
+//
+//	fov        field of view in degrees indicating how much of the
+//	           scene is visible.
+//	aspect     The ratio of height to width of the model.
+//	near, far  The depth clipping planes. The depth values are
+//	           negative if the plane is to be behind the viewer
+func (m *M4) PerspectiveInverse(fov, aspect, near, far float64) *M4 {
+	f := math.Tan(Rad(fov) * 0.5)
+	m.Xx = f * aspect
+	m.Xy = 0
+	m.Xz = 0
+	m.Xw = 0
+	m.Yx = 0
+	m.Yy = -f
+	m.Yz = 0
+	m.Yw = 0
+	m.Zx = 0
+	m.Zy = 0
+	m.Zz = 0
+	m.Zw = (near - far) / (near * far)
+	m.Wx = 0
+	m.Wy = 0
+	m.Wz = -1.0
+	m.Ww = far / (near * far)
+	return m
+}

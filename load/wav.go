@@ -1,5 +1,4 @@
-// Copyright © 2013-2016 Galvanized Logic Inc.
-// Use is governed by a BSD-style license found in the LICENSE file.
+// Copyright © 2013-2024 Galvanized Logic Inc.
 
 package load
 
@@ -11,19 +10,21 @@ import (
 
 // Wav attempts to load WAV based audio data into SndData.
 // The wave PCM soundfile format is from:
-//     https://ccrma.stanford.edu/courses/422/projects/WaveFormat
+//   - https://ccrma.stanford.edu/courses/422-winter-2014/projects/WaveFormat/
+//
 // The Reader r is expected to be opened and closed by the caller.
 // A successful import overwrites the data in SndData.
-func Wav(r io.Reader, d *SndData) (err error) {
+func Wav(r io.Reader) (aud *AudioData, err error) {
+	aud = &AudioData{}
 	hdr := &wavHeader{}
 	if err = binary.Read(r, binary.LittleEndian, hdr); err != nil {
-		return fmt.Errorf("Invalid .wav audio file: %s", err)
+		return aud, fmt.Errorf("Invalid .wav audio file: %s", err)
 	}
 
 	// check that it really is a WAVE file.
 	riff, wave := string(hdr.RiffID[:]), string(hdr.WaveID[:])
 	if riff != "RIFF" || wave != "WAVE" {
-		return fmt.Errorf("Invalid .wav audio file")
+		return aud, fmt.Errorf("Invalid .wav audio file")
 	}
 
 	// read the audio data.
@@ -33,18 +34,22 @@ func Wav(r io.Reader, d *SndData) (err error) {
 	for bytesRead < hdr.DataSize {
 		inbytes, readErr := r.Read(inbuff)
 		if readErr != nil {
-			return fmt.Errorf("Corrupt .wav audio file")
+			return aud, fmt.Errorf("Corrupt .wav audio file")
 		}
 		data = append(data, inbuff...)
 		bytesRead += uint32(inbytes)
 	}
 	if bytesRead != hdr.DataSize {
-		return fmt.Errorf("Invalid .wav audio file %d %d", bytesRead, hdr.DataSize)
+		return aud, fmt.Errorf("Invalid .wav audio file %d %d", bytesRead, hdr.DataSize)
 	}
-	attrs := &SndAttributes{Channels: hdr.Channels, Frequency: hdr.Frequency,
-		DataSize: hdr.DataSize, SampleBits: hdr.SampleBits}
-	d.Attrs, d.Data = attrs, data
-	return nil
+	attrs := &AudioAttributes{
+		Channels:   hdr.Channels,
+		Frequency:  hdr.Frequency,
+		DataSize:   hdr.DataSize,
+		SampleBits: hdr.SampleBits,
+	}
+	aud.Attrs, aud.Data = attrs, data
+	return aud, nil
 }
 
 // wavHeader is an internal implementation for loading WAV files.

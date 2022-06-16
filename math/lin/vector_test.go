@@ -1,5 +1,4 @@
-// Copyright © 2013-2018 Galvanized Logic Inc.
-// Use is governed by a BSD-style license found in the LICENSE file.
+// Copyright © 2013-2024 Galvanized Logic Inc.
 
 package lin
 
@@ -286,6 +285,83 @@ func TestCascade(t *testing.T) {
 	if !v.Eq(want) {
 		t.Errorf(format, v.Dump(), want.Dump())
 	}
+}
+
+func TestDirection(t *testing.T) {
+	t.Run("right", func(t *testing.T) {
+		q := NewQ().SetAa(1, 1, 1, 90) // rotation
+		vr0 := NewV3().SetS(1, 0, 0)   // X direction
+		vr0.MultQ(vr0, q)
+
+		// same as
+		vr1 := NewV3().Right(q)
+		if !vr0.Aeq(vr1) {
+			t.Errorf("expected same result\n %+v\n %+v", vr0, vr1)
+		}
+	})
+
+	t.Run("right invert", func(t *testing.T) {
+		q := NewQ().SetAa(1, 1, 1, -90) // opposite rotation
+		vr0 := NewV3().SetS(1, 0, 0)    // X direction
+		vr0.MultQ(vr0, q)
+
+		// same as
+		q = NewQ().SetAa(1, 1, 1, 90)
+		vr1 := NewV3().RightInverted(q)
+		if !vr0.Aeq(vr1) {
+			t.Errorf("expected same result\n %+v\n %+v", vr0, vr1)
+		}
+	})
+
+	t.Run("up", func(t *testing.T) {
+		q := NewQ().SetAa(1, 1, 1, 90) // rotation
+		vr0 := NewV3().SetS(0, 1, 0)   // Y direction
+		vr0.MultQ(vr0, q)
+
+		// same as
+		vr1 := NewV3().Up(q)
+		if !vr0.Aeq(vr0) {
+			t.Errorf("expected same result\n %+v\n %+v", vr0, vr1)
+		}
+	})
+
+	t.Run("up invert", func(t *testing.T) {
+		q := NewQ().SetAa(1, 1, 1, -90) // opposite rotation
+		vr0 := NewV3().SetS(0, 1, 0)    // Y direction
+		vr0.MultQ(vr0, q)
+
+		// same as
+		q = NewQ().SetAa(1, 1, 1, 90)
+		vr1 := NewV3().UpInverted(q)
+		if !vr0.Aeq(vr1) {
+			t.Errorf("expected same result\n %+v\n %+v", vr0, vr1)
+		}
+	})
+
+	t.Run("forward", func(t *testing.T) {
+		q := NewQ().SetAa(1, 1, 1, 90) // rotation
+		vr0 := NewV3().SetS(0, 0, 1)   // Z direction
+		vr0.MultQ(vr0, q)
+
+		// same as
+		vr1 := NewV3().Forward(q)
+		if !vr0.Aeq(vr1) {
+			t.Errorf("expected same result\n %+v\n %+v", vr0, vr1)
+		}
+	})
+
+	t.Run("forward invert", func(t *testing.T) {
+		q := NewQ().SetAa(1, 1, 1, -90) // opposite rotation
+		vr0 := NewV3().SetS(0, 0, 1)    // Z direction
+		vr0.MultQ(vr0, q)
+
+		// same as
+		q = NewQ().SetAa(1, 1, 1, 90)
+		vr1 := NewV3().ForwardInverted(q)
+		if !vr0.Aeq(vr1) {
+			t.Errorf("expected same result\n %+v\n %+v", vr0, vr1)
+		}
+	})
 }
 
 // unit tests

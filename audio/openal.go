@@ -1,23 +1,19 @@
-// Copyright © 2013-2016 Galvanized Logic Inc.
-// Use is governed by a BSD-style license found in the LICENSE file.
-
-// +build !dx
-// Use OpenAL by default.
+// Copyright © 2013-2024 Galvanized Logic Inc.
 
 package audio
 
+// openal.go provides the wrapper for the openal bindings.
+
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"strings"
 
-	"github.com/gazed/vu/audio/al"
+	"github.com/gazed/vu/internal/audio/al"
 )
 
-// Note: 64-bit OpenAL may be difficult to locate for Windows machines.
-//       Try openal.org and their installer. Alternatively try
-//          http://kcat.strangesoft.net/openal.html/openal-soft-1.15.1-bin.zip.
-//       Extract Win64/soft_oal.dll from zip to c:/Windows/System32/OpenAL32.dll
+// OpenAL (https://openal.org)
+// latest 64-bit version `soft_oal.dll` from https://openal-soft.org/openal-binaries/
 
 // openal provides sound support for the engine. It exposes the useful parts
 // of the underlying OpenAL audio library as well as providing some sound
@@ -27,13 +23,9 @@ type openal struct {
 	ctx al.Context // created on initialization.
 }
 
-// audioWrapper gets a reference to the underlying audio wrapper.
-// Compiling ensures there will only be one that matches.
-func audioWrapper() Audio { return &openal{} }
-
-// Init runs the one time openal library initialization. It is expected to
+// init runs the one time openal library initialization. It is expected to
 // be called once by the engine on startup.
-func (a *openal) Init() (err error) {
+func (a *openal) init() (err error) {
 	al.Init()
 	if err = a.validate(); err != nil {
 		return fmt.Errorf("%s", err)
@@ -64,9 +56,9 @@ func (a *openal) validate() error {
 	return nil
 }
 
-// Dispose closes down the openal library. This is expected
+// dispose closes down the openal library. This is expected
 // to be called once by the engine when it is shutting down.
-func (a *openal) Dispose() {
+func (a *openal) dispose() {
 	al.MakeContextCurrent(0)
 	if a.ctx != 0 {
 		al.DestroyContext(a.ctx)
@@ -76,20 +68,20 @@ func (a *openal) Dispose() {
 	}
 }
 
-// SetGain sets the listener gain to a value between 0 and 1.
+// setGain sets the listener gain to a value between 0 and 1.
 // Values outside the 0 to 1 range are ignored.
-func (a *openal) SetGain(zeroToOne float64) {
+func (a *openal) setGain(zeroToOne float64) {
 	if zeroToOne >= 0 && zeroToOne <= 1 {
 		al.Listenerf(al.GAIN, float32(zeroToOne))
 	}
 }
 
-// BindSound copies sound data to the sound card. If successful then the
+// loadSound copies sound data to the sound card. If successful then the
 // sound reference, snd, and sound data buffer reference, buff are updated
 // with valid references.
-func (a *openal) BindSound(snd, buff *uint64, d *Data) (err error) {
+func (a *openal) loadSound(snd, buff *uint64, d *Data) (err error) {
 	if alerr := al.GetError(); alerr != al.NO_ERROR {
-		log.Printf("openal.BindSound need to find and fix prior error %X", alerr)
+		slog.Error("openal.BindSound find and fix prior error", "error", alerr)
 	}
 
 	// create the sound buffer and copy the audio data into the buffer
@@ -110,21 +102,23 @@ func (a *openal) BindSound(snd, buff *uint64, d *Data) (err error) {
 	return err
 }
 
-// Implement Audio.
-func (a *openal) PlaceListener(x, y, z float64) {
+// Implement audioAPI.
+func (a *openal) placeListener(x, y, z float64) {
 	al.Listener3f(al.POSITION, float32(x), float32(y), float32(z))
 }
 
-// Implement Audio.
-func (a *openal) PlaySound(snd uint64, x, y, z float64) {
+// Implement audioAPI.
+func (a *openal) playSound(snd uint64, x, y, z float64) {
 	al.Source3f(uint32(snd), al.POSITION, float32(x), float32(y), float32(z))
 	al.SourcePlay(uint32(snd))
 }
 
 // Implement Audio.
-func (a *openal) ReleaseSound(snd uint64) {
+func (a *openal) dropSound(snd, buff uint64) {
 	snd32 := uint32(snd)
-	al.DeleteSources(1, &snd32)
+	buff32 := uint32(buff)
+	al.DeleteSources(1, &snd32)  // delete source first...
+	al.DeleteBuffers(1, &buff32) // ...then delete related buffer.
 }
 
 // format figures out which of the OpenAL formats to use based on the

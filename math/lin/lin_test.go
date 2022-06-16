@@ -1,5 +1,4 @@
-// Copyright © 2013-2018 Galvanized Logic Inc.
-// Use is governed by a BSD-style license found in the LICENSE file.
+// Copyright © 2013-2024 Galvanized Logic Inc.
 
 package lin
 
@@ -76,8 +75,9 @@ func TestRound(t *testing.T) {
 
 // Ensure that Atan2F really is faster. Run 'go test -bench=".*"
 // For example the last run showed:
-//    BenchmarkAtan2     50000000	53.0 ns/op
-//    BenchmarkAtan2F 	100000000	12.3 ns/op
+//
+//	BenchmarkAtan2     50000000	53.0 ns/op
+//	BenchmarkAtan2F 	100000000	12.3 ns/op
 func BenchmarkAtan2(b *testing.B) {
 	for cnt := 0; cnt < b.N; cnt++ {
 		math.Atan2(1, 1)

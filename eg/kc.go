@@ -1,214 +1,241 @@
-// Copyright © 2013-2018 Galvanized Logic Inc.
-// Use is governed by a BSD-style license found in the LICENSE file.
+// Copyright © 2013-2024 Galvanized Logic Inc.
 
 package main
 
 import (
-	"log"
+	"log/slog"
+	"time"
 
 	"github.com/gazed/vu"
 )
 
-// kc explores treating the keyboard as a controller.
-// It assigns each keyboard key a unique symbol.
-//
-// Treating the keyboard like a complicated console controller
-// basically means ignoring its ability to input text. Overall
-// a simplification over regular keyboards, but having alot more
-// potential controls than a console controller.
+// kc explores treating the keyboard as a controller,
+// focusing on button presses and ignoring its ability to input text.
+// The image shows a macos keyboard because that's what was available
+// at the time. This example demonstrates:
+//   - loading assets.
+//   - creating a 2D scene with image and text models.
+//   - reacting to user input
 //
 // CONTROLS:
-//   key   : highlight key press
-//   mouse : highlight mouse click
+//   - key   : highlight key press
+//   - mouse : highlight mouse click
 func kc() {
-	defer catchErrors()
-	if err := vu.Run(&kctag{}); err != nil {
-		log.Printf("kc: error starting engine %s", err)
+	kc := &kctag{ww: 1200, wh: 340} // match keyboard image size.
+	eng, err := vu.NewEngine(
+		vu.Windowed(),
+		vu.Title("Keyboard Controller"),
+		vu.Size(200, 200, int32(kc.ww), int32(kc.wh)),
+		vu.Background(0.1, 0.1, 0.5, 1.0),
+	)
+	if err != nil {
+		slog.Error("kc: engine start", "err", err)
+		return
 	}
+
+	// import assets from asset files.
+	// This creates the assets referenced by the models below.
+	eng.ImportAssets("icon.shd", "keyboard.png", "keyboard_press.png")  // load some assets
+	eng.ImportAssets("label.shd", "lucidiaSu18.fnt", "lucidiaSu18.png") // load more assets
+
+	// create a 2D scene with a camera.
+	scene := eng.AddScene(vu.Scene2D)
+
+	// add the keyboard image to the scene.
+	kb := scene.AddModel("shd:icon", "msh:icon", "tex:color:keyboard")
+	kb.SetScale(float64(kc.ww), float64(kc.wh), 0).SetAt(float64(kc.ww/2), float64(kc.wh/2), 0)
+
+	// add the pressed key focus model to the scene
+	kc.focus = scene.AddModel("shd:icon", "msh:icon", "tex:color:keyboard_press")
+	kc.focus.SetScale(50, 50, 0) // make it bigger
+	kc.focus.Cull(true)          // hide until a key is pressed.
+
+	// Place the key symbols over the keys.
+	// map key is key code, map value is key struct
+	kc.positions = kc.keyPositions()
+	for code, key := range kc.positions {
+		if char := vu.Symbol(code); char > 0 {
+			cx, cy := key.location(kc.ww, kc.wh)
+			letter := scene.AddLabel(string(char), 0, "shd:label", "fnt:lucidiaSu18", "tex:color:lucidiaSu18")
+			letter.SetAt(cx-4, cy-9, 0).SetColor(0, 0, 0, 1) // black
+		}
+	}
+	defer catchErrors()
+	eng.Run(kc) // does not return while example is running.
 }
 
 // Globally unique "tag" that encapsulates example specific data.
 type kctag struct {
-	ui        *vu.Ent     // 2D user interface.
-	focus     *vu.Ent     // Hilights first pressed key.
+	ww        int         // window width
+	wh        int         // window height
+	focus     *vu.Entity  // Hilights first pressed key.
 	positions map[int]pos // Screen position for each key.
 }
 
-// Create is the startup asset creation.
-func (kc *kctag) Create(eng vu.Eng, s *vu.State) {
-	eng.Set(vu.Title("Keyboard Controller"), vu.Size(200, 200, 900, 400))
-	eng.Set(vu.Color(0.45, 0.45, 0.45, 1))
-
-	// create the 2D overlay
-	kc.ui = eng.AddScene().SetUI()
-	kc.ui.Cam().SetClip(0, 10)
-	kc.positions = kc.keyPositions()
-
-	// Create the keyboard image.
-	kb := kc.ui.AddPart().SetScale(900, 255, 0).SetAt(450, 100+85, 0)
-	kb.MakeModel("textured", "msh:icon", "tex:keyboard")
-
-	// Pressed key focus
-	kc.focus = kc.ui.AddPart().SetScale(50, 50, 0)
-	kc.focus.MakeModel("textured", "msh:icon", "tex:particle")
-
-	// Place the key symbols over the keys.
-	for code, key := range kc.positions { // map key is key code, map value is key struct
-		if char := vu.Symbol(code); char > 0 {
-			cx, cy := key.location()
-			letter := kc.ui.AddPart().SetAt(cx, cy, 0)
-			letter.MakeLabel("labeled", "lucidiaSu18").SetStr(string(char))
-			letter.SetColor(0, 0, 0)
+// Update is the application engine callback.
+func (kc *kctag) Update(eng *vu.Engine, in *vu.Input, delta time.Duration) {
+	// react to one time press events.
+	for press := range in.Pressed {
+		switch press {
+		case vu.KX:
+			// quit if X is pressed
+			eng.Shutdown()
+			return
 		}
 	}
-}
 
-// Update is the regular engine callback.
-func (kc *kctag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
+	// highlight the most recently pressed key
 	kc.focus.Cull(true)
-	for press, down := range in.Down {
-		// hilight the first pressed key.
-		if down > 0 {
-			position := kc.positions[press]
-			cx, cy := position.location()
-			kc.focus.SetAt(cx+6, cy+10, 0)
+	pressed := -1
+	lastTime := time.Time{}
+	for key, timePressed := range in.Down {
+		if timePressed.After(lastTime) {
+			pressed = int(key)
+			lastTime = timePressed
+		}
+	}
+	if pressed != -1 {
+		if position, ok := kc.positions[pressed]; ok {
+			cx, cy := position.location(kc.ww, kc.wh)
+			kc.focus.SetAt(cx, cy, 0)
 			kc.focus.Cull(false)
 		}
-		break
 	}
 }
 
 // Position the keys on the keyboard image.
+// The positions are in pixels based on the original image.
 func (kc *kctag) keyPositions() map[int]pos {
 	return map[int]pos{
-		vu.K0:     {col: 9, row: 4, xoff: 0.8, yoff: 0.0},
-		vu.K1:     {col: 1, row: 4, xoff: 0.0, yoff: 0.0},
-		vu.K2:     {col: 2, row: 4, xoff: 0.0, yoff: 0.0},
-		vu.K3:     {col: 3, row: 4, xoff: 0.0, yoff: 0.0},
-		vu.K4:     {col: 4, row: 4, xoff: 0.0, yoff: 0.0},
-		vu.K5:     {col: 5, row: 4, xoff: 0.0, yoff: 0.0},
-		vu.K6:     {col: 5, row: 4, xoff: 0.9, yoff: 0.0},
-		vu.K7:     {col: 6, row: 4, xoff: 0.8, yoff: 0.0},
-		vu.K8:     {col: 7, row: 4, xoff: 0.8, yoff: 0.0},
-		vu.K9:     {col: 8, row: 4, xoff: 0.8, yoff: 0.0},
-		vu.KA:     {col: 1, row: 2, xoff: 0.9, yoff: 0.0},
-		vu.KB:     {col: 6, row: 1, xoff: 0.1, yoff: 0.0},
-		vu.KC:     {col: 4, row: 1, xoff: 0.2, yoff: 0.0},
-		vu.KD:     {col: 3, row: 2, xoff: 0.8, yoff: 0.0},
-		vu.KE:     {col: 3, row: 3, xoff: 0.5, yoff: 0.0},
-		vu.KF:     {col: 4, row: 2, xoff: 0.7, yoff: 0.0},
-		vu.KG:     {col: 5, row: 2, xoff: 0.6, yoff: 0.0},
-		vu.KH:     {col: 6, row: 2, xoff: 0.5, yoff: 0.0},
-		vu.KI:     {col: 8, row: 3, xoff: 0.3, yoff: 0.0},
-		vu.KJ:     {col: 7, row: 2, xoff: 0.5, yoff: 0.0},
-		vu.KK:     {col: 8, row: 2, xoff: 0.5, yoff: 0.0},
-		vu.KL:     {col: 9, row: 2, xoff: 0.5, yoff: 0.0},
-		vu.KM:     {col: 8, row: 1, xoff: 0.0, yoff: 0.0},
-		vu.KN:     {col: 7, row: 1, xoff: 0.0, yoff: 0.0},
-		vu.KO:     {col: 9, row: 3, xoff: 0.1, yoff: 0.0},
-		vu.KP:     {col: 10, row: 3, xoff: 0.1, yoff: 0.0},
-		vu.KQ:     {col: 1, row: 3, xoff: 0.6, yoff: 0.0},
-		vu.KR:     {col: 4, row: 3, xoff: 0.5, yoff: 0.0},
-		vu.KS:     {col: 2, row: 2, xoff: 0.8, yoff: 0.0},
-		vu.KT:     {col: 5, row: 3, xoff: 0.4, yoff: 0.0},
-		vu.KU:     {col: 7, row: 3, xoff: 0.2, yoff: 0.0},
-		vu.KV:     {col: 5, row: 1, xoff: 0.1, yoff: 0.0},
-		vu.KW:     {col: 2, row: 3, xoff: 0.5, yoff: 0.0},
-		vu.KX:     {col: 3, row: 1, xoff: 0.3, yoff: 0.0},
-		vu.KY:     {col: 6, row: 3, xoff: 0.3, yoff: 0.0},
-		vu.KZ:     {col: 2, row: 1, xoff: 0.2, yoff: 0.0},
-		vu.KEqual: {col: 11, row: 4, xoff: 0.6, yoff: 0.0},
-		vu.KMinus: {col: 10, row: 4, xoff: 0.7, yoff: 0.0},
-		vu.KRBkt:  {col: 12, row: 3, xoff: 0.1, yoff: 0.0},
-		vu.KLBkt:  {col: 11, row: 3, xoff: 0.1, yoff: 0.0},
-		vu.KQt:    {col: 11, row: 2, xoff: 0.5, yoff: 0.0},
-		vu.KSemi:  {col: 10, row: 2, xoff: 0.5, yoff: 0.0},
-		vu.KBSl:   {col: 13, row: 3, xoff: 0.0, yoff: 0.0},
-		vu.KComma: {col: 9, row: 1, xoff: 0.0, yoff: 0.0},
-		vu.KSlash: {col: 11, row: 1, xoff: 0.0, yoff: 0.0},
-		vu.KDot:   {col: 10, row: 1, xoff: 0.0, yoff: 0.0},
-		vu.KGrave: {col: 0, row: 4, xoff: 0.0, yoff: 0.0},
-		vu.KRet:   {col: 12, row: 2, xoff: 0.5, yoff: 0.0},
-		vu.KTab:   {col: 0, row: 3, xoff: 0.0, yoff: 0.0},
-		vu.KSpace: {col: 7, row: 0, xoff: 0.0, yoff: 0.0},
-		vu.KDel:   {col: 12, row: 4, xoff: 0.6, yoff: 0.0},
-		vu.KEsc:   {col: 0, row: 5, xoff: 0.0, yoff: 0.0},
-		vu.KF1:    {col: 1, row: 5, xoff: 0.0, yoff: 0.0},
-		vu.KF2:    {col: 2, row: 5, xoff: 0.0, yoff: 0.0},
-		vu.KF3:    {col: 3, row: 5, xoff: 0.0, yoff: 0.0},
-		vu.KF4:    {col: 4, row: 5, xoff: 0.0, yoff: 0.0},
-		vu.KF5:    {col: 5, row: 5, xoff: 0.0, yoff: 0.0},
-		vu.KF6:    {col: 6, row: 5, xoff: 0.0, yoff: 0.0},
-		vu.KF7:    {col: 7, row: 5, xoff: 0.0, yoff: 0.0},
-		vu.KF8:    {col: 8, row: 5, xoff: 0.0, yoff: 0.0},
-		vu.KF9:    {col: 9, row: 5, xoff: 0.0, yoff: 0.0},
-		vu.KF10:   {col: 10, row: 5, xoff: 0.0, yoff: 0.0},
-		vu.KF11:   {col: 11, row: 5, xoff: 0.0, yoff: 0.0},
-		vu.KF12:   {col: 12, row: 5, xoff: 0.0, yoff: 0.0},
-		vu.KF13:   {col: 14, row: 5, xoff: 0.0, yoff: 0.0},
-		vu.KF14:   {col: 15, row: 5, xoff: 0.0, yoff: 0.0},
-		vu.KF15:   {col: 16, row: 5, xoff: 0.0, yoff: 0.0},
-		vu.KF16:   {col: 17, row: 5, xoff: 0.0, yoff: 0.0},
-		vu.KF17:   {col: 18, row: 5, xoff: 0.0, yoff: 0.0},
-		vu.KF18:   {col: 19, row: 5, xoff: 0.0, yoff: 0.0},
-		vu.KF19:   {col: 20, row: 5, xoff: 0.0, yoff: 0.0},
-		vu.KHome:  {col: 15, row: 4, xoff: 0.0, yoff: 0.0},
-		vu.KPgUp:  {col: 16, row: 4, xoff: 0.0, yoff: 0.0},
-		vu.KFDel:  {col: 14, row: 3, xoff: 0.0, yoff: 0.0},
-		vu.KEnd:   {col: 15, row: 3, xoff: 0.0, yoff: 0.0},
-		vu.KPgDn:  {col: 16, row: 3, xoff: 0.0, yoff: 0.0},
-		vu.KLa:    {col: 14, row: 0, xoff: 0.0, yoff: 0.0},
-		vu.KRa:    {col: 16, row: 0, xoff: 0.0, yoff: 0.0},
-		vu.KDa:    {col: 15, row: 0, xoff: 0.0, yoff: 0.0},
-		vu.KUa:    {col: 15, row: 1, xoff: 0.0, yoff: 0.0},
-		vu.KKpDot: {col: 19, row: 0, xoff: 0.0, yoff: 0.0},
-		vu.KKpMlt: {col: 20, row: 4, xoff: 0.0, yoff: 0.0},
-		vu.KKpAdd: {col: 20, row: 2, xoff: 0.0, yoff: 0.0},
-		vu.KKpClr: {col: 17, row: 4, xoff: 0.0, yoff: 0.0},
-		vu.KKpDiv: {col: 19, row: 4, xoff: 0.0, yoff: 0.0},
-		vu.KKpEnt: {col: 20, row: 0, xoff: 0.0, yoff: 0.0},
-		vu.KKpSub: {col: 20, row: 3, xoff: 0.0, yoff: 0.0},
-		vu.KKpEql: {col: 18, row: 4, xoff: 0.0, yoff: 0.0},
-		vu.KKp0:   {col: 17, row: 0, xoff: 0.0, yoff: 0.0},
-		vu.KKp1:   {col: 17, row: 1, xoff: 0.0, yoff: 0.0},
-		vu.KKp2:   {col: 18, row: 1, xoff: 0.0, yoff: 0.0},
-		vu.KKp3:   {col: 19, row: 1, xoff: 0.0, yoff: 0.0},
-		vu.KKp4:   {col: 17, row: 2, xoff: 0.0, yoff: 0.0},
-		vu.KKp5:   {col: 18, row: 2, xoff: 0.0, yoff: 0.0},
-		vu.KKp6:   {col: 19, row: 2, xoff: 0.0, yoff: 0.0},
-		vu.KKp7:   {col: 17, row: 3, xoff: 0.0, yoff: 0.0},
-		vu.KKp8:   {col: 18, row: 3, xoff: 0.0, yoff: 0.0},
-		vu.KKp9:   {col: 19, row: 3, xoff: 0.0, yoff: 0.0},
-		vu.KLm:    {col: 1, row: 6, xoff: 0.0, yoff: 0.0},
-		vu.KMm:    {col: 1, row: 6, xoff: 0.5, yoff: 0.0},
-		vu.KRm:    {col: 2, row: 6, xoff: 0.0, yoff: 0.0},
-		vu.KCtl:   {col: 0, row: 0, xoff: 0.0, yoff: 0.0},
-		vu.KFn:    {col: 14, row: 4, xoff: 0.0, yoff: 0.0},
-		vu.KShift: {col: 0, row: 1, xoff: 0.0, yoff: 0.0},
-		vu.KCmd:   {col: 3, row: 0, xoff: 0.0, yoff: 0.0},
-		vu.KAlt:   {col: 1, row: 0, xoff: 0.6, yoff: 0.0},
+		// top row
+		vu.KEsc: {xoff: 46, yoff: 39},
+		vu.KF1:  {xoff: 100, yoff: 39},
+		vu.KF2:  {xoff: 154, yoff: 39},
+		vu.KF3:  {xoff: 208, yoff: 39},
+		vu.KF4:  {xoff: 264, yoff: 39},
+		vu.KF5:  {xoff: 320, yoff: 39},
+		vu.KF6:  {xoff: 374, yoff: 39},
+		vu.KF7:  {xoff: 426, yoff: 39},
+		vu.KF8:  {xoff: 480, yoff: 39},
+		vu.KF9:  {xoff: 536, yoff: 39},
+		vu.KF10: {xoff: 590, yoff: 39},
+		vu.KF11: {xoff: 644, yoff: 39},
+		vu.KF12: {xoff: 698, yoff: 39},
+
+		// ignore the following keys,
+		// ie: don't use print screen as a control and limit function keys to 12.
+		// vu.KF13: {xoff: 748, yoff: 39},
+		// vu.KF14: {xoff: 824, yoff: 39},
+		// vu.KF15: {xoff: 878, yoff: 39},
+		// vu.KF16: {xoff: 932, yoff: 39},
+		// vu.KF17: {xoff: 1000, yoff: 39},
+		// vu.KF18: {xoff: 1054, yoff: 39},
+		// vu.KF19: {xoff: 1108, yoff: 39},
+
+		// second row
+		vu.KGrave: {xoff: 46, yoff: 82},
+		vu.K1:     {xoff: 98, yoff: 82},
+		vu.K2:     {xoff: 150, yoff: 82},
+		vu.K3:     {xoff: 202, yoff: 82},
+		vu.K4:     {xoff: 254, yoff: 82},
+		vu.K5:     {xoff: 306, yoff: 82},
+		vu.K6:     {xoff: 358, yoff: 82},
+		vu.K7:     {xoff: 410, yoff: 82},
+		vu.K8:     {xoff: 462, yoff: 82},
+		vu.K9:     {xoff: 514, yoff: 82},
+		vu.K0:     {xoff: 566, yoff: 82},
+		vu.KMinus: {xoff: 620, yoff: 82},
+		vu.KEqual: {xoff: 672, yoff: 82},
+		vu.KDel:   {xoff: 734, yoff: 82}, // back delete
+		// vu.KFn:    {xoff: 824, yoff: 82}, // ignore win: insert
+		vu.KHome: {xoff: 874, yoff: 82},
+		vu.KPgUp: {xoff: 928, yoff: 82},
+		vu.KPClr: {xoff: 1000, yoff: 82}, // num lock
+		vu.KPEql: {xoff: 1054, yoff: 82}, // divide
+		vu.KPDiv: {xoff: 1106, yoff: 82}, // multiply
+		vu.KPMlt: {xoff: 1158, yoff: 82}, // minus
+
+		// third row
+		vu.KTab:  {xoff: 58, yoff: 132},
+		vu.KQ:    {xoff: 124, yoff: 132},
+		vu.KW:    {xoff: 176, yoff: 132},
+		vu.KE:    {xoff: 229, yoff: 132},
+		vu.KR:    {xoff: 282, yoff: 132},
+		vu.KT:    {xoff: 335, yoff: 132},
+		vu.KY:    {xoff: 386, yoff: 132},
+		vu.KU:    {xoff: 438, yoff: 132},
+		vu.KI:    {xoff: 490, yoff: 132},
+		vu.KO:    {xoff: 542, yoff: 132},
+		vu.KP:    {xoff: 594, yoff: 132},
+		vu.KLBkt: {xoff: 646, yoff: 132},
+		vu.KRBkt: {xoff: 698, yoff: 132},
+		vu.KBSl:  {xoff: 750, yoff: 132},
+		vu.KFDel: {xoff: 824, yoff: 132},
+		vu.KEnd:  {xoff: 876, yoff: 132},
+		vu.KPgDn: {xoff: 928, yoff: 132},
+		vu.KP7:   {xoff: 1000, yoff: 132},
+		vu.KP8:   {xoff: 1054, yoff: 132},
+		vu.KP9:   {xoff: 1106, yoff: 132},
+		vu.KPSub: {xoff: 1158, yoff: 132},
+
+		// fourth row
+		vu.KA:     {xoff: 137, yoff: 184},
+		vu.KS:     {xoff: 190, yoff: 184},
+		vu.KD:     {xoff: 242, yoff: 184},
+		vu.KF:     {xoff: 294, yoff: 184},
+		vu.KG:     {xoff: 346, yoff: 184},
+		vu.KH:     {xoff: 398, yoff: 184},
+		vu.KJ:     {xoff: 450, yoff: 184},
+		vu.KK:     {xoff: 502, yoff: 184},
+		vu.KL:     {xoff: 554, yoff: 184},
+		vu.KSemi:  {xoff: 608, yoff: 184},
+		vu.KQuote: {xoff: 660, yoff: 184},
+		vu.KRet:   {xoff: 730, yoff: 184},
+		vu.KML:    {xoff: 824, yoff: 184}, // left mouse
+		vu.KMM:    {xoff: 876, yoff: 184}, // middle mouse
+		vu.KMR:    {xoff: 928, yoff: 184}, // right mouse
+		vu.KP4:    {xoff: 1000, yoff: 184},
+		vu.KP5:    {xoff: 1054, yoff: 184},
+		vu.KP6:    {xoff: 1106, yoff: 184},
+		vu.KPAdd:  {xoff: 1158, yoff: 184},
+
+		// fifth row
+		vu.KShift: {xoff: 75, yoff: 234},
+		vu.KZ:     {xoff: 164, yoff: 234},
+		vu.KX:     {xoff: 216, yoff: 234},
+		vu.KC:     {xoff: 268, yoff: 234},
+		vu.KV:     {xoff: 320, yoff: 234},
+		vu.KB:     {xoff: 372, yoff: 234},
+		vu.KN:     {xoff: 424, yoff: 234},
+		vu.KM:     {xoff: 476, yoff: 234},
+		vu.KComma: {xoff: 530, yoff: 234},
+		vu.KDot:   {xoff: 582, yoff: 234},
+		vu.KSlash: {xoff: 634, yoff: 234},
+		vu.KAUp:   {xoff: 876, yoff: 234},
+		vu.KP1:    {xoff: 1000, yoff: 234},
+		vu.KP2:    {xoff: 1054, yoff: 234},
+		vu.KP3:    {xoff: 1106, yoff: 234},
+
+		// sixth row
+		vu.KCtl:    {xoff: 58, yoff: 290},
+		vu.KAlt:    {xoff: 200, yoff: 290}, // macos: command key
+		vu.KCmd:    {xoff: 200, yoff: 290},
+		vu.KSpace:  {xoff: 400, yoff: 290},
+		vu.KALeft:  {xoff: 824, yoff: 290},
+		vu.KADown:  {xoff: 876, yoff: 290},
+		vu.KARight: {xoff: 928, yoff: 290},
+		vu.KP0:     {xoff: 1026, yoff: 290},
+		vu.KPDot:   {xoff: 1105, yoff: 290},
+		vu.KPEnt:   {xoff: 1158, yoff: 260},
 	}
 }
 
 // pos is used to locate each rune on the keyboard image.
 type pos struct {
-	col  int     // keyboard position.. 21 columns.
-	row  int     // keyboard position.. 6 rows + 1 mouse row.
-	xoff float64 // column offustment.
-	yoff float64 // row offustment.
+	xoff float64 // x offset in pixels from top left.
+	yoff float64 // y offset in pixels from top left.
 }
 
-// location gives a positions x, y location in screen pixels.
-func (p *pos) location() (x, y float64) {
-	xspan := 41.0
-	yspan := 38.0
-	x = 25.0 + (float64(p.col)+p.xoff)*xspan
-	y = 85.0 + (float64(p.row)+p.yoff)*yspan
-	if p.col > 13 {
-		x += 12 // first gap
-	}
-	if p.col > 16 {
-		x += 12 // second gap
-	}
-	return x, y
-}
+// keyboard image is 1200.0x340.0 and the pixel positions
+// of the keys are measured in pixels from the image.
+func (p *pos) location(ww, wh int) (sx, sy float64) { return p.xoff, p.yoff }

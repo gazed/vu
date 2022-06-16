@@ -1,5 +1,4 @@
-// Copyright © 2013-2018 Galvanized Logic Inc.
-// Use is governed by a BSD-style license found in the LICENSE file.
+// Copyright © 2024 Galvanized Logic Inc.
 
 package physics
 
@@ -10,65 +9,78 @@ import (
 	"github.com/gazed/vu/math/lin"
 )
 
-// Check that broadphase doesn't duplicate comparisons.
-// Each compare should cause an overlap.
-func TestBroadphaseUniqueCompare(t *testing.T) {
-	px, sp := newPhysics(), NewSphere(1)
-	bodies := []Body{newBody(sp), newBody(sp), newBody(sp), newBody(sp), newBody(sp)}
-	for _, bod := range bodies {
-		bod.SetProps(1, 0)
+// go test -run Hull
+func TestConvexHull(t *testing.T) {
+	b := NewBox(50, 10, 20, true)
+	if len(b.colliders) != 1 {
+		t.Fatal("expecting a single collider for a box")
 	}
-	px.broadphase(bodies, px.overlapped)
-	if len(px.overlapped) != 10 {
-		t.Errorf("Should be 10 unique comparisons for a list of 5. Got %d", len(px.overlapped))
+	c := &b.colliders[0]
+	if c.ctype != collider_TYPE_CONVEX_HULL {
+		t.Fatal("expecting convex hull collider")
 	}
 }
 
-// Basic test to check that a sphere will end up above a slab.
-// The test uses no restitution (bounciness).
-func TestSphereAt(t *testing.T) {
-	px := newPhysics()
-	slab := newBody(NewBox(100, 25, 100)).SetProps(0, 0)
-	slab.World().Loc.SetS(0, -25, 0)             // slab below ball at world y==0.
-	ball := newBody(NewSphere(1)).SetProps(1, 0) //
-	ball.World().Loc.SetS(-5, 15, -3)            // ball above slab.
-	bodies := []Body{slab, ball}
-	for cnt := 0; cnt < 100; cnt++ {
-		px.Step(bodies, 0.02)
-	}
-	ballAt, want := dumpV3(ball.World().Loc), dumpV3(&lin.V3{X: -5, Y: 1, Z: -3})
-	if ballAt != want {
-		t.Errorf("Ball should be at %s, but its at %s", want, ballAt)
-	}
-}
-
-// Check that basic collision works independent of general collision resolution.
-func TestCollide(t *testing.T) {
-	px := newPhysics()
-	s0 := newBody(NewSphere(1)).SetProps(1, 0)
-	s1 := newBody(NewSphere(1)).SetProps(1, 0)
-	s0.World().Loc.SetS(0, 0, 0)
-	s1.World().Loc.SetS(1, 1, 1)
-	if !px.Collide(s0, s1) {
-		t.Errorf("Expected collision did not happen")
-	}
-	s0.World().Loc.SetS(-1, -1, -1)
-	if px.Collide(s0, s1) {
-		t.Errorf("Unexpected collision")
+// check matrix conventions. The physics package uses row-major.
+// This means translate*rotate*scale
+func TestMatrixOrder(t *testing.T) {
+	scale := &lin.M4{
+		5.0, 0.0, 0.0, 0.0,
+		0.0, 5.0, 0.0, 0.0,
+		0.0, 0.0, 5.0, 0.0,
+		0.0, 0.0, 0.0, 1.0}
+	q := lin.NewQ().SetAa(0, 1, 0, lin.Rad(90)) // rotate 90 around Y
+	rotate := lin.NewM4().SetQ(q)
+	translate := &lin.M4{
+		1.0, 0.0, 0.0, 1.0,
+		0.0, 1.0, 0.0, 2.0,
+		0.0, 0.0, 1.0, 3.0,
+		0.0, 0.0, 0.0, 1.0}
+	model := lin.NewM4()
+	model.Mult(rotate, scale)
+	model.Mult(translate, model)
+	expect := &lin.M4{
+		+0.0, +0.0, +5.0, +1.0,
+		+0.0, +5.0, +0.0, +2.0,
+		-5.0, +0.0, +0.0, +3.0,
+		+0.0, +0.0, +0.0, +1.0}
+	if !model.Aeq(expect) {
+		t.Errorf("did not match expected\n%s\n", DumpM4(expect))
 	}
 }
 
-// Testing
-// ============================================================================
-// Utility functions for all package testcases.
-
-func dumpT(t *lin.T) string   { return dumpV3(t.Loc) + dumpQ(t.Rot) }
-func dumpQ(q *lin.Q) string   { return fmt.Sprintf("%2.1f", *q) }
-func dumpV3(v *lin.V3) string { return fmt.Sprintf("%2.1f", *v) }
-func dumpM3(m *lin.M3) string {
-	format := "[%+2.1f, %+2.1f, %+2.1f]\n"
-	str := fmt.Sprintf(format, m.Xx, m.Xy, m.Xz)
-	str += fmt.Sprintf(format, m.Yx, m.Yy, m.Yz)
-	str += fmt.Sprintf(format, m.Zx, m.Zy, m.Zz)
+func DumpM4(m *lin.M4) string {
+	format := "  [%+2.9f, %+2.9f, %+2.9f, %+2.9f]\n"
+	str := fmt.Sprintf(format, m.Xx, m.Xy, m.Xz, m.Xw)
+	str += fmt.Sprintf(format, m.Yx, m.Yy, m.Yz, m.Yw)
+	str += fmt.Sprintf(format, m.Zx, m.Zy, m.Zz, m.Zw)
+	str += fmt.Sprintf(format, m.Wx, m.Wy, m.Wz, m.Ww)
 	return str
+}
+
+// =============================================================================
+// Benchmarks.
+
+// go test -bench=.
+//
+// Check how all the lin.New* methods affects performance.
+// A couple of results captured are:
+//
+//	cpu: 13th Gen Intel(R) Core(TM) i7-13700K
+//	BenchmarkV3-24          1000000000               0.09693 ns/op
+//	BenchmarkV3-24          1000000000               0.08739 ns/op
+func BenchmarkV3(b *testing.B) {
+	for cnt := 0; cnt < b.N; cnt++ {
+		lin.NewV3().Add(
+			lin.NewV3().SetS(1, 1, 1),
+			lin.NewV3().Scale(
+				lin.NewV3().SetS(1, 1, 1).MultMv(
+					lin.NewM3I(),
+					lin.NewV3().Sub(
+						lin.NewV3().SetS(1, 1, 1),
+						lin.NewV3().Cross(
+							lin.NewV3().SetS(1, 1, 1),
+							lin.NewV3().MultMv(lin.NewM3I(), lin.NewV3().SetS(1, 1, 1))))),
+				4.0))
+	}
 }

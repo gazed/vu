@@ -1,91 +1,71 @@
-<!-- Copyright © 2013-2018 Galvanized Logic Inc.                       -->
-<!-- Use is governed by a BSD-style license found in the LICENSE file. -->
+<!-- Copyright © 2013-2024 Galvanized Logic Inc. -->
 
 # Vu
 
-Vu (Virtual Universe) is a 3D engine based on the modern programming language Go (Golang).
+Vu (Virtual Universe) is a 3D engine based on Go (Golang) programming language.
 Vu is composed of packages, detailed in [GoDoc](http://godoc.org/github.com/gazed/vu),
-and briefly summarized below.
-More getting started and background information is available
+and briefly summarized below. More getting started and background information is available
 on the [Wiki](https://github.com/gazed/vu/wiki)
+
+Vu is a small engine intended for simple games. It currently supports Vulkan on Windows.
+
+* `vu/physics` handles spheres and convex hulls.
+* `vu/render` uses Vulkan 1.3 without any extensions.
+* `vu/device` supports a basic window, button presses, mouse clicks, and mouse movement. 
+
+Vu started as a learning project for Go and 3D programming.
+It is currently being used by the author to develop games and other 3D applications.
 
 Sub packages
 --------
 
 * [audio](http://godoc.org/github.com/gazed/vu/audio) Positions and plays sounds in a 3D environment.
-* [audio/al](http://godoc.org/github.com/gazed/vu/audio/al) OpenAL bindings. Links the audio layer and the sound hardware.
 * [device](http://godoc.org/github.com/gazed/vu/device)  Links the application to native OS specific window and user events.
+* [eg](http://godoc.org/github.com/gazed/vu/eg) Examples that both demonstrate and test the vu engine.
 * [load](http://godoc.org/github.com/gazed/vu/load) Asset loaders including models, textures, audio, shaders, and bitmapped fonts.
-* [math/lin](http://godoc.org/github.com/gazed/vu/math/lin) Vector, matrix, quaternion, and transform linear math library.
+* [math/lin](http://godoc.org/github.com/gazed/vu/math/lin) Linear math library for vectors, matricies, and quaternions.
 * [physics](http://godoc.org/github.com/gazed/vu/physics) Repositions bodies based on simulated physics.
 * [render](http://godoc.org/github.com/gazed/vu/render) 3D drawing and graphics interface.
-* [render/gl](http://godoc.org/github.com/gazed/vu/render/gl) Generated OpenGL bindings. Links rendering system to graphics hardware.
-* [render/gl/gen](http://godoc.org/github.com/gazed/vu/render/gl/gen)  OpenGL binding generator.
 
-Less essential, but potentially more fun packages are:
+Build and Test
+------
 
-* [eg](http://godoc.org/github.com/gazed/vu/eg) Examples that both demonstrate and validate the vu engine.
-* [ai](http://godoc.org/github.com/gazed/vu/ai) Behaviour Tree for autonomous units.
-* [grid](http://godoc.org/github.com/gazed/vu/grid) Grid based random level generators. A-star and flow field pathfinding.
-* [synth](http://godoc.org/github.com/gazed/vu/synth) Procedural generation utilities.
-* [tools/sdf](http://godoc.org/github.com/gazed/vu/tools/sdf) Signed distance field converstion utility.
-
-Installation
------
-
-Ensure you have installed [Go](http://golang.org) 1.6+:
-
-```bash
-go get -u github.com/gazed/vu
-```
-
-Now you can build and run examples:
-
-```bash
-cd $GOPATH/src/github.com/gazed/vu/eg
-go build .
-./eg
-```
+* Clone the repo, ie: `git clone git@github.com:gazed/vu.git`
+* Use `go generate` in `vu/assets/shaders` to build the shaders. Requires `glslc` executable.
+* `go build` in `vu\eg` and run the examples.
 
 **Build Dependencies**
 
-* ``OS X``: Objective C and C compilers (clang) from Xcode command line tools.
-* ``Windows``: C compiler (gcc) from mingw64-bit.
+* Go version 1.21 or later.
+* Vulkan version 1.3 or later, and vulkan validation layer from the SDK at https://www.lunarg.com/vulkan-sdk/
+* OpenAL (https://openal.org) latest 64-bit version `soft_oal.dll` from https://openal-soft.org/openal-binaries/
+* `glslc` executable from https://github.com/google/shaderc is needed to build shaders in `vu/assets/shaders`.
 
-**Runtime Dependencies**
+Credit Where Credit is Due
+--------
 
-* OpenGL version 3.3 or later.
-* OpenAL 64-bit version 2.1.
+Vu is built on the generous sharing of code and information by many talented, kind,
+and lucid developers. Thank you in particular to:
 
-**Building on Windows**
+* [https://www.youtube.com/@TravisVroman](https://www.youtube.com/@TravisVroman)
+  Travis Vroman brilliantly explains how to use Vulkan in a game engine.
+  His video devlog and code base provides an overall context for Vulkan that is
+  difficult to get from the specification. Want a Vulkan C engine? Checkout 
+  [https://github.com/travisvroman/kohi](https://github.com/travisvroman/kohi) Apache License.
 
-* Vu has been built and tested on Windows using gcc from mingw64-bit.
-  Mingw64 was installed to c:/mingw64.
-  * Put OpenAL on the gcc library path by copying ``OpenAL32.dll`` to
-    ``c:/mingw64/x86_64-w64-mingw32/lib/OpenAL32.dll``
-* 64-bit OpenAL for Windows machines is available at http://openal.org/downloads.
-  Running the OpenAL installer results in a ``c:/Windows/System32/OpenAL32.dll``.
-* Building with Cygwin has not been attempted. It may have special needs.
+* [https://github.com/bbredesen/go-vk](https://github.com/bbredesen/go-vk) MIT License.
+  Go bindings for Vulkan that does not required c-go and a C compiler.
+  This is a huge amount of work due to the size and complexity of Vulkan.
+  The generated bindings were dragged directly into `vu/internal/render/vk`
 
-Games
------
+* [https://github.com/felipeek/raw-physics](https://github.com/felipeek/raw-physics) MIT License.
+  Raw-physics provides the ability to collide spheres and convex hulls in less than 5000 lines of code.
+  This was perfect for porting from C into Go `vu/physics` pretty much line for line.
 
-* [Bampf](https://github.com/gazed/bampf) Open source reference game.
-* [Jewel of Kings](http://jewelofkings.com) A game available for purchase from MacOS, iOS, and Windows stores.
+* [https://github.com/lxn/win](https://github.com/lxn/win)
+  Go bindings for the Windows API that do not require c-go and a C compiler.
+  The parts needed where put directly into `vu/internal/device/win` along with the original License.
 
-Limitations
------------
-
-The engine and its packages include the essentials by design. In particular:
-
-* Vu is programmer centric. For example, there is no 3D asset editor.
-  A working application is used as an editor replacement. Programmers create a
-  working application with stub 3D assets. Artists and modellers then polish
-  and finish the application by replacing the stub assets.
-* Physics only handles boxes and spheres.
-* The device layer interface provides only the absolute minimum from the underlying
-  windowing system. OSX, iOS, and Windows 7+ are currently supported.
-* Rendering supports standard OpenGL 3.3 and later. OpenGL extensions are not used.
-* The Windows platform is sometimes limited by the availability of OpenGL and OpenAL.
-  Generally OpenGL issues are fixed by downloading manufacturer's graphic card drivers.
-  However older laptops with Intel graphics don't always have OpenGL drivers.
+* [https://github.com/qmuntal/gltf](https://github.com/qmuntal/gltf) BSD 2-Clause License.
+  GLTF helps tremendously for importing 3D model data and thanks to qmuntal it was possible
+  to pull a few thousand lines of Go code into `vu/internal/load/gltf` and get a working importer.

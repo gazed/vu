@@ -1,438 +1,552 @@
-// Copyright © 2015-2018 Galvanized Logic Inc.
-// Use is governed by a BSD-style license found in the LICENSE file.
+// Copyright © 2015-2024 Galvanized Logic Inc.
 
 package vu
 
-// loader.go gets data from disk. Puts disk loads on worker goroutines.
-// FUTURE: handle releaseData requests. See eng.dispose design note.
-//
-// FUTURE lookat "gltf v2" godot importer.
-//      wikipedia claims there is a golang gltf importer.
-// https://github.com/godotengine/godot/blob/master/editor/import/editor_scene_importer_gltf.cpp
+// loader.go uses a goroutine to load asset data from disk.
+// The asset data is then stored in an asset object and kept
+// for reuse.
 
 import (
 	"fmt"
-	"log"
+	"image"
+	"image/color"
+	"log/slog"
+	"path"
+	"strings"
 	"time"
 
+	"github.com/gazed/vu/audio"
 	"github.com/gazed/vu/load"
 	"github.com/gazed/vu/render"
 )
 
-// loader interfaces between the engine models and the load package.
-// loader imports and prepares model and sound data for use.
-// loader is used by the engine to cache and reuse imported asset
-// data amongst multiple model and noise instances.
-type loader struct {
-	loc   load.Locator // Locates the asset data on disk.
-	cache cache        // asset cache.
+// assetLoader imports application assets data from disk.
+// loader wraps the load package for the engine.
+type assetLoader struct {
 
-	// pending tracks outstanding asset requests. Asset requests are
-	// loaded from disk by workers on a goroutine. Syncronization happens
-	// by passing ownership of asset data.
-	pending   map[aid][]func(asset)
-	needAsset chan *diskAsset // assets to be imported from disk.
-	haveAsset chan *diskAsset // assets finished importing.
+	// loaded tracks asset files.
+	loaded map[string]bool // true: completed, false: still loading
+
+	// requests tracks outstanding entities requests for assets.
+	requests map[aid][]assetRequest
+
+	// labelRequests match a font aid with an label Entity.
+	// The label Entity needs a mesh generated that matches its string.
+	labelRequests map[aid][]*Entity
+
+	// loaded assets are remembered so future requests
+	// can immediately return the same assets.
+	assets map[aid]asset // loaded assets indexed by aid.
+
+	// load asset files using a goroutine.
+	loadAssetReq chan string           // request load asset file eg: "bloop.wav"
+	loadedAssets chan []load.AssetData // file assets finished importing.
 }
 
 // newLoader is called once on startup by the engine.
-func newLoader() *loader {
-	l := &loader{}
-	l.loc = load.NewLocator()
-	l.cache = newCache()
-	l.pending = map[aid][]func(asset){}
+func newLoader() *assetLoader {
+	l := &assetLoader{}
+	l.loaded = map[string]bool{}
+	l.requests = map[aid][]assetRequest{}
+	l.labelRequests = map[aid][]*Entity{}
+	l.assets = map[aid]asset{}
 
-	// allocate enough that ideally avoids blocking and waiting
-	// for asset import workers in reasonable scenarios.
-	// FUTURE: profile this.
+	// allocate enough workers to avoid having to wait for a worker.
 	numWorkers := 5
-	l.needAsset = make(chan *diskAsset, 100)
-	l.haveAsset = make(chan *diskAsset, 100)
+	l.loadAssetReq = make(chan string, 100)
+	l.loadedAssets = make(chan []load.AssetData, 100)
 	for wid := 1; wid <= numWorkers; wid++ {
-		go importer(wid, l.needAsset, l.haveAsset)
+		go importWorker(wid, l.loadAssetReq, l.loadedAssets)
 	}
 	return l
 }
 
-// fetch is called by application created entities that need assets.
-// The requested asset is returned using the loaded callback. Cached assets
-// are returned immediately while uncached assets are returned after they
-// have been imported.
-func (l *loader) fetch(a asset, loaded func(asset)) {
-	kind := a.aid().kind()
-	switch kind {
-	case msh, tex, shd, fnt, mat, snd:
-		l.fetchOrImport(a, loaded)
-	case anm:
-		// animations are special in that they need animation data and
-		// mesh data where both are imported from the same file.
-		m := newMesh(a.label())
-		if err := l.cache.fetch(&a); err == nil {
-			al := a.(*animation) // got the animation.
-			data := asset(m)     // now get the mesh.
-			if err := l.cache.fetch(&data); err == nil {
-				ml := data.(*Mesh) // got the mesh.
-				loaded(al)
-				loaded(ml)
-				break
-			}
-		}
-		// make animation first asset to make it easier to parse
-		// when request is finished.
-		l.importAsset(loaded, a, m)
-	default:
-		log.Printf("loader: unknown request %T", a)
-	}
-}
-
-// fetchOrImport returns cached assets immediately.
-// Otherwise sends the assets off for import.
-func (l *loader) fetchOrImport(a asset, loaded func(asset)) {
-	if err := l.cache.fetch(&a); err == nil {
-		loaded(a) // retrieved from cache.
+// getAsset returns the requested asset on the given callback.
+// The asset is returned immediately if it is already loaded, or
+// it is returned once it loads.
+func (l *assetLoader) getAsset(aid aid, eid eID, callback assetReady) {
+	if a, ok := l.assets[aid]; ok {
+		callback(eid, a) // asset was already loaded.
 		return
 	}
-	l.importAsset(loaded, a) // need to import from disk.
-}
 
-// importAsset places an asset import request on the work queue.
-// Imports that load more than a single asset from the same disk resource
-// will trigger off of the first asset when finished.
-func (l *loader) importAsset(callback func(asset), assets ...asset) {
-	if len(assets) > 0 {
-		a := assets[0]
-		if callbacks, ok := l.pending[a.aid()]; !ok {
-			l.needAsset <- &diskAsset{assets: assets, loc: l.loc}
-			l.pending[a.aid()] = append([]func(asset){}, callback)
-		} else {
-			l.pending[a.aid()] = append(callbacks, callback)
-		}
+	// register the asset request.
+	if reqs, ok := l.requests[aid]; ok {
+		l.requests[aid] = append(reqs, assetRequest{eid: eid, callback: callback})
+	} else {
+		l.requests[aid] = []assetRequest{{eid: eid, callback: callback}}
 	}
 }
 
-// processImports is run on the main thread each update tick to retreive
-// the results of any asset import workers. It fetches finished imports
-// within a time window so as to not stall the main loop. This results
-// in models becoming visible over time instead of a blank screen.
-//
-// Asset binding is done on the main thread due to the single
-// threaded render context.
-func (l *loader) processImports() {
-	var timeUsed time.Duration
-	start := time.Now()
-	timeLimit := 0.01 // 10 milliseconds, about half an update cycle.
-	for timeUsed.Seconds() < timeLimit {
-		select {
-		case done := <-l.haveAsset:
-			a := done.assets[0]
-			if done.err != nil {
-				log.Printf("Failed to load asset %s: %s", a.label(), done.err)
-				break // dev error - dev to debug why asset is missing.
-			}
-
-			// handle assets that need binding (copy data to GPU).
-			switch a.(type) {
-			case *Mesh, *shader, *Texture, *sound, *material, *font:
-				l.cache.store(a) // cache asset.
-			case *animation:
-				if len(done.assets) == 2 {
-					a2 := done.assets[1] // animation mesh always second.
-					l.cache.store(a2)    // cache mesh data.
-					l.cache.store(a)     // cache animation data.
-				}
-			}
-			for _, callback := range l.pending[a.aid()] {
-				for _, a := range done.assets {
-					callback(a)
-				}
-			}
-			delete(l.pending, a.aid())
-		default:
-			// Called each update so return immediately if there are no assets.
-			return
-		}
-		timeUsed = time.Since(start)
+// getLabelMesh remembers the request for a label mesh and handles
+// it within loadAssets
+func (l *assetLoader) getLabelMesh(aid aid, me *Entity) {
+	if reqs, ok := l.labelRequests[aid]; ok {
+		l.labelRequests[aid] = append(reqs, me)
+	} else {
+		l.labelRequests[aid] = []*Entity{me}
 	}
 }
 
-// release is called when the cached data is no
-// longer needed and can be discarded entirely.
-func (l *loader) release(data interface{}) {
-	switch d := data.(type) {
-	case *Mesh:
-		l.cache.remove(d)
-	case *font:
-		l.cache.remove(d)
-	case *shader:
-		l.cache.remove(d)
-	case *material:
-		l.cache.remove(d)
-	case *Texture:
-		l.cache.remove(d)
-	case *animation:
-		l.cache.remove(d)
-	case *sound:
-		l.cache.remove(d)
-	default:
-		log.Printf("loader.dispose unknown %T", d)
+// assetReady is the callback function needed to notify
+// when requested asset is available.
+type assetReady func(eid eID, a asset)
+
+// requests tracks entities requests for assets.
+type assetRequest struct {
+	eid      eID        // entity requesting asset load.
+	callback assetReady // callback on asset load complete.
+}
+
+// importAssetData gets the requested asset data for the given entity.
+// The caller is responsible for adhering to the asset file name conventions.
+func (l *assetLoader) importAssetData(assetFilenames ...string) {
+	for _, filename := range assetFilenames {
+		if _, ok := l.loaded[filename]; ok {
+			continue // file is being loaded or has been loaded.
+		}
+
+		// first load request for this file.
+		l.loaded[filename] = false // mark as loading
+		l.loadAssetReq <- filename // put request on loader goroutine channel.
 	}
 }
 
 // dispose is called when the engine is shutting down.
-func (l *loader) dispose() {
-	close(l.needAsset) // Close worker queue since no more sends.
-	// however don't close the receiving channel in case there
+func (l *assetLoader) dispose() {
+	// Close the worker queue since there are no more sends,
+	// however keep the receiving channel open in case there
 	// are workers trying to write to it.
-
-	// FUTURE: engine is shutting down. Could try to release every asset
-	//         in the cache, but this doesn't matter as long as there is
-	//         no call to dispose when the device display is closed.
-	//         Why release only sometimes?
-	//         Also dispose is called on the update goroutine.
-	//         Need engine to release the cache on the main thread.
+	close(l.loadAssetReq) // shuts down idle workers.
 }
 
-// loader
+// loadAssets checks for asset data from the goroutines and turns
+// any data into loaded assets. As it is expected to run on the main thread
+// each update tick, it will limit the amount of time spent processing assets
+// so as to not stall the main loop.
+func (l *assetLoader) loadAssets(rc render.Loader, ac audio.Loader) (assetsCreated int) {
+	var timeUsed time.Duration
+	start := time.Now()
+
+	// track how much time is spent uploading assets
+	// and return after a reasonable amount has elapsed.
+	// FUTURE: possibly consume up to the amount of unused update time.
+	timeLimit := 0.005 // max 5 milliseconds per update is reasonable.
+	var err error
+	assetsCreated = 0
+	for timeUsed.Seconds() < timeLimit {
+		select {
+		case loaded := <-l.loadedAssets:
+
+			// loaded should always contain one or more assets from a single file.
+			if len(loaded) <= 0 {
+				slog.Warn("investigate: no assets returned from worker")
+				break
+			}
+
+			// filename helps uniquely identify the assets.
+			filename := loaded[0].Filename
+			ext := strings.ToLower(path.Ext(filename))
+			name := strings.Replace(filename, ext, "", 1)
+			assets := []asset{}
+			for _, assetData := range loaded {
+				if assetData.Err != nil {
+					slog.Error("failed asset load", "filename", assetData.Filename, "error", assetData.Err)
+					break // developer needs to debug why asset is missing.
+				}
+				switch data := assetData.Data.(type) {
+				case load.MeshData:
+					assetsCreated += 1
+					msh := newMesh(name)
+					msh.mid, err = rc.LoadMesh(data)
+					if err != nil {
+						slog.Error("LoadMesh failed", "error", err)
+						break
+					}
+					assets = append(assets, msh)
+					slog.Debug("new asset", "asset", "msh:"+msh.label(), "id", msh.mid, "filename", filename)
+				case load.PBRMaterialData:
+					assetsCreated += 1
+					mat := newMaterial(name)
+					mat.color = rgba{
+						float32(data.ColorR),
+						float32(data.ColorG),
+						float32(data.ColorB),
+						float32(data.ColorA),
+					}
+					mat.metallic = float32(data.Metallic)
+					mat.roughness = float32(data.Roughness)
+					assets = append(assets, mat)
+					slog.Debug("new asset", "asset", "mat:"+mat.label(), "filename", filename)
+				case *load.ImageData:
+					assetsCreated += 1
+					t := newTexture(name)
+					t.opaque = data.Opaque
+					t.tid, err = rc.LoadTexture(data)
+					if err != nil {
+						slog.Error("LoadTexture failed", "error", err)
+						break
+					}
+					assets = append(assets, t)
+					slog.Debug("new asset", "asset", "tex:"+t.label(), "id", t.tid, "opaque", t.opaque, "filename", filename)
+				case *load.FontData:
+					assetsCreated += 1
+					f := newFont(name)
+					f.setSize(data.W, data.H)
+					for _, ch := range data.Chars {
+						f.addChar(ch.Char, ch.X, ch.Y, ch.W, ch.H, ch.Xo, ch.Yo, ch.Xa)
+					}
+					assets = append(assets, f)
+					slog.Debug("new asset", "asset", "fnt:"+f.label(), "filename", filename, "chars", len(f.chars))
+				case *load.AudioData:
+					assetsCreated += 1
+					s := newSound(name)
+					err = ac.LoadSound(&s.sid, &s.did, s.data) // upload audio data to audio device
+					if err != nil {
+						slog.Error("LoadSound failed", "error", err)
+						break
+					}
+					assets = append(assets, s)
+					slog.Debug("new asset", "asset", "snd:"+s.label(), "filename", filename)
+				case *load.Shader:
+					assetsCreated += 1
+					s := newShader(name)
+					s.setConfig(data)
+					s.sid, err = rc.LoadShader(s.config)
+					if err != nil {
+						slog.Error("LoadShader failed", "error", err)
+						break
+					}
+					assets = append(assets, s)
+					slog.Debug("new asset", "asset", "shd:"+s.label(), "id", s.sid, "filename", filename)
+				case load.ShaderData:
+					// ignore since shader bytes are loaded directly from the render package.
+					slog.Warn("load.ShaderBytes called") // unexpected. Testing?
+
+				// case TODO animation asset from glb
+
+				default:
+					dtype := fmt.Sprintf("%T", data)
+					slog.Error("unknown asset data", "datatype", dtype)
+					break // developer needs sync code with the load package.
+				}
+			}
+			l.loaded[filename] = true // mark file as as loaded
+
+			// track loaded assets and notify requested asset listeners.
+			for _, a := range assets {
+				l.assets[a.aid()] = a // track loaded assets.
+
+				// notify any outstanding requests for this asset.
+				if reqs, ok := l.requests[a.aid()]; ok {
+					for _, req := range reqs {
+						req.callback(req.eid, a)
+					}
+				}
+				delete(l.requests, a.aid())
+			}
+
+		default:
+			l.loadLabels(rc)     // check outstanding label requests
+			return assetsCreated // return if there are no loaded assets.
+		}
+		l.loadLabels(rc) // check outstanding label requests
+		timeUsed = time.Since(start)
+	}
+	return assetsCreated
+}
+
+// loadLabels checks for outstanding label asset requests and
+// creates the label mesh if all the assets are available.
+func (l *assetLoader) loadLabels(rc render.Loader) {
+	for aid, entities := range l.labelRequests {
+
+		// get the matching font asset.
+		if a, ok := l.assets[aid]; ok {
+			for _, me := range entities {
+				fnt, ok := a.(*font)
+				if !ok {
+					slog.Error("loadAssets expected font asset", "asset", a.label())
+					break
+				}
+				str, wrap := me.labelData()
+				sx, sy, md := fnt.setStr(str, wrap)
+
+				// upload the mesh data
+				mid, err := rc.LoadMesh(md)
+				if err != nil {
+					slog.Error("generateLabelMesh:LoadMesh failed", "error", err)
+					break
+				}
+
+				// set the mesh asset on the label
+				msh := newMesh(fmt.Sprintf("label%04d", mid))
+				msh.mid = mid
+				slog.Debug("new label mesh", "asset", "msh:"+msh.label(), "id", msh.mid)
+				me.setLabelMesh(msh, sx, sy)
+			}
+			delete(l.labelRequests, aid)
+		}
+	}
+}
+
 // =============================================================================
-// diskAsset import worker.
+// importWorker processes asset import requests on a goroutine.
 
-// diskAsset is an asset that needs to be loaded into memory from persistent
-// store by an importer. Currently only animations need more than one asset
-// loaded from the same file.
-type diskAsset struct {
-	assets []asset      // asset instances to be loaded.
-	err    error        // used to report asset import errors.
-	loc    load.Locator // helper to find assets on disk.
-}
-
-// importer imports assets from persistent store. Currently persistent
+// importWorker imports assets from persistent store. Currently persistent
 // storage are just files on disk. This runs as a goroutine taking requests
 // for assets from the needAsset channel and returning the loaded asset
 // on the fetched channel.
-func importer(id int, needAsset <-chan *diskAsset, fetched chan<- *diskAsset) {
-	for da := range needAsset {
-		importAsset(id, da)
-		fetched <- da
+func importWorker(wid int, loadAssetRequest <-chan string, loadedAssets chan<- []load.AssetData) {
+	for filename := range loadAssetRequest {
+		assetData := load.LoadAssetFile(filename)
+		loadedAssets <- assetData
 	}
 }
 
-// importAsset is separate from importer for unit testing.
-// The import* methods fill in the data referenced by the diskAsset assets.
-func importAsset(id int, da *diskAsset) {
-	switch a := da.assets[0].(type) {
-	case *Mesh:
-		da.err = importMesh(da.loc, a)
-	case *shader:
-		da.err = importShader(da.loc, a)
-	case *Texture:
-		da.err = importTexture(da.loc, a)
-	case *sound:
-		da.err = importSound(da.loc, a)
-	case *material:
-		da.err = importMaterial(da.loc, a)
-	case *font:
-		da.err = importFont(da.loc, a)
-	case *animation:
-		m, ok := da.assets[1].(*Mesh) // mesh is second by convention.
-		if !ok {
-			da.err = fmt.Errorf("Need mesh to load animation")
-			break
-		}
-		da.err = importAnim(da.loc, a, m)
-	default:
-		da.err = fmt.Errorf("No import for %T", a)
-	}
-}
+// =============================================================================
+// default assets
 
-// importSound transfers audio data loaded from disk to the sound object.
-func importSound(loc load.Locator, s *sound) error {
-	snd := &load.SndData{}
-	if err := snd.Load(s.name, loc); err != nil {
-		return fmt.Errorf("importSound %s: %s", s.label(), err)
-	}
-	transferSound(snd, s)
-	return nil
-}
+// loadDefaultAssets creates and pre-loads some basic and fallback assets.
+func (l *assetLoader) loadDefaultAssets(rc render.Loader) (err error) {
+	generateDefaultMeshes()
 
-// importShader transfers data loaded from disk to the render object.
-// Disk based files override predefined engine shaders.
-func importShader(loc load.Locator, s *shader) error {
-	shd := &load.ShdData{}
-	if err := shd.Load(s.name, loc); err == nil {
-		s.setSource(shd.Vsh, shd.Fsh) // first look for .vsh, .fsh on disk.
-		return nil
-	}
-
-	// next look for a pre-defined engine shader.
-	if sfn, ok := shaderLibrary[s.name]; ok {
-		vsrc, fsrc := sfn()
-		s.setSource(vsrc, fsrc)
-		return nil
-	}
-	return fmt.Errorf("importShader could not find %s", s.name)
-}
-
-// importMesh transfers data loaded from disk to the render object.
-func importMesh(loc load.Locator, m *Mesh) error {
-	msh := &load.MshData{}
-	if err := msh.Load(m.name, loc); err != nil {
-		return fmt.Errorf("importMesh %s: %s", m.name, err)
-	}
-	transferMesh(msh, m)
-	return nil
-}
-
-// importTexture transfers data loaded from disk to the render object.
-func importTexture(loc load.Locator, t *Texture) error {
-	img := &load.ImgData{}
-	err := img.Load(t.name, loc)
+	// create default meshes
+	m := newMesh("icon")
+	m.mid, err = rc.LoadMesh(iconMeshData)
 	if err != nil {
-		return fmt.Errorf("importTexture %s: %s", t.name, err)
+		return fmt.Errorf("LoadMesh icon: %w", err)
 	}
-	t.Set(img.Img)
+	l.assets[m.aid()] = m
+	slog.Debug("new asset", "asset", "msh:"+m.label(), "id", m.mid)
+
+	m = newMesh("quad")
+	m.mid, err = rc.LoadMesh(quadMeshData)
+	if err != nil {
+		return fmt.Errorf("LoadMesh quad: %w", err)
+	}
+	l.assets[m.aid()] = m
+	slog.Debug("new asset", "asset", "msh:"+m.label(), "id", m.mid)
+
+	m = newMesh("cube")
+	m.mid, err = rc.LoadMesh(cubeMeshData)
+	if err != nil {
+		return fmt.Errorf("LoadMesh cube: %w", err)
+	}
+	l.assets[m.aid()] = m
+	slog.Debug("new asset", "asset", "msh:"+m.label(), "id", m.mid)
+
+	// create a basic texture to use for testing.
+	t := newTexture("test")
+	size, pixels := generateDefaultTexture()
+	img := &load.ImageData{Width: size, Height: size, Pixels: pixels}
+	t.tid, err = rc.LoadTexture(img)
+	if err != nil {
+		return fmt.Errorf("LoadTexture test: %w", err)
+	}
+	l.assets[t.aid()] = t
+	slog.Debug("new asset", "asset", "tex:"+t.label(), "id", t.tid)
+
+	// create a basic shader as the first shader.
+	s := newShader("tex3D")
+	s.config, err = load.ShaderConfig("tex3D.shd")
+	if err != nil {
+		return fmt.Errorf("load.ShaderConfig tex3D.shd: %w", err)
+	}
+	s.sid, err = rc.LoadShader(s.config)
+	if err != nil {
+		return fmt.Errorf("LoadShader tex3D: %w", err)
+	}
+	l.assets[s.aid()] = s
+	slog.Debug("new asset", "asset", "shd:"+s.label(), "id", s.sid)
 	return nil
 }
 
-// importMaterial transfers data loaded from disk to the render object.
-func importMaterial(loc load.Locator, m *material) error {
-	mtl := &load.MtlData{}
-	if err := mtl.Load(m.label(), loc); err == nil {
-		transferMaterial(mtl, m)
-		return nil
-	}
-	return fmt.Errorf("importMaterial: %s", m.name)
+func generateDefaultMeshes() {
+	// 1x1 vertical 2D plane with tex-coordinates.
+	iconMeshData[load.Vertexes] = load.F32Buffer(iconVerts, 2)
+	iconMeshData[load.Texcoords] = load.F32Buffer(iconTexuv, 2)
+	iconMeshData[load.Indexes] = load.U16Buffer(iconIndex)
+
+	// 2x2 plane with normals and tex-coordinates.
+	// Based on Blender default plane.
+	quadMeshData[load.Vertexes] = load.F32Buffer(quadVerts, 3)
+	quadMeshData[load.Texcoords] = load.F32Buffer(quadTexuv, 2)
+	quadMeshData[load.Normals] = load.F32Buffer(quadNorms, 3)
+	quadMeshData[load.Indexes] = load.U16Buffer(quadIndex)
+
+	// 1x1x1 cube with normals and tex-coordinates for all 6 sides.
+	// based on Blender default cube.
+	cubeMeshData[load.Vertexes] = load.F32Buffer(cubeVerts, 3)
+	cubeMeshData[load.Texcoords] = load.F32Buffer(cubeTexuv, 2)
+	cubeMeshData[load.Normals] = load.F32Buffer(cubeNorms, 3)
+	cubeMeshData[load.Indexes] = load.U16Buffer(cubeIndex)
 }
 
-// importFont transfers data loaded from disk to the render object.
-func importFont(loc load.Locator, f *font) error {
-	fnt := &load.FntData{}
-	if err := fnt.Load(f.label(), loc); err != nil {
-		return fmt.Errorf("importFont %s: %s", f.label(), err)
-	}
-	transferFont(fnt, f)
-	return nil
+// 1x1 vertical 2D plane with tex-coordinates.
+// Based on Blender default plane y-up.
+var iconMeshData = make(load.MeshData, load.VertexTypes)
+var iconVerts = []float32{
+	-0.5, +0.5,
+	+0.5, +0.5,
+	-0.5, -0.5,
+	+0.5, -0.5,
+}
+var iconTexuv = []float32{
+	0.0, 1.0,
+	1.0, 1.0,
+	0.0, 0.0,
+	1.0, 0.0,
+}
+var iconIndex = []uint16{
+	0, 1, 3,
+	0, 3, 2,
 }
 
-// importAnim loads the animation and mesh from a single asset resource.
-func importAnim(loc load.Locator, a *animation, m *Mesh) (err error) {
-	mod := &load.ModData{}
-	if err = mod.Load(a.name, loc); err != nil {
-		return err
-	}
-	transferAnim(mod, m, a)
-	return nil
+// 1x1 front facing plane for 3D labels and billboards.
+var quadMeshData = make(load.MeshData, load.VertexTypes)
+var quadVerts = []float32{
+	-0.5, +0.5, 0.0, // top left
+	-0.5, -0.5, 0.0, // bottom left
+	+0.5, +0.5, 0.0, // top right
+	+0.5, -0.5, 0.0, // bottom right
+}
+var quadNorms = []float32{
+	0.0, 0.0, 1.0,
+	0.0, 0.0, 1.0,
+	0.0, 0.0, 1.0,
+	0.0, 0.0, 1.0,
+}
+var quadTexuv = []float32{
+	0.0, 1.0,
+	0.0, 0.0,
+	1.0, 1.0,
+	1.0, 0.0,
+}
+var quadIndex = []uint16{
+	2, 1, 3,
+	2, 0, 1,
 }
 
-// diskAsset import worker.
-// =============================================================================
-// utility methods to move loaded data into formats needed by
-// the render system.
-
-// transferMesh moves data from the loading system to the engine instance.
-func transferMesh(data *load.MshData, m *Mesh) {
-	m.InitData(0, 3, render.StaticDraw, false).SetData(0, data.V)
-	m.InitFaces(render.StaticDraw).SetFaces(data.F)
-	if len(data.N) > 0 {
-		m.InitData(1, 3, render.StaticDraw, false).SetData(1, data.N)
-	}
-	if len(data.T) > 0 {
-		m.InitData(2, 2, render.StaticDraw, false).SetData(2, data.T)
-	}
+// 1x1x1 cube with normals and tex-coordinates for all 6 sides.
+// based on Blender default cube.
+var cubeMeshData = make(load.MeshData, load.VertexTypes)
+var cubeVerts = []float32{
+	+0.5, -0.5, +0.5,
+	+0.5, -0.5, +0.5,
+	+0.5, -0.5, +0.5,
+	+0.5, +0.5, +0.5,
+	+0.5, +0.5, +0.5,
+	+0.5, +0.5, +0.5,
+	-0.5, +0.5, +0.5,
+	-0.5, +0.5, +0.5,
+	-0.5, +0.5, +0.5,
+	-0.5, -0.5, +0.5,
+	-0.5, -0.5, +0.5,
+	-0.5, -0.5, +0.5,
+	+0.5, -0.5, -0.5,
+	+0.5, -0.5, -0.5,
+	+0.5, -0.5, -0.5,
+	+0.5, +0.5, -0.5,
+	+0.5, +0.5, -0.5,
+	+0.5, +0.5, -0.5,
+	-0.5, +0.5, -0.5,
+	-0.5, +0.5, -0.5,
+	-0.5, +0.5, -0.5,
+	-0.5, -0.5, -0.5,
+	-0.5, -0.5, -0.5,
+	-0.5, -0.5, -0.5,
+}
+var cubeNorms = []float32{
+	+0.0, -1.0, -0.0,
+	+0.0, +0.0, +1.0,
+	+1.0, +0.0, -0.0,
+	+0.0, +0.0, +1.0,
+	+0.0, +1.0, -0.0,
+	+1.0, +0.0, -0.0,
+	-1.0, +0.0, -0.0,
+	+0.0, +0.0, +1.0,
+	+0.0, +1.0, -0.0,
+	-1.0, +0.0, -0.0,
+	+0.0, -1.0, -0.0,
+	+0.0, +0.0, +1.0,
+	+0.0, -1.0, -0.0,
+	+0.0, +0.0, -1.0,
+	+1.0, +0.0, -0.0,
+	+0.0, +0.0, -1.0,
+	+0.0, +1.0, -0.0,
+	+1.0, +0.0, -0.0,
+	-1.0, +0.0, -0.0,
+	+0.0, +0.0, -1.0,
+	+0.0, +1.0, -0.0,
+	-1.0, +0.0, -0.0,
+	+0.0, -1.0, -0.0,
+	+0.0, +0.0, -1.0,
+}
+var cubeTexuv = []float32{
+	+0.625, +0.50,
+	+0.625, +0.50,
+	+0.625, +0.50,
+	+0.375, +0.50,
+	+0.375, +0.50,
+	+0.375, +0.50,
+	+0.625, +0.25,
+	+0.625, +0.25,
+	+0.625, +0.25,
+	+0.375, +0.25,
+	+0.375, +0.25,
+	+0.375, +0.25,
+	+0.625, +0.75,
+	+0.625, +0.75,
+	+0.875, +0.50,
+	+0.375, +0.75,
+	+0.125, +0.50,
+	+0.375, +0.75,
+	+0.625, +1.0,
+	+0.625, +0.0,
+	+0.875, +0.25,
+	+0.375, +1.0,
+	+0.125, +0.25,
+	+0.375, +0.0,
+}
+var cubeIndex = []uint16{
+	1, 3, 7, 1, 7, 11,
+	13, 23, 19, 13, 19, 15,
+	2, 14, 17, 2, 17, 5,
+	4, 16, 20, 4, 20, 8,
+	6, 18, 21, 6, 21, 9,
+	12, 0, 10, 12, 10, 22,
 }
 
-// transferMaterial moves data from the loading system to the engine instance.
-func transferMaterial(data *load.MtlData, m *material) {
-	m.kd.R, m.kd.G, m.kd.B = data.KdR, data.KdG, data.KdB
-	m.ks.R, m.ks.G, m.ks.B = data.KsR, data.KsG, data.KsB
-	m.ka.R, m.ka.G, m.ka.B = data.KaR, data.KaG, data.KaB
-	m.tr = data.Alpha
-	m.ns = data.Ns
-}
+// generateDefaultTexture creates a texture pattern that can be
+// used as placeholders for other textures.
+// Dump for testing using:
+//   - f, _ := os.Create("image.png")
+//   - png.Encode(f, img)
+func generateDefaultTexture() (squareSize uint32, pixels []byte) {
+	size := 256 // with and height in pixels
 
-// transferSound moves data from the loading system to the engine instance.
-func transferSound(data *load.SndData, s *sound) {
-	a := data.Attrs
-	s.data.Set(a.Channels, a.SampleBits, a.Frequency, a.DataSize, data.Data)
-}
+	// non-alpha-premultiplied 32-bit color
+	img := image.NewNRGBA(image.Rectangle{
+		image.Point{0, 0},
+		image.Point{size, size},
+	})
 
-// transferFont moves data from the loading system to the engine instance.
-func transferFont(data *load.FntData, f *font) {
-	f.setSize(data.W, data.H)
-	for _, ch := range data.Chars {
-		f.addChar(ch.Char, ch.X, ch.Y, ch.W, ch.H, ch.Xo, ch.Yo, ch.Xa)
-	}
-}
+	// rgba uint8
+	gray := color.NRGBA{100, 100, 100, 0xff}
 
-// transferAnim moves data from the loading system to the engine instance.
-// Animation data is a combination of mesh data and animation data.
-func transferAnim(data *load.ModData, m *Mesh, a *animation) {
-	transferMesh(&data.MshData, m)
-	if len(data.Blends) > 0 {
-		m.InitData(4, 4, render.StaticDraw, false).SetData(4, data.Blends)
-	}
-	if len(data.Weights) > 0 {
-		m.InitData(5, 4, render.StaticDraw, true).SetData(5, data.Weights)
-	}
-
-	// Store the animation data.
-	if len(data.Frames) > 0 {
-		moves := []movement{}
-		for _, ia := range data.Movements {
-			movement := movement{
-				name: ia.Name,
-				f0:   int(ia.F0),
-				fn:   int(ia.Fn),
-				rate: float64(ia.Rate)}
-			moves = append(moves, movement)
+	// create a checkerboard pattern
+	quad := size / 32 // 8x8 blocks
+	for x := 0; x < size; x++ {
+		val := (x / quad) % 2
+		for y := 0; y < size; y++ {
+			val2 := (y / quad) % 2
+			if (val+val2)%2 == 0 {
+				img.Set(x, y, gray)
+			} else {
+				img.Set(x, y, color.White)
+			}
 		}
-		a.setData(data.Frames, data.Joints, moves)
 	}
-}
-
-// utility transfer methods.
-// =============================================================================
-// cache
-
-// cache reuses loaded assets.
-type cache map[aid]interface{}
-
-// newCache creates a new in-memory cache for loaded items. Expected to be
-// called once during application initialization (since a cache works best
-// when there is only one instance of it :)
-func newCache() cache {
-	return make(map[aid]interface{})
-}
-
-// fetch retrieves a previously cached data resource using the given name.
-// Fetch expects the resource data to be a pointer to one of the resource
-// data types. If found the resource data is copied into the supplied data
-// pointer. Otherwise the pointer is unchanged and an error is returned.
-func (c cache) fetch(data *asset) (err error) {
-	if stored := c[(*data).aid()]; stored != nil {
-		*data, _ = stored.(asset)
-		return nil
-	}
-	return fmt.Errorf("cache.fetch: could not fetch asset")
-}
-
-// store an asset based on its type and name. Subsequent calls to cache the
-// same asset/name combination are ignored. Cache expects data to be one of
-// the valid resource data types and to be uniquely named within its data type.
-func (c cache) store(data asset) {
-	if data == nil {
-		log.Printf("cache.store: invalid cache data %s", data.label())
-		return
-	}
-	if _, ok := c[data.aid()]; !ok {
-		c[data.aid()] = data
-	} else {
-		log.Printf("cache.store: data %s already exists", data.label())
-	}
-}
-
-// remove an asset based on its type and name.
-func (c cache) remove(data asset) {
-	if data != nil {
-		delete(c, data.aid())
-	}
+	return uint32(size), []byte(img.Pix)
 }

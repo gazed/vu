@@ -1,5 +1,4 @@
-// Copyright © 2013-2018 Galvanized Logic Inc.
-// Use is governed by a BSD-style license found in the LICENSE file.
+// Copyright © 2013-2024 Galvanized Logic Inc.
 
 package vu
 
@@ -7,41 +6,29 @@ package vu
 //        relationships.
 
 import (
-	"log"
+	"log/slog"
+	"time"
 
 	"github.com/gazed/vu/math/lin"
 )
 
-// AddPart creates a new entity with a point-of-view component (pov).
-// A pov adds a location and orientation to an entity. The entity can
-// now be positioned and rotated.
-//
-// The entity is also added to the scene graph so that this entities
-// world pov is affected by its parents and will also affect any
-// child entities created from this one.
-func (e *Ent) AddPart() *Ent {
-	eid := e.app.eids.create()
-	e.app.povs.create(eid, e.eid)
-	return &Ent{app: e.app, eid: eid}
-}
-
 // At gets the local space location. This is world space
 // if the entity does not have a parent.
 //
-// Depends on Ent.AddPart. Returns 0,0,0 if there is no part component.
-func (e *Ent) At() (x, y, z float64) {
+// Returns 0,0,0 if there is no transform component.
+func (e *Entity) At() (x, y, z float64) {
 	if p := e.app.povs.get(e.eid); p != nil {
 		return p.at()
 	}
-	log.Printf("At needs AddPart %d", e.eid)
+	slog.Error("At needs transform", "eid", e.eid)
 	return 0, 0, 0
 }
 
 // SetAt sets the local space location, ie: relative to its parent.
 // This is world space if there is no parent location.
 //
-// Depends on Ent.AddPart.
-func (e *Ent) SetAt(x, y, z float64) *Ent {
+// Depends on transform.
+func (e *Entity) SetAt(x, y, z float64) *Entity {
 	if p := e.app.povs.get(e.eid); p != nil {
 		if p.tn.Loc.X != x || p.tn.Loc.Y != y || p.tn.Loc.Z != z {
 			p.tn.Loc.X, p.tn.Loc.Y, p.tn.Loc.Z = x, y, z
@@ -49,19 +36,19 @@ func (e *Ent) SetAt(x, y, z float64) *Ent {
 		}
 		return e
 	}
-	log.Printf("SetAt needs AddPart %d", e.eid)
+	slog.Error("SetAt needs transform", "eid", e.eid)
 	return e
 }
 
 // World returns the world space coordinates for this entity.
 // World space is recalculated immediately on any change.
 //
-// Depends on Ent.AddPart.
-func (e *Ent) World() (wx, wy, wz float64) {
+// Depends on transform.
+func (e *Entity) World() (wx, wy, wz float64) {
 	if p := e.app.povs.get(e.eid); p != nil {
 		return p.world()
 	}
-	log.Printf("World needs AddPart %d", e.eid)
+	slog.Error("World needs transform", "eid", e.eid)
 	return 0, 0, 0
 }
 
@@ -69,12 +56,12 @@ func (e *Ent) World() (wx, wy, wz float64) {
 // WorldRot space is recalculated immediately on any change
 // and returns nil if the entity does not have a part.
 //
-// Depends on Ent.AddPart.
-func (e *Ent) WorldRot() (q *lin.Q) {
+// Depends on transform.
+func (e *Entity) WorldRot() (q *lin.Q) {
 	if p := e.app.povs.get(e.eid); p != nil {
 		return p.tw.Rot
 	}
-	log.Printf("WorldRot needs AddPart %d", e.eid)
+	slog.Error("WorldRot needs transform", "eid", e.eid)
 	return nil
 }
 
@@ -82,8 +69,8 @@ func (e *Ent) WorldRot() (q *lin.Q) {
 // along the given direction. Physics bodies should use Body.Push which
 // affects velocity.
 //
-// Depends on Ent.AddPart.
-func (e *Ent) Move(x, y, z float64, dir *lin.Q) {
+// Depends on transform.
+func (e *Entity) Move(x, y, z float64, dir *lin.Q) {
 	if p := e.app.povs.get(e.eid); p != nil {
 		dx, dy, dz := lin.MultSQ(x, y, z, dir)
 		p.tn.Loc.X += dx
@@ -92,7 +79,7 @@ func (e *Ent) Move(x, y, z float64, dir *lin.Q) {
 		e.app.povs.updateWorld(p, e.eid)
 		return
 	}
-	log.Printf("Move missing AddPart %d", e.eid)
+	slog.Error("Move missing transform", "eid", e.eid)
 }
 
 // View returns the orientation of the Part. Orientation is a rotation
@@ -100,12 +87,12 @@ func (e *Ent) Move(x, y, z float64, dir *lin.Q) {
 // It is world space if there is no parent orientation. Direct updates
 // to the rotation matrix must be done with SetView or SetAa.
 //
-// Depends on Ent.AddPart.
-func (e *Ent) View() (q *lin.Q) {
+// Depends on transform.
+func (e *Entity) View() (q *lin.Q) {
 	if p := e.app.povs.get(e.eid); p != nil {
 		return p.tn.Rot
 	}
-	log.Printf("View needs AddPart %d", e.eid)
+	slog.Error("View needs transform", "eid", e.eid)
 	return lin.NewQ()
 }
 
@@ -113,51 +100,51 @@ func (e *Ent) View() (q *lin.Q) {
 // Often used to align this part with the orientation of another.
 // Orientation is relative to parent. World space if no parent orientation.
 //
-// Depends on Ent.AddPart.
-func (e *Ent) SetView(q *lin.Q) *Ent {
+// Depends on transform.
+func (e *Entity) SetView(q *lin.Q) *Entity {
 	if p := e.app.povs.get(e.eid); p != nil {
 		r := p.tn.Rot
 		r.X, r.Y, r.Z, r.W = q.X, q.Y, q.Z, q.W
 		e.app.povs.updateWorld(p, e.eid)
 		return e
 	}
-	log.Printf("SetView needs AddPart %d", e.eid)
+	slog.Error("SetView needs transform", "eid", e.eid)
 	return e
 }
 
 // SetAa sets the orientation using the given axis and angle
 // information.
 //
-// Depends on Ent.AddPart.
-func (e *Ent) SetAa(x, y, z, angleInRadians float64) *Ent {
+// Depends on transform.
+func (e *Entity) SetAa(x, y, z, angleInRadians float64) *Entity {
 	if p := e.app.povs.get(e.eid); p != nil {
 		p.tn.Rot.SetAa(x, y, z, angleInRadians)
 		e.app.povs.updateWorld(p, e.eid)
 		return e
 	}
-	log.Printf("SetView needs AddPart %d", e.eid)
+	slog.Error("SetAa needs transform", "eid", e.eid)
 	return e
 }
 
 // Cull sets the culled state.
 //
-// Depends on Ent.AddPart.
-func (e *Ent) Cull(culled bool) {
+// Depends on transform.
+func (e *Entity) Cull(culled bool) {
 	if n := e.app.povs.getNode(e.eid); n != nil {
 		n.cull = culled
 		return
 	}
-	log.Printf("Cull needs AddPart %d", e.eid)
+	slog.Error("Cull needs transform", "eid", e.eid)
 }
 
 // Culled returns true if entity has been culled from rendering.
 //
-// Depends on Ent.AddPart. Returns true if there was no part component.
-func (e *Ent) Culled() bool {
+// Depends on transform. Returns true if there was no part component.
+func (e *Entity) Culled() bool {
 	if n := e.app.povs.getNode(e.eid); n != nil {
 		return n.cull
 	}
-	log.Printf("Culled needs AddPart %d", e.eid)
+	slog.Error("Culled needs transform", "eid", e.eid)
 	return true
 }
 
@@ -165,58 +152,70 @@ func (e *Ent) Culled() bool {
 // The spins are combined in XYZ order, but generally this
 // is used to spin about a single axis at a time.
 //
-// Depends on Ent.AddPart.
-func (e *Ent) Spin(x, y, z float64) {
+// Depends on transform.
+func (e *Entity) Spin(x, y, z float64) {
 	if p := e.app.povs.get(e.eid); p != nil {
 		p.spin(e.app.povs.rot, x, y, z)
 		e.app.povs.updateWorld(p, e.eid)
 		return
 	}
-	log.Printf("Spin needs AddPart %d", e.eid)
+	slog.Error("Spin needs transform", "eid", e.eid)
 }
 
 // SetSpin sets the rotation to 0 before spinning the entity
 // like the Spin method.
 //
-// Depends on Ent.AddPart.
-func (e *Ent) SetSpin(x, y, z float64) *Ent {
+// Depends on transform.
+func (e *Entity) SetSpin(x, y, z float64) *Entity {
 	if p := e.app.povs.get(e.eid); p != nil {
 		p.clearSpin()
 		p.spin(e.app.povs.rot, x, y, z)
 		e.app.povs.updateWorld(p, e.eid)
 		return e
 	}
-	log.Printf("SetSpin needs AddPart %d", e.eid)
+	slog.Error("SetSpin needs transform", "eid", e.eid)
 	return e
 }
 
 // Scale retrieves the local per-axis scale values at 3 separate XYZ values.
 // World scale needs to incorporate any parents values.
 //
-// Depends on Ent.AddPart. Returns 0,0,0 if there is no part component.
-func (e *Ent) Scale() (x, y, z float64) {
+// Depends on transform. Returns 0,0,0 if there is no part component.
+func (e *Entity) Scale() (x, y, z float64) {
 	if p := e.app.povs.get(e.eid); p != nil {
 		return p.scale()
 	}
-	log.Printf("Scale needs AddPart %d", e.eid)
+	slog.Error("Scale needs transform", "eid", e.eid)
 	return 0, 0, 0
 }
 
 // SetScale assigns the XYZ per-axis scale values.
 // Scale default is 1, greater than 1 enlarges, a positive fraction shrinks.
 //
-// Depends on Ent.AddPart.
-func (e *Ent) SetScale(x, y, z float64) *Ent {
+// Depends on transform.
+func (e *Entity) SetScale(x, y, z float64) *Entity {
 	if p := e.app.povs.get(e.eid); p != nil {
 		p.sn.X, p.sn.Y, p.sn.Z = x, y, z
 		e.app.povs.updateWorld(p, e.eid)
 		return e
 	}
-	log.Printf("SetScale needs AddPart %d", e.eid)
+	slog.Error("SetScale needs transform", "eid", e.eid)
 	return e
 }
 
-// pov entity methods
+// addPart creates a new entity with a point-of-view component (pov).
+// A pov adds a location and orientation to an entity. The entity can
+// now be positioned and rotated.
+//
+// The entity is also added to the scene graph so that this entities
+// world pov is affected by its parents and will also affect any
+// child entities created from this one.
+func (e *Entity) addPart() *Entity {
+	eid := e.app.eids.create()
+	e.app.povs.create(eid, e.eid) // add new entity to parent.
+	return &Entity{app: e.app, eid: eid}
+}
+
 // =============================================================================
 // pov data
 
@@ -227,12 +226,13 @@ func (e *Ent) SetScale(x, y, z float64) *Ent {
 // for timing differences between rendering and updating.
 //
 // FUTURE: Don't use pointers for the transform data so that the pov
-//         data is contiguous in memory. Will have to copy the transform
-//         data in and out of physics instead of sharing the pointer.
-//         In theory contiguous data means fewer cache misses.
-//         An initial attempt at this made things slower.
+//
+//	data is contiguous in memory. Will have to copy the transform
+//	data in and out of physics instead of sharing the pointer.
+//	In theory contiguous data means fewer cache misses.
+//	An initial attempt at this made things slower.
 type pov struct {
-	eid eid // Unique entity identifier.
+	eid eID // Unique entity identifier.
 
 	// Local transform is relative to a parent.
 	// World transform combine parent transform.
@@ -246,7 +246,7 @@ type pov struct {
 
 // newPov allocates and initialzes a point of view transform.
 // Called by the engine.
-func newPov(eid eid) *pov {
+func newPov(eid eID) *pov {
 	p := &pov{eid: eid}
 	p.tn = lin.NewT()
 	p.tp = lin.NewT()
@@ -294,20 +294,16 @@ func (p *pov) spin(rot *lin.Q, x, y, z float64) {
 	}
 }
 
-// pov
 // =============================================================================
 // povs
-// FUTURE: break the pov instance fields into individual arrays
-//         as per Data Oriented programming and see if this speeds
-//         up transform processing. Benchmark!
 
 // povs is the pov component manager.
 type povs struct {
 	// Data can change array location without updating eid references.
 	// Each of the dense data arrays has indexed data.
-	index map[eid]uint32 // Sparse entity-id to ordered slice data.
+	index map[eID]uint32 // Sparse entity-id to ordered slice data.
 	povs  []pov          // Dense array of pov data...
-	eids  []eid          // ...and associated entity identifiers.
+	eids  []eID          // ...and associated entity identifiers.
 	nodes []node         // Scene graph parent-child data.
 
 	// Scratch for per update tick calculations.
@@ -322,8 +318,8 @@ type povs struct {
 func newPovs() *povs {
 	ps := &povs{}
 	ps.povs = []pov{}
-	ps.eids = []eid{}
-	ps.index = map[eid]uint32{}
+	ps.eids = []eID{}
+	ps.index = map[eID]uint32{}
 	ps.nodes = []node{}
 
 	// allocate scratch variables. These are used each update when
@@ -337,7 +333,7 @@ func newPovs() *povs {
 
 // create a new pov. Guarantees that child pov's appear later in the
 // dense data array since children must be created after their parents.
-func (ps *povs) create(eid eid, parent eid) *pov {
+func (ps *povs) create(eid eID, parent eID) *pov {
 	p := newPov(eid)
 
 	// add the pov and update the pov indicies.
@@ -360,7 +356,7 @@ func (ps *povs) create(eid eid, parent eid) *pov {
 // dispose deletes the given pov and all of its children.
 // Returns a list of deleted child entities. The returned list does not
 // contain eid - the passed in entity id.
-func (ps *povs) dispose(id eid, dead []eid) []eid {
+func (ps *povs) dispose(id eID, dead []eID) []eID {
 	di, ok := ps.index[id] // index to item being deleted.
 	delete(ps.index, id)
 	if !ok {
@@ -402,7 +398,7 @@ func (ps *povs) dispose(id eid, dead []eid) []eid {
 
 // get the pov for the given id, returning nil if it does not exist.
 // Pointer reference only valid for this call.
-func (ps *povs) get(id eid) *pov {
+func (ps *povs) get(id eID) *pov {
 	if index, ok := ps.index[id]; ok {
 		return &ps.povs[index]
 	}
@@ -410,7 +406,7 @@ func (ps *povs) get(id eid) *pov {
 }
 
 // getNode returns the scene graph parent child information.
-func (ps *povs) getNode(id eid) *node {
+func (ps *povs) getNode(id eID) *node {
 	if index, ok := ps.index[id]; ok {
 		return &ps.nodes[index]
 	}
@@ -421,7 +417,7 @@ func (ps *povs) getNode(id eid) *node {
 // It is called each update. It is needed to interpolate values when
 // multiple renders are called between state updates.
 // The eids of the moved povs are returned.
-func (ps *povs) setPrev(moved []eid) []eid {
+func (ps *povs) setPrev(moved []eID) []eID {
 	moved = moved[:0] // reset preserving memory.
 	for index := 0; index < len(ps.povs); index++ {
 		p := &ps.povs[index] // update reference, not copy.
@@ -435,24 +431,9 @@ func (ps *povs) setPrev(moved []eid) []eid {
 	return moved
 }
 
-// setRenderTransforms sets the local world render matrix as a position/rotation
-// is called once per render to set the pov.mm model matrix used for rendering.
-//
-// FUTURE: with update at 50fps and render expected at 60fps or higher
-//         there will be more renders than updates, resulting in multiple
-//         renders of the same information - effectively resulting in a
-//         overall 50fps display rate.
-// Option: Increase the update rate.
-// Option: Interpolate between previous and current. This was tried and
-//         seemed not worth the effort as the overall display improvement
-//         was marginal at best and the code got complex handling
-//         handle position, rotations, and scales changes. This included
-//         cases where interpolation shouldn't be used like teleporting
-//         an objects location.
-// Option: Use fixed step for physics and variable rate for updates
-//         or some other recent best in class design (unity?).
-//         https://docs.unity3d.com/Manual/ExecutionOrder.html
-func (ps *povs) setRenderTransforms(lerp float64) {
+// setRenderWorldTransform sets the local world render matrix.
+// Called once per render to set the pov.mm model matrix used for rendering.
+func (ps *povs) setRenderWorldTransform(delta time.Duration) {
 	for index := 0; index < len(ps.povs); index++ {
 		p := &ps.povs[index]
 
@@ -467,7 +448,7 @@ func (ps *povs) setRenderTransforms(lerp float64) {
 // Called immediately on any change to any of the existing transform values.
 // Expected to be called for each object update to immediately refresh the
 // world transform values.
-func (ps *povs) updateWorld(p *pov, eid eid) {
+func (ps *povs) updateWorld(p *pov, eid eID) {
 	rot := ps.rot
 	if index, ok := ps.index[eid]; ok {
 		p.stable = false              // object has changed.
@@ -489,7 +470,7 @@ func (ps *povs) updateWorld(p *pov, eid eid) {
 				parent := &ps.povs[pindex] // use ref, not copy.
 				p.wm.Mult(p.wm, parent.wm) // model + parent transform
 			} else {
-				log.Printf("Scene graph missing child.") // Dev error.
+				slog.Error("scene graph missing child", "entity", node.parent) // dev error.
 			}
 		}
 
@@ -514,27 +495,12 @@ func (ps *povs) updateWorld(p *pov, eid eid) {
 			if index, ok := ps.index[kid]; ok {
 				ps.updateWorld(&ps.povs[index], kid)
 			} else {
-				log.Printf("Scene graph missing child.") // Dev error.
+				slog.Error("Scene graph missing child.") // dev error.
 			}
 		}
 	}
 }
 
-// updateBodies is called to update the transforms for physics bodies.
-func (ps *povs) updateBodies(bodies []eid) {
-	for _, eid := range bodies {
-		if p := ps.get(eid); p != nil {
-			if !p.tp.Eq(p.tn) {
-				p.tp.Set(p.tn)
-				ps.updateWorld(p, eid)
-			}
-		} else {
-			log.Printf("Physics body with no pov %d", eid)
-		}
-	}
-}
-
-// povs
 // =============================================================================
 // node - also tracked by the pov component manager.
 
@@ -545,8 +511,8 @@ func (ps *povs) updateBodies(bodies []eid) {
 // Used as part of the pov component manager to add child parent data
 // to data that have position and orientation.
 type node struct {
-	parent eid   // Parent entity identifier.
-	kids   []eid // Child entities.
+	parent eID   // Parent entity identifier.
+	kids   []eID // Child entities.
 
 	// Cull set to true removes this node and its children
 	// from scene graph processing. Default false.

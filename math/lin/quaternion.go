@@ -1,13 +1,12 @@
-// Copyright © 2013-2018 Galvanized Logic Inc.
-// Use is governed by a BSD-style license found in the LICENSE file.
+// Copyright © 2013-2024 Galvanized Logic Inc.
 
 package lin
 
-// Quaternion deals with quaternion math specifically for linear algebra rotations.
-// For a nice explanation of quaternions see http://3dgep.com/?p=1815
+// quaternion.go deals with quaternion math specifically for linear algebra rotations.
+// For a nice explanation of quaternions see http://3dgep.com/understanding-quaternions
 
 import (
-	"log"
+	"log/slog"
 	"math"
 )
 
@@ -88,12 +87,12 @@ func (q *Q) Scale(s float64) *Q {
 	return q
 }
 
-// Div (/= inverse-scale) divides each element in q by the given scalar value
-// The updated q is returned.
+// Div (/= inverse-scale) divides each element in q by the given scalar value.
 // Scale values of zero are logged as an error and q is not scaled.
+// The updated q is returned.
 func (q *Q) Div(s float64) *Q {
 	if s == 0 {
-		log.Printf("quaternion:q.Div: division by zero")
+		slog.Error("quaternion:q.Div: division by zero")
 	} else {
 		s := 1 / s
 		q.X, q.Y, q.Z, q.W = q.X*s, q.Y*s, q.Z*s, q.W*s
@@ -105,7 +104,9 @@ func (q *Q) Div(s float64) *Q {
 // This applies the rotation of s to r giving q, leaving r and s unchanged.
 // It is safe to use the calling quaternion q as one or both of the parameters.
 // For example (*=) is
-//     q.Mult(q, s)
+//
+//	q.Mult(q, s)
+//
 // The updated calling quaternion q is returned.
 func (q *Q) Mult(r, s *Q) *Q {
 	x := r.W*s.X + r.X*s.W - r.Y*s.Z + r.Z*s.Y
@@ -130,16 +131,16 @@ func (q *Q) Unit() *Q {
 // Dot returns the dot product of the quaternions q and r.
 // Quaternion q may be used as the input parameter.
 // For example (Dot=), the length squared, is
-//     q.Dot(q)
+//
+//	q.Dot(q)
 func (q *Q) Dot(r *Q) float64 { return q.X*r.X + q.Y*r.Y + q.Z*r.Z + q.W*r.W }
 
 // Len returns the length of the quaternion q.
 func (q *Q) Len() float64 { return math.Sqrt(q.Dot(q)) }
 
-// Ang returns the angle in radians between quaternions q and r. See
-//     http://math.stackexchange.com/questions/90081/quaternion-distance
-// for the formula to calculate angles between quaternions, i.e.:
-//    angle = Acos(2⟨q dot r⟩(q dot r)−1)
+// Ang returns the angle in radians between quaternions q and r.
+// For the formula to calculate angles between quaternions see:
+//   - http://math.stackexchange.com/questions/90081/quaternion-distance
 func (q *Q) Ang(r *Q) float64 {
 	qdotr := q.Dot(r)
 	return math.Acos(2*(qdotr*qdotr) - 1)
@@ -148,8 +149,9 @@ func (q *Q) Ang(r *Q) float64 {
 // Nlerp updates q to be the normalized linear interpolation between
 // quaternions r and s where ratio is expected to be between 0 and 1.
 // The input quaternions r and s are not changed. See:
-//    http://keithmaggio.wordpress.com/2011/02/15/math-magician-lerp-slerp-and-nlerp/
-//    http://number-none.com/product/Understanding Slerp, Then Not Using It/
+//   - http://keithmaggio.wordpress.com/2011/02/15/math-magician-lerp-slerp-and-nlerp/
+//   - http://number-none.com/product/Understanding Slerp, Then Not Using It/
+//
 // The updated calling quaternion q is returned.
 func (q *Q) Nlerp(r, s *Q, ratio float64) *Q {
 	q.X = (s.X-r.X)*ratio + r.X
@@ -159,27 +161,13 @@ func (q *Q) Nlerp(r, s *Q, ratio float64) *Q {
 	return q.Unit() // normalize the linear interpolation for a rotation.
 }
 
-// quaternion operations
-// ============================================================================
-// quaternion-vector operations
-
-// MultQV multiplies quaternion r and vector v and returns the result in
-// quaternion q. The upated quaternion q is returned.
-func (q *Q) MultQV(r *Q, v *V3) *Q {
-	x := +r.W*v.X + r.Y*v.Z - r.Z*v.Y
-	y := +r.W*v.Y + r.Z*v.X - r.X*v.Z
-	z := +r.W*v.Z + r.X*v.Y - r.Y*v.X
-	w := -r.X*v.X - r.Y*v.Y - r.Z*v.Z
-	q.X, q.Y, q.Z, q.W = x, y, z, w
-	return q
-}
-
 // Aa gets the rotation of quaternion q as an axis and angle.
 // The axis (x, y, z) and the angle in radians is returned.
 // The return elements will be zero if the length of the quaternion is 0.
 // See:
-//    http://web.archive.org/web/20041029003853/...
-//    ...http://www.j3d.org/matrix_faq/matrfaq_latest.html#Q57
+//
+//	http://web.archive.org/web/20041029003853/...
+//	...http://www.j3d.org/matrix_faq/matrfaq_latest.html#Q57
 func (q *Q) Aa() (ax, ay, az, angle float64) {
 	sinSqr := 1.0 - q.W*q.W
 	if AeqZ(sinSqr) {
@@ -191,19 +179,22 @@ func (q *Q) Aa() (ax, ay, az, angle float64) {
 
 // SetAa set axis-angle, updates q to have the rotation of the given
 // axis (ax, ay, az) and angle (in radians). See:
-//    http://web.archive.org/web/20041029003853/...
-//    ...http://www.j3d.org/matrix_faq/matrfaq_latest.html#Q56
+//
+//	http://web.archive.org/web/20041029003853/...
+//	...http://www.j3d.org/matrix_faq/matrfaq_latest.html#Q56
+//
 // The updated quaternion q is returned.
 // The quaternion q is set to 0,0,0,1 if the axis length is 0.
 //
 // Ensure SetAa returns quaternions consistent with SetM3.
 // Convention 5 from "Consistent Representations of and Conversions
 // Between 3D Rotations":
-//    "The rotation angle ω is limited to the interval [0, π].
-//     For angles in the range ]π, 2π[, the sign of the unit axis vector nˆ
-//     must be reversed, and ω replaced by 2π − ω. For angles outside the range
-//     [0, 2π[, the angle must first be reduced to the interval [0, 2π[ by
-//     adding or subtracting the appropriate integer multiple of 2π."
+//
+//	"The rotation angle ω is limited to the interval [0, π].
+//	 For angles in the range ]π, 2π[, the sign of the unit axis vector nˆ
+//	 must be reversed, and ω replaced by 2π − ω. For angles outside the range
+//	 [0, 2π[, the angle must first be reduced to the interval [0, 2π[ by
+//	 adding or subtracting the appropriate integer multiple of 2π."
 func (q *Q) SetAa(ax, ay, az, angle float64) *Q {
 	alenSqr := ax*ax + ay*ay + az*az
 	if alenSqr == 0 {
@@ -225,14 +216,29 @@ func (q *Q) SetAa(ax, ay, az, angle float64) *Q {
 	return q
 }
 
+// ============================================================================
 // quaternion-vector operations
+
+// MultQV multiplies quaternion r and vector v and returns the result in
+// quaternion q. The upated quaternion q is returned.
+func (q *Q) MultQV(r *Q, v *V3) *Q {
+	x := +r.W*v.X + r.Y*v.Z - r.Z*v.Y
+	y := +r.W*v.Y + r.Z*v.X - r.X*v.Z
+	z := +r.W*v.Z + r.X*v.Y - r.Y*v.X
+	w := -r.X*v.X - r.Y*v.Y - r.Z*v.Z
+	q.X, q.Y, q.Z, q.W = x, y, z, w
+	return q
+}
+
 // ============================================================================
 // quaternion-matrix operations
 
 // SetM3 updates quaternion q to be the rotation of matrix m. See
-//     http://www.flipcode.com/documents/matrfaq.html#Q55
-//     http://www.euclideanspace.com/maths/geometry/rotations/conversions/matrixToQuaternion/
-//     https://d3cw3dd2w32x2b.cloudfront.net/wp-content/uploads/2015/01/matrix-to-quat.pdf
+//
+//	http://www.flipcode.com/documents/matrfaq.html#Q55
+//	http://www.euclideanspace.com/maths/geometry/rotations/conversions/matrixToQuaternion/
+//	https://d3cw3dd2w32x2b.cloudfront.net/wp-content/uploads/2015/01/matrix-to-quat.pdf
+//
 // The updated q is returned.
 //
 // SetM3 outputs quaternions that are consistent with SetAa.
@@ -262,7 +268,6 @@ func (q *Q) SetM3(m *M3) *Q {
 	return q
 }
 
-// quaternion-matrix operations
 // ============================================================================
 // quaternion-transform operations
 
@@ -273,9 +278,9 @@ func (q *Q) SetT(t *T) *Q {
 	return q
 }
 
-// methods above do not allocate memory.
 // ============================================================================
 // convenience functions for allocating quaternions. Nothing else should allocate.
+// methods above do not allocate memory.
 
 // NewQ creates a new, all zero, quaternion.
 func NewQ() *Q { return &Q{} }

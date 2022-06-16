@@ -1,4 +1,2 @@
-pkg/
-bin/
-target
-public
+*.spv
+*.exe

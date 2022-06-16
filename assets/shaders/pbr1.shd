@@ -1,0 +1,18 @@
+# pbr1 physically based render with one base color texture.
+# Uses set values for metallic:roughness.
+name: pbr1
+pass: 3D
+stages: [ vert, frag ]
+attrs:
+    - { name: position, data: vec3, scope: vertex }
+    - { name: normal,   data: vec3, scope: vertex }
+    - { name: texcoord, data: vec2, scope: vertex }
+uniforms:
+    - { name: proj,     data: mat4,    scope: scene    } # scene transform
+    - { name: view,     data: mat4,    scope: scene    } # camera transform
+    - { name: cam,      data: vec4,    scope: scene    } # scene camera position
+    - { name: lights,   data: light3,  scope: scene    } # one to three scene lights
+    - { name: nlights,  data: int,     scope: scene    } # 1 to 3
+    - { name: color,    data: sampler, scope: material } # base color texture
+    - { name: model,    data: mat4,    scope: model    } # model transform
+    - { name: material, data: vec4,    scope: model    } # PBR x:metallic, y:roughness

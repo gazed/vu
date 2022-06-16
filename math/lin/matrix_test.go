@@ -1,11 +1,31 @@
-// Copyright © 2013-2018 Galvanized Logic Inc.
-// Use is governed by a BSD-style license found in the LICENSE file.
+// Copyright © 2013-2024 Galvanized Logic Inc.
 
 package lin
 
 import (
+	"fmt"
 	"testing"
+	"unsafe"
 )
+
+// go test -run Mem
+func TestMemoryLayout(t *testing.T) {
+	m := M3{0x0, 0x1, 0x2,
+		0x3, 0x4, 0x5,
+		0x6, 0x7, 0x8}
+	out := ""
+	unsafePointer := unsafe.Pointer(&m)
+	step := unsafe.Sizeof(float64(0))
+	for i := 0; i < 9; i++ {
+		addr_n := unsafe.Add(unsafePointer, int(step)*i)
+		val := *(*float64)(addr_n)
+		// fmt.Printf("%d addr: %p, val: %f\n", i, addr_n, val)
+		out += fmt.Sprintf(":%2.1f", val)
+	}
+	if out != ":0.0:1.0:2.0:3.0:4.0:5.0:6.0:7.0:8.0" {
+		t.Errorf("unexpected matrix memory layout %s", out)
+	}
+}
 
 func TestSetEqualsM3(t *testing.T) {
 	m, a := &M3{},
@@ -287,30 +307,11 @@ func TestInvM3(t *testing.T) {
 	}
 }
 
-func TestOrthographicM4(t *testing.T) {
-	m, want := NewM4().Ortho(2, 3, 4, 5, 6, 7),
-		&M4{+2, +0, +0, +0,
-			+0, +2, +0, +0,
-			+0, +0, -2, +0,
-			-5, -9, -13, 1}
-	if !m.Aeq(want) {
-		t.Errorf(format, m.Dump(), want.Dump())
-	}
-}
-
-func TestPerspectiveInv(t *testing.T) {
-	m := &M4{}
-	p := NewM4().Persp(45, 800.0/600.0, 0.1, 50)
-	ip := NewM4().PerspInv(45, 800.0/600.0, 0.1, 50)
-	if !m.Mult(p, ip).Aeq(M4I) {
-		t.Errorf(format, m.Dump(), M4I.Dump())
-	}
-}
-
 // Check rotation matricies are correctly created by comparing
 // two create methods:
-//    1 directly from axis/angle and
-//    2 creating from a quaternion.
+//
+//	1 directly from axis/angle and
+//	2 creating from a quaternion.
 func TestSetAxisAngle(t *testing.T) {
 	m, q, mq := &M3{}, &Q{}, &M3{}
 	for deg := 0; deg <= 360; deg++ {
@@ -323,14 +324,50 @@ func TestSetAxisAngle(t *testing.T) {
 	}
 }
 
+func TestOrthographic(t *testing.T) {
+	m, want := &M4{},
+		&M4{+1.0, +0.0, +0.0, +0.0,
+			+0.0, -1.0, +0.0, +0.0,
+			+0.0, +0.0, -0.5, +0.0,
+			+0.0, +0.0, +0.5, +1.0}
+	m.OrthographicProjection(-1, 1, 1, -1, -1, 1)
+	if !want.Eq(m) {
+		t.Errorf("Orthographic got\n%s wanted\n%s", m.Dump(), want.Dump())
+	}
+}
+
+func TestPerspective(t *testing.T) {
+	m, want := &M4{},
+		&M4{+1, +0, +0, +0,
+			+0, -1, +0, +0,
+			+0, +0, -2, -1,
+			+0, +0, -2, +0}
+	m.PerspectiveProjection(90.0, 1.0, 1.0, 2.0)
+	if !want.Eq(m) {
+		t.Errorf("Perspective got\n%s wanted\n%s", m.Dump(), want.Dump())
+	}
+}
+
+// multiplying the projection perspective by its inverse should
+// results in the identity matrix.
+func TestPerspectiveInverse(t *testing.T) {
+	mpro, minv := &M4{}, &M4{}
+	mpro.PerspectiveProjection(90.0, 1.0, 1.0, 2.0)
+	minv.PerspectiveInverse(90.0, 1.0, 1.0, 2.0)
+	if !mpro.Mult(mpro, minv).Eq(M4I) {
+		t.Errorf("Wanted identity\n%s got\n%s", M4I.Dump(), mpro.Dump())
+	}
+}
+
 // unit tests
 // ============================================================================
 // benchmarking.
 
 // Check the time is saved by using the reference identity matrix instead of
 // creating a new one. Run 'go test -bench=".*"' to get something like:
-//     BenchmarkRefMI 2000000000	 0.72 ns/op
-//     BenchmarkNewMI	20000000    95.9  ns/op
+//
+//	BenchmarkRefMI 2000000000	 0.72 ns/op
+//	BenchmarkNewMI	20000000    95.9  ns/op
 func BenchmarkRefMI(b *testing.B) {
 	var m *M4
 	for cnt := 0; cnt < b.N; cnt++ {

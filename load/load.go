@@ -1,57 +1,244 @@
-// Copyright © 2013-2016 Galvanized Logic Inc.
-// Use is governed by a BSD-style license found in the LICENSE file.
+// Copyright © 2013-2024 Galvanized Logic Inc.
 
-// Package load fetches disk based 3D assets. Assets are loaded into
-// one of the following intermediate data structures:
-//    FntData.Load uses Fnt to load bitmapped characters.
-//    ImgData.Load uses Png to load model textures.
-//    ModData.Load uses Iqm to load animated models.
-//    MshData.Load uses Obj to load static models.
-//    MtlData.Load uses Mtl to load model lighting data.
-//    ShdData.Load uses Src to load GPU shader programs.
-//    SndData.Load uses Wav to load 3D audio.
-// Each intermediate data format is currently associated with one file
-// format. Asset loading is currently intended for smaller 3D applications
-// where data is loaded directly from disk to memory, i.e. no database.
+// Package load fetches disk based 3D asset data. It's main purpose is to
+// find the asset file and load its data into intermediate data structs.
+//   - ".spv"  spir-v shader module byte code
+//   - ".png"  image data
+//   - ".shd"  shader configuration description
+//   - ".glb"  vertex data, image data, animation data, material data
+//   - ".wav"  audio data
+//   - ".fnt"  font mapping data
+//   - ".yaml" data file
 //
-// A default file Locator is provided. It can be replaced with
-// a different Locator that follows a different string based naming
-// convention for finding disk based assets. Overall package load
-// attempts to shield users from knowledge about:
-//    File Formats  : how asset contents are stored on disk.
-//    File Types    : how file types map to asset data structs.
-//    File Locations: where asset files are stored on disk.
+// This package is primary used internally for getting data from disk
+// that is then upload to the render and audio systems.
 //
 // Package load is provided as part of the vu (virtual universe) 3D engine.
 package load
 
+// FUTURE move load to internal/load and expose any useful application
+// facing APIs through Engine wrapper methods.
+
 import (
+	"bytes"
 	"fmt"
 	"image"
-	"io"
-
-	"github.com/gazed/vu/math/lin"
+	"image/png"
+	"os"
+	"path"
+	"strings"
 )
 
-// Design Notes: Balance between full functionality and maintainability,
-//               ie: anything more than the absolute minimum implementation
-//               needs to be justified by value added.
-//             : Prefer documented public specifications for asset file types.
-// FUTURE: Add full support for obj, iqm specs.
-// FUTURE: wrap or develop more import formats. See possibilities at the
-//         Open Asset Import Library: http://assimp.sourceforge.net
-// FUTURE: Load data into formats that can be immediately transferred
-//         to the GPU or audio card without further processing.
-// FUTURE: Optional industrial strength database back end?
+// =============================================================================
+// asset location conventions.
+
+// assetDirs expects asset files to be in directories based on asset type.
+// These are the default directories and can be overridden using SetAssetDir.
+var assetDirs = map[string]string{
+	".spv":  "assets/shaders", // spir-v compiled shader byte files
+	".shd":  "assets/shaders", // yaml shader configuration files.
+	".png":  "assets/images",  // png images, often textures.
+	".glb":  "assets/models",  // glb scenes, meshes, materials, animations, textures,...
+	".fnt":  "assets/fonts",   // glyph files exspect corresponding image.
+	".wav":  "assets/audio",   // sound data.
+	".yaml": "assets/data",    // data files
+}
+
+// SetAssetDir can be used to add or change the default directory
+// conventions for finding assets.
+func SetAssetDir(ext, dir string) {
+	ext = strings.ToLower(ext)
+	assetDirs[ext] = dir
+}
+
+// LoadAssetFile returns one or more AssetData structs from the
+// given asset filename.
+func LoadAssetFile(fname string) []AssetData {
+	switch getFileExtension(fname) {
+	case ".spv":
+		data, err := ShaderBytes(fname)
+		return []AssetData{{Filename: fname, Data: ShaderData(data), Err: err}}
+	case ".shd":
+		shader, err := ShaderConfig(fname)
+		return []AssetData{{Filename: fname, Data: shader, Err: err}}
+	case ".png":
+		img, err := Image(fname)
+		return []AssetData{{Filename: fname, Data: img, Err: err}}
+	case ".glb":
+		return Model(fname) // possible to have multiple assets
+	case ".wav":
+		aud, err := Audio(fname)
+		return []AssetData{{Filename: fname, Data: aud, Err: err}}
+	case ".fnt":
+		fnt, err := Font(fname)
+		return []AssetData{{Filename: fname, Data: fnt, Err: err}}
+	}
+	err := fmt.Errorf("unsupported asset file %s", fname)
+	return []AssetData{{Filename: fname, Err: err}}
+}
+
+// AssetData is used to return loaded data.
+// The caller is expected to switch on the Data type.
+type AssetData struct {
+	Filename string      // request filename with extension
+	Err      error       // nil if load was successful
+	Data     interface{} // struct of loaded data.
+}
+
+// getData returns the raw bytes in the requested file.
+//
+//	filename: name of the file including the file extension.
+func getData(filename string) (data []byte, err error) {
+	assetDir := "" // default to local directory.
+	extension := getFileExtension(filename)
+	if dir, defined := assetDirs[extension]; defined {
+		assetDir = dir
+	}
+	filepath := strings.TrimSpace(path.Join(assetDir, filename))
+	return os.ReadFile(filepath)
+}
+
+// getFileExtension returns the given filename extension
+// including the leading dot ".".
+func getFileExtension(filename string) (extension string) {
+	return strings.ToLower(path.Ext(filename))
+}
 
 // =============================================================================
+// data files ie: ".yaml"
 
-// FntData holds UV texture mapping information for a font.
+// ByteData loads the bytes for the given file.
+type ByteData []byte
+
+// DataBytes loads bytes from generic data files.
+func DataBytes(name string) (data ByteData, err error) {
+	data, err = getData(name)
+	if err != nil {
+		return data, fmt.Errorf("data byte load %s: %w", name, err)
+	}
+	return data, nil
+}
+
+// =============================================================================
+// ".spv" glsl shader byte code
+
+// ShaderData differentiates shader data from other byte data.
+type ShaderData []byte
+
+// ShaderBytes loads compiled shader (spir-v) byte data.
+func ShaderBytes(name string) (data ShaderData, err error) {
+	data, err = getData(name)
+	if err != nil {
+		return data, fmt.Errorf("shader byte data load %s: %w", name, err)
+	}
+	return data, nil
+}
+
+// =============================================================================
+// ".shd" custom yaml shader configuration data.
+
+// ShaderConfig loads compiled shader (spir-v) byte data.
+func ShaderConfig(name string) (cfg *Shader, err error) {
+	data, err := getData(name)
+	if err != nil {
+		return cfg, fmt.Errorf("shader config load %s: %w", name, err)
+	}
+	return Shd(name, data)
+}
+
+// =============================================================================
+// ".png" image loading.
+
+// ImageData contains image data for uploading to the GPU.
+type ImageData struct {
+	Width  uint32
+	Height uint32
+	Pixels []byte
+	Opaque bool
+}
+
+// Image loads .png images as the underlying data format for textures.
+func Image(name string) (idata *ImageData, err error) {
+	data, err := getData(name)
+	if err != nil {
+		return idata, fmt.Errorf("image load %s: %w", name, err)
+	}
+	img, err := png.Decode(bytes.NewReader(data))
+	if err != nil {
+		return idata, fmt.Errorf("image decode %s: %w", name, err)
+	}
+	idata = &ImageData{}
+	switch t := img.(type) {
+	case *image.NRGBA:
+		idata.Pixels = []byte(t.Pix)
+		idata.Opaque = t.Opaque()
+	default:
+		return idata, fmt.Errorf("image expecting NRGBA: %s: %T", name, t)
+	}
+	idata.Width = uint32(img.Bounds().Size().X)
+	idata.Height = uint32(img.Bounds().Size().Y)
+	return idata, nil
+}
+
+// =============================================================================
+// ".glb" gltf binary files
+// https://github.com/KhronosGroup/glTF-Tutorials/blob/master/gltfTutorial/README.md
+
+// Vertex MeshData attribute types.
+const (
+	Vertexes    = iota // 0 required:V3 float32
+	Texcoords          // 1 optional:V2 float32
+	Normals            // 2 optional:V3 float32
+	Tangents           // 3 optional:V4 float32
+	Colors             // 4 optional:V3 uint8
+	Joints             // 5 FUTURE:V4 uint8    animations
+	Weights            // 6 FUTURE:V4 uint8    animations
+	Indexes            // 7 required:uint16             - must be second last.
+	VertexTypes        // 8 number of vertex data types - must be last.
+)
+
+// Instance Data attribute types describe per-instance model data.
+// These are defined here because they are similar to vertex data types.
+const (
+	InstanceLocus  = iota // position 0 V3 float32
+	InstanceColors        // 1 V3 uint8
+	InstanceScales        // 2 float32
+	InstanceTypes         // number of instance data types - must be last.
+)
+
+// MeshData contains per-vertex data. Data will be index the GLTF buffer.
+type MeshData []Buffer
+
+// PBRMaterialData describes a PBR solid material.
+type PBRMaterialData struct {
+	ColorR    float64 // material base color for solid PBR.
+	ColorG    float64 //  ""
+	ColorB    float64 //  ""
+	ColorA    float64 //  ""
+	Metallic  float64 // metallic value if no m-r texture
+	Roughness float64 // roughness value if no m-r texture
+}
+
+// Model loads 3D data including mesh, texture, material, animation,
+// and transform data. Errors are returned inside AssetData which
+// will always contain at least one element.
+func Model(name string) (data []AssetData) {
+	dbytes, err := getData(name)
+	if err != nil {
+		return []AssetData{{Filename: name, Err: fmt.Errorf("model load %s: %w", name, err)}}
+	}
+	return Glb(name, bytes.NewReader(dbytes))
+}
+
+// =============================================================================
+// ".fnt" - font glyph mappings
+
+// FontData holds UV texture mapping information for a font.
 // It is intended for populating rendered models of strings.
 // This is an intermediate data format that needs further processing by
 // something like a vu.Ent.MakeModel to bind the data to a GPU and associate
 // it with a texture atlas containing the bitmapped font images.
-type FntData struct {
+type FontData struct {
 	W, H  int       // Width and height
 	Chars []ChrData // Character data.
 }
@@ -64,234 +251,42 @@ type ChrData struct {
 	Xo, Yo, Xa int  // Character offset.
 }
 
-// Load font character mapping data. Existing FntData is
+// Font loads font character mapping data. Existing FontData is
 // overwritten with information found by the Locator.
-func (d *FntData) Load(name string, l Locator) (err error) {
-	fname := name + ".fnt" // FUTURE: other font file formats.
-	var reader io.ReadCloser
-	if reader, err = l.GetResource(fname); err != nil {
-		return fmt.Errorf("Could not load glyphs from %s: %s\n", fname, err)
+func Font(name string) (fnt *FontData, err error) {
+	data, err := getData(name)
+	if err != nil {
+		return fnt, fmt.Errorf("font load %s: %w", name, err)
 	}
-	defer reader.Close()
-	return Fnt(reader, d)
+	return Fnt(bytes.NewReader(data))
 }
 
-// FntData
 // =============================================================================
-// ImgData
+// ".wav" - audio data.
 
-// ImgData uses standard images as the underlying data format for textures.
-// The image height, width, and bytes in (N)RGBA format are:
-//    width  := img.Bounds().Max.X - img.Bounds().Min.X
-//    height := img.Bounds().Max.Y - img.Bounds().Min.Y
-//    rgba, _ := img.(*image.(N)RGBA)
-// Note that golang NRGBA are images with an alpha channel, but without alpha
-// pre-multiplication. RGBA are images originally without an alpha channel,
-// but assigned an alpha of 1 when read in.
-//
-// This is an intermediate data format that needs further processing by
-// something like vu.Ent.MakeModel to bind the data to a GPU based texture.
-type ImgData struct {
-	Img image.Image
-}
-
-// Load image data. Existing ImgData is discarded and
-// replaced with information found by the Locator.
-func (d *ImgData) Load(name string, l Locator) (err error) {
-	fname := name + ".png" // FUTURE: other image file formats.
-	var reader io.ReadCloser
-	if reader, err = l.GetResource(fname); err != nil {
-		return fmt.Errorf("Could not load image from %s: %s\n", fname, err)
-	}
-	defer reader.Close()
-	return Png(reader, d)
-}
-
-// FntData
-// =============================================================================
-// ModData
-
-// ModData combines vertex data, animation data and some texture
-// names for a complete animated model. It is an intermediate data
-// format that needs further processing by something like vu.Ent.MakeModel
-// to bind the data to a GPU.
-type ModData struct {
-	MshData          // Vertex based data.
-	AnmData          // Animation data.
-	TMap    []TexMap // Texture name and vertex mapping data.
-}
-
-// AnmData holds the data necessary to a. It is an intermediate data
-// format that needs further processing by something like vu.Ent.MakeModel
-// to bind the data to a GPU.
-type AnmData struct {
-	Movements []Movement // Indexes into the given frames.
-	Blends    []byte     // Vertex blend indicies. Arranged as [][4]byte
-	Weights   []byte     // Vertex blend weights.  Arranged as [][4]byte
-	Joints    []int32    // Joint parent information for each joint.
-	Frames    []*lin.M4  // Animation transforms: [NumFrames][NumJoints].
-}
-
-// Movement marks a number of frames as a particular animated move that
-// affects frames from F0 to F0+FN. Expected to be used as part of AnmData.
-type Movement struct {
-	Name   string  // Name of the animation
-	F0, Fn uint32  // First frame, number of frames.
-	Rate   float32 // Frames per second.
-}
-
-// TexMap allows a model to have multiple textures. The named texture
-// resource affects triangle faces from F0 to F0+FN. Expected to be used
-// as part of ModData.
-type TexMap struct {
-	Name   string // Name of the texture resource.
-	F0, Fn uint32 // First triangle face index and number of faces.
-}
-
-// Load model vertex and animation data. Existing ModData is
-// overwritten with information found by the Locator.
-func (d *ModData) Load(name string, l Locator) (err error) {
-	fname := name + ".iqm" // FUTURE: other animated model file formats.
-	var reader io.ReadCloser
-	if reader, err = l.GetResource(fname); err != nil {
-		return fmt.Errorf("Could not load animated model from %s: %s\n", fname, err)
-	}
-	defer reader.Close()
-	return Iqm(reader, d)
-}
-
-// ModData
-// =============================================================================
-// MshData
-
-// MshData stores vertex data from .obj files.
-// It is intended for populating rendered models.
-// The V,F buffers are expected to have data. The N,T,X buffers are optional.
-//
-// MshData is an intermediate data format that needs further processing
-// by something like vu.Ent.MakeModel to bind the data to a GPU.
-type MshData struct {
-	Name string    // Imported model name.
-	V    []float32 // Vertex positions.    Arranged as [][3]float32
-	N    []float32 // Vertex normals.      Arranged as [][3]float32
-	T    []float32 // Texture coordinates. Arranged as [][2]float32
-	X    []float32 // Vertex tangents.     Arranged as [][2]float32
-	F    []uint16  // Triangle faces.      Arranged as [][3]uint16
-}
-
-// Load model mesh vertex data. Existing MshData is
-// overwritten with information found by the Locator.
-func (d *MshData) Load(name string, l Locator) (err error) {
-	fname := name + ".obj" // FUTURE: other model mesh file formats.
-	var reader io.ReadCloser
-	if reader, err = l.GetResource(fname); err != nil {
-		return fmt.Errorf("Could not load mesh data from %s: %s\n", fname, err)
-	}
-	defer reader.Close()
-	return Obj(reader, d)
-}
-
-// MshData
-// =============================================================================
-// MtlData
-
-// MtlData holds color and alpha information.
-// It is intended for populating rendered models and is
-// often needed for as attributes for shaders with lighting.
-//
-// MtlData is an intermediate data format that needs further processing by
-// something like vu.Ent.MakeModel to bind the data to uniforms in a GPU shader.
-type MtlData struct {
-	KaR, KaG, KaB float32 // Ambient color.
-	KdR, KdG, KdB float32 // Diffuse color.
-	KsR, KsG, KsB float32 // Specular color.
-	Ns            float32 // Specular exponent.
-	Alpha         float32 // Transparency
-}
-
-// Load model lighting material data. Existing MtlData is
-// overwritten with information found by the Locator.
-func (d *MtlData) Load(name string, l Locator) (err error) {
-	fname := name + ".mtl" // FUTURE: other model material file formats.
-	var reader io.ReadCloser
-	if reader, err = l.GetResource(fname); err != nil {
-		return fmt.Errorf("could not open %s %s", fname, err)
-	}
-	defer reader.Close()
-	return Mtl(reader, d)
-}
-
-// MshData
-// =============================================================================
-// ShdData
-
-// ShdData includes both vertex and fragment shader program source.
-// Each line is terminated by a linefeed so that it will compile
-// on the GPU.
-//
-// ShdData is an intermediate data format that needs further processing
-// by something like vu.Ent.MakeModel to compile the shader program and bind
-// it to a GPU.
-type ShdData struct {
-	Vsh SrcData // Vertex shader.
-	Fsh SrcData // Fragment (pixel) shader.
-}
-
-// Load vertex and fragment shader program source code. Shader source is
-// appended to the existing ShdData source. Assumes both the vertex and
-// fragment shader files have the same name prefix.
-func (d *ShdData) Load(name string, l Locator) (err error) {
-	fname := name + ".vsh"
-	var vr io.ReadCloser
-	if vr, err = l.GetResource(fname); err != nil {
-		return fmt.Errorf("Load vertex shader error %s: %s\n", fname, err)
-	}
-	defer vr.Close()
-	if d.Vsh, err = Src(vr); err != nil {
-		return fmt.Errorf("Load vertex shader error %s: %s\n", fname, err)
-	}
-
-	fname = name + ".fsh"
-	var fr io.ReadCloser
-	if fr, err = l.GetResource(fname); err != nil {
-		return fmt.Errorf("Load fragment shader error %s: %s\n", fname, err)
-	}
-	defer fr.Close()
-	d.Fsh, err = Src(fr)
-	return err
-}
-
-// ShdData
-// =============================================================================
-// SndData
-
-// SndData consists of the actual audio data bytes along with sounds attributes
+// AudioData consists of the actual audio data bytes along with sounds attributes
 // that describe how the sound data is interpreted and played.
 //
-// SndData is an intermediate data format that needs further processing
-// by something like vu.Eng.AddSound and vu.Ent.PlaySound to associate the
-// noise with a 3D location and bind it to an audio card.
-type SndData struct {
-	Data  []byte         // the sound data bytes.
-	Attrs *SndAttributes // Attributes describing the sound data.
+// AudioData is an intermediate data format that needs further processing
+// to associate the sound with a 3D location and bind it to an audio device.
+type AudioData struct {
+	Data  []byte           // the sound data bytes.
+	Attrs *AudioAttributes // Attributes describing the sound data.
 }
 
-// SndAttributes describe how sound data is interpreted and played.
-type SndAttributes struct {
+// AudioAttributes describe how sound data is interpreted and played.
+type AudioAttributes struct {
 	Channels   uint16 // Number of audio channels.
 	Frequency  uint32 // 8000, 44100, etc.
 	DataSize   uint32 // Size of audio data.
 	SampleBits uint16 // 8 bits = 8, 16 bits = 16, etc.
 }
 
-// Load sound data. Existing SoundData is
-// overwritten with information found by the Locator.
-func (d *SndData) Load(name string, l Locator) (err error) {
-	fname := name + ".wav" // FUTURE: other 3D audio file formats.
-	var reader io.ReadCloser
-	if reader, err = l.GetResource(fname); err != nil {
-		return fmt.Errorf("Load sound error %s: %s\n", fname, err)
+// Audio loads audio data.
+func Audio(name string) (aud *AudioData, err error) {
+	data, err := getData(name)
+	if err != nil {
+		return aud, fmt.Errorf("audio load %s: %w", name, err)
 	}
-	defer reader.Close()
-	return Wav(reader, d)
+	return Wav(bytes.NewReader(data))
 }

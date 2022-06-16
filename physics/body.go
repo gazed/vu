@@ -1,308 +1,241 @@
-// Copyright © 2013-2018 Galvanized Logic Inc.
-// Use is governed by a BSD-style license found in the LICENSE file.
+// Copyright © 2024 Galvanized Logic Inc.
 
 package physics
 
-// // The following block is C code and cgo directvies.
-// // It is used to include collision.h definitions.
-//
-// #include "collision.h"
-import "C" // must be located here.
+// body.go ported from entity.ccp/entity.h.
+// Used physics "body" to distinguish from vu/Entity
 
 import (
-	"log"
-	"math"
-	"sync"
+	"log/slog"
 
 	"github.com/gazed/vu/math/lin"
 )
 
-// Body is a single object contained within a physics simulation.
-// Bodies generally relate to a scene node that is displayed to the user.
-// Only add bodies that need to participate in physics.
-// Bodies that are added to physics are expected to have their movement
-// controlled by the physics simulation and not the application.
-type Body interface {
-	Shape() Shape          // Physics shape for this form.
-	World() *lin.T         // Get the location and direction
-	SetWorld(world *lin.T) // ...or set the location and direction.
+// Body is a one object within a physics simulation.
+// Bodies are added for objects that need to participate in physics.
+// Bodies transforms are set by the physics simulation and not the application.
+type Body struct {
+	world_position lin.V3 // set/get using accessor methods
+	world_rotation lin.Q  // set/get using accessor methods
+	world_scale    lin.V3 // set/get using accessor methods
 
-	Eq(b Body) bool           // True if the two bodies are the same.
-	Speed() (x, y, z float64) // Current linear velocity.
-	Whirl() (x, y, z float64) // Current angular velocity.
-	Push(x, y, z float64)     // Add to the body's linear velocity.
-	Turn(x, y, z float64)     // Add to the body's angular velocity.
-	Stop()                    // Stops linear velocity.
-	Rest()                    // Stops angular velocity.
+	// Physics Related
+	colliders                    []collider
+	bounding_sphere_radius       float64
+	forces                       []force
+	inverse_mass                 float64
+	inertia_tensor               lin.M3
+	inverse_inertia_tensor       lin.M3
+	angular_velocity             lin.V3
+	linear_velocity              lin.V3
+	fixed                        bool
+	active                       bool
+	deactivation_time            float64
+	static_friction_coefficient  float64
+	dynamic_friction_coefficient float64
+	restitution_coefficient      float64
 
-	// SetProps associates physical properties with a body. The physical
-	// properties are combined with the body's shape to determine its
-	// behaviour during collisions. The updated Body is returned.
-	//     mass:       use zero mass for unmoving (static/fixed) bodies.
-	//     bounciness: total bounciness is the multiplication of the two
-	//                 colliding bodies. If one of the bodies has 0
-	//                 bounciness then there is no bounce effect.
-	SetProps(mass, bounciness float64) Body
+	// PBD Auxilar
+	previous_world_position   lin.V3
+	previous_world_rotation   lin.Q
+	previous_linear_velocity  lin.V3
+	previous_angular_velocity lin.V3
 }
 
-// Body interface
-// ===========================================================================
-// body implementation.
-
-// body is the default implementation of the Body interface.
-type body struct {
-	bid   uint32  // Unique body id for generating pair identfiers.
-	shape Shape   // Body shape for collisions.
-	world *lin.T  // World transform for the given shape.
-	v0    *lin.V3 // Scratch vector.
-
-	guess   *lin.T // Predicted world transform for the given shape.
-	movable bool   // Body has mass. It is able to move.
-
-	// Motion data
-	imass float64 // Inverse mass is calcuated once on object creation.
-	lvel  *lin.V3 // Linear velocity in meters per second.
-	lfor  *lin.V3 // Linear forces acting on this body.
-	ldamp float64 // Linear damping.
-	avel  *lin.V3 // Angular velocity.
-	afor  *lin.V3 // Angular forces (torque) acting on this body.
-	adamp float64 // Angular damping.
-	iit   *lin.V3 // Inverse inertia tensor.
-	iitw  *lin.M3 // Inverse inertia tensor world. Tracks oriented inertia amount.
-
-	// Bodys take part in collision resolution. Tracks the extra information
-	// needed by the solver. It is initialized and consumed by the solver as needed.
-	friction    float64     // Ideally non-zero.
-	restitution float64     // Bounciness. Zero to one expected.
-	sbod        *solverBody // Body related solver data.
-
-	// Scratch variables are optimizations that avoid creating/destroying
-	// temporary objects that are needed each timestep.
-	coi    *C.BoxBoxInput   // Scratch box-box collision input.
-	cor    *C.BoxBoxResults // Scratch box-box collision output.
-	m0, m1 *lin.M3          // Scratch matrices.
-	t0     *lin.T           // Scratch transform.
+// force applies a force to a physics Body
+type force struct {
+	position     lin.V3 // local or world position.
+	newtons      lin.V3 // amount of force.
+	local_coords bool   // true if using local coordinates.
 }
 
-// bodyUuid is a cheap simple global id. Allows 4 billion bodies before
-// luck takes over. FUTURE: need a body.Dispose() method to allow reuse
-// of body ids.
-var bodyUUID uint32
-var bodyUUIDMutex sync.Mutex // Concurrency safety.
+// body_create_ex
+func body_create_ex(
+	world_position lin.V3,
+	world_rotation lin.Q,
+	world_scale lin.V3,
+	mass float64,
+	colliders []collider,
+	static_friction_coefficient float64,
+	dynamic_friction_coefficient float64,
+	restitution_coefficient float64,
+	is_fixed bool) *Body {
 
-// NewBody returns a new Body structure. The body will
-// be positioned, with no rotation, at the origin.
-func NewBody(shape Shape) Body { return newBody(shape) }
-func newBody(shape Shape) *body {
-	b := &body{}
-	b.shape = shape
-	b.imass = 0                 // no mass, static body by default
-	b.friction = 0.5            // good to have some friction
-	b.world = lin.NewT().SetI() // world transform
-	b.guess = lin.NewT().SetI() // predicted world transform
-
-	// allocate linear and angular motion data
-	b.lvel = lin.NewV3()
-	b.lfor = lin.NewV3()
-	b.avel = lin.NewV3()
-	b.afor = lin.NewV3()
-	b.iitw = lin.NewM3().Set(lin.M3I)
-	b.iit = lin.NewV3()
-
-	// allocate scratch variables
-	b.coi = &C.BoxBoxInput{}
-	b.cor = &C.BoxBoxResults{}
-	b.m0 = &lin.M3{}
-	b.m1 = &lin.M3{}
-	b.v0 = &lin.V3{}
-	b.t0 = lin.NewT()
-
-	// create a unique body identifier
-	bodyUUIDMutex.Lock()
-	b.bid = bodyUUID
-	if bodyUUID++; bodyUUID == 0 {
-		log.Printf("Overflow: dev error. Unique body id wrapped.")
+	if static_friction_coefficient < 0.0 || static_friction_coefficient > 1.0 {
+		slog.Error("invalid static_friction_coefficient", "value", static_friction_coefficient)
+		return nil
 	}
-	bodyUUIDMutex.Unlock()
-	return b
-}
-
-// Form interface implementation.
-func (b *body) Shape() Shape { return b.shape }
-
-// Allow world to be injected so that it becomes shared data.
-// Lazy create the world transform if one was not set.
-func (b *body) SetWorld(world *lin.T) { b.world = world }
-func (b *body) World() *lin.T {
-	if b.world == nil {
-		b.world = lin.NewT().SetI()
+	if dynamic_friction_coefficient < 0.0 || dynamic_friction_coefficient > 1.0 {
+		slog.Error("invalid dynamic_friction_coefficient", "value", dynamic_friction_coefficient)
+		return nil
 	}
-	return b.world
-}
-
-// Body interface implementation.
-func (b *body) Eq(a Body) bool           { return b.bid == a.(*body).bid }
-func (b *body) Speed() (x, y, z float64) { return b.lvel.X, b.lvel.Y, b.lvel.Z }
-func (b *body) Whirl() (x, y, z float64) { return b.avel.X, b.avel.Y, b.avel.Z }
-func (b *body) Stop()                    { b.lvel.X, b.lvel.Y, b.lvel.Z = 0, 0, 0 }
-func (b *body) Rest()                    { b.avel.X, b.avel.Y, b.avel.Z = 0, 0, 0 }
-func (b *body) Push(x, y, z float64) {
-	b.lvel.X += x
-	b.lvel.Y += y
-	b.lvel.Z += z
-}
-func (b *body) Turn(x, y, z float64) {
-	b.avel.X += x
-	b.avel.Y += y
-	b.avel.Z += z
-}
-func (b *body) SetProps(mass, bounciness float64) Body {
-	return b.setProps(mass, bounciness)
-}
-func (b *body) setProps(mass, bounciness float64) *body {
-	b.imass = 0 // static unless there is mass.
-	if !lin.AeqZ(mass) {
-		b.imass = 1.0 / mass                 // only need inverse mass
-		b.iit = b.shape.Inertia(mass, b.iit) // shape inertia
-		if lin.AeqZ(b.iit.X) {               // inverse shape inertia
-			b.iit.X = 0
-		} else {
-			b.iit.X = 1.0 / b.iit.X
-		}
-		if lin.AeqZ(b.iit.Y) {
-			b.iit.Y = 0
-		} else {
-			b.iit.Y = 1.0 / b.iit.Y
-		}
-		if lin.AeqZ(b.iit.Z) {
-			b.iit.Z = 0
-		} else {
-			b.iit.Z = 1.0 / b.iit.Z
-		}
-	}
-	b.restitution = bounciness
-	b.movable = b.imass != 0
-	return b
-}
-
-// pairID generates a unique id for bodies a and b.
-// The pair id is independent of calling order.
-func (b *body) pairID(a *body) uint64 {
-	id0, id1 := b.bid, a.bid
-	if id0 > id1 {
-		id0, id1 = id1, id0 // calling order independence
-	}
-	return uint64(id0)<<32 + uint64(id1)
-}
-
-// applyGravity applies the force of gravity to the total forces
-// acting on this body. Static bodies are ignored.
-func (b *body) applyGravity(gravity float64) {
-	if b.movable {
-		b.lfor.Y += gravity
-	}
-}
-
-// updateInertiaTensor reacalculates the inertia tensor for this body.
-func (b *body) updateInertiaTensor() {
-	worldBasis, basisTransposed := b.m0, b.m1              // scratch m0, m1
-	worldBasis.SetQ(b.world.Rot)                           //
-	basisTransposed.Transpose(worldBasis)                  //
-	b.iitw.Mult(worldBasis.ScaleV(b.iit), basisTransposed) // scratch m0, m1 free
-}
-
-// integrateVelocities updates this bodies linear and angular velocities based
-// on the bodies current forces. Static bodies are ignored.
-// FUTURE: look up symplectic Euler and see if this is the spot where it
-//        should be used (or is already being used).
-//             v(t+dt) = v(t) + a(t) * dt
-//             x(t+dt) = x(t) + v(t+dt) * dt
-func (b *body) integrateVelocities(ts float64) {
-	if !b.movable {
-		return
+	if restitution_coefficient < 0.0 || restitution_coefficient > 1.0 {
+		slog.Error("invalid restitution_coefficient", "value", restitution_coefficient)
+		return nil
 	}
 
-	// update linear velocity
-	m, v, force := b.imass*ts, b.lvel, b.lfor
-	v.X, v.Y, v.Z = v.X+force.X*m, v.Y+force.Y*m, v.Z+force.Z*m
+	body := &Body{}
+	body.world_position = world_position
+	body.world_rotation = world_rotation
+	body.world_scale = world_scale
 
-	// update angular velocity
-	{ // scratch v0
-		torq, a := b.v0, b.avel
-		torq.MultMv(b.iitw, b.afor)
-		a.X, a.Y, a.Z = a.X+torq.X*ts, a.Y+torq.Y*ts, a.Z+torq.Z*ts
-	} // scratch v0 free
+	// initial velocities all default to zero, V3{0,0,0}
+	// body.angular_velocity
+	// body.linear_velocity
+	// body.previous_angular_velocity
+	// body.previous_linear_velocity
 
-	// clamp angular velocity. Collision calculations will fail if its to high.
-	avel := b.avel.Len()
-	if avel*ts > lin.HalfPi {
-		b.avel.Scale(b.avel, lin.HalfPi/ts/avel)
+	body.bounding_sphere_radius = colliders_get_bounding_sphere_radius(colliders)
+	if is_fixed {
+		body.inverse_mass = 0.0
+		body.inertia_tensor = *lin.M3Z // this is not correct, but it shouldn't make a difference
+		body.inverse_inertia_tensor = *lin.M3Z
+	} else {
+		body.inverse_mass = 1.0 / mass
+		body.inertia_tensor = colliders_get_default_inertia_tensor(colliders, mass)
+		body.inverse_inertia_tensor.Inv(&body.inertia_tensor)
 	}
-}
-
-// applyDamping adjust linear and angular velocity by their respective
-// damping factors.
-func (b *body) applyDamping(timestep float64) {
-	b.lvel.Scale(b.lvel, math.Pow(1.0-b.ldamp, timestep))
-	b.avel.Scale(b.avel, math.Pow(1.0-b.adamp, timestep))
-}
-
-// getVelocityInLocalPoint updates vector v to be the linear and angular
-// velocity of this body at the given point. The point is expected to be
-// in local coordinate space.
-func (b *body) getVelocityInLocalPoint(localPoint, v *lin.V3) *lin.V3 {
-	return v.Cross(b.avel, localPoint).Add(v, b.lvel)
-}
-
-// combinedFriction calculates the combined friction of the two bodies.
-// Returned friction value clamped to reasonable range.
-func (b *body) combinedFriction(a *body) float64 {
-	return lin.Clamp(a.friction*b.friction, -maxFriction, maxFriction)
-}
-
-// combinedRestitution calculates the total bounciess of the two
-// bodies.
-func (b *body) combinedRestitution(a *body) float64 {
-	return a.restitution * b.restitution
-}
-
-// initSolverBody initializes, and creates if necessary, solver specific
-// data structures related to a body. All colliding bodies need solver bodies.
-func (b *body) initSolverBody() *solverBody {
-	switch {
-	case b.sbod == nil && b.movable: // unique to this body.
-		b.sbod = newSolverBody(b)
-	case b.sbod != nil && b.movable: // reuse existing solver body.
-		b.sbod.reset(b)
-	case b.sbod == nil && !b.movable: // shared fixed solver body.
-		b.sbod = fixedSolverBody()
+	body.forces = []force{}
+	body.fixed = is_fixed
+	body.active = true
+	body.deactivation_time = 0.0
+	body.colliders = colliders
+	body.static_friction_coefficient = static_friction_coefficient
+	body.dynamic_friction_coefficient = dynamic_friction_coefficient
+	body.restitution_coefficient = restitution_coefficient
+	if body.dynamic_friction_coefficient > body.static_friction_coefficient {
+		slog.Warn("dynamic friction coefficient is greater than static friction coefficient")
 	}
-	return b.sbod
+	return body
 }
 
-// worldAabb updates Abox ab to be the bodies axis-aligned bounding box
-// in world coordinates. The updated Abox is returned.
-func (b *body) worldAabb(ab *Abox) *Abox { return b.shape.Aabb(b.world, ab, 0) }
-
-// predictedAabb updates Abox ab to be the bodies axis-aligned bounding box
-// in the predicted world coordinates.
-func (b *body) predictedAabb(ab *Abox, margin float64) *Abox { return b.shape.Aabb(b.guess, ab, margin) }
-
-// updatePredictedTransform provides a guess where the body would appear using
-// the current linear and angular velocities within the supplied timestep.
-func (b *body) updatePredictedTransform(timestep float64) {
-	b.guess.Integrate(b.world, b.lvel, b.avel, timestep)
+// body_get_by_id return the id for this body.
+// bodies set each simulation step: see physics.go.
+func body_get_by_id(id bid) *Body {
+	return &bodies[id]
 }
 
-// updateWorldTransform sets the world transform based on the current linear
-// and angular velocities. Expected to be called after the solver completes.
-func (b *body) updateWorldTransform(timestep float64) {
-	b.t0.Integrate(b.world, b.lvel, b.avel, timestep) // scratch t0
-	b.world.Set(b.t0)                                 // scratch t0 free
+// SetPosition sets the bodies world position.
+func (body *Body) SetPosition(world_position lin.V3) {
+	body.world_position = world_position
 }
 
-// clearForces sets the forces applied to the body back to zero.
-func (b *body) clearForces() {
-	b.lfor.SetS(0, 0, 0)
-	b.afor.SetS(0, 0, 0)
+// Position returns the bodies world position.
+func (body *Body) Position() (world_position *lin.V3) {
+	return &body.world_position
+}
+func (body *Body) Velocity() (velocity *lin.V3) {
+	return &body.linear_velocity
+}
+
+// SetRotation sets the bodies rotation.
+func (body *Body) SetRotation(world_rotation lin.Q) {
+	body.world_rotation = world_rotation
+}
+
+// Rotation gets the bodies world rotation.
+func (body *Body) Rotation() (world_rotation *lin.Q) {
+	return &body.world_rotation
+}
+
+// SetScale sets the bodies scale
+func (body *Body) SetScale(world_scale lin.V3) {
+	body.world_scale = world_scale
+}
+
+// Activate set the body as active in the simulation.
+func (body *Body) Activate() {
+	body.active = true
+	body.deactivation_time = 0.0
+}
+
+// Push adds to the bodies linear velocity.
+func (body *Body) Push(x, y, z float64) {
+	body.linear_velocity.X += x
+	body.linear_velocity.Y += y
+	body.linear_velocity.Z += z
+}
+
+// AddForce to this body.
+// If local_coords is false, then the position and force are represented
+// in world coordinates, assuming that the center of the
+// world is the center of the entity. That is, the coordinate (0, 0, 0)
+// corresponds to the center of the entity in world coords.
+// If local_coords is true, then the position and force are
+// represented in local coords.
+func (body *Body) AddForce(position lin.V3, newtons lin.V3, local_coords bool) {
+	if local_coords {
+		// If the force and position are in local cords, we first convert them to world coords
+		// (actually, we convert them to ~"world coords centered at entity"~)
+		newtons.MultQ(&newtons, &body.world_rotation)
+
+		// note that we don't need translation since we want to be centered at entity anyway
+		model_matrix := body.get_model_matrix_no_translation()
+
+		//  gm_mat4_multiply_vec3(&model_matrix, position, true); <-- as point
+		mmv3 := lin.NewM3().SetM4(&model_matrix)
+		position.MultMv(mmv3, &position)
+		position.X += model_matrix.Xw // 03: translation X
+		position.Y += model_matrix.Yw // 13: translation W
+		position.Z += model_matrix.Zw // 23: translation Z
+	}
+	f := force{}
+	f.newtons = newtons
+	f.position = position
+	body.forces = append(body.forces, f)
+}
+
+// ClearForces
+//
+//	void entity_clear_forces(Entity* entity) {
+//	    array_clear(entity->forces);
+//	}
+func (body *Body) clear_forces() {
+	body.forces = body.forces[:0] // clear keeping memory.
+}
+
+// get_model_matrix
+func (body *Body) get_model_matrix() lin.M4 {
+	scale_matrix := &lin.M4{
+		body.world_scale.X, 0.0, 0.0, 0.0,
+		0.0, body.world_scale.Y, 0.0, 0.0,
+		0.0, 0.0, body.world_scale.Z, 0.0,
+		0.0, 0.0, 0.0, 1.0,
+	}
+	rotation_matrix := lin.NewM4().SetQ(&body.world_rotation)
+	translation_matrix := &lin.M4{
+		1.0, 0.0, 0.0, body.world_position.X,
+		0.0, 1.0, 0.0, body.world_position.Y,
+		0.0, 0.0, 1.0, body.world_position.Z,
+		0.0, 0.0, 0.0, 1.0,
+	}
+	model_matrix := rotation_matrix.Mult(rotation_matrix, scale_matrix)
+	model_matrix.Mult(translation_matrix, model_matrix)
+	return *model_matrix
+}
+
+// get_model_matrix_no_translation
+func (body *Body) get_model_matrix_no_translation() lin.M4 {
+	scale_matrix := &lin.M4{
+		body.world_scale.X, 0.0, 0.0, 0.0,
+		0.0, body.world_scale.Y, 0.0, 0.0,
+		0.0, 0.0, body.world_scale.Z, 0.0,
+		0.0, 0.0, 0.0, 1.0,
+	}
+	rotation_matrix := lin.NewM4().SetQ(&body.world_rotation)
+	model_matrix := rotation_matrix.Mult(rotation_matrix, scale_matrix)
+	return *model_matrix
+}
+
+// util_get_model_matrix_no_scale
+func util_get_model_matrix_no_scale(rotation *lin.Q, translation lin.V3) lin.M4 {
+	rotation_matrix := lin.NewM4().SetQ(rotation)
+	translation_matrix := &lin.M4{
+		Xx: 1.0, Xy: 0.0, Xz: 0.0, Xw: translation.X, // Row-major order.
+		Yx: 0.0, Yy: 1.0, Yz: 0.0, Yw: translation.Y,
+		Zx: 0.0, Zy: 0.0, Zz: 1.0, Zw: translation.Z,
+		Wx: 0.0, Wy: 0.0, Wz: 0.0, Ww: 1.0,
+	}
+	model_matrix := lin.NewM4().Mult(translation_matrix, rotation_matrix)
+	return *model_matrix
 }

@@ -1,0 +1,14 @@
+# bboard renders a single texture, like a textured shader
+# where textured object always faces the camera.
+name: bboard
+pass: 3D
+stages: [ vert, frag ]
+attrs:
+    - { name: position, data: vec3, scope: vertex }
+    - { name: texcoord, data: vec2, scope: vertex }
+uniforms:
+    - { name: proj,  data: mat4,    scope: scene    }
+    - { name: view,  data: mat4,    scope: scene    }
+    - { name: color, data: sampler, scope: material }
+    - { name: model, data: mat4,    scope: model    }
+    - { name: scale, data: vec3,    scope: model    }

@@ -1,0 +1,14 @@
+# sdf is a signed distance field shader used to render 3D text 
+# sdf expects a font image file signed distance field values
+# for the font images. SDF images appear blurry.
+name: sdf
+pass: 3D
+stages: [ vert, frag ]
+attrs:
+    - { name: position, data: vec3, scope: vertex }
+    - { name: texcoord, data: vec2, scope: vertex }
+uniforms:
+    - { name: proj,  data: mat4,    scope: scene    }
+    - { name: view,  data: mat4,    scope: scene    }
+    - { name: color, data: sampler, scope: material }
+    - { name: model, data: mat4,    scope: model    }

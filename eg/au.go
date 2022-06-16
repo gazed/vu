@@ -1,21 +1,18 @@
-// Copyright © 2013-2018 Galvanized Logic Inc.
-// Use is governed by a BSD-style license found in the LICENSE file.
+// Copyright © 2013-2024 Galvanized Logic Inc.
 
 package main
 
 import (
-	"log"
+	"log/slog"
 	"strings"
 	"time"
 
-	"github.com/gazed/vu/audio/al"
+	"github.com/gazed/vu/internal/audio/al"
 	"github.com/gazed/vu/load"
 )
 
-// au demonstrates basic audio library, vu/audio/al, capabilities.
-// It checks that OpenAL is installed and the bindings are working
+// au checks that OpenAL is installed and the bindings are working
 // by loading and playing a sound.
-// See the vu:Pov interface when using sound with the vu engine.
 //
 // CONTROLS: NA
 func au() {
@@ -24,7 +21,7 @@ func au() {
 	if report := al.BindingReport(); len(report) > 0 {
 		for _, line := range report {
 			if strings.Contains(line, "[ ]") {
-				log.Printf("au: OpenAL not available")
+				slog.Error("au: OpenAL not available")
 				return
 			}
 		}
@@ -46,22 +43,21 @@ func au() {
 			al.GenSources(1, &source)
 
 			// read in the audio data.
-			sound := &load.SndData{}
-			err := sound.Load("bloop", load.NewLocator())
+			aud, err := load.Audio("bloop.wav")
 			if err != nil {
-				log.Printf("au: error loading audio file %s %s", "bloop", err)
+				slog.Error("au: error loading audio file bloop.wav", "error", err)
 				return
 			}
 
 			// copy the audio data into the buffer
 			tag := &autag{}
-			attrs := sound.Attrs
+			attrs := aud.Attrs
 			format := tag.audioFormat(attrs)
 			if format < 0 {
-				log.Printf("au: error recognizing audio format")
+				slog.Error("au: error recognizing audio format")
 				return
 			}
-			al.BufferData(buffer, int32(format), al.Pointer(&(sound.Data[0])),
+			al.BufferData(buffer, int32(format), al.Pointer(&(aud.Data[0])),
 				int32(attrs.DataSize), int32(attrs.Frequency))
 
 			// attach the source to a buffer.
@@ -69,7 +65,7 @@ func au() {
 
 			// check for any audio library errors that have happened up to this point.
 			if openAlErr := al.GetError(); openAlErr != 0 {
-				log.Printf("au: OpenAL error %d", openAlErr)
+				slog.Error("au: OpenAL error", "error", openAlErr)
 				return
 			}
 
@@ -79,9 +75,9 @@ func au() {
 			time.Sleep(1000 * time.Millisecond)
 			return
 		}
-		log.Printf("au: error, failed to get a context")
+		slog.Error("au: error, failed to get a context")
 	}
-	log.Printf("au: error, failed to get a device")
+	slog.Error("au: error, failed to get a device")
 }
 
 // Globally unique "tag" for this example.
@@ -89,7 +85,7 @@ type autag struct{}
 
 // audioFormat figures out which of the OpenAL formats to use based on the
 // WAVE file information.
-func (a *autag) audioFormat(attrs *load.SndAttributes) int32 {
+func (a *autag) audioFormat(attrs *load.AudioAttributes) int32 {
 	format := int32(-1)
 	if attrs.Channels == 1 && attrs.SampleBits == 8 {
 		format = al.FORMAT_MONO8

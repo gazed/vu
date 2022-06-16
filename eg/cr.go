@@ -1,128 +1,161 @@
-// Copyright © 2013-2018 Galvanized Logic Inc.
-// Use is governed by a BSD-style license found in the LICENSE file.
+// Copyright © 2013-2024 Galvanized Logic Inc.
 
 package main
 
 import (
-	"log"
+	"log/slog"
 	"math/rand"
 	"time"
 
 	"github.com/gazed/vu"
+	"github.com/gazed/vu/math/lin"
 )
 
-// cr, collision resolution, demonstrates simulated physics by having balls bounce
-// on a floor. The neat thing is that after the initial locations have been set
-// the physics simulation handles all subsequent position updates.
-//
-// Alternatively set useBalls to false and "go build" to have the demo use cubes.
+// cr, collision resolution, demonstrates simulated physics by having balls and
+// boxes bounce on a floor. The neat thing is that after the initial locations
+// have been set the physics simulation handles all subsequent position updates.
+// This example demonstrates:
+//   - loading assets.
+//   - creating a 3D scene with image and text models.
+//   - setting and changing the scene camera location.
+//   - adding a light to a scene.
+//   - reacting to user input
+//   - physics
 //
 // CONTROLS:
-//   WASD  : move the camera.
-//   B     : generate new falling spheres.
-//   Space : accellerate the striker sphere.
+//   - A,D   : move the camera left/right around scene center.
+//   - Space : throw a ball from the camera position.
+//   - Q     : quit and close window.
 func cr() {
 	defer catchErrors()
-	if err := vu.Run(&crtag{}); err != nil {
-		log.Printf("cr: error initializing engine %s", err)
+	cr := &crtag{}
+	eng, err := vu.NewEngine(
+		vu.Windowed(),
+		vu.Title("Collision Resolution"),
+		vu.Size(200, 200, 800, 600),
+		vu.Background(0.15, 0.15, 0.15, 1.0),
+	)
+	if err != nil {
+		slog.Error("cr: engine start", "err", err)
+		return
 	}
-}
 
-// Globally unique "tag" that encapsulates example specific data.
-type crtag struct {
-	scene   *vu.Ent
-	striker *vu.Ent // Move to hit other items.
-}
-
-// Create is the engine callback for initial asset creation.
-func (cr *crtag) Create(eng vu.Eng, s *vu.State) {
-	eng.Set(vu.Title("Collision Resolution"), vu.Size(400, 100, 800, 600))
+	// import assets from asset files.
+	// This creates the assets referenced by the models below.
+	eng.ImportAssets("pbr0.shd", "sphere.glb", "box0.glb")
 
 	// New scene with default camera.
-	cr.scene = eng.AddScene()
-	cr.scene.Cam().SetClip(0.1, 100).SetFov(60).SetAt(0, 10, 25)
-	sun := cr.scene.MakeLight(vu.DirectionalLight).SetLightColor(0.8, 0.8, 0.8)
-	sun.SetAt(0, 10, 10)
+	cr.pos = lin.NewV3().SetS(0, 16, 30)
+	cr.scene = eng.AddScene(vu.Scene3D)
+	cr.scene.Cam().SetAt(cr.pos.X, cr.pos.Y, cr.pos.Z)
 
-	// load the static slab.
-	slab := cr.scene.AddPart().SetScale(50, 50, 50).SetAt(0, -25, 0)
-	slab.MakeBody(vu.Box(25, 25, 25)).SetSolid(0, 0.4)
-	slab.MakeModel("diffuse", "msh:box", "mat:gray")
+	// add one directional light. SetAt sets the direction.
+	cr.scene.AddLight(vu.DirectionalLight).SetAt(-1, -2, -2)
 
-	// create a single moving body.
-	cr.striker = cr.scene.AddPart().SetAt(15, 15, 0)
-	useBalls := true // Flip to use boxes instead of spheres.
-	if useBalls {
-		cr.getBall(cr.striker)
-	} else {
-		cr.getBox(cr.striker)
-	}
-	cr.striker.SetUniform("kd", rand.Float64(), rand.Float64(), rand.Float64())
+	// create a static slab as a base for the other physics objects.
+	slab := cr.scene.AddModel("shd:pbr0", "msh:box0", "mat:box0")
+	slab.SetScale(50, 10, 50).SetAt(0, -5, 0)
+	slab.AddToSimulation(vu.Box(50, 10, 50, vu.StaticSim))
 
-	// create a block of physics bodies.
+	// create a block of physics cubes.
 	cubeSize := 3
-	startX := -5 - cubeSize/2
-	startY := -5
-	startZ := -3 - cubeSize/2
-	for k := 0; k < cubeSize; k++ {
-		for i := 0; i < cubeSize; i++ {
-			for j := 0; j < cubeSize; j++ {
-				bod := cr.scene.AddPart()
-				lx := float64(2*i + startX)
-				ly := float64(20 + 2*k + startY)
-				lz := float64(2*j + startZ)
-				bod.SetAt(lx, ly, lz)
-				if useBalls {
-					cr.getBall(bod)
-				} else {
-					cr.getBox(bod)
-				}
+	for x := 0; x < cubeSize; x++ {
+		for y := 0; y < cubeSize; y++ {
+			for z := 0; z < cubeSize; z++ {
+				lx := float64(x)*4.05 - 2.0
+				ly := float64(y)*4.05 + 12.0
+				lz := float64(z)*4.05 - 2.0
+				cr.makeBox(lx, ly, lz)
 			}
 		}
 	}
 
-	// set non default engine state.
-	eng.Set(vu.Color(0.15, 0.15, 0.15, 1))
+	// seed some randomness for colors and start the engine.
 	rand.Seed(time.Now().UTC().UnixNano())
+	eng.Run(cr) // does not return while example is running.
+}
+
+// Globally unique "tag" that encapsulates example specific data.
+type crtag struct {
+	scene *vu.Entity
+	pos   *lin.V3 // initial location.
+	rot   float64 // rotation around origin.
 }
 
 // Update is the regular engine callback.
-func (cr *crtag) Update(eng vu.Eng, in *vu.Input, s *vu.State) {
-	run := 10.0   // move so many cubes worth in one second.
-	spin := 270.0 // spin so many degrees in one second.
-	dt := in.Dt
+func (cr *crtag) Update(eng *vu.Engine, in *vu.Input, delta time.Duration) {
 	cam := cr.scene.Cam()
+
+	// react to one time press events.
+	for press := range in.Pressed {
+		switch press {
+		case vu.KQ:
+			// quit if Q is pressed
+			eng.Shutdown()
+			return
+		case vu.KSpace:
+			// throw a ball from the camera's viewpoint.
+			atx, aty, atz := cam.At()
+			ball := cr.makeBall(atx, aty-2.0, atz)
+			lookat := cam.Lookat()
+			forward := lin.NewV3().Forward(lookat).Unit()
+			throw := lin.NewV3().Scale(forward, -30)
+			ball.Push(throw.X, throw.Y, throw.Z)
+		}
+	}
+
+	// react to continuous press events.
+	lookSpeed := 40 * delta.Seconds()
 	for press := range in.Down {
 		switch press {
-		case vu.KW:
-			cam.Move(0, 0, dt*-run, cam.Look)
-		case vu.KS:
-			cam.Move(0, 0, dt*run, cam.Look)
 		case vu.KA:
-			cam.SetYaw(cam.Yaw + spin*dt)
+			// rotate camera left around center
+			cr.rot -= lookSpeed
+			transformAroundOrigin := lin.NewT().SetLoc(0, 0, 0).SetAa(0, 1, 0, lin.Rad(cr.rot))
+			at := transformAroundOrigin.App(lin.NewV3().Set(cr.pos))
+			cam.SetAt(at.X, at.Y, at.Z)
+			cam.SetYaw(cr.rot)
 		case vu.KD:
-			cam.SetYaw(cam.Yaw - spin*dt)
-		case vu.KB:
-			ball := cr.scene.AddPart()
-			ball.SetAt(-2.5+rand.Float64(), 15, -1.5-rand.Float64())
-			ball.MakeBody(vu.Sphere(1)).SetSolid(1, 0.9)
-			m := ball.MakeModel("phong", "msh:sphere", "mat:red")
-			m.SetUniform("kd", rand.Float64(), rand.Float64(), rand.Float64())
-		case vu.KSpace:
-			cr.striker.Push(-2.5, 0, -0.5)
+			// rotate camera right around center
+			cr.rot += lookSpeed
+			transformAroundOrigin := lin.NewT().SetLoc(0, 0, 0).SetAa(0, 1, 0, lin.Rad(cr.rot))
+			at := transformAroundOrigin.App(lin.NewV3().Set(cr.pos))
+			cam.SetAt(at.X, at.Y, at.Z)
+			cam.SetYaw(cr.rot)
 		}
 	}
 }
 
-// getBall creates a visible sphere physics body.
-func (cr *crtag) getBall(p *vu.Ent) {
-	p.MakeBody(vu.Sphere(1)).SetSolid(1, 0.5)
-	p.MakeModel("phong", "msh:sphere", "mat:red")
+// makeBall creates a visible sphere physics body.
+func (cr *crtag) makeBall(lx, ly, lz float64) (ball *vu.Entity) {
+	const sphere_radius = 1.2849 // from blender
+	ball = cr.scene.AddModel("shd:pbr0", "msh:sphere")
+	ball.SetScale(2, 2, 2).SetAt(lx, ly, lz)
+	ball.AddToSimulation(vu.Sphere(2*sphere_radius, vu.KinematicSim))
+	r, g, b, a, metallic, roughness := randomColor()
+	ball.SetColor(r, g, b, a)
+	ball.SetMetallicRoughness(metallic, roughness)
+	return ball
 }
 
-// getBox creates a visible box physics body.
-func (cr *crtag) getBox(p *vu.Ent) {
-	p.SetScale(2, 2, 2)
-	p.MakeBody(vu.Box(1, 1, 1)).SetSolid(1, 0)
-	p.MakeModel("phong", "msh:box", "mat:red")
+// makeBox creates a visible box physics body.
+func (cr *crtag) makeBox(lx, ly, lz float64) (box *vu.Entity) {
+	box = cr.scene.AddModel("shd:pbr0", "msh:box0")
+	box.SetScale(2, 2, 2).SetAt(lx, ly, lz)
+	box.AddToSimulation(vu.Box(2, 2, 2, vu.KinematicSim))
+	r, g, b, a, metallic, roughness := randomColor()
+	box.SetColor(r, g, b, a)
+	box.SetMetallicRoughness(metallic, roughness)
+	return box
+}
+
+// randomColor generates a random PBR solid color.
+func randomColor() (r, g, b, a float64, metallic bool, roughness float64) {
+	r = rand.Float64()
+	g = rand.Float64()
+	b = rand.Float64()
+	a = 1.0
+	metallic = rand.Float64() >= 0.5
+	roughness = rand.Float64()
+	return r, g, b, a, metallic, roughness
 }

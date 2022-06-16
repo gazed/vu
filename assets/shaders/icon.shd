@@ -1,0 +1,12 @@
+# icon puts a texture on a 2D quad. 
+name: icon
+pass: 2D
+stages: [ vert, frag ]
+attrs:
+    - { name: position, data: vec2, scope: vertex }
+    - { name: texcoord, data: vec2, scope: vertex }
+uniforms:
+    - { name: proj,  data: mat4,    scope: scene    }
+    - { name: view,  data: mat4,    scope: scene    }
+    - { name: color, data: sampler, scope: material }
+    - { name: model, data: mat4,    scope: model    }

@@ -1,12 +1,11 @@
-// Copyright © 2013-2018 Galvanized Logic Inc.
-// Use is governed by a BSD-style license found in the LICENSE file.
+// Copyright © 2013-2024 Galvanized Logic Inc.
 
 package lin
 
-// Vector performs 3 or 4 element vector related math needed for 3D applications.
+// vector.go performs 3 or 4 element vector related math needed for 3D applications.
 
 import (
-	"log"
+	"log/slog"
 	"math"
 )
 
@@ -166,7 +165,9 @@ func (v *V4) Neg(a *V4) *V4 {
 // Add (+) adds vectors a and b storing the results of the addition in v.
 // Vector v may be used as one or both of the parameters.
 // For example (+=) is
-//     v.Add(v, b)
+//
+//	v.Add(v, b)
+//
 // The updated vector v is returned.
 func (v *V3) Add(a, b *V3) *V3 {
 	v.X, v.Y, v.Z = a.X+b.X, a.Y+b.Y, a.Z+b.Z
@@ -183,7 +184,9 @@ func (v *V4) Add(a, b *V4) *V4 {
 // Sub (-) subtracts vectors b from a storing the results of the subtraction in v.
 // Vector v may be used as one or both of the parameters.
 // For example (-=) is
-//     v.Sub(v, b)
+//
+//	v.Sub(v, b)
+//
 // The updated vector v is returned.
 func (v *V3) Sub(a, b *V3) *V3 {
 	v.X, v.Y, v.Z = a.X-b.X, a.Y-b.Y, a.Z-b.Z
@@ -200,7 +203,9 @@ func (v *V4) Sub(a, b *V4) *V4 {
 // Mult (*) multiplies the elements of vectors a and b storing the result in v.
 // Vector v may be used as one or both of the parameters. For example (*=) is
 // For example (*=) is
-//     v.Mult(v, b)
+//
+//	v.Mult(v, b)
+//
 // The updated vector v is returned.
 func (v *V3) Mult(a, b *V3) *V3 {
 	v.X, v.Y, v.Z = a.X*b.X, a.Y*b.Y, a.Z*b.Z
@@ -253,11 +258,12 @@ func (v *V4) Div(s float64) *V4 {
 
 // Dot vector v with input vector a. Both vectors v and a are unchanged.
 // Wikipedia states:
-//    "This operation can be defined either algebraically or geometrically.
-//     Algebraically, it is the sum of the products of the corresponding
-//     entries of the two sequences of numbers. Geometrically, it is the
-//     product of the magnitudes of the two vectors and the cosine of
-//     the angle between them."
+//
+//	"This operation can be defined either algebraically or geometrically.
+//	 Algebraically, it is the sum of the products of the corresponding
+//	 entries of the two sequences of numbers. Geometrically, it is the
+//	 product of the magnitudes of the two vectors and the cosine of
+//	 the angle between them."
 func (v *V3) Dot(a *V3) float64 { return v.X*a.X + v.Y*a.Y + v.Z*a.Z }
 
 // Dot vector v with input vector a. Same behaviour as V3.Dot()
@@ -296,7 +302,7 @@ func (v *V3) Ang(a *V3) float64 {
 	if magnitude != 0 {
 		return math.Acos(v.Dot(a) / magnitude)
 	}
-	log.Printf("Dev error. vector.V3:Ang division by zero")
+	slog.Error("Dev error. vector.V3:Ang division by zero")
 	return 0
 }
 
@@ -353,8 +359,10 @@ func (v *V4) Lerp(a, b *V4, ratio float64) *V4 {
 
 // Nlerp updates vector v to be a normalized vector that is the linerar interpolation
 // between a and b. See:
-//    http://keithmaggio.wordpress.com/2011/02/15/math-magician-lerp-slerp-and-nlerp/
-//    http://number-none.com/product/Understanding%20Slerp,%20Then%20Not%20Using%20It/
+//
+//	http://keithmaggio.wordpress.com/2011/02/15/math-magician-lerp-slerp-and-nlerp/
+//	http://number-none.com/product/Understanding%20Slerp,%20Then%20Not%20Using%20It/
+//
 // The calling vector v may be used as either or both of the input parameters.
 func (v *V3) Nlerp(a, b *V3, ratio float64) *V3 { return v.Lerp(a, b, ratio).Unit() }
 
@@ -386,16 +394,16 @@ func (v *V3) Plane(p, q *V3) {
 	return
 }
 
-// vector operations
 // ============================================================================
 // vector-matrix operations
 
 // MultvM updates vector v to be the multiplication of row vector rv
 // and matrix m. Vector v may be used as the input vector rv.
 // The updated vector v is returned.
-//                   [ Xx Xy Xz ]
-//    [ vx vy vz ] x [ Yx Yy Yz ] = [ vx' vy' vz' ]
-//                   [ Zx Zy Zz ]
+//
+//	               [ Xx Xy Xz ]
+//	[ vx vy vz ] x [ Yx Yy Yz ] = [ vx' vy' vz' ]
+//	               [ Zx Zy Zz ]
 func (v *V3) MultvM(rv *V3, m *M3) *V3 {
 	x := rv.X*m.Xx + rv.Y*m.Yx + rv.Z*m.Zx
 	y := rv.X*m.Xy + rv.Y*m.Yy + rv.Z*m.Zy
@@ -405,11 +413,12 @@ func (v *V3) MultvM(rv *V3, m *M3) *V3 {
 }
 
 // MultvM updates vector v to be the multiplication of row vector rv
-// and matrix m. Same behaviour as V4.MultvM().
-//                      [ Xx Xy Xz Xw ]
-//    [ vx vy vz vw ] x [ Yx Yy Yz Yw ] = [ vx' vy' vz' vw']
-//                      [ Zx Zy Zz Zw ]
-//                      [ Wx Wy Wz Ww ]
+// and matrix m. Same behaviour as V3.MultvM().
+//
+//	                  [ Xx Xy Xz Xw ]
+//	[ vx vy vz vw ] x [ Yx Yy Yz Yw ] = [ vx' vy' vz' vw']
+//	                  [ Zx Zy Zz Zw ]
+//	                  [ Wx Wy Wz Ww ]
 func (v *V4) MultvM(rv *V4, m *M4) *V4 {
 	x := rv.X*m.Xx + rv.Y*m.Yx + rv.Z*m.Zx + rv.W*m.Wx
 	y := rv.X*m.Xy + rv.Y*m.Yy + rv.Z*m.Zy + rv.W*m.Wy
@@ -422,9 +431,10 @@ func (v *V4) MultvM(rv *V4, m *M4) *V4 {
 // MultMv updates vector v to be the multiplication of matrix m and
 // column vector cv. Vector v may be used as the input vector cv.
 // The updated vector v is returned.
-//    [ Xx Xy Xz ]   [ vx ]   [ vx' ]
-//    [ Yx Yy Yz ] x [ vy ] = [ vx' ]
-//    [ Zx Zy Zz ]   [ vz ]   [ vz' ]
+//
+//	[ Xx Xy Xz ]   [ vx ]   [ vx' ]
+//	[ Yx Yy Yz ] x [ vy ] = [ vx' ]
+//	[ Zx Zy Zz ]   [ vz ]   [ vz' ]
 func (v *V3) MultMv(m *M3, cv *V3) *V3 {
 	x := m.Xx*cv.X + m.Xy*cv.Y + m.Xz*cv.Z
 	y := m.Yx*cv.X + m.Yy*cv.Y + m.Yz*cv.Z
@@ -435,10 +445,11 @@ func (v *V3) MultMv(m *M3, cv *V3) *V3 {
 
 // MultMv updates vector v to be the multiplication of matrix m and
 // column vector cv. Same behaviour as V3.MultMv().
-//    [ Xx Xy Xz Xw ]   [ vx ]   [ vx' ]
-//    [ Yx Yy Yz Yw ] x [ vy ] = [ vy' ]
-//    [ Zx Zy Zz Zw ]   [ vz ]   [ vz' ]
-//    [ Wx Wy Wz Ww ]   [ vw ]   [ vw' ]
+//
+//	[ Xx Xy Xz Xw ]   [ vx ]   [ vx' ]
+//	[ Yx Yy Yz Yw ] x [ vy ] = [ vy' ]
+//	[ Zx Zy Zz Zw ]   [ vz ]   [ vz' ]
+//	[ Wx Wy Wz Ww ]   [ vw ]   [ vw' ]
 func (v *V4) MultMv(m *M4, cv *V4) *V4 {
 	x := m.Xx*cv.X + m.Xy*cv.Y + m.Xz*cv.Z + m.Xw*cv.W
 	y := m.Yx*cv.X + m.Yy*cv.Y + m.Yz*cv.Z + m.Yw*cv.W
@@ -448,7 +459,6 @@ func (v *V4) MultMv(m *M4, cv *V4) *V4 {
 	return v
 }
 
-// vector-matrix operations
 // ============================================================================
 // vector-quaternion operations
 
@@ -488,7 +498,60 @@ func multSQ(x, y, z, qx, qy, qz, qw float64) (vx, vy, vz float64) {
 	return rx + rx, ry + ry, rz + rz
 }
 
-// vector-quaternion operations
+// Right sets v to to be the result of applying the quaternion
+// rotation to the X direction, equivalent to MultSQ(1, 0, 0, q)
+func (v *V3) Right(q *Q) *V3 {
+	v.X = 1.0 - 2.0*q.Y*q.Y - 2.0*q.Z*q.Z
+	v.Y = 2.0*q.X*q.Y - 2.0*-q.W*q.Z
+	v.Z = 2.0*q.X*q.Z + 2.0*-q.W*q.Y
+	return v
+}
+
+// RightInverted sets v to to be the result of applying the opposite
+// quaternion rotation to the X direction.
+func (v *V3) RightInverted(q *Q) *V3 {
+	v.X = 1.0 - 2.0*q.Y*q.Y - 2.0*q.Z*q.Z
+	v.Y = 2.0*q.X*q.Y - 2.0*q.W*q.Z
+	v.Z = 2.0*q.X*q.Z + 2.0*q.W*q.Y
+	return v
+}
+
+// Up sets v to to be the result of applying the quaternion
+// rotation to the Y direction, equivalent to MultSQ(0, 1, 0, q)
+func (v *V3) Up(q *Q) *V3 {
+	v.X = 2.0*q.X*q.Y + 2.0*-q.W*q.Z
+	v.Y = 1.0 - (2.0 * q.X * q.X) - (2.0 * q.Z * q.Z)
+	v.Z = 2.0*q.Y*q.Z - 2.0*-q.W*q.X
+	return v
+}
+
+// UpInverted sets v to to be the result of applying the opposite
+// quaternion rotation to the Y direction.
+func (v *V3) UpInverted(q *Q) *V3 {
+	v.X = 2.0*q.X*q.Y + 2.0*q.W*q.Z
+	v.Y = 1.0 - (2.0 * q.X * q.X) - (2.0 * q.Z * q.Z)
+	v.Z = 2.0*q.Y*q.Z - 2.0*q.W*q.X
+	return v
+}
+
+// Forward sets v to to be the result of applying the quaternion
+// rotation to the Z direction, equivalent to MultSQ(0, 0, 1, q)
+func (v *V3) Forward(q *Q) *V3 {
+	v.X = 2.0*q.X*q.Z - 2.0*-q.W*q.Y
+	v.Y = 2.0*q.Y*q.Z + 2.0*-q.W*q.X
+	v.Z = 1.0 - (2.0 * q.X * q.X) - (2.0 * q.Y * q.Y)
+	return v
+}
+
+// ForwardInverted sets v to to be the result of applying the opposite
+// quaternion rotation to the Z direction.
+func (v *V3) ForwardInverted(q *Q) *V3 {
+	v.X = 2.0*q.X*q.Z - 2.0*q.W*q.Y
+	v.Y = 2.0*q.Y*q.Z + 2.0*q.W*q.X
+	v.Z = 1.0 - (2.0 * q.X * q.X) - (2.0 * q.Y * q.Y)
+	return v
+}
+
 // ============================================================================
 // vector-transform operations
 
@@ -499,7 +562,6 @@ func (v *V3) AppT(t *T, a *V3) *V3 {
 	return v
 }
 
-// vector-transform operations
 // ============================================================================
 // convenience functions for allocating vectors.  Nothing else should allocate.
 

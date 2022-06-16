@@ -1,82 +1,74 @@
-// Copyright © 2013-2018 Galvanized Logic Inc.
-// Use is governed by a BSD-style license found in the LICENSE file.
+// Copyright © 2013-2024 Galvanized Logic Inc.
 
 package main
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/gazed/vu/device"
-	"github.com/gazed/vu/render/gl"
 )
 
-// sh is used to test and showcase the vu/device package. Just getting a window
+// sh creates a shell to showcase the vu/device package. Just getting a window
 // to appear demonstrates that the majority of the functionality is working.
 // The remainder of the example dumps keyboard and mouse events showing that
-// user input is being processed. See vu/device package for more information.
+// user input is being processed.
 //
 // CONTROLS:
-//   key   : print out key press info
-//   mouse : print out mouse click info
+//
+//	key   : print out key press info
+//	mouse : print out mouse click info
 func sh() {
-	device.Run(&shtag{}) // does not return from here...
+	windowed := true
+	dev := device.New(windowed, "Shell", 100, 100, 800, 600)
+	dev.CreateDisplay()
+	for dev.IsRunning() {
+		in := dev.GetInput()
+
+		// quit if X is pressed
+		if _, ok := in.Pressed[device.KX]; ok {
+			dev.Dispose()
+		}
+
+		// show pressed keys
+		if len(in.Pressed) > 0 {
+			fmt.Print("pressed:")
+			for k, _ := range in.Pressed {
+				fmt.Print(" ", k)
+			}
+			fmt.Println()
+		}
+
+		// show keys held down.
+		if len(in.Down) > 0 {
+			fmt.Print("down:")
+			for k, _ := range in.Down {
+				fmt.Print(" ", k)
+			}
+
+			// show mouse position when holding down a mouse button.
+			_, mouseLeftDown := in.Down[device.KML]
+			_, mouseMiddleDown := in.Down[device.KMM]
+			_, mouseRightDown := in.Down[device.KMR]
+			if mouseLeftDown || mouseMiddleDown || mouseRightDown {
+				fmt.Print(" mx,my:", in.Mx, ",", in.My)
+			}
+			fmt.Println()
+		}
+
+		// show released keys
+		for k, v := range in.Released {
+			fmt.Println("released:", k, " ", v.Milliseconds(), "ms")
+		}
+
+		// show scroll amounts
+		if in.Scroll != 0 {
+			fmt.Println("scroll:", in.Scroll)
+		}
+
+		// sleep a bit to simulate a game update/render loop.
+		time.Sleep(50 * time.Millisecond)
+	}
 }
 
 type shtag struct{} // Globally unique "tag" for this example.
-
-// Init is a one-time callback before rendering updates.
-func (sh *shtag) Init(dev device.Device) {
-	gl.Init()
-	dev.SetTitle("Shell")
-	dev.SetSize(400, 100, 800, 600)
-	gl.Viewport(0, 0, 800, 600)
-	fmt.Printf("%s %s", gl.GetString(gl.RENDERER), gl.GetString(gl.VERSION))
-	fmt.Printf(" GLSL %s\n", gl.GetString(gl.SHADING_LANGUAGE_VERSION))
-	gl.ClearColor(0.3, 0.6, 0.4, 1.0)
-}
-
-// Refresh is called each update tick. In this case it
-// prints Show all the concurrent user actions to the console.
-func (sh *shtag) Refresh(dev device.Device) {
-	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-	pressed := dev.Down()
-	if pressed.Scroll != 0 {
-		fmt.Printf("scroll %d\n", pressed.Scroll)
-	}
-	if pressed.Resized {
-		x, y, ww, wh := dev.Size()
-		fmt.Printf("resized %d %d %d %d\n", x, y, ww, wh)
-		gl.Viewport(0, 0, int32(ww), int32(wh))
-	}
-	if len(pressed.Down) > 0 {
-		if pressed.Focus {
-			fmt.Print("   focus:")
-		} else {
-			fmt.Print(" nofocus:")
-		}
-		fmt.Print(pressed.Mx, ",", pressed.My, ":")
-		for key, downTicks := range pressed.Down {
-			fmt.Print(key, ",", downTicks, ":")
-		}
-		fmt.Println()
-
-		// demo clipboard copy/paste.
-		if down, ok := pressed.Down[device.KC]; ok && down == 1 {
-			fmt.Printf("\"%s\" ", dev.Copy())
-		}
-		if down, ok := pressed.Down[device.KP]; ok && down == 1 {
-			dev.Paste("Sample clipboard text")
-		}
-
-		// toggle windowed mode if W is pressed.
-		if down, ok := pressed.Down[device.KW]; ok && down == 1 {
-			dev.ToggleFullScreen()
-		}
-
-		// quit if X is pressed
-		if down, ok := pressed.Down[device.KX]; ok && down == 1 {
-			dev.Dispose()
-		}
-	}
-	dev.SwapBuffers()
-}

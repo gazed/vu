@@ -1,11 +1,10 @@
-// Copyright © 2013-2018 Galvanized Logic Inc.
-// Use is governed by a BSD-style license found in the LICENSE file.
+// Copyright © 2013-2024 Galvanized Logic Inc.
 
 package lin
 
 // transform.go
-// FUTURE: use dual quaternions for both transformation and rotation. See:
-//         A Beginners Guide to Dual-Quaternions by Ben Kenwright
+// FUTURE: consider dual quaternions for both transformation and rotation.
+//         See: A Beginners Guide to Dual-Quaternions by Ben Kenwright
 
 import "math"
 
@@ -15,8 +14,9 @@ import "math"
 //
 // T supports linear algebra operations that are similar to those supported
 // by V3, V4, M3, M4, and Q.  The main ones are:
-//      Multiply two transforms together to produce a composite transform.
-//      Apply a transform or inverse transform to a vector.
+//
+//	Multiply two transforms together to produce a composite transform.
+//	Apply a transform or inverse transform to a vector.
 type T struct {
 	Loc *V3 // Location (translation, origin).
 	Rot *Q  // Rotation (direction, orientation).

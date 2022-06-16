@@ -1,39 +1,23 @@
-// Copyright © 2014-2018 Galvanized Logic Inc.
-// Use is governed by a BSD-style license found in the LICENSE file.
+// Copyright © 2014-2024 Galvanized Logic Inc.
 
 package vu
 
-// camera.go encapsulates view and projection matricies needed for rendering.
-// DESIGN:
-//   See the following for a first person camera example using quaternions:
-//   http://content.gpwiki.org/index.php/OpenGL:Tutorials:Using_Quaternions_to_represent_rotation
-//   One way to implement cameras:
-//   http://udn.epicgames.com/Three/CameraTechnicalGuide.html
-// For mouse-picking or ray-casting See:
-//   http://bookofhook.com/mousepick.pdf
-//   http://antongerdelan.net/opengl/raycasting.html
-//   http://schabby.de/picking-opengl-ray-tracing/
-//   (opengl FAQ Picking 20.0.010)
-//   http://www.opengl.org/archives/resources/faq/technical/selection.htm
-//   http://www.codeproject.com/Articles/625787/Pick-Selection-with-OpenGL-and-OpenCL
-//
-// FUTURE: Combine and share the Pov and Camera transform knowledge.
-//         Ideally this makes the API easier and reduce engine code complexity
-//         by removing a set of transform code.
-// FUTURE: Make consistent. Look is an accessor Lookat() is a method.
+// camera.go holds the view and projection matricies needed for rendering.
 
 import (
+	"math"
+
 	"github.com/gazed/vu/math/lin"
 )
 
 // Camera makes rendered models visible within a frame. A camera is
 // associated with a scene where it is used to render the scenes models.
 //
-// Camera combines a location+orientation using separate up/down angle
+// Camera combines a location+orientation using separate pitch angle
 // tracking. This allows use as a first-person camera which can limit
-// up/down to a given range, often 180deg. Overall orientation is calculated
-// by combining Pitch and Yaw. Look is for walking cameras, Lookat is for
-// flying cameras.
+// up/down to a given range (often 180 degrees). Overall orientation is
+// calculated by combining Pitch and Yaw. Look is for walking cameras,
+// Lookat is for flying cameras.
 type Camera struct {
 	Pitch float64 // X-axis rotation in degrees. Set using SetPitch.
 	Yaw   float64 // Y-axis rotation in degrees. Set using SetYaw.
@@ -61,17 +45,12 @@ type Camera struct {
 	ivm *lin.M4 // Inverse view matrix.
 	pm  *lin.M4 // Projection part of MVP matrix.
 	ipm *lin.M4 // Inverse projection matrix.
-
-	// Scratch variables needed each update.
-	q0  *lin.Q  // Scratch for camera transform calculations.
-	v0  *lin.V4 // Scratch for pick ray calculations.
-	ray *lin.V3 // Scratch for pick ray calculations.
 }
 
-// newCamera creates a default rendering field that is looking down
-// the positive Z axis with positive Y up.
+// newCamera creates a default rendering field that is looking
+// down the negative Z axis with positive Y up.
 func newCamera() *Camera {
-	c := &Camera{fov: 60, focus: true} // Default fov.
+	c := &Camera{fov: 90, focus: true} // Default fov.
 	c.Look = lin.NewQ().SetAa(0, 1, 0, 0)
 	c.at = lin.NewT()
 	c.prev = lin.NewT()
@@ -80,12 +59,9 @@ func newCamera() *Camera {
 	c.ivm = (&lin.M4{}).Set(lin.M4I)
 	c.pm = &lin.M4{}
 	c.ipm = &lin.M4{}
-	c.q0 = &lin.Q{}
-	c.v0 = &lin.V4{}
-	c.ray = &lin.V3{}
 	c.vt, c.it = vp, ivp
-	c.vt(c.at, c.q0, c.vm)  // initial view transform
-	c.it(c.at, c.q0, c.ivm) // inverse view transform.
+	c.vt(c.at, c.vm)  // initial view transform
+	c.it(c.at, c.ivm) // inverse view transform.
 	return c
 }
 
@@ -146,51 +122,15 @@ func (c *Camera) SetYaw(deg float64) *Camera {
 	return c
 }
 
-// Distance returns the distance squared of the camera to the given Pov.
-// Uses the existing Pov world coordinates.
-func (c *Camera) Distance(wx, wy, wz float64) float64 {
-	dx := wx - c.at.Loc.X
-	dy := wy - c.at.Loc.Y
-	dz := wz - c.at.Loc.Z
-	return float64(dx*dx + dy*dy + dz*dz)
-}
-
-// normalizedDistance returns the distance to camera as a 0-1 range.
-// This is needed for sorting transparent objects. Expected to be
-// called on objects that have already passed culling.
-func (c *Camera) normalizedDistance(wx, wy, wz float64) float64 {
-	vec := c.v0.SetS(wx, wy, wz, 1)
-	vec.MultvM(vec, c.vm)          // apply view matrix.
-	vec.MultvM(vec, c.pm)          // apply projection matrix.
-	clipz := vec.Z*0.5/vec.W + 0.5 // convert from -1:1 to 0:1
-	if clipz < 0 || clipz > 1 {
-		return -1 // outside near/far planes.
-	}
-	return clipz
-}
-
-// setPerspective makes the camera use a 3D projection.
-// This is the projection part of model-view-projection.
-func (c *Camera) setPerspective(fov, ratio, near, far float64) {
-	c.pm.Persp(fov, ratio, near, far)
-	c.ipm.PerspInv(fov, ratio, near, far)
-}
-
-// setOrthographic makes the camera use a 2D projection.
-// This is the projection part of model-view-projection.
-func (c *Camera) setOrthographic(left, right, bottom, top, near, far float64) {
-	c.pm.Ortho(left, right, bottom, top, near, far)
-}
-
 // Ray applies inverse transforms to derive world space coordinates
 // for a ray projected from the camera through the mouse's mx,my
 // screen position given window width and height ww,wh.
 func (c *Camera) Ray(mx, my, ww, wh int) (x, y, z float64) {
-	c.ray.SetS(0, 0, 0)
+	ray := lin.NewV3().SetS(0, 0, 0)
 	if mx >= 0 && mx <= ww && my >= 0 && my <= wh {
 		clipx := float64(2*mx)/float64(ww) - 1 // mx to range -1:1
 		clipy := float64(2*my)/float64(wh) - 1 // my to range -1:1
-		clip := c.v0.SetS(clipx, clipy, -1, 1)
+		clip := lin.NewV4().SetS(clipx, clipy, -1, 1)
 
 		// Use inverse perspective to go from clip to eye (view) coordinates.
 		eye := clip.MultvM(clip, c.ipm)
@@ -199,10 +139,41 @@ func (c *Camera) Ray(mx, my, ww, wh int) (x, y, z float64) {
 
 		// Use inverse view to go from eye (view) to world coordinates.
 		world := eye.MultvM(eye, c.ivm)
-		c.ray.SetS(world.X, world.Y, world.Z) // ignore the W component.
-		c.ray.Unit()                          // return a unit vector.
+		ray.SetS(world.X, world.Y, world.Z) // ignore the W component.
+		ray.Unit()                          // return a unit vector.
 	}
-	return c.ray.X, c.ray.Y, c.ray.Z
+	return ray.X, ray.Y, ray.Z
+}
+
+// RayCastSphere calculates the point of collision between a ray
+// originating from the camera and a sphere in world space.
+// The closest contact point is returned if there is an intersection.
+// Expecting the ray to be a unit vector, see: camera.Ray().
+//
+//	http://en.wikipedia.org/wiki/Line–sphere_intersection
+func (c *Camera) RayCastSphere(ray, sphere *lin.V3, radius float64) (hit bool, x, y, z float64) {
+	rx, ry, rz := c.At() // ray origin is the camera world location.
+
+	// vector from ray origin to sphere center
+	rs := lin.NewV3().SetS(sphere.X-rx, sphere.Y-ry, sphere.Z-rz)
+
+	// distance between the center of the sphere and the ray.
+	// If the distance is larger than the radius there is no intersection.
+	d0 := ray.Dot(rs)
+	if d0 < 0 {
+		return false, 0, 0, 0 // no hit
+	}
+	r2 := radius * radius
+	d1 := rs.Dot(rs) - d0*d0
+	if d1 > r2 {
+		return false, 0, 0, 0 // no hit
+	}
+
+	// Get contact point by scaling the ray direction with
+	// the contact distance and adding the ray origin.
+	dlen := d0 - math.Sqrt(r2-d1)
+	x, y, z = rx+dlen*ray.X, ry+dlen*ray.Y, rz+dlen*ray.Z
+	return true, x, y, z
 }
 
 // Screen applies the camera transform on a 3D point in world space wx,wy,wz
@@ -211,7 +182,7 @@ func (c *Camera) Ray(mx, my, ww, wh int) (x, y, z float64) {
 // what is done in the rendering pipeline.
 // Returns -1,-1 if the point is outside the screen area.
 func (c *Camera) Screen(wx, wy, wz float64, ww, wh int) (sx, sy int) {
-	vec := c.v0.SetS(wx, wy, wz, 1)
+	vec := lin.NewV4().SetS(wx, wy, wz, 1)
 	vec.MultvM(vec, c.vm)          // apply view matrix.
 	vec.MultvM(vec, c.pm)          // apply projection matrix.
 	clipx := vec.X*0.5/vec.W + 0.5 // convert to range 0:1
@@ -225,48 +196,69 @@ func (c *Camera) Screen(wx, wy, wz float64, ww, wh int) (sx, sy int) {
 	return sx, sy
 }
 
+// distance returns the distance squared of the camera to the given Pov.
+// Uses the existing Pov world coordinates.
+func (c *Camera) distance(wx, wy, wz float64) float64 {
+	dx := wx - c.at.Loc.X
+	dy := wy - c.at.Loc.Y
+	dz := wz - c.at.Loc.Z
+	return float64(dx*dx + dy*dy + dz*dz)
+}
+
+// setPerspective makes the camera use a 3D projection.
+// This is the projection part of model-view-projection.
+func (c *Camera) setPerspective(fov, ratio, near, far float64) {
+	c.pm.PerspectiveProjection(fov, ratio, near, far)
+	c.ipm.PerspectiveInverse(fov, ratio, near, far)
+}
+
+// setOrthographic makes the camera use a 2D projection.
+// This is the projection part of model-view-projection.
+func (c *Camera) setOrthographic(left, right, bottom, top, near, far float64) {
+	c.pm.OrthographicProjection(left, right, bottom, top, near, far)
+}
+
 // Camera
 // ===========================================================================
 // view transforms
 
 // viewTransform creates a transform matrix from location and orientation.
 // This is expected to be used for camera transforms. The camera is thought
-// of as being at 0,0,0. This means moving the camera forward by x:units
-// really means moving the world (everything else) back -x:units. Likewise
-// rotating the camera by x:degrees really means rotating the world by -x.
-type viewTransform func(*lin.T, *lin.Q, *lin.M4)
+// of as being at 0,0,0. Moving the camera forward by x:units really means
+// moving the world (everything else) back -x:units. Likewise rotating the
+// camera by x:degrees really means rotating the world by -x.
+type viewTransform func(*lin.T, *lin.M4)
 
 // vp perspective projection transform used for Camera.Vt.
-func vp(at *lin.T, scr *lin.Q, vm *lin.M4) {
+func vp(at *lin.T, vm *lin.M4) {
 	vm.SetQ(at.Rot)
 	vm.TranslateTM(-at.Loc.X, -at.Loc.Y, -at.Loc.Z)
 }
 
 // xzxy perspective to ortho view transform used for Camera.Vt.
 // Can help transform a 3D map to a 2D overlay.
-func xzxy(at *lin.T, scr *lin.Q, vm *lin.M4) {
-	rot := scr.SetAa(1, 0, 0, -lin.Rad(90))
+func xzxy(at *lin.T, vm *lin.M4) {
 	l := at.Loc
+	rot := lin.NewQ().SetAa(1, 0, 0, -lin.Rad(90))
 	vm.SetQ(rot).ScaleMS(1, 1, 0).TranslateTM(-l.X, -l.Y, -l.Z)
 }
 
 // vo orthographic projection transform used for Camera.Vt.
-func vo(pov *lin.T, scr *lin.Q, vm *lin.M4) {
+func vo(pov *lin.T, vm *lin.M4) {
 	vm.Set(lin.M4I).ScaleMS(1, 1, 0)
 }
 
 // inverseTransform creates the inverse transform matrix from
 // the location and orientation. Used in ray picking.
-type inverseTransform func(*lin.T, *lin.Q, *lin.M4)
+type inverseTransform func(*lin.T, *lin.M4)
 
 // ivp inverse view transform. For ray casting.
-func ivp(at *lin.T, scr *lin.Q, vm *lin.M4) {
-	rot := scr.Inv(at.Rot)
-	vm.SetQ(rot)
+func ivp(at *lin.T, vm *lin.M4) {
+	vm.SetQ(lin.NewQ().Inv(at.Rot))
 	vm.TranslateMT(at.Loc.X, at.Loc.Y, at.Loc.Z)
 }
 
 // nv is a null identity view.
-func nv(at *lin.T, scr *lin.Q, vm *lin.M4) {
+func nv(at *lin.T, vm *lin.M4) {
 	vm.Set(lin.M4I)
 }

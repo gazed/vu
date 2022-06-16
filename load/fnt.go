@@ -1,7 +1,10 @@
-// Copyright © 2013-2016 Galvanized Logic Inc.
-// Use is governed by a BSD-style license found in the LICENSE file.
+// Copyright © 2013-2024 Galvanized Logic Inc.
 
 package load
+
+// fnt.go imports font texture map data.
+// The fnt data was produced with a tool that is no longer available.
+// A new font data tool needs to be found.
 
 import (
 	"bufio"
@@ -12,13 +15,12 @@ import (
 
 // Fnt reads in a text file describing the UV texture mapping for
 // a character set of a particular font.
-// The FNT files have been created using: www.anglecode.com/products/bmfont.
-// The file data format is described at:
-//    http://www.angelcode.com/products/bmfont/doc/file_format.html
+//
 // The Reader r is expected to be opened and closed by the caller.
 // A successful import overwrites the data in FntData.
-func Fnt(r io.Reader, d *FntData) (err error) {
+func Fnt(r io.Reader) (d *FontData, err error) {
 	reader := bufio.NewReader(r)
+	d = &FontData{}
 
 	// the second header line had the overall attributes.
 	reader.ReadString('\n') // ignore the first header line.
@@ -28,7 +30,7 @@ func Fnt(r io.Reader, d *FntData) (err error) {
 	hfmt := "common lineHeight=%d base=%d scaleW=%d scaleH=%d pages=%d packed=%d alphaChnl=%d redChnl=%d greenChnl=%d blueChnl=%d"
 	var lh, b, sw, sh, pgs, pkd, ac, red, gc, bc int
 	if _, err = fmt.Sscanf(line, hfmt, &lh, &b, &sw, &sh, &pgs, &pkd, &ac, &red, &gc, &bc); err != nil {
-		return fmt.Errorf("Invalid glyph header %s\n", err)
+		return d, fmt.Errorf("Invalid glyph header %s\n", err)
 	}
 	d.W, d.H = sw, sh
 	d.Chars = d.Chars[:0] // reuse existing memory if available.
@@ -45,5 +47,5 @@ func Fnt(r io.Reader, d *FntData) (err error) {
 			d.Chars = append(d.Chars, ChrData{rune(gid), x, y, w, h, xo, yo, xa})
 		}
 	}
-	return nil
+	return d, nil
 }

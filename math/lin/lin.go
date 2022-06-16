@@ -1,29 +1,24 @@
-// Copyright © 2013-2018 Galvanized Logic Inc.
-// Use is governed by a BSD-style license found in the LICENSE file.
+// Copyright © 2013-2024 Galvanized Logic Inc.
 
-// Package lin provides a linear math library that includes vectors,
-// matrices, quaternions, transforms and some utility functions.
-// Linear math operations are useful in 3D applications for describing
-// and transforming virtual objects as well as simulating physics.
+// Package lin provides a linear math library intended for games.
+// It includes vectors, matrices, quaternions, transforms, and some
+// useful constants and utility functions.
 //
 // Package lin is provided as part of the vu (virtual universe) 3D engine.
 package lin
 
 // Design Notes:
 //
-// 1) This is a CPU based 3D math library. It is most often called from
-//    rendering loops where performance is key. Some general guidelines,
+// 1. This is a CPU based 3D math library. It is most often called from
+//    rendering loops where performance is key. Some guidelines,
 //    verified with benchmarks, can be seen throughout the library.
-//     - avoid instantiating new structures
-//     - use pointers to structures
+//     - reuse structures
+//     - prefer pointers to structures
 //     - prefer multiply over divide
 //
-// 2) Optimized/performant 3D math is expected to be done using a GPGPU
-//    base like OpenCL. A future package may address this.
-//
-// 3) Wikipedia states: "In linear algebra, real numbers are called scalars...".
-//    Currently the default scalar size is float64 since the underlying go math
-//    package uses this size.
+// 2. Wikipedia states: "In linear algebra, real numbers are called scalars...".
+//    The default scalar size is float64 due to the golang math package,
+//    Scalars uploaded to the GPU get converted to float32.
 
 import "math"
 
@@ -71,7 +66,8 @@ func Max3(a, b, c float64) float64 { return math.Max(a, math.Max(b, c)) }
 func Min3(a, b, c float64) float64 { return math.Min(a, math.Min(b, c)) }
 
 // Atan2F is a fast approximation of Atan2. Source was posted at:
-//    http://www.gamedev.net/topic/441464-manually-implementing-atan2-or-atan/
+//
+//	http://www.gamedev.net/topic/441464-manually-implementing-atan2-or-atan/
 func Atan2F(y, x float64) float64 {
 	coeff1 := PI / 4
 	coeff2 := 3 * coeff1
@@ -90,18 +86,6 @@ func Atan2F(y, x float64) float64 {
 	return angle
 }
 
-// Clamp returns a scalar value (one of: s, lb, ub) guaranteed to be within
-// the range given by lower bound lb and upper bound ub.
-func Clamp(s, lb, ub float64) float64 {
-	switch {
-	case s < lb:
-		return lb
-	case s > ub:
-		return ub
-	}
-	return s
-}
-
 // Nang (normalize angle) ensures a rotation angle in radians is within the
 // range [-PI, PI] (2PI*radians is 360 degrees).
 func Nang(radians float64) float64 {
@@ -117,9 +101,10 @@ func Nang(radians float64) float64 {
 
 // Round return rounded version of x with prec precision.
 // Special cases are:
-//	  Round(±0) = ±0
-//	  Round(±Inf) = ±Inf
-//	  Round(NaN) = NaN
+//
+//	Round(±0) = ±0
+//	Round(±Inf) = ±Inf
+//	Round(NaN) = NaN
 func Round(val float64, prec int) float64 {
 	var rounder float64
 	pow := math.Pow(10, float64(prec))
@@ -154,4 +139,22 @@ func AbsMax(a0, a1, a2, a3 float64) int {
 		maxIndex = 3
 	}
 	return maxIndex
+}
+
+// Number accepts the basic number types and other types
+// that are redefines of the basic number types.
+type Number interface {
+	~int | ~int8 | ~int16 | ~uint16 | ~int32 | ~uint32 | ~int64 | ~uint64 | ~float32 | ~float64
+}
+
+// Clamp returns a scalar value (one of: s, lb, ub) guaranteed to be within
+// the range given by lower bound lb and upper bound ub.
+func Clamp[T Number](v, min, max T) T {
+	switch {
+	case v < min:
+		return min
+	case v > max:
+		return max
+	}
+	return v
 }
