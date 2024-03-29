@@ -8,6 +8,7 @@ package load
 
 import (
 	"fmt"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -172,7 +173,7 @@ func Shd(name string, data []byte) (shader *Shader, err error) {
 		})
 	}
 
-	// return the shader configuration.
+	// create the shader configuration.
 	shader = &Shader{
 		Name:     cfg.Name,
 		Pass:     cfg.Pass,
@@ -180,6 +181,15 @@ func Shd(name string, data []byte) (shader *Shader, err error) {
 		Attrs:    attrs,
 		Uniforms: uniforms,
 	}
+
+	// add the render flags to configure the shader pipeline,
+	// FUTURE: more render flags as needed.
+	if cfg.Render != "" {
+		shader.CullModeNone = strings.Contains(cfg.Render, "cullOff")
+		shader.DrawLines = strings.Contains(cfg.Render, "drawLines")
+	}
+
+	// return the shader
 	return shader, nil
 }
 
@@ -189,6 +199,7 @@ type shaderConfig struct {
 	Name   string   `yaml:"name"`
 	Pass   string   `yaml:"pass"`
 	Stages []string `yaml:"stages"`
+	Render string   `yaml:"render"` // render flags.
 	Attrs  []struct {
 		Name  string `yaml:"name"`
 		Data  string `yaml:"data"`
@@ -217,6 +228,10 @@ type Shader struct {
 	Name   string      // unique name for this shader.
 	Pass   string      // renderpass name for this shader.
 	Stages ShaderStage // bit flags for the shader stages.
+
+	// Set from shaderConfig.Render flags.
+	CullModeNone bool // true disables backface culling.
+	DrawLines    bool // true to render lines instead of triangles.
 
 	// Attrs must match the shader attributes in name and position, ie:
 	//   Attr[0].Name == position   ... which matches

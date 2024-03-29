@@ -177,6 +177,20 @@ func (m *model) canRender() bool {
 	if m.isInstanced && m.instanceCount <= 0 {
 		return false
 	}
+
+	// check the shader model level uniforms
+	for _, u := range m.shader.config.Uniforms {
+		switch u.PacketUID {
+		case load.MODEL, load.SCALE:
+			// handled already
+		case load.COLOR, load.MATERIAL:
+			// requires valid mat
+			if u.Scope == load.ModelScope && m.mat == nil {
+				slog.Warn("model shader requires material", "mesh", m.mesh.name, "shader", m.shader.name)
+				return false
+			}
+		}
+	}
 	return true
 }
 
@@ -326,12 +340,12 @@ func (m *model) fillPacket(packet *render.Packet, pov *pov, cam *Camera) {
 	packet.Data[load.SCALE] = render.V4SToBytes(sx, sy, sz, 0, packet.Data[load.SCALE])
 
 	// set the render packet sorting information.
-	bucket(packet.Bucket).setType(drawOpaque)
+	packet.Bucket = setBucketType(packet.Bucket, drawOpaque)
 	if m.isTransparent() {
-		bucket(packet.Bucket).setType(drawTransparent)
+		packet.Bucket = setBucketType(packet.Bucket, drawTransparent)
 	}
-	bucket(packet.Bucket).setShaderID(m.shader.sid)
-	bucket(packet.Bucket).setDistance(m.tocam)
+	packet.Bucket = setBucketShader(packet.Bucket, m.shader.sid)
+	packet.Bucket = setBucketDistance(packet.Bucket, m.tocam)
 }
 
 // isTransparent returns true if the model is transparent.

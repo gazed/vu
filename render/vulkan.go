@@ -39,8 +39,7 @@ type vulkanRenderer struct {
 	recreatingSwapchain bool   // true when updating size.
 
 	// createInstance initializes the root of the vulkan hierarchy.
-	instance  vk.Instance // vulkan root
-	apiLayers []string    // enabled vulkan layers
+	instance vk.Instance // vulkan root
 
 	// createSurface links the vulkan instance to an OS display
 	osdev   *device.Device // injected in activate()
@@ -105,6 +104,11 @@ type vulkanRenderer struct {
 	shaders   []vulkanShader   // shaders - one pipeline per shader.
 	instances []vulkanInstance // application GPU instance data
 }
+
+// vkEnabledLayers can be modified by debug builds
+// by overriding the addValidationLayer method.
+var vkEnabledLayers []string = []string{} // enabled vulkan layers
+var addValidationLayer func([]string) ([]string, error) = func(layers []string) ([]string, error) { return layers, nil }
 
 // getVulkanRenderer acquires the vulkan resources needed to render scenes.
 func getVulkanRenderer(dev *device.Device, title string) (vr *vulkanRenderer, err error) {
@@ -205,7 +209,8 @@ func (vr *vulkanRenderer) dispose() {
 
 // createInstance initializes the root of the vulkan hierarchy.
 func (vr *vulkanRenderer) createInstance() (err error) {
-	if err := vr.addValidationLayer(); err != nil { // vulkan_debug.go
+	vkEnabledLayers, err := addValidationLayer(vkEnabledLayers) // vulkan_debug.go
+	if err != nil {
 		return err
 	}
 
@@ -218,7 +223,7 @@ func (vr *vulkanRenderer) createInstance() (err error) {
 			EngineVersion:      vk.HEADER_VERSION_COMPLETE,
 			ApiVersion:         vk.API_VERSION_1_2,
 		},
-		PpEnabledLayerNames:     vr.apiLayers,
+		PpEnabledLayerNames:     vkEnabledLayers,
 		PpEnabledExtensionNames: vr.instanceExtensions(), // vulkan_windows.go
 	}
 	vr.instance, err = vk.CreateInstance(&instanceInfo, nil)
@@ -786,13 +791,19 @@ func (vr *vulkanRenderer) disposeFramebuffers() {
 }
 
 // createVertexBuffers creates separate buffers for the different possible
-// mesh vertex data and triangle index data.
+// mesh vertex data and triangle index data. Currently allocating:
+//   - 50Mb for vertex position
+//   - 33Mb for vertex texcoords
+//   - 12Mb for vertex colors
+//   - 50Mb for vertex normals
+//   - 16Mb for indexes
+//   - Total 161Mb
 func (vr *vulkanRenderer) createVertexBuffers() (err error) {
 	vr.vertexBuffers = make([]vulkanBuffer, load.VertexTypes)
 	flags := vk.BUFFER_USAGE_VERTEX_BUFFER_BIT | vk.BUFFER_USAGE_TRANSFER_DST_BIT | vk.BUFFER_USAGE_TRANSFER_SRC_BIT
 	props := vk.MEMORY_PROPERTY_DEVICE_LOCAL_BIT
 	var size vk.DeviceSize
-	var space vk.DeviceSize = 1024 * 1024 // space for lots of meshes.
+	var space vk.DeviceSize = 2048 * 2048 // space for lots of meshes.
 
 	// vertex positions.
 	var buff *vulkanBuffer
@@ -846,13 +857,18 @@ func (vr *vulkanRenderer) disposeVertexBuffers() {
 }
 
 // createInstanceBuffers creates separate buffers for the different possible
-// instance data buffers.
+// instance data buffers. Currently allocating:
+//   - 50Mb for instance position
+//   - 12Mb for instance colors
+//   - 16Mb for instance scale
+//   - Total 78Mb
+var space vk.DeviceSize = 2048 * 2048 // 4,194,304 bytes - space for lots of instance data.
 func (vr *vulkanRenderer) createInstanceBuffers() (err error) {
 	vr.instanceBuffers = make([]vulkanBuffer, load.InstanceTypes)
 	flags := vk.BUFFER_USAGE_VERTEX_BUFFER_BIT | vk.BUFFER_USAGE_TRANSFER_DST_BIT | vk.BUFFER_USAGE_TRANSFER_SRC_BIT
 	props := vk.MEMORY_PROPERTY_DEVICE_LOCAL_BIT
 	var size vk.DeviceSize
-	var space vk.DeviceSize = 1024 * 1024 // space for lots of instance data.
+	var space vk.DeviceSize = 2048 * 2048 // 4,194,304 bytes - space for lots of instance data.
 
 	// instance positions.
 	var buff *vulkanBuffer
@@ -1092,6 +1108,13 @@ func (vr *vulkanRenderer) loadMesh(msh load.MeshData) (mid uint32, err error) {
 			buff := &vr.vertexBuffers[i]
 			offset := uint64(vmsh[i].offset)
 			vr.uploadData(vr.graphicsQCmdPool, vr.graphicsQ, buff, offset, msh[i].Data)
+
+			// uncomment when debugging buffer math
+			// slog.Debug("uploaded mesh", "vtype", i, "offset", vmsh[i].offset, "count", vmsh[i].count, "stride", vmsh[i].stride, "len", len(msh[i].Data))
+		} else {
+			// push forward the previous offset for the vertex data
+			// types that were not used by this mesh.
+			vmsh[i].offset = offsets[i]
 		}
 	}
 	mid = uint32(len(vr.meshes)) // mesh ID for the new mesh.
@@ -1170,7 +1193,7 @@ func (vr *vulkanRenderer) drawMesh(frame *vulkanFrame, mid uint32, attrs []load.
 	}
 	vk.CmdBindVertexBuffers(frame.cmds, 0, buffs, offsets)
 
-	// bind the triangle index data.
+	// bind the vertex index data.
 	ibuff := vr.vertexBuffers[load.Indexes].handle
 	ioffset := vk.DeviceSize(vmsh[load.Indexes].offset)
 	vk.CmdBindIndexBuffer(frame.cmds, ibuff, ioffset, vk.INDEX_TYPE_UINT16)
@@ -1523,7 +1546,7 @@ type vulkanShader struct {
 
 	// descriptors for scene and material uniform data.
 	sceneLayout         vk.DescriptorSetLayout // scene uniforms per renderpass
-	materialLayout      vk.DescriptorSetLayout // matieral uniforms per object
+	materialLayout      vk.DescriptorSetLayout // material uniforms per object
 	descriptorPool      vk.DescriptorPool      // uniforms and samplers
 	sceneDescriptorSets []vk.DescriptorSet     // one per image.
 }
@@ -1740,6 +1763,9 @@ func (vr *vulkanRenderer) loadShader(config *load.Shader) (sid uint16, err error
 		Topology:               vk.PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
 		PrimitiveRestartEnable: false,
 	}
+	if config.DrawLines {
+		inputAssembly.Topology = vk.PRIMITIVE_TOPOLOGY_LINE_LIST
+	}
 
 	// viewport and scissor are set as dynamic state later.
 	vr.setViewportAndScissor()
@@ -1748,15 +1774,18 @@ func (vr *vulkanRenderer) loadShader(config *load.Shader) (sid uint16, err error
 		PScissors:  []vk.Rect2D{vr.scissor},
 	}
 
-	// rasterization state currently same for all shaders
+	// rasterization state can be changed by the shader config.
 	rasterizerState := vk.PipelineRasterizationStateCreateInfo{
 		DepthClampEnable:        false,
 		RasterizerDiscardEnable: false,
 		PolygonMode:             vk.POLYGON_MODE_FILL,
 		LineWidth:               1.0,
-		CullMode:                vk.CULL_MODE_BACK_BIT,
+		CullMode:                vk.CULL_MODE_BACK_BIT, // default
 		FrontFace:               vk.FRONT_FACE_COUNTER_CLOCKWISE,
 		DepthBiasEnable:         false,
+	}
+	if config.CullModeNone {
+		rasterizerState.CullMode = vk.CULL_MODE_NONE
 	}
 
 	// multisampling
@@ -2455,6 +2484,7 @@ func (vr *vulkanRenderer) version(v uint32) string {
 func (vr *vulkanRenderer) setSceneUniforms(shader *vulkanShader, pass Pass) {
 	for _, u := range shader.usets.index {
 		if u.scope == load.SceneScope {
+			// slog.Debug("scene uniform", "name", name, "pid", u.passUID, "offset", u.offset, "len", len(pass.Data[u.passUID]))
 			vr.setUniform(shader, u, 0, pass.Data[u.passUID])
 		}
 	}
@@ -2464,6 +2494,7 @@ func (vr *vulkanRenderer) setSceneUniforms(shader *vulkanShader, pass Pass) {
 func (vr *vulkanRenderer) setModelUniforms(shader *vulkanShader, packet Packet) {
 	for _, u := range shader.usets.index {
 		if u.scope == load.ModelScope {
+			// slog.Debug("model uniform", "name", name, "pid", u.packetUID, "offset", u.offset, "len", len(packet.Data[u.packetUID]))
 			vr.setUniform(shader, u, packet.MeshID, packet.Data[u.packetUID])
 		}
 	}
@@ -2478,6 +2509,9 @@ func (vr *vulkanRenderer) setUniform(shader *vulkanShader, u *uniform, instance 
 		dst := (*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(shader.sceneUniformsMap)) + offset))
 		copy(unsafe.Slice(dst, len(data)), data)
 	case load.MaterialScope:
+		// note: material scope is not currently used by any shader
+		//       It is simpler if it is not needed. Currently passing uniforms at the scene or model scope.
+		//       FUTURE: either it will be used or it will be removed.
 		offset := uintptr(vr.imageIndex*shader.maxMaterials*maxMaterialUniformBytes + instance*maxMaterialUniformBytes + u.offset)
 		dst := (*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(shader.materialUniformsMap)) + offset))
 		copy(unsafe.Slice(dst, len(data)), data)

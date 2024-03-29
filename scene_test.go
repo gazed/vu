@@ -69,7 +69,7 @@ func TestBucket(t *testing.T) {
 
 	// Check the bits placement
 	t.Run("set bucket", func(t *testing.T) {
-		b := newBucket(render.Pass2D).setShaderID(21).setDistance(2.4)
+		b := setBucketShader(setBucketDistance(newBucket(render.Pass2D), 2.4), 21)
 
 		// pull out the values to check placement.
 		dist := math.Float32frombits(uint32(b & 0x00000000FFFFFFFF))
@@ -85,23 +85,24 @@ func TestBucket(t *testing.T) {
 	t.Run("check sort", func(t *testing.T) {
 		packets := []render.Packet{
 			// 2D
-			{Tag: 11, Bucket: uint64(newBucket(render.Pass2D).setShaderID(10).setType(drawTransparent))},
-			{Tag: 10, Bucket: uint64(newBucket(render.Pass2D).setShaderID(11).setType(drawOpaque))},
-			{Tag: 8, Bucket: uint64(newBucket(render.Pass2D).setShaderID(12).setType(drawOpaque))},
-			{Tag: 9, Bucket: uint64(newBucket(render.Pass2D).setShaderID(12).setType(drawOpaque))},
-			{Tag: 12, Bucket: uint64(newBucket(render.Pass2D).setShaderID(10).setType(drawTransparent))},
-			// 3D
-			{Tag: 7, Bucket: uint64(newBucket(render.Pass3D).setShaderID(4).setType(drawTransparent).setDistance(11))},
-			{Tag: 3, Bucket: uint64(newBucket(render.Pass3D).setShaderID(5).setDistance(12))},
-			{Tag: 5, Bucket: uint64(newBucket(render.Pass3D).setShaderID(2).setDistance(13))},
-			{Tag: 2, Bucket: uint64(newBucket(render.Pass3D).setShaderID(5).setDistance(22))},
-			{Tag: 4, Bucket: uint64(newBucket(render.Pass3D).setShaderID(2).setDistance(23))},
-			{Tag: 1, Bucket: uint64(newBucket(render.Pass3D).setShaderID(1).setType(drawSky))},
-			{Tag: 6, Bucket: uint64(newBucket(render.Pass3D).setShaderID(4).setType(drawTransparent).setDistance(14))},
-		}
+			{Tag: 11, Bucket: setBucketShader(setBucketType(newBucket(render.Pass2D), drawTransparent), 10)},
+			{Tag: 10, Bucket: setBucketShader(setBucketType(newBucket(render.Pass2D), drawOpaque), 11)},
+			{Tag: 8, Bucket: setBucketShader(setBucketType(newBucket(render.Pass2D), drawOpaque), 12)},
+			{Tag: 9, Bucket: setBucketShader(setBucketType(newBucket(render.Pass2D), drawOpaque), 12)},
+			{Tag: 12, Bucket: setBucketShader(setBucketType(newBucket(render.Pass2D), drawTransparent), 10)},
 
+			// 3D
+			{Tag: 7, Bucket: setBucketShader(setBucketDistance(setBucketType(newBucket(render.Pass3D), drawTransparent), 11), 4)},
+			{Tag: 3, Bucket: setBucketShader(setBucketDistance(newBucket(render.Pass3D), 12), 5)},
+			{Tag: 5, Bucket: setBucketShader(setBucketDistance(newBucket(render.Pass3D), 13), 2)},
+			{Tag: 2, Bucket: setBucketShader(setBucketDistance(newBucket(render.Pass3D), 22), 5)},
+			{Tag: 4, Bucket: setBucketShader(setBucketDistance(newBucket(render.Pass3D), 23), 2)},
+			{Tag: 1, Bucket: setBucketShader(setBucketType(newBucket(render.Pass3D), drawSky), 1)},
+			{Tag: 6, Bucket: setBucketShader(setBucketDistance(setBucketType(newBucket(render.Pass3D), drawTransparent), 14), 4)},
+		}
 		sort.SliceStable(packets, func(i, j int) bool { return packets[i].Bucket > packets[j].Bucket })
 
+		// check the order and dump a visual representation on error.
 		order := ""
 		for i := range packets {
 			order += fmt.Sprintf("[%d:%d]", i+1, packets[i].Tag)

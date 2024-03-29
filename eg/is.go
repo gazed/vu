@@ -98,6 +98,8 @@ func (is *istag) Resize(windowWidth, windowHeight uint32) {
 
 // Update is the application engine callback.
 func (is *istag) Update(eng *vu.Engine, in *vu.Input, delta time.Duration) {
+	cam := is.scene3D.Cam()
+
 	// react to one time press events.
 	for press := range in.Pressed {
 		switch press {
@@ -114,9 +116,17 @@ func (is *istag) Update(eng *vu.Engine, in *vu.Input, delta time.Duration) {
 
 	// react to continuous press events.
 	lookSpeed := 15.0 * delta.Seconds()
-	cam := is.scene3D.Cam()
+	speed := 20.0 * delta.Seconds()
 	for press := range in.Down {
 		switch press {
+		case vu.KW:
+			cam.Move(0, 0, -speed, cam.Lookat())
+		case vu.KS:
+			cam.Move(0, 0, speed, cam.Lookat())
+		case vu.KA:
+			cam.Move(-speed, 0, 0, cam.Lookat())
+		case vu.KD:
+			cam.Move(speed, 0, 0, cam.Lookat())
 		case vu.KMR:
 			if ydiff != 0 {
 				is.pitch += float64(ydiff) * lookSpeed
@@ -144,12 +154,10 @@ func (is *istag) Update(eng *vu.Engine, in *vu.Input, delta time.Duration) {
 			name.Cull(false)
 		}
 
-		// move the pick ring closer to the camera (origin)
-		// in order blend the star pixels with the transparent center ring pixels.
+		// draw the pick ring around the star.
 		x, y, z := s.Locus[0], s.Locus[1], s.Locus[2]
 		dist2 := x*x + y*y + z*z // distance squared
 		at := lin.NewV3().SetS(x, y, z)
-		at.Sub(at, lin.NewV3().SetS(-s.Locus[0], -s.Locus[1], -s.Locus[2]).Unit())
 		scale := 1.0
 		if dist2 < 1000 {
 			scale = 0.2 // scale down for really close stars
@@ -163,15 +171,15 @@ func (is *istag) hitStar(stars []brightStar) (starID int) {
 	cam := is.scene3D.Cam()
 
 	// get unit ray direction from camera.
-	ray := lin.NewV3().SetS(cam.Ray(int(is.mx), int(is.my), is.ww, is.wh))
-	if ray.X == 0 && ray.Y == 0 && ray.Z == 0 {
+	rx, ry, rz, err := cam.Ray(int(is.mx), int(is.my), is.ww, is.wh)
+	if err != nil {
 		return -1 // mouse is not not over window.
 	}
+	ray := lin.NewV3().SetS(rx, ry, rz)
 	sphere := lin.NewV3()
 	for i, s := range stars {
 		sphere.SetS(s.Locus[0], s.Locus[1], s.Locus[2])
-		hit, _, _, _ := cam.RayCastSphere(ray, sphere, 0.5)
-		if hit {
+		if cam.RayCastSphere(ray, sphere, 0.5) {
 			return i
 		}
 	}

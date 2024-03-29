@@ -153,13 +153,14 @@ func (e *Entity) Culled() bool {
 // is used to spin about a single axis at a time.
 //
 // Depends on transform.
-func (e *Entity) Spin(x, y, z float64) {
+func (e *Entity) Spin(x, y, z float64) *Entity {
 	if p := e.app.povs.get(e.eid); p != nil {
 		p.spin(e.app.povs.rot, x, y, z)
 		e.app.povs.updateWorld(p, e.eid)
-		return
+		return e
 	}
 	slog.Error("Spin needs transform", "eid", e.eid)
+	return e
 }
 
 // SetSpin sets the rotation to 0 before spinning the entity
@@ -431,9 +432,9 @@ func (ps *povs) setPrev(moved []eID) []eID {
 	return moved
 }
 
-// setRenderWorldTransform sets the local world render matrix.
+// setWorldMatrix sets the local world render matrix.
 // Called once per render to set the pov.mm model matrix used for rendering.
-func (ps *povs) setRenderWorldTransform(delta time.Duration) {
+func (ps *povs) setWorldMatrix(delta time.Duration) {
 	for index := 0; index < len(ps.povs); index++ {
 		p := &ps.povs[index]
 

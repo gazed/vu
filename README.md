@@ -59,12 +59,12 @@ and lucid developers. Thank you in particular to:
   The generated bindings were dragged directly into `vu/internal/render/vk`
 
 * [https://github.com/felipeek/raw-physics](https://github.com/felipeek/raw-physics) MIT License.
-  Raw-physics provides the ability to collide spheres and convex hulls in less than 5000 lines of code.
+  Raw-physics provides the ability to collide spheres and convex hulls in less than 4000 lines of code.
   This was perfect for porting from C into Go `vu/physics` pretty much line for line.
 
 * [https://github.com/lxn/win](https://github.com/lxn/win)
   Go bindings for the Windows API that do not require c-go and a C compiler.
-  The parts needed where put directly into `vu/internal/device/win` along with the original License.
+  The parts needed were put directly into `vu/internal/device/win` along with the original License.
 
 * [https://github.com/qmuntal/gltf](https://github.com/qmuntal/gltf) BSD 2-Clause License.
   GLTF helps tremendously for importing 3D model data and thanks to qmuntal it was possible

@@ -5,7 +5,7 @@ package vu
 // camera.go holds the view and projection matricies needed for rendering.
 
 import (
-	"math"
+	"fmt"
 
 	"github.com/gazed/vu/math/lin"
 )
@@ -19,49 +19,35 @@ import (
 // calculated by combining Pitch and Yaw. Look is for walking cameras,
 // Lookat is for flying cameras.
 type Camera struct {
-	Pitch float64 // X-axis rotation in degrees. Set using SetPitch.
-	Yaw   float64 // Y-axis rotation in degrees. Set using SetYaw.
-	Look  *lin.Q  // Y-axis quaternion rotation updated by SetYaw.
 
 	// Position and orientation.
 	at   *lin.T // Combined location and Pitch/Yaw orientation.
-	prev *lin.T // Previous location and orientation.
-	xrot *lin.Q // X-axis rotation: from Pitch.
+	yrot *lin.Q // Y-axis quaternion rotation updated by SetYaw.
+	xrot *lin.Q // X-axis quaternion rotation updated by SetPitch.
 
-	// Camera perspective values used to set projection matricies.
+	// View matrix. The V part of the MVP transform matrix
+	vm  *lin.M4 // camera view matrix
+	ivm *lin.M4 // Inverse camera view matrix.
+
+	// Projection matrix. The P part of the MVP transform matrix.
 	near, far float64 // Frustum clip set by application.
 	fov       float64 // Field of view set by application.
 	focus     bool    // true if the camera projection needs setting.
-
-	// View transfrom algorithms: 3D perspective uses different
-	// transforms than 2D/3D orthographic. Accounts for camera/eye.
-	// This affects the view portion of model-view-projection.
-	vt viewTransform    // View transform matrix generator.
-	it inverseTransform // Inverse view transform matrix generator.
-
-	// Track the view, projection matricies and their inverses.
-	// The inverses are needed for Ray casting.
-	vm  *lin.M4 // View part of MVP matrix.
-	ivm *lin.M4 // Inverse view matrix.
-	pm  *lin.M4 // Projection part of MVP matrix.
-	ipm *lin.M4 // Inverse projection matrix.
+	pm        *lin.M4 // Projection matrix.
+	ipm       *lin.M4 // Inverse projection matrix.
 }
 
 // newCamera creates a default rendering field that is looking
 // down the negative Z axis with positive Y up.
 func newCamera() *Camera {
 	c := &Camera{fov: 90, focus: true} // Default fov.
-	c.Look = lin.NewQ().SetAa(0, 1, 0, 0)
 	c.at = lin.NewT()
-	c.prev = lin.NewT()
-	c.xrot = lin.NewQ().SetAa(1, 0, 0, 0)
+	c.yrot = lin.NewQ().SetAa(0, 1, 0, 0)
+	c.xrot = lin.NewQ().SetAa(0, 0, 0, 0)
 	c.vm = &lin.M4{}
-	c.ivm = (&lin.M4{}).Set(lin.M4I)
+	c.ivm = &lin.M4{}
 	c.pm = &lin.M4{}
 	c.ipm = &lin.M4{}
-	c.vt, c.it = vp, ivp
-	c.vt(c.at, c.vm)  // initial view transform
-	c.it(c.at, c.ivm) // inverse view transform.
 	return c
 }
 
@@ -107,25 +93,23 @@ func (c *Camera) Lookat() *lin.Q { return c.at.Rot }
 // SetPitch sets the rotation around the X axis and updates
 // the Look direction. The camera instance is returned.
 func (c *Camera) SetPitch(deg float64) *Camera {
-	c.Pitch = deg
-	c.xrot.SetAa(1, 0, 0, lin.Rad(c.Pitch))
-	c.at.Rot.Mult(c.xrot, c.Look)
+	c.xrot.SetAa(1, 0, 0, lin.Rad(deg))
+	c.at.Rot.Mult(c.xrot, c.yrot)
 	return c
 }
 
 // SetYaw sets the rotation around the Y axis and updates the
 // Look and Lookat directions. The camera instance is returned.
 func (c *Camera) SetYaw(deg float64) *Camera {
-	c.Yaw = deg
-	c.Look.SetAa(0, 1, 0, lin.Rad(c.Yaw))
-	c.at.Rot.Mult(c.xrot, c.Look)
+	c.yrot.SetAa(0, 1, 0, lin.Rad(deg))
+	c.at.Rot.Mult(c.xrot, c.yrot)
 	return c
 }
 
 // Ray applies inverse transforms to derive world space coordinates
 // for a ray projected from the camera through the mouse's mx,my
 // screen position given window width and height ww,wh.
-func (c *Camera) Ray(mx, my, ww, wh int) (x, y, z float64) {
+func (c *Camera) Ray(mx, my, ww, wh int) (x, y, z float64, err error) {
 	ray := lin.NewV3().SetS(0, 0, 0)
 	if mx >= 0 && mx <= ww && my >= 0 && my <= wh {
 		clipx := float64(2*mx)/float64(ww) - 1 // mx to range -1:1
@@ -141,39 +125,36 @@ func (c *Camera) Ray(mx, my, ww, wh int) (x, y, z float64) {
 		world := eye.MultvM(eye, c.ivm)
 		ray.SetS(world.X, world.Y, world.Z) // ignore the W component.
 		ray.Unit()                          // return a unit vector.
+		return ray.X, ray.Y, ray.Z, nil
 	}
-	return ray.X, ray.Y, ray.Z
+	return 0, 0, 0, fmt.Errorf("mouse not in window")
 }
 
-// RayCastSphere calculates the point of collision between a ray
-// originating from the camera and a sphere in world space.
-// The closest contact point is returned if there is an intersection.
-// Expecting the ray to be a unit vector, see: camera.Ray().
-//
-//	http://en.wikipedia.org/wiki/Line–sphere_intersection
-func (c *Camera) RayCastSphere(ray, sphere *lin.V3, radius float64) (hit bool, x, y, z float64) {
-	rx, ry, rz := c.At() // ray origin is the camera world location.
+// RayCastSphere checks for collision between a ray originating from the camera
+// and a sphere in world space. The ray must be a unit vector, see: camera.Ray().
+//   - see: http://en.wikipedia.org/wiki/Line–sphere_intersection
+func (c *Camera) RayCastSphere(ray, sphere *lin.V3, radius float64) (hit bool) {
+	rox, roy, roz := c.At() // ray origin is the camera world location.
 
 	// vector from ray origin to sphere center
-	rs := lin.NewV3().SetS(sphere.X-rx, sphere.Y-ry, sphere.Z-rz)
+	rs := lin.NewV3().SetS(sphere.X-rox, sphere.Y-roy, sphere.Z-roz)
 
 	// distance between the center of the sphere and the ray.
 	// If the distance is larger than the radius there is no intersection.
-	d0 := ray.Dot(rs)
+	d0 := rs.Dot(ray)
 	if d0 < 0 {
-		return false, 0, 0, 0 // no hit
+		return false // no hit
 	}
-	r2 := radius * radius
 	d1 := rs.Dot(rs) - d0*d0
-	if d1 > r2 {
-		return false, 0, 0, 0 // no hit
+	if d1 > radius*radius {
+		return false // no hit
 	}
+	return true // hit
 
-	// Get contact point by scaling the ray direction with
-	// the contact distance and adding the ray origin.
-	dlen := d0 - math.Sqrt(r2-d1)
-	x, y, z = rx+dlen*ray.X, ry+dlen*ray.Y, rz+dlen*ray.Z
-	return true, x, y, z
+	// FUTURE could get contact points.
+	// dlen := d0 - math.Sqrt(radius*radius-d1)
+	// d0 - dlen // ray length point 1
+	// d0 + dlen // ray length point 2
 }
 
 // Screen applies the camera transform on a 3D point in world space wx,wy,wz
@@ -218,47 +199,13 @@ func (c *Camera) setOrthographic(left, right, bottom, top, near, far float64) {
 	c.pm.OrthographicProjection(left, right, bottom, top, near, far)
 }
 
-// Camera
-// ===========================================================================
-// view transforms
+// updateView recalulates the view matricies.
+func (c *Camera) updateView() {
+	// Set the view transform matrix
+	c.vm.SetQ(c.at.Rot)
+	c.vm.TranslateTM(-c.at.Loc.X, -c.at.Loc.Y, -c.at.Loc.Z)
 
-// viewTransform creates a transform matrix from location and orientation.
-// This is expected to be used for camera transforms. The camera is thought
-// of as being at 0,0,0. Moving the camera forward by x:units really means
-// moving the world (everything else) back -x:units. Likewise rotating the
-// camera by x:degrees really means rotating the world by -x.
-type viewTransform func(*lin.T, *lin.M4)
-
-// vp perspective projection transform used for Camera.Vt.
-func vp(at *lin.T, vm *lin.M4) {
-	vm.SetQ(at.Rot)
-	vm.TranslateTM(-at.Loc.X, -at.Loc.Y, -at.Loc.Z)
-}
-
-// xzxy perspective to ortho view transform used for Camera.Vt.
-// Can help transform a 3D map to a 2D overlay.
-func xzxy(at *lin.T, vm *lin.M4) {
-	l := at.Loc
-	rot := lin.NewQ().SetAa(1, 0, 0, -lin.Rad(90))
-	vm.SetQ(rot).ScaleMS(1, 1, 0).TranslateTM(-l.X, -l.Y, -l.Z)
-}
-
-// vo orthographic projection transform used for Camera.Vt.
-func vo(pov *lin.T, vm *lin.M4) {
-	vm.Set(lin.M4I).ScaleMS(1, 1, 0)
-}
-
-// inverseTransform creates the inverse transform matrix from
-// the location and orientation. Used in ray picking.
-type inverseTransform func(*lin.T, *lin.M4)
-
-// ivp inverse view transform. For ray casting.
-func ivp(at *lin.T, vm *lin.M4) {
-	vm.SetQ(lin.NewQ().Inv(at.Rot))
-	vm.TranslateMT(at.Loc.X, at.Loc.Y, at.Loc.Z)
-}
-
-// nv is a null identity view.
-func nv(at *lin.T, vm *lin.M4) {
-	vm.Set(lin.M4I)
+	// Set the view inverse transform matrix
+	c.ivm.SetQ(lin.NewQ().Inv(c.at.Rot))
+	c.ivm.TranslateMT(c.at.Loc.X, c.at.Loc.Y, c.at.Loc.Z)
 }

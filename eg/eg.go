@@ -24,11 +24,15 @@ import (
 	"github.com/gazed/vu/load"
 )
 
+// setLogLevel keeps the default logging settings.
+// It can be overridden by debug builds.
+var setLogLevel func() = func() {}
+
 // Launch the requested example or list available examples.
 // Examples are roughly ordered from simple/basic at the top of the list
 // to more complex/interesting at the bottom of the list.
 func main() {
-	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	setLogLevel()
 
 	// change the default asset location to work for the examples.
 	load.SetAssetDir(".spv", "../assets/shaders")
@@ -41,11 +45,12 @@ func main() {
 
 	examples := []example{
 		{"au", "Audio", au},                // test audio bindings.
-		{"vv", "Vulkan Version", vv},       // check vulkan availability and version
+		{"vv", "Vulkan Version", vv},       // test vulkan availability and version
 		{"sh", "Simple Shell", sh},         // test device package.
 		{"kc", "Keyboard Controller", kc},  // test 2D render
 		{"mh", "Monkey Heads", mh},         // test 3D render with GLB files and PBR shaders.
 		{"cr", "Collision Resolution", cr}, // test physics package.
+		{"ps", "Primitive Shapes", ps},     // test drawing primitive shapes.
 		{"is", "Instanced Stars", is},      // test drawing instanced models
 
 		// FUTURE: {"ma", "Model Animation", ma}, // test animated models

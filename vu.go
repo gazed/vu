@@ -193,9 +193,6 @@ func (eng *Engine) Run(updator Updator) {
 				// eng.app.models.moveParticles(timestepSecs)
 			}
 
-			// remember the camera location prior to app update.
-			eng.app.scenes.setPrev()
-
 			// update the client app before each render frame
 			eng.app.updator.Update(eng, eng.app.input, delta)
 			if !eng.running {
@@ -212,9 +209,8 @@ func (eng *Engine) Run(updator Updator) {
 
 			// render frames outside the fixed timestep.
 			// FUTURE: interpolate the render as a fraction between this frame and last.
-			w, h := eng.rc.Size()
-			eng.app.scenes.setRenderCamera(w, h) // adjust based on camera movement.
-			eng.app.povs.setRenderWorldTransform(delta)
+			eng.app.scenes.setViewMatrixes(eng.rc.Size())
+			eng.app.povs.setWorldMatrix(delta)
 			eng.app.frame = eng.app.scenes.getFrame(eng.app, eng.app.frame)
 			eng.rc.Draw(eng.app.frame, delta)
 

@@ -10,7 +10,6 @@ import (
 	"sort"
 
 	"github.com/gazed/vu/load"
-	"github.com/gazed/vu/math/lin"
 	"github.com/gazed/vu/render"
 )
 
@@ -164,7 +163,16 @@ func (ss *scenes) resize(ww, wh uint32) {
 	for _, scene := range ss.all {
 		scene.cam.focus = true
 	}
-	ss.setRenderCamera(ww, wh)
+	ss.setViewMatrixes(ww, wh)
+}
+
+// setViewMatrixes calculates the current render frame camera locations and
+// orientations. Called before rendering to adjust for app camera changes.
+func (ss *scenes) setViewMatrixes(w, h uint32) {
+	for _, scene := range ss.all {
+		scene.setProjection(w, h)
+		scene.cam.updateView()
+	}
 }
 
 // get returns the Scene associated with the given entity.
@@ -199,7 +207,9 @@ func (ss *scenes) getFrame(app *application, frame []render.Pass) []render.Pass 
 			})
 		}
 		frame[sc.pid] = *pass // save the updated pass.
+
 	}
+
 	return frame
 }
 
@@ -245,52 +255,15 @@ func (ss *scenes) renderParts(app *application, sc *scene, parts []uint32, packe
 		// generate render packets for models with loaded assets.
 		if m := app.models.getReady(p.eid); m != nil && m.mesh != nil {
 			if packets, packet = packets.GetPacket(); packet != nil {
-				packet.Bucket = uint64(newBucket(sc.pid))
+				packet.Bucket = newBucket(sc.pid)
 
 				// render model normally from scene camera.
 				// This sets the expected shader uniforms into the draw call.
 				m.fillPacket(packet, p, sc.cam)
 			}
-
 		}
 	}
 	return packets
-}
-
-// setPrev saves the previous locations and orientations.
-// Called before application update and used in setRenderCamera
-func (ss *scenes) setPrev() {
-	for _, scene := range ss.all {
-		c := scene.cam
-		c.prev.Set(c.at)
-	}
-}
-
-// setRenderCamera calculates the current render frame camera locations and
-// orientations. Called before rendering to adjust for app camera changes.
-func (ss *scenes) setRenderCamera(w, h uint32) {
-	for _, scene := range ss.all {
-		c := scene.cam
-
-		// Cameras that haven't changed or moved already
-		// have the correct transform matricies.
-		if !c.focus && c.prev.Eq(c.at) {
-			continue
-		}
-		if c.focus { // camera changed.
-			scene.setProjection(w, h)
-		}
-		c.focus = false
-		t0 := lin.NewT()
-		t0.Loc.Set(c.at.Loc)
-		t0.Rot.Set(c.at.Rot)
-
-		// Set the view transform. Updates c.vm.
-		c.vt(t0, c.vm) // updates view transform c.vm
-
-		// Inverse only matters for perspective view transforms.
-		c.it(t0, c.ivm) // updates inverse view transform c.ivm.
-	}
 }
 
 // dispose removes the scene data associated with the given entity.
@@ -303,10 +276,7 @@ func (ss *scenes) dispose(eid eID, dead []eID) []eID {
 
 // =============================================================================
 
-// bucket is used to sort render packets.
-type bucket uint64
-
-// setBucket produces a number that is used to order draw calls.
+// newBucket produces a number that is used to order draw calls.
 // Higher values are rendered before lower values.
 // setBucket creates an opaque object for the given render pass.
 //   - Pass.... DrawType ShaderID ........ Distance to Camera.................
@@ -323,35 +293,35 @@ type bucket uint64
 // values result in higher bucket numbers, ie:
 //   - 0 (render.Pass3D) = 255 bucket Pass value - render first
 //   - 1 (render.Pass2D) = 254 bucket Pass value - render next
-func newBucket(pass render.PassID) bucket {
-	b := bucket(math.MaxUint8-pass) << 56 // render lower numbers before higher.
+func newBucket(pass render.PassID) uint64 {
+	b := uint64(math.MaxUint8-pass) << 56 // render lower numbers before higher.
 	return b | drawOpaque                 // opaque is default
 }
 
-// setDist to camera for sorting transparent objects.
-func (b bucket) setDistance(toCam float64) bucket {
-	return b | bucket(math.Float32bits(float32(toCam)))
+// setBucketDistance to camera for sorting transparent objects.
+func setBucketDistance(b uint64, toCam float64) uint64 {
+	return b | uint64(math.Float32bits(float32(toCam)))
 }
 
-// setType marks the object as the given type.
+// setBucketType marks the object as the given type.
 // Expects one of the type values defined below.
-func (b bucket) setType(t bucket) bucket {
-	return b&clearType | t // mark as the given type.
+func setBucketType(b uint64, t uint64) uint64 {
+	return b&clearType | uint64(t) // mark as the given type.
 }
 
-// setShaderID marks the object as the given type.
-func (b bucket) setShaderID(sid uint16) bucket {
-	return b&clearShaderID | bucket(sid)<<40
+// setBucketShader marks the object as the given type.
+func setBucketShader(b uint64, sid uint16) uint64 {
+	return b&clearShaderID | uint64(sid)<<40
 }
 
 // Useful bits for setting or clearing the bucket.
 const (
-	clearDistance bucket = 0xFFFFFFFF00000000
-	clearShaderID bucket = 0xFFFF0000FFFFFFFF
-	clearType     bucket = 0xFF00FFFFFFFFFFFF
+	clearDistance uint64 = 0xFFFFFFFF00000000
+	clearShaderID uint64 = 0xFFFF0000FFFFFFFF
+	clearType     uint64 = 0xFF00FFFFFFFFFFFF
 
 	// draw types.
-	drawSky         bucket = 0x0008000000000000 // sky before other objects
-	drawOpaque      bucket = 0x0004000000000000 // opaque objects before transparent
-	drawTransparent bucket = 0x0001000000000000 // transparent objects last.
+	drawSky         uint64 = 0x0008000000000000 // sky before other objects
+	drawOpaque      uint64 = 0x0004000000000000 // opaque objects before transparent
+	drawTransparent uint64 = 0x0001000000000000 // transparent objects last.
 )

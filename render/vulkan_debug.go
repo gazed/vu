@@ -9,27 +9,27 @@ package render
 
 import (
 	"fmt"
+	"log/slog"
 
 	"github.com/gazed/vu/internal/render/vk"
 )
 
-// addValidationLayers enables vulkan validation in debug builds.
-// Adds the validation layer to the list of
-//
-// updates: vr.apiLayers
-func (vr *vulkanRenderer) addValidationLayer() error {
-	props, err := vk.EnumerateInstanceLayerProperties()
-	if err != nil {
-		return fmt.Errorf("vk.EnumerateInstanceLayerProperties: %w", err)
-	}
-	for _, p := range props {
-		if p.LayerName == "VK_LAYER_KHRONOS_validation" {
-			vr.apiLayers = append(vr.apiLayers, p.LayerName)
-			return nil
+// init is called before main to override the addValidationLayer method.
+func init() {
+	addValidationLayer = func(layers []string) ([]string, error) {
+		slog.Debug("vulkan validation added")
+		props, err := vk.EnumerateInstanceLayerProperties()
+		if err != nil {
+			return layers, fmt.Errorf("vk.EnumerateInstanceLayerProperties: %w", err)
 		}
-	}
+		for _, p := range props {
+			if p.LayerName == "VK_LAYER_KHRONOS_validation" {
+				return append(layers, p.LayerName), nil
+			}
+		}
 
-	// validation layers are expected to be found in developer builds
-	// Install the LunarG Vulkan SDK if they are missing
-	return fmt.Errorf("khronos validation layer not found")
+		// validation layers are expected to be found in developer builds
+		// Install the LunarG Vulkan SDK if they are missing
+		return layers, fmt.Errorf("khronos validation layer not found")
+	}
 }

@@ -345,10 +345,10 @@ func (m *M3) MultLtR(lt, r *M3) *M3 {
 // TranslateTM updates m to be the multiplication of a translation matrix
 // T created from x, y, z, and itself. The updated matrix m is returned.
 //
-//	[ 1 0 0 0 ]   [ mXx mXy mXz mXw ]     [ mXx  mXy  mXz  mXw  ]
-//	[ 0 1 0 0 ] x [ mYx mYy mYz mYw ]  => [ mYx  mYy  mYz  mYw  ]
-//	[ 0 0 1 0 ]   [ mZx mZy mZz mZw ]     [ mZx  mZy  mZz  mZw  ]
-//	[ x y z 1 ]   [ mWx mWy mWz mWw ]     [ mWx' mWy' mWz' mWw' ]
+//	[ 1 0 0 0 ]   [ mXx mXy mXz mXw ]    [ mXx  mXy  mXz  mXw  ]
+//	[ 0 1 0 0 ] x [ mYx mYy mYz mYw ] => [ mYx  mYy  mYz  mYw  ]
+//	[ 0 0 1 0 ]   [ mZx mZy mZz mZw ]    [ mZx  mZy  mZz  mZw  ]
+//	[ x y z 1 ]   [ mWx mWy mWz mWw ]    [ mWx' mWy' mWz' mWw' ]
 //
 // Be sure to pick the correct translate (TM or MT) when doing transforms.
 func (m *M4) TranslateTM(x, y, z float64) *M4 {
