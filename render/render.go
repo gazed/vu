@@ -161,7 +161,6 @@ type renderAPI interface {
 
 	// create a GPU shader using the given shader configuration
 	loadShader(config *load.Shader) (sid uint16, err error)
-	setMaterialSamplers(sid uint16, tids []uint32) (matID uint32, err error)
 	dropShader(sid uint16) // release shader resources
 
 	// create a GPU mesh and upload the mesh vertex data.
@@ -376,4 +375,15 @@ func LightsToBytes(lights []Light, bytes []byte) []byte {
 func U8ToBytes(val uint8, bytes []byte) []byte {
 	bytes = bytes[:0]
 	return append(bytes, []byte{byte(val), 0, 0, 0}...)
+}
+
+// Int32ToBytes returns a byte slice containing the given int32.
+// The given byte slice is zeroed and returned filled with the int32.
+func Int32ToBytes(val int32, bytes []byte) []byte {
+	bytes = bytes[:0]
+	b0 := byte(val)
+	b1 := byte(val >> 8)
+	b2 := byte(val >> 16)
+	b3 := byte(val >> 24)
+	return append(bytes, b0, b1, b2, b3)
 }

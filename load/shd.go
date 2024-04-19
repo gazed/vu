@@ -39,9 +39,9 @@ var ShaderAttributes = map[string]int{
 	"weight":   Weights,
 
 	// names for instanced model data
-	"i_locus": InstanceLocus,
-	"i_color": InstanceColors,
-	"i_scale": InstanceScales,
+	"i_position": InstancePosition,
+	"i_color":    InstanceColors,
+	"i_scale":    InstanceScales,
 }
 
 // ShaderAttributeScope categorizes vertex attributes into
@@ -74,21 +74,23 @@ var ShaderUniformScope = map[string]UniformScope{
 // a single scene (render pass).
 // Expected use is for passing data from the engine to the render system.
 var ShaderPassUniforms = map[string]PassUniform{
-	"proj":    PROJ,
-	"view":    VIEW,
-	"cam":     CAM,
-	"lights":  LIGHTS,
-	"nlights": NLIGHTS,
+	"proj":    PROJ,    //
+	"view":    VIEW,    //
+	"cam":     CAM,     //
+	"lights":  LIGHTS,  //
+	"nlights": NLIGHTS, //
+	"time":    TIME,    //
 }
 
 // ShaderPacketUniforms are shader uniforms that apply to one model.
 // Render data for a model is put into a render.Packet.
 // Expected use is for passing data from the engine to the render system.
 var ShaderPacketUniforms = map[string]PacketUniform{
-	"model":    MODEL,
-	"scale":    SCALE,
-	"color":    COLOR,
-	"material": MATERIAL,
+	"model":    MODEL,    //
+	"scale":    SCALE,    //
+	"color":    COLOR,    //
+	"material": MATERIAL, //
+	"i_index":  I_INDEX,  // instance index
 }
 
 // ShaderUniformData are the supported uniform data types.
@@ -268,14 +270,7 @@ func (s *Shader) GetSceneUniforms() (uniforms []*ShaderUniform) {
 	}
 	return uniforms
 }
-func (s *Shader) GetMaterialUniforms() (uniforms []*ShaderUniform) {
-	for i, uni := range s.Uniforms {
-		if uni.DataType != DataType_SAMPLER && uni.Scope == MaterialScope {
-			uniforms = append(uniforms, &s.Uniforms[i])
-		}
-	}
-	return uniforms
-}
+
 func (s *Shader) GetSamplerUniforms() (uniforms []*ShaderUniform) {
 	for i, uni := range s.Uniforms {
 		if uni.DataType == DataType_SAMPLER && uni.Scope == MaterialScope {
@@ -295,7 +290,7 @@ const (
 	Renderpass_2D                   //
 )
 
-// PassUniform is scene level data.
+// PassUniform is scene scope uniform data.
 type PassUniform uint8
 
 const (
@@ -304,6 +299,7 @@ const (
 	CAM                             // scene
 	LIGHTS                          // scene
 	NLIGHTS                         // scene
+	TIME                            // scene
 	PassUniforms                    // must be last
 )
 
@@ -341,7 +337,7 @@ const (
 	ModelScope                        // set per model      : push constants
 )
 
-// PacketUniform is model level data.
+// PacketUniform is model scope uniform data.
 type PacketUniform uint8
 
 const (
@@ -349,6 +345,7 @@ const (
 	SCALE                               // model
 	COLOR                               // model
 	MATERIAL                            // model
+	I_INDEX                             // model instance index
 	PacketUniforms                      // must be last
 )
 

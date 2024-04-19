@@ -200,10 +200,10 @@ const (
 // Instance Data attribute types describe per-instance model data.
 // These are defined here because they are similar to vertex data types.
 const (
-	InstanceLocus  = iota // position 0 V3 float32
-	InstanceColors        // 1 V3 uint8
-	InstanceScales        // 2 float32
-	InstanceTypes         // number of instance data types - must be last.
+	InstancePosition = iota // position 0 V3 float32
+	InstanceColors          // 1 V3 uint8
+	InstanceScales          // 2 float32
+	InstanceTypes           // number of instance data types - must be last.
 )
 
 // MeshData contains per-vertex data. Data will be index the GLTF buffer.

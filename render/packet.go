@@ -15,7 +15,7 @@ type Packet struct {
 	TextureIDs []uint32 // GPU texture references.
 
 	// packet (model) uniform data.
-	Data map[load.PacketUniform][]byte
+	Uniforms map[load.PacketUniform][]byte
 
 	// used to draw instanced meshes.
 	IsInstanced   bool   // true for instanced models.
@@ -27,24 +27,24 @@ type Packet struct {
 	Bucket uint64 // Used to sort packets. Lower buckets rendered first.
 }
 
-// Reset clears old draw data so the draw call can be reused.
+// Reset clears the old render packet so it can be reused.
 func (p *Packet) Reset() {
 	p.ShaderID = 0                  // default shader
 	p.MeshID = 0                    // default mesh
 	p.TextureIDs = p.TextureIDs[:0] // reset, keeping memory
-	p.Tag = 0                       //
-	p.Bucket = 0                    //
 	p.IsInstanced = false           //
 	p.InstanceID = 0                //
 	p.InstanceCount = 0             //
+	p.Tag = 0                       //
+	p.Bucket = 0                    //
 
 	// reset the uniform data.
 	for i := load.PacketUniform(0); i < load.PacketUniforms; i++ {
-		d, ok := p.Data[i]
+		d, ok := p.Uniforms[i]
 		if !ok {
-			p.Data[i] = []byte{}
+			p.Uniforms[i] = []byte{}
 		} else {
-			p.Data[i] = d[:0] // reset keeping memory
+			p.Uniforms[i] = d[:0] // reset keeping memory
 		}
 	}
 }
@@ -60,13 +60,21 @@ func (p Packets) GetPacket() (Packets, *Packet) {
 	switch {
 	case size == cap(p):
 		p = append(p, Packet{})
-		p[size].Data = map[load.PacketUniform][]byte{}
+		p[size].Uniforms = map[load.PacketUniform][]byte{}
 	case size < cap(p): // use previously allocated.
 		p = p[:size+1]
-		if p[size].Data == nil {
-			p[size].Data = map[load.PacketUniform][]byte{}
+		if p[size].Uniforms == nil {
+			p[size].Uniforms = map[load.PacketUniform][]byte{}
 		}
 		p[size].Reset() // clear existing data.
 	}
 	return p, &p[size]
+}
+
+// DiscardLastPacket drops the last packet, keeping the memory around for reuse.
+func (p Packets) DiscardLastPacket() Packets {
+	if len(p) > 0 {
+		return p[:len(p)-1] // remove last packet, keeping memory.
+	}
+	return p
 }

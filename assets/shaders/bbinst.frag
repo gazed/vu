@@ -13,7 +13,7 @@ layout(location=0) in struct in_dto {
 
 void main() {
     vec4 base_color = texture(samplers[COLOR], dto.texcoord);
-    vec3 colorized = clamp(base_color.xyz * dto.color, 0.0, 1.0); 
+    vec3 colorized = clamp(base_color.xyz * dto.color, 0.0, 1.0);
 
     // modify the color, keeping the base_color alpha.
     out_color = vec4(colorized, base_color.w);

@@ -59,7 +59,6 @@ func (e *Entity) setLabelMesh(msh *mesh, sx, sy int) {
 	if m := e.app.models.get(e.eid); m != nil && m.mtype == labelModel && m.label != nil {
 		m.label.w, m.label.h = sx, sy
 		m.mesh = msh
-		e.app.models.updateReady(e.eid, m)
 		return
 	}
 	slog.Error("setLabelMesh needs label", "entity", e.eid)

@@ -21,8 +21,8 @@ const (
 // The returned Pass is expected to be reused in render loops.
 func NewPass() Pass {
 	return Pass{
-		Data:   map[load.PassUniform][]byte{},      // map of data
-		Lights: []Light{Light{}, Light{}, Light{}}, // max 3 lights
+		Uniforms: map[load.PassUniform][]byte{},      // map of data
+		Lights:   []Light{Light{}, Light{}, Light{}}, // max 3 lights
 	}
 }
 
@@ -30,8 +30,8 @@ func NewPass() Pass {
 type Pass struct {
 
 	// Packets are a reusable list of packets, one per model.
-	Packets Packets
-	Data    map[load.PassUniform][]byte // Scene uniform data
+	Packets  Packets
+	Uniforms map[load.PassUniform][]byte // Scene uniform data
 
 	// Light position and color information.
 	// Lights are reused to generate scene light uniform data.
@@ -41,11 +41,11 @@ type Pass struct {
 // Reset the pass data.
 func (rp *Pass) Reset() {
 	for i := load.PassUniform(0); i < load.PassUniforms; i++ {
-		d, ok := rp.Data[i]
+		d, ok := rp.Uniforms[i]
 		if !ok {
-			rp.Data[i] = []byte{}
+			rp.Uniforms[i] = []byte{}
 		} else {
-			rp.Data[i] = d[:0] // reset keeping memory
+			rp.Uniforms[i] = d[:0] // reset keeping memory
 		}
 
 		// reset lights.

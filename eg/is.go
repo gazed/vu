@@ -227,7 +227,7 @@ func (is *istag) loadBrightStars() (stars []brightStar, data []load.Buffer, err 
 
 	// convert the bright star data to instanced data.
 	data = make([]load.Buffer, load.InstanceTypes)
-	data[load.InstanceLocus] = load.F32Buffer(positions, 3)
+	data[load.InstancePosition] = load.F32Buffer(positions, 3)
 	data[load.InstanceColors] = load.F32Buffer(colors, 3)
 	data[load.InstanceScales] = load.F32Buffer(scales, 1)
 	return stars, data, nil

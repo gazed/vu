@@ -87,8 +87,7 @@ type shader struct {
 	sid  uint16 // GPU shader reference.
 
 	// shader configuration and list of uniforms.
-	config   *load.Shader          // shader configuration.
-	samplers []*load.ShaderUniform // array of sampler uniforms.
+	config *load.Shader // shader configuration.
 }
 
 // newShader allocates space for a mesh structure,
@@ -100,8 +99,7 @@ func newShader(name string) *shader {
 
 // setConfig is called when the shader configuration has been loaded.
 func (s *shader) setConfig(cfg *load.Shader) {
-	s.config = cfg                             // the full shader config.
-	s.samplers = s.config.GetSamplerUniforms() // array of sampler uniforms.
+	s.config = cfg // the full shader config.
 }
 
 // implement assset interface

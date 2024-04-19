@@ -165,7 +165,7 @@ func (l *assetLoader) loadAssets(rc render.Loader, ac audio.Loader) (assetsCreat
 						break
 					}
 					assets = append(assets, msh)
-					slog.Debug("new asset", "asset", "msh:"+msh.label(), "id", msh.mid, "filename", filename)
+					slog.Debug("new asset", "asset", "msh:"+msh.label(), "mid", msh.mid, "filename", filename)
 				case load.PBRMaterialData:
 					assetsCreated += 1
 					mat := newMaterial(name)
@@ -189,7 +189,7 @@ func (l *assetLoader) loadAssets(rc render.Loader, ac audio.Loader) (assetsCreat
 						break
 					}
 					assets = append(assets, t)
-					slog.Debug("new asset", "asset", "tex:"+t.label(), "id", t.tid, "opaque", t.opaque, "filename", filename)
+					slog.Debug("new asset", "asset", "tex:"+t.label(), "tid", t.tid, "opaque", t.opaque, "filename", filename)
 				case *load.FontData:
 					assetsCreated += 1
 					f := newFont(name)
@@ -219,7 +219,7 @@ func (l *assetLoader) loadAssets(rc render.Loader, ac audio.Loader) (assetsCreat
 						break
 					}
 					assets = append(assets, s)
-					slog.Debug("new asset", "asset", "shd:"+s.label(), "id", s.sid, "filename", filename)
+					slog.Debug("new asset", "asset", "shd:"+s.label(), "sid", s.sid, "filename", filename)
 				case load.ShaderData:
 					// ignore since shader bytes are loaded directly from the render package.
 					slog.Warn("load.ShaderBytes called") // unexpected. Testing?

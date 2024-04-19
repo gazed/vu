@@ -90,7 +90,28 @@ func (e *Entity) SetMetallicRoughness(metallic bool, roughness float64) *Entity 
 	return e
 }
 
-// FUTURE AddEffect(...) generate quad for particle effects in geometry stage.
+// SetModelUniform sets data for the given uniform. The uniform data is
+// passed to the shader.
+func (e *Entity) SetModelUniform(uniform string, data interface{}) *Entity {
+	if m := e.app.models.get(e.eid); m != nil {
+		switch uniform {
+		case "i_index":
+			if v, ok := data.(int32); ok {
+				m.uniforms[load.I_INDEX] = render.Int32ToBytes(v, m.uniforms[load.I_INDEX])
+				// slog.Warn("setting I_INDEX data", "val", v, "len", len(m.uniforms[load.I_INDEX]))
+			}
+		default:
+			// FUTURE    : add uniforms as needed by shaders.
+			// FAR FUTURE: data drive the uniforms based on shader reflection.
+			slog.Error("unsupported uniform", "uniform", uniform)
+		}
+		return e
+	}
+	slog.Error("SetModelUniform needs AddModel", "eid", e.eid)
+	return e
+}
+
+// FUTURE: AddEffect(...) generate quad for particle effects in geometry stage.
 
 // =============================================================================
 // model data
@@ -135,63 +156,19 @@ type model struct {
 	// TODO anim   *actor  // set for an animated model
 	// TODO effect *effect // set for a particle effect
 
+	// generic uniforms set the app and passed to the shader.
+	uniforms map[load.PacketUniform][]byte
+
 	tocam float64 // distance to camera helps with 3D render order.
 }
 
 // newModel initializes the data structures and default uniforms.
 func newModel(mt modelType) *model {
-	return &model{mtype: mt, samplerMap: map[string]string{}}
-}
-
-// canRender returns true if the model has all the assets it needs to render.
-func (m *model) canRender() bool {
-	if m.shader == nil { // model must have loaded shader.
-		return false
+	return &model{
+		mtype:      mt,
+		samplerMap: map[string]string{},
+		uniforms:   map[load.PacketUniform][]byte{},
 	}
-
-	// do we have textures for the required shader samplers
-	samplers := m.shader.config.GetSamplerUniforms()
-	if len(samplers) != len(m.texs) {
-		return false
-	}
-
-	// has model vertex data been loaded.
-	switch m.mtype {
-	case basicModel:
-		if m.mesh == nil {
-			return false
-		}
-	case labelModel:
-		if m.mesh == nil || m.label == nil {
-			return false
-		}
-		l := m.label
-		return len(l.str) > 0 && l.w > 0 && l.h > 0
-	case actorModel:
-		// FUTURE check animation data.
-	case effectModel:
-		// FUTURE check particle effect data.
-	}
-
-	// instanced models need instance data.
-	if m.isInstanced && m.instanceCount <= 0 {
-		return false
-	}
-
-	// check the shader model level uniforms
-	for _, u := range m.shader.config.Uniforms {
-		switch u.PacketUID {
-		case load.MODEL, load.SCALE:
-			// handled already
-		case load.COLOR, load.MATERIAL:
-			// requires valid mat
-			if u.Scope == load.ModelScope && m.mat == nil {
-				slog.Warn("model shader requires material", "mesh", m.mesh.name, "shader", m.shader.name)
-				return false
-			}
-		}
-	}
-	return true
 }
 
 // getAssets for the current model.
@@ -239,18 +216,18 @@ func (m *model) getAssets(me *Entity, assets ...string) {
 
 // addAsset adds the asset to the model.
 func (m *model) addAsset(a asset) {
-	ready := m.canRender()
 	switch la := a.(type) {
 	case *mesh:
 		m.mesh = la
 	case *material:
-		m.mat = la
+		if m.mat == nil {
+			// set materials not already set by app.
+			m.mat = la
+		}
 	case *texture:
 		// textures are added in the order they are loaded.
-		// They will have to be sorted later to match the
-		// order of the sampler uniforms in the shader config.
-		// Can't sort here since the shader config might load
-		// after the textures.
+		// They will have to need to match the order of the sampler
+		// uniforms from the shader config when they are used for rendering.
 		m.texs = append(m.texs, la)
 	case *font:
 		if m.mtype != labelModel || m.label == nil {
@@ -263,81 +240,133 @@ func (m *model) addAsset(a asset) {
 	default:
 		slog.Error("unexepected model asset", "name", a.label())
 	}
-
-	// check if all the assets have been loaded and prep for rendering if ready.
-	if m.canRender() != ready {
-		m.matchTexturesToSamplers()
-		slog.Debug("model ready to render", "shader", m.shader.name, "mesh", m.mesh.name)
-	}
 }
 
-// matchTexturesToSamplers ensures that the textures are in the
-// order expected by the uniform samplers.
-func (m *model) matchTexturesToSamplers() {
-	orderedTexs := []*texture{}
-	for _, u := range m.shader.samplers {
-		tstr, ok := m.samplerMap[u.Name] // expect to find a matching uniform.
-		if !ok {
-			slog.Error("fix typo in application model texture:uniform map")
-			return // this needs to be caught and fixed in debug builds.
-		}
-
-		// find the texture for this uniform.
-		found := false
-		for _, t := range m.texs {
-			if tstr == t.label() {
-				found = true
-				orderedTexs = append(orderedTexs, t)
-				break
-			}
-		}
-		if !found {
-			slog.Error("fix typo in application model texture:name map")
-			return // this needs to be caught and fixed in debug builds.
-		}
+// fillPacket populates a render.Packet for this model returning
+// false if required shader information was missing.
+func (m *model) fillPacket(packet *render.Packet, pov *pov, cam *Camera) bool {
+	if m.shader == nil {
+		slog.Debug("model shader not loaded")
+		return false // shader not loaded yet.
 	}
-	copy(m.texs, orderedTexs) // copy ordered slice over old.
-}
-
-// fillPacket populates a render.Packet for this model.
-func (m *model) fillPacket(packet *render.Packet, pov *pov, cam *Camera) {
 	packet.ShaderID = m.shader.sid // GPU shader reference
-	packet.MeshID = m.mesh.mid     // GPU mesh reference.
 
-	// Rendering hints.
-	packet.Tag = uint32(pov.eid) // Use eid for debugging draw calls.
-	packet.Bucket = 0            // Used to sort packets. Lower buckets rendered first.
+	// check if the model mesh has the necessary data.
+	if m.mesh == nil {
+		slog.Debug("model mesh not loaded")
+		return false // mesh data not loaded yet.
+	}
+	packet.MeshID = m.mesh.mid // GPU mesh reference.
 
-	// copy instanced mesh information into the packet.
+	// check specific needs for different model types.
+	switch m.mtype {
+	case basicModel:
+	case labelModel:
+		if m.label == nil || m.label.w <= 0 || len(m.texs) != 1 {
+			slog.Debug("model label not loaded")
+			return false
+		}
+	case actorModel:
+		// FUTURE check animation data.
+	case effectModel:
+		// FUTURE check particle effect data.
+	}
+
+	// handle instanced models where a single mesh is drawn multiple times.
 	packet.IsInstanced = false
 	if m.isInstanced {
+		if m.instanceCount <= 0 {
+			slog.Debug("model instance data not loaded")
+			return false // instance data not yet loaded.
+		}
 		packet.IsInstanced = true
 		packet.InstanceID = m.instanceID
 		packet.InstanceCount = m.instanceCount
 	}
 
-	// copy the ordered textures into the packet.
+	// FUTURE: debug only validation that the render layer has
+	// the uploaded vertex data for the attributes, ie: the m.mesh.mid
+	// references vertex data in the render context and each shader
+	// attribute should have a non-zero count for the matching vertex data.
+	// Needs to be done in code that has access to the render context, ie:
+	//
+	// for i := range m.shader.config.Attrs {
+	// 	  attr := &m.shader.config.Attrs[i]
+	//    eng.rc.HasVertexData(m.mesh.mid, attr.AttrType)
+	// }
+
+	// expect one texture for each sampler. Mismatches happen if:
+	// - the texture has not yet loaded.
+	// - the app forgot to add a texture to the model
+	// - the app added an unnecessary texture was added to a model.
+	samplers := m.shader.config.GetSamplerUniforms()
+	if len(samplers) != len(m.texs) {
+		slog.Debug("model texture data not loaded")
+		return false // generally waiting for texture to load.
+	}
+
+	// add the textures to the packet in the same order as the samplers.
 	packet.TextureIDs = packet.TextureIDs[:0] // GPU texture references.
-	for _, tex := range m.texs {
-		packet.TextureIDs = append(packet.TextureIDs, tex.tid)
+	for _, u := range samplers {
+		tstr, ok := m.samplerMap[u.Name] // expect to find a matching uniform.
+		if !ok {
+			slog.Debug("model waiting for textures")
+			return false // texture not yet loaded.
+		}
+
+		// find the texture for this uniform.
+		// It must exist since the name was found in the samplerMap.
+		found := false
+		for _, t := range m.texs {
+			if tstr == t.label() {
+				found = true
+				packet.TextureIDs = append(packet.TextureIDs, t.tid)
+				break
+			}
+		}
+		if !found {
+			slog.Error("fix typo in application model texture:name map")
+			return false // this needs to be caught and fixed in debug builds.
+		}
 	}
 
-	// Set the model uniform data.
-	packet.Data[load.MODEL] = render.M4ToBytes(pov.mm, packet.Data[load.MODEL])
-
-	// Set the model color and material uniform data.
-	if m.mat != nil {
-		r, g, b, a := m.mat.color.r, m.mat.color.g, m.mat.color.b, m.mat.color.a
-		packet.Data[load.COLOR] = render.V4S32ToBytes(r, g, b, a, packet.Data[load.COLOR])
-
-		// Set the model material uniform data.
-		metal, rough := m.mat.metallic, m.mat.roughness
-		packet.Data[load.MATERIAL] = render.V4S32ToBytes(metal, rough, 0, 0, packet.Data[load.MATERIAL])
+	// set the model uniform data expected by the shader.
+	// Check that data is available for each uniforms, excluding samplers.
+	uniforms := m.shader.config.Uniforms
+	for i := range uniforms {
+		u := &uniforms[i]
+		if u.DataType != load.DataType_SAMPLER && u.Scope == load.ModelScope {
+			switch u.PacketUID {
+			case load.MODEL:
+				packet.Uniforms[load.MODEL] = render.M4ToBytes(pov.mm, packet.Uniforms[load.MODEL])
+			case load.SCALE:
+				sx, sy, sz := pov.scale()
+				packet.Uniforms[load.SCALE] = render.V4SToBytes(sx, sy, sz, 0, packet.Uniforms[load.SCALE])
+			case load.COLOR, load.MATERIAL:
+				if m.mat == nil {
+					slog.Debug("model waiting on materials")
+					return false // material not yet loaded or set.
+				}
+				// Set the model material uniform data.
+				r, g, b, a := m.mat.color.r, m.mat.color.g, m.mat.color.b, m.mat.color.a
+				packet.Uniforms[load.COLOR] = render.V4S32ToBytes(r, g, b, a, packet.Uniforms[load.COLOR])
+				metal, rough := m.mat.metallic, m.mat.roughness
+				packet.Uniforms[load.MATERIAL] = render.V4S32ToBytes(metal, rough, 0, 0, packet.Uniforms[load.MATERIAL])
+			default:
+				// basic uniforms are set using SetUniform on the model.
+				data, ok := m.uniforms[u.PacketUID]
+				if !ok {
+					slog.Debug("model waiting on uniform data")
+					return false // uniform data has not yet be set with SetUniform.
+				}
+				packet.Uniforms[u.PacketUID] = packet.Uniforms[u.PacketUID][:0]
+				packet.Uniforms[u.PacketUID] = append(packet.Uniforms[u.PacketUID], data...)
+			}
+		}
 	}
 
-	// Set the model material scale uniform data.
-	sx, sy, sz := pov.scale()
-	packet.Data[load.SCALE] = render.V4SToBytes(sx, sy, sz, 0, packet.Data[load.SCALE])
+	// add the eid to help debug packets.
+	packet.Tag = uint32(pov.eid) // Use eid for debugging draw calls.
 
 	// set the render packet sorting information.
 	packet.Bucket = setBucketType(packet.Bucket, drawOpaque)
@@ -346,6 +375,7 @@ func (m *model) fillPacket(packet *render.Packet, pov *pov, cam *Camera) {
 	}
 	packet.Bucket = setBucketShader(packet.Bucket, m.shader.sid)
 	packet.Bucket = setBucketDistance(packet.Bucket, m.tocam)
+	return true // model has all information needed to render.
 }
 
 // isTransparent returns true if the model is transparent.
@@ -366,18 +396,14 @@ func (m *model) isTransparent() bool {
 // =============================================================================
 // models is the component manager for model data.
 type models struct {
-	list    map[eID]*model // All model objects.
-	loading map[eID]*model // Waiting for assets.
-	ready   map[eID]*model // Assets received.
+	list map[eID]*model // All model objects.
 }
 
 // newModels creates the render model component manager.
 // Expected to be called once on startup.
 func newModels() *models {
 	ms := &models{}
-	ms.list = map[eID]*model{}    // any model in any state.
-	ms.loading = map[eID]*model{} // waiting for initial assets.
-	ms.ready = map[eID]*model{}   // assets received.
+	ms.list = map[eID]*model{} // any model in any state.
 	return ms
 }
 
@@ -388,7 +414,6 @@ func (ms *models) create(e *Entity) *model {
 	}
 	m := newModel(basicModel)
 	ms.list[e.eid] = m
-	ms.loading[e.eid] = m
 	return m
 }
 
@@ -399,7 +424,6 @@ func (ms *models) createLabel(s string, wrap int, e *Entity) *model {
 	}
 	m := newModel(labelModel)
 	ms.list[e.eid] = m
-	ms.loading[e.eid] = m
 	m.label = &label{str: s, wrap: wrap}
 
 	// create default white color for the label.
@@ -418,30 +442,18 @@ func (ms *models) assetLoaded(eid eID, a asset) {
 		return
 	}
 	m.addAsset(a)
-	ms.updateReady(eid, m)
 }
 
-// updateReady moves a model to the ready queue
-// if all the assets have been loaded.
-func (ms *models) updateReady(eid eID, m *model) {
-	if m.canRender() {
-		delete(ms.loading, eid)
-		ms.ready[eid] = m
-	}
-}
-
-// get loading or loaded models for the given entity.
+// get the model for the given entity.
 func (ms *models) get(eid eID) *model { return ms.list[eid] }
 
 // getReady returns a model that has all of its assets,
 // meaning it can be rendered or have its audio played.
-func (ms *models) getReady(eid eID) *model { return ms.ready[eid] }
+// func (ms *models) getReady(eid eID) *model { return ms.ready[eid] }
 
 // dispose of the model, removing it from all of the maps.
 // There is no easy way of knowing when to delete the related assets.
 // Leave that to the application.
 func (ms *models) dispose(eid eID) {
 	delete(ms.list, eid)
-	delete(ms.loading, eid)
-	delete(ms.ready, eid)
 }

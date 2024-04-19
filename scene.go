@@ -80,10 +80,10 @@ func (s *scene) setProjection(ww, wh uint32) {
 
 // setPassUniformData sets the pass uniform data.
 func (s *scene) setPassUniformData(app *application, pass *render.Pass) {
-	pass.Data[load.PROJ] = render.M4ToBytes(s.cam.pm, pass.Data[load.PROJ])
-	pass.Data[load.VIEW] = render.M4ToBytes(s.cam.vm, pass.Data[load.VIEW])
+	pass.Uniforms[load.PROJ] = render.M4ToBytes(s.cam.pm, pass.Uniforms[load.PROJ])
+	pass.Uniforms[load.VIEW] = render.M4ToBytes(s.cam.vm, pass.Uniforms[load.VIEW])
 	cx, cy, cz := s.cam.At()
-	pass.Data[load.CAM] = render.V4SToBytes(cx, cy, cz, 0, pass.Data[load.CAM])
+	pass.Uniforms[load.CAM] = render.V4SToBytes(cx, cy, cz, 0, pass.Uniforms[load.CAM])
 
 	// adds any scene lights to the render pass.
 	// lights are children of the scene.
@@ -122,8 +122,8 @@ func (s *scene) setPassUniformData(app *application, pass *render.Pass) {
 		nlights += 1
 
 	}
-	pass.Data[load.LIGHTS] = render.LightsToBytes(pass.Lights, pass.Data[load.LIGHTS])
-	pass.Data[load.NLIGHTS] = render.U8ToBytes(uint8(nlights), pass.Data[load.NLIGHTS])
+	pass.Uniforms[load.LIGHTS] = render.LightsToBytes(pass.Lights, pass.Uniforms[load.LIGHTS])
+	pass.Uniforms[load.NLIGHTS] = render.U8ToBytes(uint8(nlights), pass.Uniforms[load.NLIGHTS])
 }
 
 // =============================================================================
@@ -207,9 +207,7 @@ func (ss *scenes) getFrame(app *application, frame []render.Pass) []render.Pass 
 			})
 		}
 		frame[sc.pid] = *pass // save the updated pass.
-
 	}
-
 	return frame
 }
 
@@ -224,13 +222,14 @@ func (ss *scenes) listParts(app *application, sc *scene, index uint32, parts []u
 		return parts
 	}
 
-	if ready := app.models.getReady(p.eid); ready != nil {
+	// get the model for this part
+	if m := app.models.get(p.eid); m != nil {
 		w := p.tw.Loc
 		parts = append(parts, index)
 		if sc.pid == render.Pass3D {
 			// save distance to camera for transparency sorting.
 			// closer objects drawn last.
-			ready.tocam = sc.cam.distance(w.X, w.Y, w.Z)
+			m.tocam = sc.cam.distance(w.X, w.Y, w.Z)
 		}
 	}
 
@@ -253,13 +252,17 @@ func (ss *scenes) renderParts(app *application, sc *scene, parts []uint32, packe
 		p := &(app.povs.povs[index])
 
 		// generate render packets for models with loaded assets.
-		if m := app.models.getReady(p.eid); m != nil && m.mesh != nil {
+		if m := app.models.get(p.eid); m != nil {
 			if packets, packet = packets.GetPacket(); packet != nil {
 				packet.Bucket = newBucket(sc.pid)
 
 				// render model normally from scene camera.
-				// This sets the expected shader uniforms into the draw call.
-				m.fillPacket(packet, p, sc.cam)
+				// This sets the shader uniforms in the render packet.
+				if !m.fillPacket(packet, p, sc.cam) {
+
+					// exclude models that are not ready to render.
+					packets = packets.DiscardLastPacket()
+				}
 			}
 		}
 	}
@@ -279,7 +282,7 @@ func (ss *scenes) dispose(eid eID, dead []eID) []eID {
 // newBucket produces a number that is used to order draw calls.
 // Higher values are rendered before lower values.
 // setBucket creates an opaque object for the given render pass.
-//   - Pass.... DrawType ShaderID ........ Distance to Camera.................
+//   - Pass.... ShaderID ........ DrawType Distance to Camera.................
 //     00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
 //     F   F    F   F    F   F    F   F    F   F    F   F    F   F    F   F
 //   - Pass bits is the render pass.
@@ -311,17 +314,17 @@ func setBucketType(b uint64, t uint64) uint64 {
 
 // setBucketShader marks the object as the given type.
 func setBucketShader(b uint64, sid uint16) uint64 {
-	return b&clearShaderID | uint64(sid)<<40
+	return b&clearShaderID | uint64(sid)<<48
 }
 
 // Useful bits for setting or clearing the bucket.
 const (
 	clearDistance uint64 = 0xFFFFFFFF00000000
-	clearShaderID uint64 = 0xFFFF0000FFFFFFFF
-	clearType     uint64 = 0xFF00FFFFFFFFFFFF
+	clearShaderID uint64 = 0xFF0000FFFFFFFFFF
+	clearType     uint64 = 0xFFFFFF00FFFFFFFF
 
 	// draw types.
-	drawSky         uint64 = 0x0008000000000000 // sky before other objects
-	drawOpaque      uint64 = 0x0004000000000000 // opaque objects before transparent
-	drawTransparent uint64 = 0x0001000000000000 // transparent objects last.
+	drawSky         uint64 = 0x0000000800000000 // sky before other objects
+	drawOpaque      uint64 = 0x0000000400000000 // opaque objects before transparent
+	drawTransparent uint64 = 0x0000000100000000 // transparent objects last.
 )
