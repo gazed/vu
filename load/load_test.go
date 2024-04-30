@@ -130,7 +130,7 @@ func TestShader(t *testing.T) {
 		if len(shd.Attrs) != 5 {
 			t.Fatalf("expected 5 attributes got %d", len(shd.Attrs))
 		}
-		if shd.Attrs[2].AttrType != InstanceLocus ||
+		if shd.Attrs[2].AttrType != InstancePosition ||
 			shd.Attrs[3].AttrType != InstanceColors ||
 			shd.Attrs[4].AttrType != InstanceScales {
 			t.Fatalf("invalid instance attribute type")

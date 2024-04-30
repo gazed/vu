@@ -7,6 +7,7 @@ package render
 import (
 	"fmt"
 	"log/slog"
+	"math"
 	"time"
 	"unsafe"
 
@@ -386,4 +387,10 @@ func Int32ToBytes(val int32, bytes []byte) []byte {
 	b2 := byte(val >> 16)
 	b3 := byte(val >> 24)
 	return append(bytes, b0, b1, b2, b3)
+}
+
+// Float32ToBytes returns a byte slice containing the given int32.
+// The given byte slice is zeroed and returned filled with the int32.
+func Float32ToBytes(val float32, bytes []byte) []byte {
+	return Int32ToBytes(int32(math.Float32bits(val)), bytes)
 }

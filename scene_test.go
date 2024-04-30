@@ -72,10 +72,10 @@ func TestBucket(t *testing.T) {
 
 		// pull out the values to check placement.
 		dist := math.Float32frombits(uint32(b & 0x00000000FFFFFFFF))
-		draw := uint16((b & 0x000000FF00000000) >> 32) // drawOpaque == 4
-		shid := uint16((b & 0x00FFFF0000000000) >> 48)
+		draw := uint16((b & 0x00FF000000000000) >> 48) // drawOpaque == 4
+		shid := uint16((b & 0x0000FFFF00000000) >> 40)
 		pass := uint8((b & 0xFF00000000000000) >> 56)
-		if pass != 254 || draw != 4 || shid != 21 || dist != 2.4 {
+		if pass != 254 || draw != 1 || shid != 21 || dist != 2.4 {
 			t.Errorf("bad bucket %016x %d %d %d %f\n", b, pass, draw, shid, dist)
 		}
 	})

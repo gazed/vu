@@ -168,7 +168,7 @@ func (vr *vulkanRenderer) dispose() {
 		vr.dropTexture(uint32(i))
 	}
 	for sid := range vr.shaders {
-		vr.dropShader(uint16(sid))
+		vr.disposeShader(&vr.shaders[sid])
 	}
 
 	// per renderpass..
@@ -1549,6 +1549,7 @@ type vulkanShader struct {
 	materialLayout      vk.DescriptorSetLayout // material uniforms per object
 	descriptorPool      vk.DescriptorPool      // uniforms and samplers
 	sceneDescriptorSets []vk.DescriptorSet     // one per image.
+	sceneUpdated        []bool                 // true if descriptor set updated.
 }
 
 // vulkanMaterial tracks existing resources to help reuse descriptor sets.
@@ -1590,6 +1591,7 @@ func (vr *vulkanRenderer) loadShader(config *load.Shader) (sid uint16, err error
 		stages = append(stages, vk.PipelineShaderStageCreateInfo{Stage: vk.SHADER_STAGE_VERTEX_BIT, PName: "main"})
 		stages = append(stages, vk.PipelineShaderStageCreateInfo{Stage: vk.SHADER_STAGE_FRAGMENT_BIT, PName: "main"})
 	default:
+		vr.disposeShader(&shader)
 		return 0, fmt.Errorf("unsupported shader stages %d", config.Stages)
 	}
 
@@ -1597,6 +1599,7 @@ func (vr *vulkanRenderer) loadShader(config *load.Shader) (sid uint16, err error
 	// shader modules can be released once the pipeline is created.
 	err = vr.loadShaderModules(&shader, config.Name, stages)
 	if err != nil {
+		vr.disposeShader(&shader)
 		return 0, err
 	}
 	// no longer need the modules once the shader has been created.
@@ -1679,6 +1682,7 @@ func (vr *vulkanRenderer) loadShader(config *load.Shader) (sid uint16, err error
 			Flags: vk.DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT, // | vk.DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
 		}, nil)
 	if err != nil {
+		vr.disposeShader(&shader)
 		return 0, err
 	}
 
@@ -1694,8 +1698,10 @@ func (vr *vulkanRenderer) loadShader(config *load.Shader) (sid uint16, err error
 				PSetLayouts:    allocLayouts,
 			})
 		if err != nil {
+			vr.disposeShader(&shader)
 			return 0, err
 		}
+		shader.sceneUpdated = make([]bool, len(shader.sceneDescriptorSets))
 	}
 
 	// allocate material descriptor sets.
@@ -1716,6 +1722,7 @@ func (vr *vulkanRenderer) loadShader(config *load.Shader) (sid uint16, err error
 					PSetLayouts:    allocLayouts,
 				})
 			if err != nil {
+				vr.disposeShader(&shader)
 				return 0, err
 			}
 		}
@@ -1744,6 +1751,7 @@ func (vr *vulkanRenderer) loadShader(config *load.Shader) (sid uint16, err error
 	}
 	shader.pipeLayout, err = vk.CreatePipelineLayout(vr.device, &layoutInfo, nil)
 	if err != nil {
+		vr.disposeShader(&shader)
 		return 0, fmt.Errorf("vk.CreatePipelineLayout: %w", err)
 	}
 
@@ -1808,9 +1816,16 @@ func (vr *vulkanRenderer) loadShader(config *load.Shader) (sid uint16, err error
 				SrcColorBlendFactor: vk.BLEND_FACTOR_SRC_ALPHA,
 				DstColorBlendFactor: vk.BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
 				ColorBlendOp:        vk.BLEND_OP_ADD,
+
+				// blend the alpha values
 				SrcAlphaBlendFactor: vk.BLEND_FACTOR_SRC_ALPHA,
 				DstAlphaBlendFactor: vk.BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
 				AlphaBlendOp:        vk.BLEND_OP_ADD,
+
+				// ... or... set the final alpha to the new source alpha
+				// SrcAlphaBlendFactor: vk.BLEND_FACTOR_ONE,
+				// DstAlphaBlendFactor: vk.BLEND_FACTOR_ZERO,
+				// AlphaBlendOp:        vk.BLEND_OP_ADD,
 			},
 		},
 	}
@@ -1849,12 +1864,14 @@ func (vr *vulkanRenderer) loadShader(config *load.Shader) (sid uint16, err error
 	}
 	pipelines, err := vk.CreateGraphicsPipelines(vr.device, 0, []vk.GraphicsPipelineCreateInfo{pipelineInfo}, nil)
 	if err != nil {
+		vr.disposeShader(&shader)
 		return 0, fmt.Errorf("vk.CreateGraphicsPipeline: %w", err)
 	}
 	shader.pipe = pipelines[0]
 
 	// success... add the shader to the list of loaded shaders.
 	vr.shaders = append(vr.shaders, shader)
+	println("loaded shader", config.Name, sid)
 	return sid, nil
 }
 
@@ -1891,22 +1908,23 @@ func (vr *vulkanRenderer) loadShaderModules(shader *vulkanShader, name string, s
 	return nil
 }
 
-// dropShader
+// dropShader drops the shader for the given shader ID.
 func (vr *vulkanRenderer) dropShader(sid uint16) {
 	if sid < 0 || sid >= uint16(len(vr.shaders)) {
 		slog.Error("dropShader:invalid shader ID", "sid", sid)
 		// also not allowed to drop the default shader.
 	}
-	s := vr.shaders[sid]
+	vr.disposeShader(&vr.shaders[sid])
+}
+
+// disposeShader releases shader resources.
+func (vr *vulkanRenderer) disposeShader(s *vulkanShader) {
 	if s.descriptorPool != 0 {
 		// destroying the pool also destroys the descriptorSets
 		vk.DestroyDescriptorPool(vr.device, s.descriptorPool, nil)
 		s.descriptorPool = 0
 	}
-	vr.disposeBuffer(&s.materialUniforms)
-	s.materialUniformsMap = nil
-	vr.disposeBuffer(&s.sceneUniforms)
-	s.sceneUniformsMap = nil
+	vr.disposeShaderUniformBuffers(s)
 	if s.materialLayout != 0 {
 		vk.DestroyDescriptorSetLayout(vr.device, s.materialLayout, nil)
 		s.materialLayout = 0
@@ -1963,15 +1981,25 @@ func (vr *vulkanRenderer) createShaderUniformBuffers(s *vulkanShader) (err error
 	return nil
 }
 
+// disposeShaderUniformBuffers diposes resources allocated in createShaderUniformBuffers.
+func (vr *vulkanRenderer) disposeShaderUniformBuffers(s *vulkanShader) {
+	if s != nil {
+		vr.disposeBuffer(&s.materialUniforms)
+		vr.disposeBuffer(&s.sceneUniforms)
+		s.materialUniformsMap = nil
+		s.sceneUniformsMap = nil
+	}
+}
+
 // applySceneUniforms updates the scene descriptor sets to point
 // to the scene uniform data buffer
-func (vr *vulkanRenderer) applySceneUniforms(shader *vulkanShader, needsUpdate bool) {
+func (vr *vulkanRenderer) applySceneUniforms(shader *vulkanShader) {
 	if shader.sceneLayout == 0 {
 		slog.Error("applySceneUniforms: no scene uniforms", "shader", shader.name)
 		return
 	}
 	descriptorSet := shader.sceneDescriptorSets[vr.imageIndex]
-	if needsUpdate {
+	if !shader.sceneUpdated[vr.imageIndex] {
 		offset := vk.DeviceSize(vr.imageIndex * maxSceneUniformBytes)
 		descriptorSetWrites := []vk.WriteDescriptorSet{
 			{
@@ -1989,6 +2017,7 @@ func (vr *vulkanRenderer) applySceneUniforms(shader *vulkanShader, needsUpdate b
 			},
 		}
 		vk.UpdateDescriptorSets(vr.device, descriptorSetWrites, nil)
+		shader.sceneUpdated[vr.imageIndex] = true
 	}
 	setNum := uint32(0) // scene is always set=0
 	dsets := []vk.DescriptorSet{descriptorSet}
@@ -2036,7 +2065,7 @@ func (vr *vulkanRenderer) applyMaterialUniforms(shader *vulkanShader, matID uint
 		descriptorSetWrites := []vk.WriteDescriptorSet{}
 		descriptorIndex := uint32(0)
 
-		// FUTURE check for material uniforms
+		// FUTURE add support for material uniforms
 		// if shader.usets.materialSize > 0 {
 		// 	offset := vk.DeviceSize(vr.imageIndex*shader.maxMaterials*maxMaterialUniformBytes + matID*maxMaterialUniformBytes)
 		// 	descriptorSetWrites = append(descriptorSetWrites, vk.WriteDescriptorSet{
@@ -2292,6 +2321,15 @@ func (vr *vulkanRenderer) drawFrame(passes []Pass) (err error) {
 		Stencil: 0.0,
 	})
 
+	// reset the scene descriptor set updates for all shaders each frame render.
+	// OPTIMIZE: only reset the sceneUpdated if the view changed.
+	for i := range vr.shaders {
+		s := &vr.shaders[i]
+		for j := range s.sceneUpdated {
+			s.sceneUpdated[j] = false
+		}
+	}
+
 	// first pass always 3D (can be empty if only 2D).
 	// start the 3D world render pass
 	render3DInfo := vk.RenderPassBeginInfo{
@@ -2326,7 +2364,7 @@ func (vr *vulkanRenderer) drawFrame(passes []Pass) (err error) {
 
 				// setting scene uniforms for this shader
 				vr.setSceneUniforms(shader, pass)
-				vr.applySceneUniforms(shader, true)
+				vr.applySceneUniforms(shader)
 			}
 
 			// update material samplers
@@ -2377,7 +2415,7 @@ func (vr *vulkanRenderer) drawFrame(passes []Pass) (err error) {
 
 				// setting scene uniforms for this shader
 				vr.setSceneUniforms(shader, pass)
-				vr.applySceneUniforms(shader, true)
+				vr.applySceneUniforms(shader)
 			}
 
 			// update material samplers

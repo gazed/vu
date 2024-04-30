@@ -203,7 +203,7 @@ func (ss *scenes) getFrame(app *application, frame []render.Pass) []render.Pass 
 
 			// sort the render pass packets.
 			sort.SliceStable(pass.Packets, func(i, j int) bool {
-				return pass.Packets[i].Bucket > pass.Packets[j].Bucket
+				return pass.Packets[i].Bucket < pass.Packets[j].Bucket
 			})
 		}
 		frame[sc.pid] = *pass // save the updated pass.
@@ -279,10 +279,9 @@ func (ss *scenes) dispose(eid eID, dead []eID) []eID {
 
 // =============================================================================
 
-// newBucket produces a number that is used to order draw calls.
-// Higher values are rendered before lower values.
-// setBucket creates an opaque object for the given render pass.
-//   - Pass.... ShaderID ........ DrawType Distance to Camera.................
+// newBucket produces a number that is used to order draw calls
+// from lowest to highest bucket value, ie: sort a<b.
+//   - Pass.... DrawType ShaderID ........ Distance to Camera.................
 //     00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
 //     F   F    F   F    F   F    F   F    F   F    F   F    F   F    F   F
 //   - Pass bits is the render pass.
@@ -314,17 +313,16 @@ func setBucketType(b uint64, t uint64) uint64 {
 
 // setBucketShader marks the object as the given type.
 func setBucketShader(b uint64, sid uint16) uint64 {
-	return b&clearShaderID | uint64(sid)<<48
+	return b&clearShaderID | uint64(sid)<<40
 }
 
 // Useful bits for setting or clearing the bucket.
 const (
 	clearDistance uint64 = 0xFFFFFFFF00000000
-	clearShaderID uint64 = 0xFF0000FFFFFFFFFF
-	clearType     uint64 = 0xFFFFFF00FFFFFFFF
+	clearShaderID uint64 = 0xFFFF0000FFFFFFFF
+	clearType     uint64 = 0xFF00FFFFFFFFFFFF
 
 	// draw types.
-	drawSky         uint64 = 0x0000000800000000 // sky before other objects
-	drawOpaque      uint64 = 0x0000000400000000 // opaque objects before transparent
-	drawTransparent uint64 = 0x0000000100000000 // transparent objects last.
+	drawOpaque      uint64 = 0x0001000000000000 // opaque objects before transparent
+	drawTransparent uint64 = 0x0008000000000000 // transparent objects last.
 )

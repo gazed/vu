@@ -140,6 +140,21 @@ func TestAa(t *testing.T) {
 	}
 }
 
+func TestYawPitchRoll(t *testing.T) {
+	xangle := 40.0
+	if qx := NewQ().SetAa(1, 0, 0, Rad(xangle)); !Aeq(xangle, Deg(qx.Pitch())) {
+		t.Errorf("should have got pitch %f", Deg(qx.Pitch()))
+	}
+	yangle := 30.0
+	if qy := NewQ().SetAa(0, 1, 0, Rad(yangle)); !Aeq(yangle, Deg(qy.Yaw())) {
+		t.Errorf("should have got yaw %f", Deg(qy.Yaw()))
+	}
+	zangle := 20.0
+	if qz := NewQ().SetAa(0, 0, 1, Rad(zangle)); !Aeq(zangle, Deg(qz.Roll())) {
+		t.Errorf("should have got roll %f", Deg(qz.Roll()))
+	}
+}
+
 func TestSetRotationM(t *testing.T) {
 	q2 := &Q{}
 	m := NewM3()

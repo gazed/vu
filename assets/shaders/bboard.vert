@@ -12,7 +12,7 @@ layout(set=0, binding=0) uniform scene_uniforms {
 // model uniforms
 layout(push_constant) uniform push_constants {
 	mat4 model; // 64 bytes
-    vec3 scale; // 12 bytesw
+    vec3 scale; // 12 bytes
 } mu;
 
 layout(location=0) out struct out_dto {

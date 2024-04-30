@@ -95,10 +95,9 @@ func (e *Entity) SetMetallicRoughness(metallic bool, roughness float64) *Entity 
 func (e *Entity) SetModelUniform(uniform string, data interface{}) *Entity {
 	if m := e.app.models.get(e.eid); m != nil {
 		switch uniform {
-		case "i_index":
-			if v, ok := data.(int32); ok {
-				m.uniforms[load.I_INDEX] = render.Int32ToBytes(v, m.uniforms[load.I_INDEX])
-				// slog.Warn("setting I_INDEX data", "val", v, "len", len(m.uniforms[load.I_INDEX]))
+		case "args":
+			if v, ok := data.([]float32); ok && len(v) == 4 {
+				m.uniforms[load.ARGS] = render.V4S32ToBytes(v[0], v[1], v[2], v[3], m.uniforms[load.ARGS])
 			}
 		default:
 			// FUTURE    : add uniforms as needed by shaders.
@@ -284,11 +283,11 @@ func (m *model) fillPacket(packet *render.Packet, pov *pov, cam *Camera) bool {
 		packet.InstanceCount = m.instanceCount
 	}
 
-	// FUTURE: debug only validation that the render layer has
-	// the uploaded vertex data for the attributes, ie: the m.mesh.mid
-	// references vertex data in the render context and each shader
-	// attribute should have a non-zero count for the matching vertex data.
-	// Needs to be done in code that has access to the render context, ie:
+	// FUTURE: debug validation that the render layer has the uploaded
+	// vertex data for the attributes, ie: the m.mesh.mid references
+	// vertex data in the render context and each shader attribute
+	// should have a non-zero count for the matching vertex data.
+	// Needs code that has access to the render context, ie:
 	//
 	// for i := range m.shader.config.Attrs {
 	// 	  attr := &m.shader.config.Attrs[i]

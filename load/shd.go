@@ -86,17 +86,18 @@ var ShaderPassUniforms = map[string]PassUniform{
 // Render data for a model is put into a render.Packet.
 // Expected use is for passing data from the engine to the render system.
 var ShaderPacketUniforms = map[string]PacketUniform{
-	"model":    MODEL,    //
-	"scale":    SCALE,    //
+	"model":    MODEL,    // 4x4 matrix
+	"scale":    SCALE,    // 3 floats
 	"color":    COLOR,    //
 	"material": MATERIAL, //
-	"i_index":  I_INDEX,  // instance index
+	"args":     ARGS,     // 4 floats
 }
 
 // ShaderUniformData are the supported uniform data types.
 // Expected use is for passing data from the engine to the render system.
 var ShaderUniformData = map[string]ShaderDataType{
 	"int":     DataType_INT,
+	"float":   DataType_FLOAT,
 	"light3":  DataType_LIGHT3,
 	"mat3":    DataType_MAT3,
 	"mat4":    DataType_MAT4,
@@ -345,7 +346,7 @@ const (
 	SCALE                               // model
 	COLOR                               // model
 	MATERIAL                            // model
-	I_INDEX                             // model instance index
+	ARGS                                // model shader specific data passing.
 	PacketUniforms                      // must be last
 )
 

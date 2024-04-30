@@ -216,6 +216,25 @@ func (q *Q) SetAa(ax, ay, az, angle float64) *Q {
 	return q
 }
 
+// Roll, Pitch, Yaw from one of the answers to
+// https://stackoverflow.com/questions/5782658/extracting-yaw-from-a-quaternion
+// switch the answer Z:Yaw, Y:Pitch, X:Roll to be X:Pitch, Y:Yaw, Z:Roll
+
+// Z Roll (Bank) in radians
+func (q *Q) Roll() float64 {
+	return math.Atan2(2.0*(q.Z*q.W+q.X*q.Y), -1.0+2.0*(q.W*q.W+q.X*q.X))
+}
+
+// X Pitch (Attitude) in radians
+func (q *Q) Pitch() float64 {
+	return math.Atan2(2.0*(q.Z*q.Y+q.W*q.X), 1.0-2.0*(q.X*q.X+q.Y*q.Y))
+}
+
+// Y Yaw (Heading) in radians
+func (q *Q) Yaw() float64 {
+	return math.Asin(2.0 * (q.Y*q.W - q.Z*q.X))
+}
+
 // ============================================================================
 // quaternion-vector operations
 
