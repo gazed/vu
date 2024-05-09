@@ -1871,7 +1871,6 @@ func (vr *vulkanRenderer) loadShader(config *load.Shader) (sid uint16, err error
 
 	// success... add the shader to the list of loaded shaders.
 	vr.shaders = append(vr.shaders, shader)
-	println("loaded shader", config.Name, sid)
 	return sid, nil
 }
 
