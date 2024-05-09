@@ -15,6 +15,7 @@ import (
 //   - creating a 3D scene.
 //   - controlling scene camera movement.
 //   - circle primitive shader and vertex line circle
+//   - generatede icospheres.
 //
 // CONTROLS:
 //   - W,S    : move forward, back
@@ -40,11 +41,14 @@ func ps() {
 	// import assets from asset files.
 	// This creates the assets referenced by the models below.
 	// Note that circle and quad meshes engine defaults.
-	eng.ImportAssets("circle.shd", "lines.shd")
+	eng.ImportAssets("circle.shd", "lines.shd", "pbr0.shd")
 
 	// The scene holds the cameras and lighting information
 	// and acts as the root for all models added to the scene.
 	ps.scene = eng.AddScene(vu.Scene3D)
+
+	// add one directional light. SetAt sets the direction.
+	ps.scene.AddLight(vu.DirectionalLight).SetAt(-1, -2, -2)
 
 	// Draw a 3D line circle using a shader and a quad.
 	scale := 3.0
@@ -59,6 +63,18 @@ func ps() {
 	c3 := ps.scene.AddModel("shd:lines", "msh:circle")
 	c3.SetAt(+3.0, 0, -5).SetScale(scale/2, scale/2, scale/2)
 	c3.SetColor(1, 0, 0, 1) // red
+
+	// create and draw an icosphere. At the lowest resolution this
+	// looks bad because the normals are shared where vertexes are
+	// part of multiple triangles.
+	eng.GenIcosphere(0)
+	s0 := ps.scene.AddModel("shd:pbr0", "msh:icosphere0")
+	s0.SetAt(-3, 0, -10).SetColor(0, 0, 1, 1).SetMetallicRoughness(true, 0.2)
+
+	// a higher resolution icosphere starts to look ok with lighting.
+	eng.GenIcosphere(4)
+	s2 := ps.scene.AddModel("shd:pbr0", "msh:icosphere4")
+	s2.SetAt(+3, 0, -10).SetColor(0, 1, 0, 1).SetMetallicRoughness(true, 0.2)
 
 	eng.Run(ps) // does not return while example is running.
 }

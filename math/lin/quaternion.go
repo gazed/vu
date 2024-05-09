@@ -216,6 +216,23 @@ func (q *Q) SetAa(ax, ay, az, angle float64) *Q {
 	return q
 }
 
+// RotateTo returns a rotation to rotate from direction vector v1
+// to direction vector v2.
+//
+// from https://stackoverflow.com/questions/1171849/finding-quaternion-representing-the-rotation-from-one-vector-to-another
+func (q *Q) RotateTo(v1, v2 *V3) *Q {
+	k_cos_theta := v1.Dot(v2)
+	k := math.Sqrt(v1.LenSqr() * v2.LenSqr())
+	if k_cos_theta/k == -1 {
+		// 180 degree rotation around orthogonal vector.
+		o := NewV3().Cross(v1, v2) // orthogonal vector
+		return q.SetS(0, o.X, o.Y, o.Z).Unit()
+	}
+	axis := NewV3().Cross(v1, v2)
+	angle := k_cos_theta + k
+	return q.SetS(axis.X, axis.Y, axis.Z, angle).Unit()
+}
+
 // Roll, Pitch, Yaw from one of the answers to
 // https://stackoverflow.com/questions/5782658/extracting-yaw-from-a-quaternion
 // switch the answer Z:Yaw, Y:Pitch, X:Roll to be X:Pitch, Y:Yaw, Z:Roll

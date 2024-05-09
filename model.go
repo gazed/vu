@@ -7,6 +7,7 @@ package vu
 import (
 	"fmt"
 	"log/slog"
+	"math"
 	"strings"
 
 	"github.com/gazed/vu/load"
@@ -343,7 +344,7 @@ func (m *model) fillPacket(packet *render.Packet, pov *pov, cam *Camera) bool {
 				packet.Uniforms[load.SCALE] = render.V4SToBytes(sx, sy, sz, 0, packet.Uniforms[load.SCALE])
 			case load.COLOR, load.MATERIAL:
 				if m.mat == nil {
-					slog.Debug("model waiting on materials")
+					slog.Debug("model waiting on materials", "shader", m.shader.name)
 					return false // material not yet loaded or set.
 				}
 				// Set the model material uniform data.
@@ -352,11 +353,11 @@ func (m *model) fillPacket(packet *render.Packet, pov *pov, cam *Camera) bool {
 				metal, rough := m.mat.metallic, m.mat.roughness
 				packet.Uniforms[load.MATERIAL] = render.V4S32ToBytes(metal, rough, 0, 0, packet.Uniforms[load.MATERIAL])
 			default:
-				// basic uniforms are set using SetUniform on the model.
+				// basic uniforms are set using SetModelUniform.
 				data, ok := m.uniforms[u.PacketUID]
 				if !ok {
-					slog.Debug("model waiting on uniform data")
-					return false // uniform data has not yet be set with SetUniform.
+					slog.Debug("model waiting on uniform data", "shader", m.shader.name)
+					return false // uniform data has not yet be set with SetModelUniform.
 				}
 				packet.Uniforms[u.PacketUID] = packet.Uniforms[u.PacketUID][:0]
 				packet.Uniforms[u.PacketUID] = append(packet.Uniforms[u.PacketUID], data...)
@@ -373,7 +374,7 @@ func (m *model) fillPacket(packet *render.Packet, pov *pov, cam *Camera) bool {
 		packet.Bucket = setBucketType(packet.Bucket, drawTransparent)
 	}
 	packet.Bucket = setBucketShader(packet.Bucket, m.shader.sid)
-	packet.Bucket = setBucketDistance(packet.Bucket, m.tocam)
+	packet.Bucket = setBucketDistance(packet.Bucket, math.MaxFloat64-m.tocam)
 	return true // model has all information needed to render.
 }
 

@@ -301,6 +301,7 @@ func newBucket(pass render.PassID) uint64 {
 }
 
 // setBucketDistance to camera for sorting transparent objects.
+// closer objects should be drawn last.
 func setBucketDistance(b uint64, toCam float64) uint64 {
 	return b | uint64(math.Float32bits(float32(toCam)))
 }

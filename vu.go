@@ -27,6 +27,7 @@ import (
 
 	"github.com/gazed/vu/audio"
 	"github.com/gazed/vu/device"
+	"github.com/gazed/vu/load"
 	"github.com/gazed/vu/render"
 )
 
@@ -272,6 +273,18 @@ type Resizer interface {
 // for when the window is resized.
 func (eng *Engine) SetResizeListener(resizer Resizer) {
 	eng.app.resizer = resizer
+}
+
+// MakeMesh loads application generated mesh data.
+func (eng *Engine) MakeMesh(uniqueName string, meshData load.MeshData) (err error) {
+	m := newMesh(uniqueName)
+	m.mid, err = eng.rc.LoadMesh(meshData)
+	if err != nil {
+		return fmt.Errorf("MakeMesh %s: %w", uniqueName, err)
+	}
+	eng.app.ld.assets[m.aid()] = m
+	slog.Debug("new asset", "asset", "msh:"+m.label(), "id", m.mid)
+	return nil
 }
 
 // Shutdown is an application request to close down the engine.
