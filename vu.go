@@ -217,22 +217,13 @@ func (eng *Engine) Run(updator Updator) {
 
 			// frame complete, remember the start of this frame.
 			previousFrameStart = frameStart
-		}
 
-		// sleep a bit to simulate other stuff happening.
-		busyWait(8 * time.Millisecond)
+			// Small sleep to rest the CPU.
+			// Requires go1.23+ to get 1ms pecision on windows. See go issue #44343.
+			time.Sleep(2 * time.Millisecond) // briefly release thread
+		}
 	}
 	eng.dispose()
-}
-
-// busyWait is used to sleep for periods less than 15ms which is
-// about the smallest granularity of the Sleep timer on windows.
-// This is due to the time interval for the Windows interrupt timer.
-func busyWait(t time.Duration) {
-	start := time.Now()
-	for time.Since(start) < t {
-		time.Sleep(0) // briefly release thread
-	}
 }
 
 // handleResize processes user window changes.
