@@ -242,11 +242,16 @@ func (m *model) addAsset(a asset) {
 	}
 }
 
+var logLimiter = 0
+
 // fillPacket populates a render.Packet for this model returning
 // false if required shader information was missing.
 func (m *model) fillPacket(packet *render.Packet, pov *pov, cam *Camera) bool {
 	if m.shader == nil {
-		slog.Debug("model shader not loaded")
+		if logLimiter%1000 == 0 {
+			slog.Debug("model shader not loaded")
+		}
+		logLimiter += 1
 		return false // shader not loaded yet.
 	}
 	packet.ShaderID = m.shader.sid // GPU shader reference

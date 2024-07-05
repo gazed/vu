@@ -279,7 +279,7 @@ func (eng *Engine) MakeMeshes(name string, meshes []load.MeshData) (err error) {
 	}
 	labelRange := fmt.Sprintf("msh:%s%d:msh:%s%d", name, mids[0], name, mids[len(mids)-1])
 	meshIDRange := fmt.Sprintf("%d:%d", mids[0], mids[len(mids)-1])
-	slog.Info("new assets", "asset", labelRange, "ids", meshIDRange)
+	slog.Debug("new assets", "asset", labelRange, "ids", meshIDRange)
 	return nil
 }
 

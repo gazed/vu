@@ -199,13 +199,13 @@ func genIcosphereMesh(eng *vu.Engine, subdivisions int) (err error) {
 		newIndexes = append(newIndexes, uint16(i), uint16(i+1), uint16(i+2))
 	}
 
-	// load the generated data into a mesh using eng.MakeMesh.
+	// load the generated data into a mesh using eng.MakeMeshes.
 	meshData := make(load.MeshData, load.VertexTypes)
 	meshData[load.Vertexes] = load.F32Buffer(newVerts, 3)
 	meshData[load.Normals] = load.F32Buffer(normals, 3)
 	meshData[load.Indexes] = load.U16Buffer(newIndexes)
 	meshTag := fmt.Sprintf("icosphere%d", subdivisions)
-	return eng.MakeMesh(meshTag, meshData)
+	return eng.MakeMeshes(meshTag, []load.MeshData{meshData})
 }
 
 // genIcosphere creates mesh data for a unit sphere based on triangles.
