@@ -1080,46 +1080,71 @@ type vulkanBuffData struct {
 	offset uint32 // start location of data in the buffer.
 }
 
-// loadMesh stores mesh data in GPU buffers.
+// loadMeshes stores mesh data in GPU buffers.
 // Buffers match the GLTF import data format.
 // Immutable once uploaded. There is only one vertex buffer for
 // all frames. Updating a mesh means adding a new one and refering to it
 // in future draw calls.
 //
 // FUTURE: handle buffer (de/re)allocates using linked lists.
-func (vr *vulkanRenderer) loadMesh(msh load.MeshData) (mid uint32, err error) {
-	vmsh := make(vulkanMesh, load.VertexTypes)
+func (vr *vulkanRenderer) loadMeshes(meshes []load.MeshData) (mids []uint32, err error) {
 
-	// add the mesh data after the last mesh.
-	offsets := make([]uint32, load.VertexTypes)
-	if len(vr.meshes) > 0 {
-		prev := vr.meshes[len(vr.meshes)-1]
-		for i := 0; i < load.VertexTypes; i++ {
-			offsets[i] = prev[i].offset + prev[i].stride*prev[i].count
-		}
-	}
+	// Add the vertex data at the end of the current mesh data.
+	// Get the current offsets for each vertex data type
+	startingOffsets := make([]uint32, load.VertexTypes) // tracks first offset.
 	for i := 0; i < load.VertexTypes; i++ {
-		if msh[i].Count > 0 {
-			vmsh[i].count = msh[i].Count
-			vmsh[i].stride = msh[i].Stride
-			vmsh[i].offset = offsets[i]
-
-			// upload data
-			buff := &vr.vertexBuffers[i]
-			offset := uint64(vmsh[i].offset)
-			vr.uploadData(vr.graphicsQCmdPool, vr.graphicsQ, buff, offset, msh[i].Data)
-
-			// uncomment when debugging buffer math
-			// slog.Debug("uploaded mesh", "vtype", i, "offset", vmsh[i].offset, "count", vmsh[i].count, "stride", vmsh[i].stride, "len", len(msh[i].Data))
-		} else {
-			// push forward the previous offset for the vertex data
-			// types that were not used by this mesh.
-			vmsh[i].offset = offsets[i]
+		if len(vr.meshes) > 0 {
+			prev := vr.meshes[len(vr.meshes)-1]
+			for i := 0; i < load.VertexTypes; i++ {
+				startingOffsets[i] = prev[i].offset + prev[i].stride*prev[i].count
+			}
 		}
 	}
-	mid = uint32(len(vr.meshes)) // mesh ID for the new mesh.
-	vr.meshes = append(vr.meshes, vmsh)
-	return mid, nil
+
+	// cosolidate the upload data into a buffer for each vertex data type.
+	data := make([][]byte, load.VertexTypes)
+	for _, msh := range meshes {
+
+		// add the mesh data after the last mesh.
+		meshOffsets := make([]uint32, load.VertexTypes)
+		if len(vr.meshes) > 0 {
+			prev := vr.meshes[len(vr.meshes)-1]
+			for i := 0; i < load.VertexTypes; i++ {
+				meshOffsets[i] = prev[i].offset + prev[i].stride*prev[i].count
+			}
+		}
+
+		// track each mesh with a vulkan-mesh
+		vmsh := make(vulkanMesh, load.VertexTypes)
+		for i := 0; i < load.VertexTypes; i++ {
+			if msh[i].Count > 0 {
+				vmsh[i].count = msh[i].Count
+				vmsh[i].stride = msh[i].Stride
+				vmsh[i].offset = meshOffsets[i]
+
+				// consolidate the upload data into temp buffers.
+				data[i] = append(data[i], msh[i].Data...)
+
+			} else {
+				// push forward the previous offset for the vertex data
+				// types that were not used by this mesh.
+				vmsh[i].offset = meshOffsets[i]
+			}
+		}
+		mids = append(mids, uint32(len(vr.meshes))) // mesh ID for the new mesh.
+		vr.meshes = append(vr.meshes, vmsh)
+	}
+
+	// upload the consolidated data once for each data type.
+	for i := 0; i < load.VertexTypes; i++ {
+		uploadData := data[i]
+		if len(uploadData) > 0 {
+			buff := &vr.vertexBuffers[i]
+			offset := uint64(startingOffsets[i])
+			vr.uploadData(vr.graphicsQCmdPool, vr.graphicsQ, buff, offset, uploadData)
+		}
+	}
+	return mids, nil
 }
 
 // TODO handle deallocates using linked lists.

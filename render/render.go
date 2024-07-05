@@ -99,9 +99,18 @@ func (c *Context) LoadTexture(img *load.ImageData) (tid uint32, err error) {
 // for the given texture ID.
 func (c *Context) DropTexture(tid uint32) { c.renderer.dropTexture(tid) }
 
+// LoadMeshes allocates GPU resources for the mesh data.
+func (c *Context) LoadMeshes(msh []load.MeshData) (mids []uint32, err error) {
+	return c.renderer.loadMeshes(msh)
+}
+
 // LoadMesh allocates GPU resources for the mesh data.
 func (c *Context) LoadMesh(msh load.MeshData) (mid uint32, err error) {
-	return c.renderer.loadMesh(msh)
+	mids, err := c.renderer.loadMeshes([]load.MeshData{msh})
+	if err != nil || len(mids) != 1 {
+		return 0, fmt.Errorf("LoadMesh %d %w", len(mids), err)
+	}
+	return mids[0], nil
 }
 
 // DropMesh discards the mesh resources.
@@ -129,7 +138,8 @@ func (c *Context) SetClearColor(r, g, b, a float32) {
 // It allows engine tests to mock this part of the render context.
 type Loader interface {
 	LoadTexture(img *load.ImageData) (tid uint32, err error)
-	LoadMesh(mdata load.MeshData) (mid uint32, err error)
+	LoadMesh(msh load.MeshData) (mid uint32, err error)
+	LoadMeshes(mdata []load.MeshData) (mids []uint32, err error)
 	LoadShader(config *load.Shader) (mid uint16, err error)
 
 	// FUTURE: LoadAnimation
@@ -164,9 +174,9 @@ type renderAPI interface {
 	loadShader(config *load.Shader) (sid uint16, err error)
 	dropShader(sid uint16) // release shader resources
 
-	// create a GPU mesh and upload the mesh vertex data.
-	// return an identifier for the mesh data.
-	loadMesh(msh load.MeshData) (mid uint32, err error)
+	// create GPU meshes by uploading the mesh vertex data.
+	// return an identifier for each mesh.
+	loadMeshes(msh []load.MeshData) (mid []uint32, err error)
 	// FUTURE: updateMesh() replace mesh with new mesh data.
 	dropMesh(mid uint32)
 

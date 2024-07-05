@@ -123,9 +123,13 @@ func (rc *loaderTestRenderContext) LoadTexture(img *load.ImageData) (tid uint32,
 	return 0, nil
 }
 
-func (rc *loaderTestRenderContext) LoadMesh(load.MeshData) (tid uint32, err error) {
+func (rc *loaderTestRenderContext) LoadMesh(load.MeshData) (mid uint32, err error) {
 	loaderTestMeshLoads += 1
 	return 0, nil
+}
+func (rc *loaderTestRenderContext) LoadMeshes([]load.MeshData) (mids []uint32, err error) {
+	loaderTestMeshLoads += 1
+	return []uint32{}, nil
 }
 
 func (rc *loaderTestRenderContext) LoadShader(config *load.Shader) (tid uint16, err error) {

@@ -61,6 +61,7 @@ type mrc struct{}
 
 func (rc *mrc) LoadTexture(img *load.ImageData) (uint32, error) { return 0, nil }
 func (rc *mrc) LoadMesh(load.MeshData) (uint32, error)          { return 0, nil }
+func (rc *mrc) LoadMeshes([]load.MeshData) ([]uint32, error)    { return []uint32{0}, nil }
 func (rc *mrc) LoadShader(config *load.Shader) (uint16, error)  { return 0, nil }
 
 // go test -run Bucket

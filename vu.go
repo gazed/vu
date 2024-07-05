@@ -266,15 +266,20 @@ func (eng *Engine) SetResizeListener(resizer Resizer) {
 	eng.app.resizer = resizer
 }
 
-// MakeMesh loads application generated mesh data.
-func (eng *Engine) MakeMesh(uniqueName string, meshData load.MeshData) (err error) {
-	m := newMesh(uniqueName)
-	m.mid, err = eng.rc.LoadMesh(meshData)
-	if err != nil {
-		return fmt.Errorf("MakeMesh %s: %w", uniqueName, err)
+// MakeMeshes loads application generated mesh data.
+func (eng *Engine) MakeMeshes(name string, meshes []load.MeshData) (err error) {
+	mids, err := eng.rc.LoadMeshes(meshes) // upload all mesh data.
+	if err != nil || len(mids) != len(meshes) {
+		return fmt.Errorf("MakeMeshes %s: %w", name, err)
 	}
-	eng.app.ld.assets[m.aid()] = m
-	slog.Debug("new asset", "asset", "msh:"+m.label(), "id", m.mid)
+	for i, mid := range mids {
+		m := newMesh(fmt.Sprintf("%s%d", name, i))
+		m.mid = mid
+		eng.app.ld.assets[m.aid()] = m
+	}
+	labelRange := fmt.Sprintf("msh:%s%d:msh:%s%d", name, mids[0], name, mids[len(mids)-1])
+	meshIDRange := fmt.Sprintf("%d:%d", mids[0], mids[len(mids)-1])
+	slog.Info("new assets", "asset", labelRange, "ids", meshIDRange)
 	return nil
 }
 
