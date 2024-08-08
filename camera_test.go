@@ -11,6 +11,40 @@ import (
 // go test -run Camera
 func TestCamera(t *testing.T) {
 
+	// check the camera world position after rotating around X,Y axis.
+	// +Y:up +X:right -Z:forward
+	t.Run("camera rotations", func(t *testing.T) {
+		cam, _, _ := initScene() //
+		cam.SetAt(0, 0, 1)       // start at 1 on the Z-axis looking forward to origin.
+
+		// expected world camera position is opposite in order to
+		// move the world and keep the camera at 0,0,0
+		axismap := []int{
+			// pitch:yaw <=> x:y:z camera world position
+			+00, +90 /* <=> */, +1, +0, +0, // rotate about Y:+90
+			+00, -90 /* <=> */, -1, +0, +0, // rotate about Y:-90
+			-90, +00 /* <=> */, +0, +1, +0, // rotate about X:-90
+			+90, +00 /* <=> */, +0, -1, +0, // rotate about X:+90
+			+00, 180 /* <=> */, +0, +0, +1, // rot about Y:180
+			+00, +00 /* <=> */, +0, +0, -1, // no rotation
+		}
+		var wx, wy, wz float64
+		for i := 0; i < len(axismap); i += 5 {
+			a0, b0 := axismap[i], axismap[i+1] // spherical angles.
+			cam.SetPitch(float64(a0))
+			cam.SetYaw(float64(b0))
+			cam.updateView()
+
+			// expected rectangular world coordinates for the given angles.
+			x0, y0, z0 := axismap[i+2], axismap[i+3], axismap[i+4]
+			wx, wy, wz = cam.vm.Wx, cam.vm.Wy, cam.vm.Wz // world camera position
+
+			if x0 != int(wx) || y0 != int(wy) || z0 != int(wz) {
+				t.Errorf("expected %d %d %d got %d %d %d", x0, y0, z0, int(wx), int(wy), int(wz))
+			}
+		}
+	})
+
 	// Test perspective and view inverses.
 	t.Run("camera inverse projections", func(t *testing.T) {
 		cam, _, _ := initScene()

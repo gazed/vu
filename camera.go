@@ -94,7 +94,7 @@ func (c *Camera) Lookat() *lin.Q { return c.at.Rot }
 // the Look direction. The camera instance is returned.
 func (c *Camera) SetPitch(deg float64) *Camera {
 	c.xrot.SetAa(1, 0, 0, lin.Rad(deg))
-	c.at.Rot.Mult(c.xrot, c.yrot)
+	c.at.Rot.Mult(c.xrot, c.yrot).Unit()
 	return c
 }
 
@@ -102,7 +102,7 @@ func (c *Camera) SetPitch(deg float64) *Camera {
 // Look and Lookat directions. The camera instance is returned.
 func (c *Camera) SetYaw(deg float64) *Camera {
 	c.yrot.SetAa(0, 1, 0, lin.Rad(deg))
-	c.at.Rot.Mult(c.xrot, c.yrot)
+	c.at.Rot.Mult(c.xrot, c.yrot).Unit()
 	return c
 }
 
