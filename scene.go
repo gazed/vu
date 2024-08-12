@@ -245,6 +245,7 @@ func (ss *scenes) listParts(app *application, sc *scene, index uint32, parts []u
 // renderParts prepares for rendering by converting a sequenced list
 // of pov's into render packets.
 func (ss *scenes) renderParts(app *application, sc *scene, parts []uint32, packets render.Packets) render.Packets {
+	modelsNotReady := []error{}
 
 	// turn all the pov's, models, and cameras into render packets.
 	var packet *render.Packet
@@ -258,13 +259,17 @@ func (ss *scenes) renderParts(app *application, sc *scene, parts []uint32, packe
 
 				// render model normally from scene camera.
 				// This sets the shader uniforms in the render packet.
-				if !m.fillPacket(packet, p, sc.cam) {
+				if err := m.fillPacket(packet, p, sc.cam); err != nil {
+					modelsNotReady = append(modelsNotReady, err)
 
 					// exclude models that are not ready to render.
 					packets = packets.DiscardLastPacket()
 				}
 			}
 		}
+	}
+	if len(modelsNotReady) > 0 {
+		slog.Debug("models not ready", "err#", len(modelsNotReady), "err0", modelsNotReady[0])
 	}
 	return packets
 }

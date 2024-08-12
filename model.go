@@ -18,6 +18,7 @@ import (
 func (e *Entity) AddModel(assets ...string) (me *Entity) {
 	me = e.addPart() // add a transform node for the model.
 	if mod := me.app.models.create(me); mod != nil {
+		mod.req = strings.Join(assets, ",")
 		mod.getAssets(me, assets...)
 	}
 	return me
@@ -135,6 +136,7 @@ const (
 // Generally expected to be accessed through wrapper classes such as
 // Model, Particle, Actor, and Label.
 type model struct {
+	req    string  // original asset request string used for debugging.
 	shader *shader // Loaded shader.
 	mesh   *mesh   // Mandatory vertex data.
 
@@ -242,24 +244,17 @@ func (m *model) addAsset(a asset) {
 	}
 }
 
-var logLimiter = 0
-
 // fillPacket populates a render.Packet for this model returning
 // false if required shader information was missing.
-func (m *model) fillPacket(packet *render.Packet, pov *pov, cam *Camera) bool {
+func (m *model) fillPacket(packet *render.Packet, pov *pov, cam *Camera) error {
 	if m.shader == nil {
-		if logLimiter%1000 == 0 {
-			slog.Debug("model shader not loaded")
-		}
-		logLimiter += 1
-		return false // shader not loaded yet.
+		return fmt.Errorf("shader not loaded: %s", m.req)
 	}
 	packet.ShaderID = m.shader.sid // GPU shader reference
 
 	// check if the model mesh has the necessary data.
 	if m.mesh == nil {
-		slog.Debug("model mesh not loaded")
-		return false // mesh data not loaded yet.
+		return fmt.Errorf("mesh not loaded: %s", m.req)
 	}
 	packet.MeshID = m.mesh.mid // GPU mesh reference.
 
@@ -268,8 +263,7 @@ func (m *model) fillPacket(packet *render.Packet, pov *pov, cam *Camera) bool {
 	case basicModel:
 	case labelModel:
 		if m.label == nil || m.label.w <= 0 || len(m.texs) != 1 {
-			slog.Debug("model label not loaded")
-			return false
+			return fmt.Errorf("label not loaded: %s", m.req)
 		}
 	case actorModel:
 		// FUTURE check animation data.
@@ -281,8 +275,7 @@ func (m *model) fillPacket(packet *render.Packet, pov *pov, cam *Camera) bool {
 	packet.IsInstanced = false
 	if m.isInstanced {
 		if m.instanceCount <= 0 {
-			slog.Debug("model instance data not loaded")
-			return false // instance data not yet loaded.
+			return fmt.Errorf("instance data not loaded: %s", m.req)
 		}
 		packet.IsInstanced = true
 		packet.InstanceID = m.instanceID
@@ -306,8 +299,7 @@ func (m *model) fillPacket(packet *render.Packet, pov *pov, cam *Camera) bool {
 	// - the app added an unnecessary texture was added to a model.
 	samplers := m.shader.config.GetSamplerUniforms()
 	if len(samplers) != len(m.texs) {
-		slog.Debug("model texture data not loaded")
-		return false // generally waiting for texture to load.
+		return fmt.Errorf("texture data not loaded: %s", m.req)
 	}
 
 	// add the textures to the packet in the same order as the samplers.
@@ -315,8 +307,7 @@ func (m *model) fillPacket(packet *render.Packet, pov *pov, cam *Camera) bool {
 	for _, u := range samplers {
 		tstr, ok := m.samplerMap[u.Name] // expect to find a matching uniform.
 		if !ok {
-			slog.Debug("model waiting for textures")
-			return false // texture not yet loaded.
+			return fmt.Errorf("waiting for textures: %s", m.req)
 		}
 
 		// find the texture for this uniform.
@@ -330,8 +321,7 @@ func (m *model) fillPacket(packet *render.Packet, pov *pov, cam *Camera) bool {
 			}
 		}
 		if !found {
-			slog.Error("fix typo in application model texture:name map")
-			return false // this needs to be caught and fixed in debug builds.
+			return fmt.Errorf("fix texture map typo: %s", m.req)
 		}
 	}
 
@@ -349,8 +339,7 @@ func (m *model) fillPacket(packet *render.Packet, pov *pov, cam *Camera) bool {
 				packet.Uniforms[load.SCALE] = render.V4SToBytes(sx, sy, sz, 0, packet.Uniforms[load.SCALE])
 			case load.COLOR, load.MATERIAL:
 				if m.mat == nil {
-					slog.Debug("model waiting on materials", "shader", m.shader.name)
-					return false // material not yet loaded or set.
+					return fmt.Errorf("waiting on materials: %s", m.req)
 				}
 				// Set the model material uniform data.
 				r, g, b, a := m.mat.color.r, m.mat.color.g, m.mat.color.b, m.mat.color.a
@@ -361,8 +350,7 @@ func (m *model) fillPacket(packet *render.Packet, pov *pov, cam *Camera) bool {
 				// basic uniforms are set using SetModelUniform.
 				data, ok := m.uniforms[u.PacketUID]
 				if !ok {
-					slog.Debug("model waiting on uniform data", "shader", m.shader.name)
-					return false // uniform data has not yet be set with SetModelUniform.
+					return fmt.Errorf("waiting on uniforms: %s", m.req)
 				}
 				packet.Uniforms[u.PacketUID] = packet.Uniforms[u.PacketUID][:0]
 				packet.Uniforms[u.PacketUID] = append(packet.Uniforms[u.PacketUID], data...)
@@ -380,7 +368,7 @@ func (m *model) fillPacket(packet *render.Packet, pov *pov, cam *Camera) bool {
 	}
 	packet.Bucket = setBucketShader(packet.Bucket, m.shader.sid)
 	packet.Bucket = setBucketDistance(packet.Bucket, math.MaxFloat64-m.tocam)
-	return true // model has all information needed to render.
+	return nil // model has all information needed to render.
 }
 
 // isTransparent returns true if the model is transparent.

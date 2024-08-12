@@ -81,6 +81,9 @@ func (l *assetLoader) getAsset(aid aid, eid eID, callback assetReady) {
 
 // getLabelMesh remembers the request for a label mesh and handles
 // it within loadAssets
+//
+// FUTURE: reuse label assets, ie: reuse mesh for the same string, same font.
+// eg: strings "0%", "1%" to "100%" could be reused by multiple UI controls.
 func (l *assetLoader) getLabelMesh(aid aid, me *Entity) {
 	if reqs, ok := l.labelRequests[aid]; ok {
 		l.labelRequests[aid] = append(reqs, me)
@@ -329,6 +332,14 @@ func (l *assetLoader) loadDefaultAssets(rc render.Loader) (err error) {
 	l.assets[m.aid()] = m
 	slog.Debug("new asset", "asset", "msh:"+m.label(), "id", m.mid)
 
+	m = newMesh("frame")
+	m.mid, err = rc.LoadMesh(frameMeshData)
+	if err != nil {
+		return fmt.Errorf("LoadMesh frame: %w", err)
+	}
+	l.assets[m.aid()] = m
+	slog.Debug("new asset", "asset", "msh:"+m.label(), "id", m.mid)
+
 	m = newMesh("cube")
 	m.mid, err = rc.LoadMesh(cubeMeshData)
 	if err != nil {
@@ -377,12 +388,16 @@ func generateDefaultMeshes() {
 	iconMeshData[load.Texcoords] = load.F32Buffer(iconTexuv, 2)
 	iconMeshData[load.Indexes] = load.U16Buffer(iconIndex)
 
-	// 2x2 plane with normals and tex-coordinates.
+	// 1x1 plane with normals and tex-coordinates.
 	// Based on Blender default plane.
 	quadMeshData[load.Vertexes] = load.F32Buffer(quadVerts, 3)
 	quadMeshData[load.Texcoords] = load.F32Buffer(quadTexuv, 2)
 	quadMeshData[load.Normals] = load.F32Buffer(quadNorms, 3)
 	quadMeshData[load.Indexes] = load.U16Buffer(quadIndex)
+
+	// 1x1 line box.
+	frameMeshData[load.Vertexes] = load.F32Buffer(frameVerts, 3)
+	frameMeshData[load.Indexes] = load.U16Buffer(frameIndex)
 
 	// 1x1x1 cube with normals and tex-coordinates for all 6 sides.
 	// based on Blender default cube.
@@ -440,6 +455,21 @@ var quadTexuv = []float32{
 var quadIndex = []uint16{
 	2, 1, 3,
 	2, 0, 1,
+}
+
+// 1x1 frame outline for 2D borders.
+var frameMeshData = make(load.MeshData, load.VertexTypes)
+var frameVerts = []float32{
+	-0.5, +0.5, // top left
+	-0.5, -0.5, // bottom left
+	+0.5, +0.5, // top right
+	+0.5, -0.5, // bottom right
+}
+var frameIndex = []uint16{
+	0, 2, // top line
+	2, 3, // right line
+	3, 1, // bottom line
+	1, 0, // left line
 }
 
 // 1x1x1 cube with normals and tex-coordinates for all 6 sides.
