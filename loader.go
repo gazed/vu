@@ -168,7 +168,7 @@ func (l *assetLoader) loadAssets(rc render.Loader, ac audio.Loader) (assetsCreat
 						break
 					}
 					assets = append(assets, msh)
-					slog.Debug("new asset", "asset", "msh:"+msh.label(), "mid", msh.mid, "filename", filename)
+					slog.Debug("loader", "asset", "msh:"+msh.label(), "mid", msh.mid, "filename", filename)
 				case load.PBRMaterialData:
 					assetsCreated += 1
 					mat := newMaterial(name)
@@ -181,7 +181,7 @@ func (l *assetLoader) loadAssets(rc render.Loader, ac audio.Loader) (assetsCreat
 					mat.metallic = float32(data.Metallic)
 					mat.roughness = float32(data.Roughness)
 					assets = append(assets, mat)
-					slog.Debug("new asset", "asset", "mat:"+mat.label(), "filename", filename)
+					slog.Debug("loader", "asset", "mat:"+mat.label(), "filename", filename)
 				case *load.ImageData:
 					assetsCreated += 1
 					t := newTexture(name)
@@ -192,16 +192,30 @@ func (l *assetLoader) loadAssets(rc render.Loader, ac audio.Loader) (assetsCreat
 						break
 					}
 					assets = append(assets, t)
-					slog.Debug("new asset", "asset", "tex:"+t.label(), "tid", t.tid, "opaque", t.opaque, "filename", filename)
-				case *load.FontData:
+					slog.Debug("loader", "asset", "tex:"+t.label(), "tid", t.tid, "opaque", t.opaque, "filename", filename)
+				case *load.FontAtlas:
+					// create 2 assets:
+					// 1.create the texture atlas image - uploaded to GPU.
 					assetsCreated += 1
-					f := newFont(name)
-					f.setSize(data.W, data.H)
-					for _, ch := range data.Chars {
-						f.addChar(ch.Char, ch.X, ch.Y, ch.W, ch.H, ch.Xo, ch.Yo, ch.Xa)
+					t := newTexture(data.Tag)
+					t.opaque = false // a font atlas always have some alpha values.
+					t.tid, err = rc.LoadTexture(&data.Img)
+					if err != nil {
+						slog.Error("FontAtlas LoadTexture failed", "error", err)
+						break
+					}
+					assets = append(assets, t)
+					slog.Debug("loader", "asset", "tex:"+t.label(), "tid", t.tid, "opaque", t.opaque, "filename", filename)
+
+					// 2. create the font mapping data - stored in memory.
+					assetsCreated += 1
+					f := newFont(data.Tag)
+					f.setSize(int(data.Img.Width), int(data.Img.Height))
+					for _, g := range data.Glyphs {
+						f.addChar(g.Char, g.X, g.Y, g.W, g.H, g.Xo, g.Yo, g.Xa)
 					}
 					assets = append(assets, f)
-					slog.Debug("new asset", "asset", "fnt:"+f.label(), "filename", filename, "chars", len(f.chars))
+					slog.Debug("loader", "asset", "fnt:"+f.label(), "filename", filename, "chars", len(f.chars))
 				case *load.AudioData:
 					assetsCreated += 1
 					s := newSound(name)
@@ -211,7 +225,7 @@ func (l *assetLoader) loadAssets(rc render.Loader, ac audio.Loader) (assetsCreat
 						break
 					}
 					assets = append(assets, s)
-					slog.Debug("new asset", "asset", "snd:"+s.label(), "filename", filename)
+					slog.Debug("loader", "asset", "snd:"+s.label(), "filename", filename)
 				case *load.Shader:
 					assetsCreated += 1
 					s := newShader(name)
@@ -222,7 +236,7 @@ func (l *assetLoader) loadAssets(rc render.Loader, ac audio.Loader) (assetsCreat
 						break
 					}
 					assets = append(assets, s)
-					slog.Debug("new asset", "asset", "shd:"+s.label(), "sid", s.sid, "filename", filename)
+					slog.Debug("loader", "asset", "shd:"+s.label(), "sid", s.sid, "filename", filename)
 				case load.ShaderData:
 					// ignore since shader bytes are loaded directly from the render package.
 					slog.Warn("load.ShaderBytes called") // unexpected. Testing?
@@ -322,7 +336,7 @@ func (l *assetLoader) loadDefaultAssets(rc render.Loader) (err error) {
 		return fmt.Errorf("LoadMesh icon: %w", err)
 	}
 	l.assets[m.aid()] = m
-	slog.Debug("new asset", "asset", "msh:"+m.label(), "id", m.mid)
+	slog.Debug("vu built-in", "asset", "msh:"+m.label(), "id", m.mid)
 
 	m = newMesh("quad")
 	m.mid, err = rc.LoadMesh(quadMeshData)
@@ -330,7 +344,7 @@ func (l *assetLoader) loadDefaultAssets(rc render.Loader) (err error) {
 		return fmt.Errorf("LoadMesh quad: %w", err)
 	}
 	l.assets[m.aid()] = m
-	slog.Debug("new asset", "asset", "msh:"+m.label(), "id", m.mid)
+	slog.Debug("vu built-in", "asset", "msh:"+m.label(), "id", m.mid)
 
 	m = newMesh("frame")
 	m.mid, err = rc.LoadMesh(frameMeshData)
@@ -338,7 +352,7 @@ func (l *assetLoader) loadDefaultAssets(rc render.Loader) (err error) {
 		return fmt.Errorf("LoadMesh frame: %w", err)
 	}
 	l.assets[m.aid()] = m
-	slog.Debug("new asset", "asset", "msh:"+m.label(), "id", m.mid)
+	slog.Debug("vu built-in", "asset", "msh:"+m.label(), "id", m.mid)
 
 	m = newMesh("cube")
 	m.mid, err = rc.LoadMesh(cubeMeshData)
@@ -346,7 +360,7 @@ func (l *assetLoader) loadDefaultAssets(rc render.Loader) (err error) {
 		return fmt.Errorf("LoadMesh cube: %w", err)
 	}
 	l.assets[m.aid()] = m
-	slog.Debug("new asset", "asset", "msh:"+m.label(), "id", m.mid)
+	slog.Debug("vu built-in", "asset", "msh:"+m.label(), "id", m.mid)
 
 	m = newMesh("circle")
 	m.mid, err = rc.LoadMesh(circleMeshData)
@@ -354,7 +368,7 @@ func (l *assetLoader) loadDefaultAssets(rc render.Loader) (err error) {
 		return fmt.Errorf("LoadMesh circle: %w", err)
 	}
 	l.assets[m.aid()] = m
-	slog.Debug("new asset", "asset", "msh:"+m.label(), "id", m.mid)
+	slog.Debug("vu built-in", "asset", "msh:"+m.label(), "id", m.mid)
 
 	// create a basic texture to use for testing.
 	t := newTexture("test")
@@ -365,7 +379,7 @@ func (l *assetLoader) loadDefaultAssets(rc render.Loader) (err error) {
 		return fmt.Errorf("LoadTexture test: %w", err)
 	}
 	l.assets[t.aid()] = t
-	slog.Debug("new asset", "asset", "tex:"+t.label(), "id", t.tid)
+	slog.Debug("vu built-in", "asset", "tex:"+t.label(), "id", t.tid)
 
 	// create a basic shader as the first shader.
 	s := newShader("tex3D")
@@ -378,7 +392,7 @@ func (l *assetLoader) loadDefaultAssets(rc render.Loader) (err error) {
 		return fmt.Errorf("LoadShader tex3D: %w", err)
 	}
 	l.assets[s.aid()] = s
-	slog.Debug("new asset", "asset", "shd:"+s.label(), "id", s.sid)
+	slog.Debug("vu built-in", "asset", "shd:"+s.label(), "id", s.sid)
 	return nil
 }
 

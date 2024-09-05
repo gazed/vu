@@ -50,7 +50,7 @@ func is() {
 	// import assets from asset files.
 	// This creates the assets referenced by the models below.
 	eng.ImportAssets("bbinst.shd", "bboard.shd", "star.png", "ring.png") // 3D assets
-	eng.ImportAssets("label.shd", "lucidiaSu18.fnt", "lucidiaSu18.png")  // 2D assets
+	eng.ImportAssets("label.shd", "22:hack.ttf")                         // 2D assets
 
 	// The scene holds the cameras and lighting information
 	// and acts as the root for all models added to the scene.
@@ -147,7 +147,7 @@ func (is *istag) Update(eng *vu.Engine, in *vu.Input, delta time.Duration) {
 	if starID := is.hitStar(is.stars); starID > -1 {
 		s := &is.stars[starID]
 		if name, ok := is.names[starID]; !ok {
-			name = is.scene2D.AddLabel(s.Name, 0, "shd:label", "fnt:lucidiaSu18", "tex:color:lucidiaSu18")
+			name = is.scene2D.AddLabel(s.Name, 0, "shd:label", "fnt:hack22", "tex:color:hack22")
 			name.SetAt(20, 20, 0).SetColor(1, 1, 0, 1) // yellow label
 			is.names[starID] = name
 		} else {

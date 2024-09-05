@@ -8,15 +8,18 @@ import (
 	"testing"
 )
 
-// go test -run Fnt
-func TestFnt(t *testing.T) {
-	SetAssetDir(".fnt", "../assets/fonts")
-	fnt, err := Font("lucidiaSu18.fnt")
+// go test -run Ttf
+func TestTtf(t *testing.T) {
+	SetAssetDir(".ttf", "../assets/fonts")
+	atlas, err := TTFont("24:hack.ttf")
 	if err != nil {
-		t.Fatalf("glyph load failed %s", err)
+		t.Fatalf("ttf load failed %s", err)
 	}
-	if fnt.W != 256 || fnt.H != 256 || len(fnt.Chars) != 247 {
-		t.Errorf("invalid font data: %d %d %d", fnt.W, fnt.H, len(fnt.Chars))
+	if atlas.Tag != "hack24" {
+		t.Errorf("expecting hack24 got %s", atlas.Tag)
+	}
+	if len(ttfRunes) != len(atlas.Glyphs) {
+		t.Errorf("expecting %d got %d", len(ttfRunes), len(atlas.Glyphs))
 	}
 }
 

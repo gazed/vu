@@ -7,7 +7,7 @@
 //   - ".shd"  shader configuration description
 //   - ".glb"  vertex data, image data, animation data, material data
 //   - ".wav"  audio data
-//   - ".fnt"  font mapping data
+//   - ".ttf"  true type font file.
 //   - ".yaml" data file
 //
 // This package is primary used internally for getting data from disk
@@ -39,7 +39,7 @@ var assetDirs = map[string]string{
 	".shd":  "assets/shaders", // yaml shader configuration files.
 	".png":  "assets/images",  // png images, often textures.
 	".glb":  "assets/models",  // glb scenes, meshes, materials, animations, textures,...
-	".fnt":  "assets/fonts",   // glyph files exspect corresponding image.
+	".ttf":  "assets/fonts",   // true type font files.
 	".wav":  "assets/audio",   // sound data.
 	".yaml": "assets/data",    // data files
 }
@@ -69,9 +69,9 @@ func LoadAssetFile(fname string) []AssetData {
 	case ".wav":
 		aud, err := Audio(fname)
 		return []AssetData{{Filename: fname, Data: aud, Err: err}}
-	case ".fnt":
-		fnt, err := Font(fname)
-		return []AssetData{{Filename: fname, Data: fnt, Err: err}}
+	case ".ttf":
+		atlas, err := TTFont(fname)
+		return []AssetData{{Filename: fname, Data: atlas, Err: err}}
 	}
 	err := fmt.Errorf("unsupported asset file %s", fname)
 	return []AssetData{{Filename: fname, Err: err}}
@@ -231,34 +231,48 @@ func Model(name string) (data []AssetData) {
 }
 
 // =============================================================================
-// ".fnt" - font glyph mappings
+// ".ttf" - truetype font glyph mappings
 
-// FontData holds UV texture mapping information for a font.
-// It is intended for populating rendered models of strings.
+// FontAtlas holds UV texture mapping information for a font.
 // This is an intermediate data format that needs further processing by
-// something like a vu.Ent.MakeModel to bind the data to a GPU and associate
-// it with a texture atlas containing the bitmapped font images.
-type FontData struct {
-	W, H  int       // Width and height
-	Chars []ChrData // Character data.
+// something like a vu.Ent.MakeModel to send the atlas image to the GPU.
+type FontAtlas struct {
+	Tag    string    // asset ID is filename + font-size.
+	Img    ImageData // Atlas image ready for upload to GPU.
+	Glyphs []Glyph   // Character position mapping data.
 }
 
-// ChrData holds UV texture mapping information for one character.
+// Glyph holds UV texture mapping information for one character.
 // Expected to be used as part of FntData.
-type ChrData struct {
+type Glyph struct {
 	Char       rune // Character.
 	X, Y, W, H int  // Character bit size.
 	Xo, Yo, Xa int  // Character offset.
 }
 
-// Font loads font character mapping data. Existing FontData is
-// overwritten with information found by the Locator.
-func Font(name string) (fnt *FontData, err error) {
-	data, err := getData(name)
-	if err != nil {
-		return fnt, fmt.Errorf("font load %s: %w", name, err)
+// TTFont loads font character mapping data from a true type font file.
+// By convention, name includes the desired font size eg: "##:font.ttf".
+func TTFont(name string) (atlas *FontAtlas, err error) {
+	var size int
+	var fontfile string
+	if _, err := fmt.Sscanf(name, "%d:%s", &size, &fontfile); err != nil {
+		return atlas, fmt.Errorf("font name %s: %w", name, err)
 	}
-	return Fnt(bytes.NewReader(data))
+
+	// read the font file bytes.
+	data, err := getData(fontfile)
+	if err != nil {
+		return atlas, fmt.Errorf("font load %s: %w", name, err)
+	}
+
+	// generate the atlas and font mapping data
+	atlas, err = Ttf(data, size)
+	if err != nil {
+		return atlas, fmt.Errorf("font generation %s: %w", name, err)
+	}
+	fontName := strings.TrimSuffix(fontfile, path.Ext(fontfile))
+	atlas.Tag = fmt.Sprintf("%s%d", fontName, size)
+	return atlas, nil
 }
 
 // =============================================================================

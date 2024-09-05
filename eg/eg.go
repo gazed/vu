@@ -40,7 +40,7 @@ func main() {
 	load.SetAssetDir(".png", "../assets/images")
 	load.SetAssetDir(".wav", "../assets/audio")
 	load.SetAssetDir(".glb", "../assets/models")
-	load.SetAssetDir(".fnt", "../assets/fonts")
+	load.SetAssetDir(".ttf", "../assets/fonts")
 	load.SetAssetDir(".yaml", "../assets/data")
 
 	examples := []example{

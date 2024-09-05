@@ -13,15 +13,11 @@ import (
 // AddLabel adds a new label model and transform to the given entity.
 // It is intended for single letters, words or small phrases. eg:
 //
-//	letter2D := scene.AddLabel("text", 0, "shd:icon", "fnt:lucidiaSu18", "tex:color:lucidiaSu18")
-//	number3D := scene.AddLabel("text", 0, "shd:sdf", "fnt:lucidiaSu18", "tex:color:lucidiaSdf")
+//	letter2D := scene.AddLabel("text", 0, "shd:icon", "fnt:lucon18", "tex:color:lucon18")
 //
 // A label requires a texture based shader, font mapping data, and a font
 // texture atlas. The mesh is calculated from the string once the font
 // assets have loaded.
-//
-// Signed Distance Fields (SDF) are used to reduce pixelization for 3D labels
-// and require an SDF shader with a SDF texture atlas.
 func (e *Entity) AddLabel(s string, wrap int, assets ...string) (me *Entity) {
 	me = e.addPart() // add a transform node for the label.
 	if mod := me.app.models.createLabel(s, wrap, me); mod != nil {
@@ -130,6 +126,10 @@ func (f *font) setStr(str string, wrap int) (sx, sy int, md load.MeshData) {
 	width, height, fh, cnt := 0, 0, 0, 0
 	for _, char := range str {
 		c := f.chars[char]
+		if c == nil {
+			// replace unavailable characters with "."
+			c = f.chars['.']
+		}
 		switch {
 		case c != nil:
 			fh = c.h // remember font height for wrapping with newlines.

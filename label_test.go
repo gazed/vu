@@ -10,19 +10,18 @@ import (
 
 // go test -run Label
 func TestLabel(t *testing.T) {
-	data, err := load.Font("lucidiaSu18.fnt")
+	atlas, err := load.TTFont("18:lucon.ttf")
 	if err != nil {
 		t.Fatalf("unexpected font load error: %s", err)
 	}
-	fnt := newFont("lucidiaSu18")
-	fnt.w, fnt.h = data.W, data.H
-	for _, ch := range data.Chars {
-		fnt.addChar(ch.Char, ch.X, ch.Y, ch.W, ch.H, ch.Xo, ch.Yo, ch.Xa)
+	f := newFont("lucon18")
+	f.w, f.h = int(atlas.Img.Width), int(atlas.Img.Height)
+	for _, g := range atlas.Glyphs {
+		f.addChar(g.Char, g.X, g.Y, g.W, g.H, g.Xo, g.Yo, g.Xa)
 	}
-
-	sx, sy, md := fnt.setStr("X", 0)
-	if sx != 10 || sy != 18 {
-		t.Errorf("expected size 10:18 got %d:%d", sx, sy)
+	sx, sy, md := f.setStr("X", 0)
+	if sx != 13 || sy != 18 {
+		t.Errorf("expected size 13:18 got %d:%d", sx, sy)
 	}
 	vb := md[load.Vertexes]
 	if len(vb.Data) != 8*4 && vb.Count != 4 {
@@ -37,7 +36,7 @@ func TestLabel(t *testing.T) {
 		t.Errorf("indexes expected 12 bytes and 6 indexes got %d bytes %d vec2", len(ib.Data), ib.Count)
 	}
 
-	// dump the label mesh data when debugging.
+	// DEBUG: dump the label mesh data.
 	// md[load.Vertexes].PrintF32()
 	// md[load.Texcoords].PrintF32()
 	// md[load.Indexes].PrintU16()

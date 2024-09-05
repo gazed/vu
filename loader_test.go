@@ -19,8 +19,7 @@ func TestLoader(t *testing.T) {
 
 	// queue the asset load requests
 	files := []string{
-		"lucidiaSdf.fnt", "lucidiaSdf.png", "core.png",
-		"bloop.wav", "box0.glb", "tex3D.shd",
+		"core.png", "22:hack.ttf", "bloop.wav", "box0.glb", "tex3D.shd",
 	}
 	ld.importAssetData(files...)
 	ld.importAssetData(files...) // check that duplicate requests are ignored
@@ -40,8 +39,8 @@ func TestLoader(t *testing.T) {
 			time.Sleep(20)
 		}
 
-		if len(ld.loaded) != 6 {
-			t.Fatalf("expected loaded with 6 files got %d", len(ld.loaded))
+		if len(ld.loaded) != 5 {
+			t.Fatalf("expected loaded with 5 files got %v", ld.loaded)
 		}
 		for filename, v := range ld.loaded {
 			if !v {

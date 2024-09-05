@@ -35,8 +35,9 @@ func kc() {
 
 	// import assets from asset files.
 	// This creates the assets referenced by the models below.
-	eng.ImportAssets("icon.shd", "keyboard.png", "keyboard_press.png")  // load some assets
-	eng.ImportAssets("label.shd", "lucidiaSu18.fnt", "lucidiaSu18.png") // load more assets
+	// "20:lucon.ttf" the font size is prefixed to the font ttf file name.
+	eng.ImportAssets("icon.shd", "keyboard.png", "keyboard_press.png") // load some assets
+	eng.ImportAssets("label.shd", "20:lucon.ttf")                      // load more assets
 
 	// create a 2D scene with a camera.
 	scene := eng.AddScene(vu.Scene2D)
@@ -54,9 +55,9 @@ func kc() {
 	// map key is key code, map value is key struct
 	kc.positions = kc.keyPositions()
 	for code, key := range kc.positions {
-		if char := vu.Symbol(code); char > 0 {
+		if sym, ok := keysym[code]; ok {
 			cx, cy := key.location(kc.ww, kc.wh)
-			letter := scene.AddLabel(string(char), 0, "shd:label", "fnt:lucidiaSu18", "tex:color:lucidiaSu18")
+			letter := scene.AddLabel(sym, 0, "shd:label", "fnt:lucon20", "tex:color:lucon20")
 			letter.SetAt(cx-4, cy-9, 0).SetColor(0, 0, 0, 1) // black
 		}
 	}
@@ -108,19 +109,19 @@ func (kc *kctag) Update(eng *vu.Engine, in *vu.Input, delta time.Duration) {
 func (kc *kctag) keyPositions() map[int]pos {
 	return map[int]pos{
 		// top row
-		vu.KEsc: {xoff: 46, yoff: 39},
-		vu.KF1:  {xoff: 100, yoff: 39},
-		vu.KF2:  {xoff: 154, yoff: 39},
-		vu.KF3:  {xoff: 208, yoff: 39},
-		vu.KF4:  {xoff: 264, yoff: 39},
-		vu.KF5:  {xoff: 320, yoff: 39},
-		vu.KF6:  {xoff: 374, yoff: 39},
-		vu.KF7:  {xoff: 426, yoff: 39},
-		vu.KF8:  {xoff: 480, yoff: 39},
-		vu.KF9:  {xoff: 536, yoff: 39},
-		vu.KF10: {xoff: 590, yoff: 39},
+		vu.KEsc: {xoff: 34, yoff: 39},
+		vu.KF1:  {xoff: 92, yoff: 39},
+		vu.KF2:  {xoff: 146, yoff: 39},
+		vu.KF3:  {xoff: 200, yoff: 39},
+		vu.KF4:  {xoff: 256, yoff: 39},
+		vu.KF5:  {xoff: 312, yoff: 39},
+		vu.KF6:  {xoff: 366, yoff: 39},
+		vu.KF7:  {xoff: 418, yoff: 39},
+		vu.KF8:  {xoff: 472, yoff: 39},
+		vu.KF9:  {xoff: 528, yoff: 39},
+		vu.KF10: {xoff: 588, yoff: 39},
 		vu.KF11: {xoff: 644, yoff: 39},
-		vu.KF12: {xoff: 698, yoff: 39},
+		vu.KF12: {xoff: 696, yoff: 39},
 
 		// ignore the following keys,
 		// ie: don't use print screen as a control and limit function keys to 12.
@@ -146,17 +147,17 @@ func (kc *kctag) keyPositions() map[int]pos {
 		vu.K0:     {xoff: 566, yoff: 82},
 		vu.KMinus: {xoff: 620, yoff: 82},
 		vu.KEqual: {xoff: 672, yoff: 82},
-		vu.KDel:   {xoff: 734, yoff: 82}, // back delete
+		vu.KDel:   {xoff: 728, yoff: 82}, // back delete
 		// vu.KFn:    {xoff: 824, yoff: 82}, // ignore win: insert
 		vu.KHome: {xoff: 874, yoff: 82},
-		vu.KPgUp: {xoff: 928, yoff: 82},
-		vu.KPClr: {xoff: 1000, yoff: 82}, // num lock
+		vu.KPgUp: {xoff: 916, yoff: 82},
+		vu.KPClr: {xoff: 988, yoff: 82},  // num lock
 		vu.KPEql: {xoff: 1054, yoff: 82}, // divide
 		vu.KPDiv: {xoff: 1106, yoff: 82}, // multiply
 		vu.KPMlt: {xoff: 1158, yoff: 82}, // minus
 
 		// third row
-		vu.KTab:  {xoff: 58, yoff: 132},
+		vu.KTab:  {xoff: 48, yoff: 132},
 		vu.KQ:    {xoff: 124, yoff: 132},
 		vu.KW:    {xoff: 176, yoff: 132},
 		vu.KE:    {xoff: 229, yoff: 132},
@@ -170,9 +171,9 @@ func (kc *kctag) keyPositions() map[int]pos {
 		vu.KLBkt: {xoff: 646, yoff: 132},
 		vu.KRBkt: {xoff: 698, yoff: 132},
 		vu.KBSl:  {xoff: 750, yoff: 132},
-		vu.KFDel: {xoff: 824, yoff: 132},
-		vu.KEnd:  {xoff: 876, yoff: 132},
-		vu.KPgDn: {xoff: 928, yoff: 132},
+		vu.KFDel: {xoff: 808, yoff: 132},
+		vu.KEnd:  {xoff: 862, yoff: 132},
+		vu.KPgDn: {xoff: 918, yoff: 132},
 		vu.KP7:   {xoff: 1000, yoff: 132},
 		vu.KP8:   {xoff: 1054, yoff: 132},
 		vu.KP9:   {xoff: 1106, yoff: 132},
@@ -190,10 +191,10 @@ func (kc *kctag) keyPositions() map[int]pos {
 		vu.KL:     {xoff: 554, yoff: 184},
 		vu.KSemi:  {xoff: 608, yoff: 184},
 		vu.KQuote: {xoff: 660, yoff: 184},
-		vu.KRet:   {xoff: 730, yoff: 184},
-		vu.KML:    {xoff: 824, yoff: 184}, // left mouse
-		vu.KMM:    {xoff: 876, yoff: 184}, // middle mouse
-		vu.KMR:    {xoff: 928, yoff: 184}, // right mouse
+		vu.KRet:   {xoff: 720, yoff: 184},
+		vu.KML:    {xoff: 822, yoff: 184}, // left mouse
+		vu.KMM:    {xoff: 874, yoff: 184}, // middle mouse
+		vu.KMR:    {xoff: 926, yoff: 184}, // right mouse
 		vu.KP4:    {xoff: 1000, yoff: 184},
 		vu.KP5:    {xoff: 1054, yoff: 184},
 		vu.KP6:    {xoff: 1106, yoff: 184},
@@ -217,16 +218,16 @@ func (kc *kctag) keyPositions() map[int]pos {
 		vu.KP3:    {xoff: 1106, yoff: 234},
 
 		// sixth row
-		vu.KCtl:    {xoff: 58, yoff: 290},
-		vu.KAlt:    {xoff: 200, yoff: 290}, // macos: command key
-		vu.KCmd:    {xoff: 200, yoff: 290},
+		vu.KCtl: {xoff: 44, yoff: 290},
+		vu.KAlt: {xoff: 188, yoff: 290}, // macos: command key
+		// vu.KCmd:    {xoff: 200, yoff: 290},
 		vu.KSpace:  {xoff: 400, yoff: 290},
 		vu.KALeft:  {xoff: 824, yoff: 290},
 		vu.KADown:  {xoff: 876, yoff: 290},
 		vu.KARight: {xoff: 928, yoff: 290},
 		vu.KP0:     {xoff: 1026, yoff: 290},
 		vu.KPDot:   {xoff: 1105, yoff: 290},
-		vu.KPEnt:   {xoff: 1158, yoff: 260},
+		vu.KPEnt:   {xoff: 1144, yoff: 260},
 	}
 }
 
@@ -239,3 +240,113 @@ type pos struct {
 // keyboard image is 1200.0x340.0 and the pixel positions
 // of the keys are measured in pixels from the image.
 func (p *pos) location(ww, wh int) (sx, sy float64) { return p.xoff, p.yoff }
+
+// keysym maps key codes to unicode runes.
+var keysym = map[int]string{
+	vu.K0:      "0",
+	vu.K1:      "1",
+	vu.K2:      "2",
+	vu.K3:      "3",
+	vu.K4:      "4",
+	vu.K5:      "5",
+	vu.K6:      "6",
+	vu.K7:      "7",
+	vu.K8:      "8",
+	vu.K9:      "9",
+	vu.KA:      "A",
+	vu.KB:      "B",
+	vu.KC:      "C",
+	vu.KD:      "D",
+	vu.KE:      "E",
+	vu.KF:      "F",
+	vu.KG:      "G",
+	vu.KH:      "H",
+	vu.KI:      "I",
+	vu.KJ:      "J",
+	vu.KK:      "K",
+	vu.KL:      "L",
+	vu.KM:      "M",
+	vu.KN:      "N",
+	vu.KO:      "O",
+	vu.KP:      "P",
+	vu.KQ:      "Q",
+	vu.KR:      "R",
+	vu.KS:      "S",
+	vu.KT:      "T",
+	vu.KU:      "U",
+	vu.KV:      "V",
+	vu.KW:      "W",
+	vu.KX:      "X",
+	vu.KY:      "Y",
+	vu.KZ:      "Z",
+	vu.KEqual:  "=",
+	vu.KMinus:  "-",
+	vu.KRBkt:   "]",
+	vu.KLBkt:   "[",
+	vu.KQuote:  "\"",
+	vu.KSemi:   ";",
+	vu.KBSl:    "\\",
+	vu.KComma:  ",",
+	vu.KSlash:  "/",
+	vu.KDot:    ".",
+	vu.KGrave:  "~",
+	vu.KRet:    "Ret",
+	vu.KTab:    "Tab",
+	vu.KSpace:  "Spc",
+	vu.KDel:    "Del",
+	vu.KEsc:    "Esc",
+	vu.KF1:     "F1",
+	vu.KF2:     "F2",
+	vu.KF3:     "F3",
+	vu.KF4:     "F4",
+	vu.KF5:     "F5",
+	vu.KF6:     "F6",
+	vu.KF7:     "F7",
+	vu.KF8:     "F8",
+	vu.KF9:     "F9",
+	vu.KF10:    ".",
+	vu.KF11:    ".",
+	vu.KF12:    ".",
+	vu.KF13:    ".",
+	vu.KF14:    ".",
+	vu.KF15:    ".",
+	vu.KF16:    ".",
+	vu.KF17:    ".",
+	vu.KF18:    ".",
+	vu.KF19:    ".",
+	vu.KHome:   ".",
+	vu.KPgUp:   "Up",
+	vu.KFDel:   "Del",
+	vu.KEnd:    "End",
+	vu.KPgDn:   "Dn",
+	vu.KALeft:  "L",
+	vu.KARight: "R",
+	vu.KADown:  "D",
+	vu.KAUp:    "U",
+	vu.KPDot:   ".",
+	vu.KPMlt:   "*",
+	vu.KPAdd:   "+",
+	vu.KPClr:   "Clr",
+	vu.KPDiv:   "/",
+	vu.KPEnt:   "Ent",
+	vu.KPSub:   "-",
+	vu.KPEql:   "=",
+	vu.KP0:     "0",
+	vu.KP1:     "1",
+	vu.KP2:     "2",
+	vu.KP3:     "3",
+	vu.KP4:     "4",
+	vu.KP5:     "5",
+	vu.KP6:     "6",
+	vu.KP7:     "7",
+	vu.KP8:     "8",
+	vu.KP9:     "9",
+	vu.KML:     "ML",
+	vu.KMM:     "MM",
+	vu.KMR:     "MR",
+	vu.KCtl:    "Ctl",
+	vu.KFn:     "Fn",
+	vu.KShift:  "Sh",
+	vu.KCmd:    "Cmd",
+	vu.KAlt:    "Alt",
+}
