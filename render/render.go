@@ -95,6 +95,12 @@ func (c *Context) LoadTexture(img *load.ImageData) (tid uint32, err error) {
 	return c.renderer.loadTexture(img.Width, img.Height, img.Pixels)
 }
 
+// UpdateTexture updates the GPU texture data for the given texture ID.
+// Ignore textures that are not exactly the same size as the existing texture.
+func (c *Context) UpdateTexture(tid uint32, img *load.ImageData) (err error) {
+	return c.renderer.updateTexture(tid, img.Width, img.Height, img.Pixels)
+}
+
 // DropTexture removes the GPU texture resources
 // for the given texture ID.
 func (c *Context) DropTexture(tid uint32) { c.renderer.dropTexture(tid) }
@@ -138,11 +144,13 @@ func (c *Context) SetClearColor(r, g, b, a float32) {
 // It allows engine tests to mock this part of the render context.
 type Loader interface {
 	LoadTexture(img *load.ImageData) (tid uint32, err error)
+	UpdateTexture(tid uint32, img *load.ImageData) (err error)
 	LoadMesh(msh load.MeshData) (mid uint32, err error)
 	LoadMeshes(mdata []load.MeshData) (mids []uint32, err error)
 	LoadShader(config *load.Shader) (mid uint16, err error)
 
 	// FUTURE: LoadAnimation
+
 }
 
 // =============================================================================
@@ -167,7 +175,7 @@ type renderAPI interface {
 
 	// create a GPU texture and upload the mesh data.
 	loadTexture(w, h uint32, pixels []byte) (tid uint32, err error)
-	// FUTURE: updateTexture() replace existing texture with new image data.
+	updateTexture(tid, w, h uint32, pixels []byte) (err error)
 	dropTexture(tid uint32) // release texture resources
 
 	// create a GPU shader using the given shader configuration

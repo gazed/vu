@@ -974,6 +974,10 @@ func (vr *vulkanRenderer) createBuffer(buff *vulkanBuffer, size vk.DeviceSize,
 	if buff.handle, err = vk.CreateBuffer(vr.device, &buffInfo, nil); err != nil {
 		return fmt.Errorf("vk.CreateBuffer: %w", err)
 	}
+	if buff.handle == 0 {
+		// TODO debug why handle is sometimes 0.
+		return fmt.Errorf("vk.CreateBuffer: 0 handle: %+v", buffInfo)
+	}
 
 	// allocate the memory needed by the buffer.
 	memRequirements := vk.GetBufferMemoryRequirements(vr.device, buff.handle)
@@ -1021,10 +1025,12 @@ func (vr *vulkanRenderer) uploadData(pool vk.CommandPool, queue vk.Queue, buff *
 	err := vr.createBuffer(&staging, size, usage, flags)
 	if err != nil {
 		slog.Debug("uploadData:createBuffer", "error", err)
+		return
 	}
 	err = vr.loadCPUBuffer(&staging, 0, data)
 	if err != nil {
 		slog.Debug("uploadData:loadCPUBuffer", "error", err)
+		return
 	}
 
 	// copy the data from staging into the given GPU buffer
@@ -1536,6 +1542,41 @@ func (vr *vulkanRenderer) dropTexture(tid uint32) {
 		vk.DestroySampler(vr.device, tex.sampler, nil)
 		tex.sampler = 0
 	}
+}
+
+// TODO
+// Warning... must not be an actively used textured.
+//
+//	... must be the same size as the existing texture.
+func (vr *vulkanRenderer) updateTexture(tid, width, height uint32, pixels []byte) (err error) {
+	if tid >= uint32(len(vr.textures)) {
+		return fmt.Errorf("updateTexture invalid texture ID %d", tid)
+	}
+	tex := vr.textures[tid]
+	if tex.image.width != width || tex.image.height != height {
+		return fmt.Errorf("updateTexture expected image size %d:%d got %d:%d",
+			tex.image.width, tex.image.height, width, height)
+	}
+
+	// put image data into staging buffer
+	imageSize := vk.DeviceSize(len(pixels))
+	stagingBuffer := vulkanBuffer{}
+	err = vr.createBuffer(&stagingBuffer, imageSize, vk.BUFFER_USAGE_TRANSFER_SRC_BIT,
+		vk.MEMORY_PROPERTY_HOST_VISIBLE_BIT|vk.MEMORY_PROPERTY_HOST_COHERENT_BIT)
+	if err != nil {
+		return fmt.Errorf("updateTexture create staging %w", err)
+	}
+	if err = vr.loadCPUBuffer(&stagingBuffer, 0, pixels); err != nil {
+		return fmt.Errorf("updateTexture upload staging %w", err)
+	}
+
+	// upload GPU image
+	format := vk.FORMAT_R8G8B8A8_SRGB
+	vr.transitionImageLayout(&tex.image, format, vk.IMAGE_LAYOUT_UNDEFINED, vk.IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+	vr.copyBufferToImage(&stagingBuffer, &tex.image)
+	vr.transitionImageLayout(&tex.image, format, vk.IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, vk.IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+	vr.disposeBuffer(&stagingBuffer)
+	return nil
 }
 
 // =============================================================================

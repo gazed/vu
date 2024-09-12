@@ -290,13 +290,13 @@ func _() {
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
 	_ = x[VIDEO_CODING_CONTROL_RESET_BIT_KHR-1]
-	_ = x[VIDEO_CODING_CONTROL_ENCODE_QUALITY_LEVEL_BIT_KHR-1000299000]
 	_ = x[VIDEO_CODING_CONTROL_ENCODE_RATE_CONTROL_BIT_KHR-1000299000]
+	_ = x[VIDEO_CODING_CONTROL_ENCODE_QUALITY_LEVEL_BIT_KHR-1000299000]
 }
 
 const (
 	_VideoCodingControlFlagBitsKHR_name_0 = "VIDEO_CODING_CONTROL_RESET_BIT_KHR"
-	_VideoCodingControlFlagBitsKHR_name_1 = "VIDEO_CODING_CONTROL_ENCODE_QUALITY_LEVEL_BIT_KHR"
+	_VideoCodingControlFlagBitsKHR_name_1 = "VIDEO_CODING_CONTROL_ENCODE_RATE_CONTROL_BIT_KHR"
 )
 
 func (i VideoCodingControlFlagBitsKHR) String() string {

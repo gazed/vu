@@ -284,7 +284,7 @@ func (l *assetLoader) loadLabels(rc render.Loader) {
 			for _, me := range entities {
 				fnt, ok := a.(*font)
 				if !ok {
-					slog.Error("loadAssets expected font asset", "asset", a.label())
+					slog.Error("loadLabels expected font asset", "asset", a.label())
 					break
 				}
 				str, wrap := me.labelData()

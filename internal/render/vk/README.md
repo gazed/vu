@@ -285,4 +285,3 @@ this library. The samples currently run on Windows and Mac.
 * The union type VkPipelineExecutableStatisticValueKHR is returned from Vulkan through VkPipelineExecutableStatisticKHR.
   Returned unions are not supported and there is no Goify() function associated. VkPipelineExecutableStatisticKHR is
   returned to the developer without the Value member populated.
-

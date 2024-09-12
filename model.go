@@ -6,6 +6,7 @@ package vu
 
 import (
 	"fmt"
+	"image"
 	"log/slog"
 	"math"
 	"strings"
@@ -112,6 +113,88 @@ func (e *Entity) SetModelUniform(uniform string, data interface{}) *Entity {
 	return e
 }
 
+// AddUpdatableTexture uploads 2 textures to the GPU. One is for rendering
+// and one is for updating.
+func (e *Entity) AddUpdatableTexture(eng *Engine, name string, img *image.NRGBA) *Entity {
+	if mod := e.app.models.get(e.eid); mod != nil {
+		if len(mod.updatable) > 0 {
+			slog.Error("AddUpdatableTexture already set", "eid", e.eid)
+			return e
+		}
+
+		// create 2 texture assets.
+		opaque := img.Opaque()
+		t1 := newTexture(name + "_a")
+		t1.opaque = opaque
+		t2 := newTexture(name + "_b")
+		t2.opaque = opaque
+		mod.updatable = []*texture{t1, t2}
+
+		// upload the initial texture to the GPU
+		var err error
+		idata := &load.ImageData{
+			Width:  uint32(img.Bounds().Size().X),
+			Height: uint32(img.Bounds().Size().Y),
+			Pixels: []byte(img.Pix),
+			Opaque: opaque,
+		}
+		t1.tid, err = eng.rc.LoadTexture(idata)
+		if err != nil {
+			slog.Error("AddUpdatableTexture upload1", "err", err)
+			return e
+		}
+		slog.Debug("model", "asset", "tex:"+t1.label(), "tid", t1.tid, "opaque", t1.opaque)
+		t2.tid, err = eng.rc.LoadTexture(idata)
+		if err != nil {
+			slog.Error("AddUpdatableTexture upload2", "err", err)
+			return e
+		}
+		slog.Debug("model", "asset", "tex:"+t2.label(), "tid", t2.tid, "opaque", t2.opaque)
+
+		// TODO fake this
+		// m.samplerMap[uniform] = name // remember uniform to texture mapping.
+		mod.samplerMap["color"] = t1.label()
+
+		// m.texs only takes one of the 2 textures.
+		mod.texs = []*texture{t1}
+		return e
+	}
+	slog.Error("AddUpdatableTexture needs AddModel", "eid", e.eid)
+	return e
+}
+
+// UpdateTexture uploads the image to the updatable texture and then
+// swaps the updatable texture with the render texture.
+func (e *Entity) UpdateTexture(eng *Engine, img *image.NRGBA) *Entity {
+	if mod := e.app.models.get(e.eid); mod != nil {
+		if len(mod.updatable) != 2 {
+			slog.Error("UpdateTexture not set", "eid", e.eid)
+			return e
+		}
+
+		// update the uploadable texture,
+		t2 := mod.updatable[1] // updatable is always second
+		idata := &load.ImageData{
+			Width:  uint32(img.Bounds().Size().X),
+			Height: uint32(img.Bounds().Size().Y),
+			Pixels: []byte(img.Pix),
+			Opaque: img.Opaque(),
+		}
+		if err := eng.rc.UpdateTexture(t2.tid, idata); err != nil {
+			slog.Error("UpdateTexture update", "err", err)
+			return e
+		}
+
+		// swap textures and render the recently updated texture.
+		mod.updatable[0], mod.updatable[1] = mod.updatable[1], mod.updatable[0]
+		mod.texs[0] = mod.updatable[0] // always render the first after swap.
+		mod.samplerMap["color"] = mod.texs[0].label()
+		return e
+	}
+	slog.Error("UpdateTexture needs AddModel", "eid", e.eid)
+	return e
+}
+
 // FUTURE: AddEffect(...) generate quad for particle effects in geometry stage.
 
 // =============================================================================
@@ -144,6 +227,7 @@ type model struct {
 	samplerMap map[string]string // mapping of samplers to textures
 	texs       []*texture        // texture assets.
 	mat        *material         // material parameters.
+	updatable  []*texture        // two updatable textures when set.
 
 	// specific model type data.
 	mtype modelType // indicates expected model data.
@@ -161,7 +245,8 @@ type model struct {
 	// generic uniforms set the app and passed to the shader.
 	uniforms map[load.PacketUniform][]byte
 
-	tocam float64 // distance to camera helps with 3D render order.
+	// distance to camera helps with 3D render order.
+	tocam float64
 }
 
 // newModel initializes the data structures and default uniforms.
@@ -287,11 +372,10 @@ func (m *model) fillPacket(packet *render.Packet, pov *pov, cam *Camera) error {
 	// vertex data in the render context and each shader attribute
 	// should have a non-zero count for the matching vertex data.
 	// Needs code that has access to the render context, ie:
-	//
-	// for i := range m.shader.config.Attrs {
-	// 	  attr := &m.shader.config.Attrs[i]
-	//    eng.rc.HasVertexData(m.mesh.mid, attr.AttrType)
-	// }
+	//   for i := range m.shader.config.Attrs {
+	//   	  attr := &m.shader.config.Attrs[i]
+	//      eng.rc.HasVertexData(m.mesh.mid, attr.AttrType)
+	//   }
 
 	// expect one texture for each sampler. Mismatches happen if:
 	// - the texture has not yet loaded.
