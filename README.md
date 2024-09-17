@@ -54,7 +54,7 @@ and lucid developers. Thank you in particular to:
   [https://github.com/travisvroman/kohi](https://github.com/travisvroman/kohi) Apache License.
 
 * [https://github.com/bbredesen/go-vk](https://github.com/bbredesen/go-vk) MIT License.
-  Go bindings for Vulkan that does not required c-go and a C compiler.
+  Go bindings for Vulkan with minimal cgo.
   This is a huge amount of work due to the size and complexity of Vulkan.
   The generated bindings were dragged directly into `vu/internal/render/vk`
 
