@@ -110,6 +110,7 @@ func loaderTestCallback(eid eID, a asset) {
 
 // track asset loads to render and audio contexts.
 var loaderTestTextureLoads = 0
+var loaderTestTextureUpdates = 0
 var loaderTestMeshLoads = 0
 var loaderTestShaderLoads = 0
 var loaderTestSoundLoads = 0
@@ -121,7 +122,10 @@ func (rc *loaderTestRenderContext) LoadTexture(img *load.ImageData) (tid uint32,
 	loaderTestTextureLoads += 1
 	return 0, nil
 }
-
+func (rc *loaderTestRenderContext) UpdateTexture(tid uint32, img *load.ImageData) (err error) {
+	loaderTestTextureUpdates += 1
+	return nil
+}
 func (rc *loaderTestRenderContext) LoadMesh(load.MeshData) (mid uint32, err error) {
 	loaderTestMeshLoads += 1
 	return 0, nil

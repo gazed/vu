@@ -98,9 +98,13 @@ func (e *Entity) SetMetallicRoughness(metallic bool, roughness float64) *Entity 
 func (e *Entity) SetModelUniform(uniform string, data interface{}) *Entity {
 	if m := e.app.models.get(e.eid); m != nil {
 		switch uniform {
-		case "args":
+		case "args4":
 			if v, ok := data.([]float32); ok && len(v) == 4 {
-				m.uniforms[load.ARGS] = render.V4S32ToBytes(v[0], v[1], v[2], v[3], m.uniforms[load.ARGS])
+				m.uniforms[load.ARGS4] = render.V4S32ToBytes(v[0], v[1], v[2], v[3], m.uniforms[load.ARGS4])
+			}
+		case "args16":
+			if v, ok := data.([]float64); ok && len(v) == 16 {
+				m.uniforms[load.ARGS16] = render.V16ToBytes(v, m.uniforms[load.ARGS16])
 			}
 		default:
 			// FUTURE    : add uniforms as needed by shaders.

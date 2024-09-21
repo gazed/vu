@@ -90,7 +90,8 @@ var ShaderPacketUniforms = map[string]PacketUniform{
 	"scale":    SCALE,    // 3 floats
 	"color":    COLOR,    //
 	"material": MATERIAL, //
-	"args":     ARGS,     // 4 floats
+	"args4":    ARGS4,    // 4 floats
+	"args16":   ARGS16,   // 16 floats
 }
 
 // ShaderUniformData are the supported uniform data types.
@@ -346,7 +347,8 @@ const (
 	SCALE                               // model
 	COLOR                               // model
 	MATERIAL                            // model
-	ARGS                                // model shader specific data passing.
+	ARGS4                               // model shader specific data passing.
+	ARGS16                              // model shader specific data passing.
 	PacketUniforms                      // must be last
 )
 

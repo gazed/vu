@@ -300,7 +300,7 @@ func V4SToBytes(x, y, z, w float64, bytes []byte) []byte {
 	return append(bytes, (&v4{}).set64S(x, y, z, w).toBytes()...)
 }
 
-// V4S32ToBytes returns a byte slice of float32 for the given float64s
+// V4S32ToBytes returns a byte slice of float32 from the given values.
 // The given byte slice is zeroed and returned filled with the float bytes.
 func V4S32ToBytes(x, y, z, w float32, bytes []byte) []byte {
 	bytes = bytes[:0]
@@ -352,6 +352,18 @@ func (m *m4) set64(m64 *lin.M4) *m4 {
 	m.zx, m.zy, m.zz, m.zw = float32(m64.Zx), float32(m64.Zy), float32(m64.Zz), float32(m64.Zw)
 	m.wx, m.wy, m.wz, m.ww = float32(m64.Wx), float32(m64.Wy), float32(m64.Wz), float32(m64.Ww)
 	return m
+}
+
+// V16ToBytes returns a byte slice of float32 from the given float64.
+// The given byte slice is zeroed and returned filled with the float bytes.
+func V16ToBytes(args []float64, bytes []byte) []byte {
+	bytes = bytes[:0]
+	m := &m4{}
+	m.xx, m.xy, m.xz, m.xw = float32(args[0]), float32(args[1]), float32(args[2]), float32(args[3])
+	m.yx, m.yy, m.yz, m.yw = float32(args[4]), float32(args[5]), float32(args[6]), float32(args[7])
+	m.zx, m.zy, m.zz, m.zw = float32(args[8]), float32(args[9]), float32(args[10]), float32(args[11])
+	m.wx, m.wy, m.wz, m.ww = float32(args[12]), float32(args[13]), float32(args[14]), float32(args[15])
+	return append(bytes, m.toBytes()...)
 }
 
 // ToBytes returns the data as a byte array.
