@@ -339,91 +339,68 @@ type (
 
 // AL/al.h go bindings
 func Enable(capability int32) {
-	syscall.Syscall(alEnable.Addr(), 1,
-		uintptr(capability),
-		0,
-		0)
+	syscall.SyscallN(alEnable.Addr(),
+		uintptr(capability))
 }
 func Disable(capability int32) {
-	syscall.Syscall(alDisable.Addr(), 1,
-		uintptr(capability),
-		0,
-		0)
+	syscall.SyscallN(alDisable.Addr(),
+		uintptr(capability))
 }
 
 func IsEnabled(capability int32) bool {
-	ret, _, _ := syscall.Syscall(alIsEnabled.Addr(), 1,
-		uintptr(capability),
-		0,
-		0)
+	ret, _, _ := syscall.SyscallN(alIsEnabled.Addr(),
+		uintptr(capability))
 	return ret == TRUE
 }
 
 func GetString(param int32) string {
-	ret, _, _ := syscall.Syscall(alGetString.Addr(), 1,
-		uintptr(param),
-		0,
-		0)
+	ret, _, _ := syscall.SyscallN(alGetString.Addr(),
+		uintptr(param))
 	return win.UTF16PtrToString((*uint16)(unsafe.Pointer(ret)))
 }
 func GetBooleanv(param int32, data *int8) {
-	syscall.Syscall(alGetBooleanv.Addr(), 2,
+	syscall.SyscallN(alGetBooleanv.Addr(),
 		uintptr(param),
-		uintptr(unsafe.Pointer(data)),
-		0)
+		uintptr(unsafe.Pointer(data)))
 }
 func GetIntegerv(param int32, data *int32) {
-	syscall.Syscall(alGetIntegerv.Addr(), 2,
+	syscall.SyscallN(alGetIntegerv.Addr(),
 		uintptr(param),
-		uintptr(unsafe.Pointer(data)),
-		0)
+		uintptr(unsafe.Pointer(data)))
 }
 func GetFloatv(param int32, data *float32) {
-	syscall.Syscall(alGetFloatv.Addr(), 2,
+	syscall.SyscallN(alGetFloatv.Addr(),
 		uintptr(param),
-		uintptr(unsafe.Pointer(data)),
-		0)
+		uintptr(unsafe.Pointer(data)))
 }
 func GetDoublev(param int32, data *float64) {
-	syscall.Syscall(alGetDoublev.Addr(), 2,
+	syscall.SyscallN(alGetDoublev.Addr(),
 		uintptr(param),
-		uintptr(unsafe.Pointer(data)),
-		0)
+		uintptr(unsafe.Pointer(data)))
 }
 func GetBoolean(param int32) bool {
-	ret, _, _ := syscall.Syscall(alGetBoolean.Addr(), 1,
-		uintptr(param),
-		0,
-		0)
+	ret, _, _ := syscall.SyscallN(alGetBoolean.Addr(),
+		uintptr(param))
 	return ret == TRUE
 }
 func GetInteger(param int32) int32 {
-	ret, _, _ := syscall.Syscall(alGetInteger.Addr(), 1,
-		uintptr(param),
-		0,
-		0)
+	ret, _, _ := syscall.SyscallN(alGetInteger.Addr(),
+		uintptr(param))
 	return int32(ret)
 }
 
 func GetFloat(param int32) float32 {
-	ret, _, _ := syscall.Syscall(alGetFloat.Addr(), 1,
-		uintptr(param),
-		0,
-		0)
+	ret, _, _ := syscall.SyscallN(alGetFloat.Addr(),
+		uintptr(param))
 	return float32(ret)
 }
 func GetDouble(param int32) float64 {
-	ret, _, _ := syscall.Syscall(alGetDouble.Addr(), 1,
-		uintptr(param),
-		0,
-		0)
+	ret, _, _ := syscall.SyscallN(alGetDouble.Addr(),
+		uintptr(param))
 	return float64(ret)
 }
 func GetError() int32 {
-	ret, _, _ := syscall.Syscall(alGetError.Addr(), 0,
-		0,
-		0,
-		0)
+	ret, _, _ := syscall.SyscallN(alGetError.Addr())
 	return int32(ret)
 }
 
@@ -432,10 +409,8 @@ func IsExtensionPresent(extname string) bool {
 	if err != nil {
 		return false
 	}
-	ret, _, _ := syscall.Syscall(alIsExtensionPresent.Addr(), 1,
-		uintptr(unsafe.Pointer(str16)),
-		0,
-		0)
+	ret, _, _ := syscall.SyscallN(alIsExtensionPresent.Addr(),
+		uintptr(unsafe.Pointer(str16)))
 	return ret == TRUE
 }
 
@@ -444,10 +419,8 @@ func GetProcAddress(fname string) Pointer {
 	if err != nil {
 		return nil
 	}
-	ret, _, _ := syscall.Syscall(alGetProcAddress.Addr(), 1,
-		uintptr(unsafe.Pointer(str16)),
-		0,
-		0)
+	ret, _, _ := syscall.SyscallN(alGetProcAddress.Addr(),
+		uintptr(unsafe.Pointer(str16)))
 	return Pointer(ret)
 }
 
@@ -456,475 +429,398 @@ func GetEnumValue(ename string) int32 {
 	if err != nil {
 		return -1
 	}
-	ret, _, _ := syscall.Syscall(alGetEnumValue.Addr(), 1,
-		uintptr(unsafe.Pointer(str16)),
-		0,
-		0)
+	ret, _, _ := syscall.SyscallN(alGetEnumValue.Addr(),
+		uintptr(unsafe.Pointer(str16)))
 	return int32(ret)
 }
 
 func Listenerf(param int32, value float32) {
-	syscall.Syscall(alListenerf.Addr(), 2,
+	syscall.SyscallN(alListenerf.Addr(),
 		uintptr(param),
-		uintptr(value),
-		0)
+		uintptr(value))
 }
 func Listener3f(param int32, value1, value2, value3 float32) {
-	syscall.Syscall6(alListener3f.Addr(), 4,
+	syscall.SyscallN(alListener3f.Addr(),
 		uintptr(param),
 		uintptr(value1),
 		uintptr(value2),
-		uintptr(value3),
-		0,
-		0)
+		uintptr(value3))
 }
 func Listenerfv(param int32, values *float32) {
-	syscall.Syscall(alListenerfv.Addr(), 2,
+	syscall.SyscallN(alListenerfv.Addr(),
 		uintptr(param),
-		uintptr(unsafe.Pointer(values)),
-		0)
+		uintptr(unsafe.Pointer(values)))
 }
 func Listeneri(param int32, value int32) {
-	syscall.Syscall(alListeneri.Addr(), 2,
+	syscall.SyscallN(alListeneri.Addr(),
 		uintptr(param),
-		uintptr(value),
-		0)
+		uintptr(value))
 }
 func Listener3i(param int32, value1, value2, value3 int32) {
-	syscall.Syscall6(alListener3i.Addr(), 4,
+	syscall.SyscallN(alListener3i.Addr(),
 		uintptr(param),
 		uintptr(value1),
 		uintptr(value2),
-		uintptr(value3),
-		0,
-		0)
+		uintptr(value3))
 }
 func Listeneriv(param int32, values *int32) {
-	syscall.Syscall(alListeneriv.Addr(), 2,
+	syscall.SyscallN(alListeneriv.Addr(),
 		uintptr(param),
-		uintptr(unsafe.Pointer(values)),
-		0)
+		uintptr(unsafe.Pointer(values)))
 }
 func GetListenerf(param int32, value *float32) {
-	syscall.Syscall(alGetListenerf.Addr(), 2,
+	syscall.SyscallN(alGetListenerf.Addr(),
 		uintptr(param),
-		uintptr(unsafe.Pointer(value)),
-		0)
+		uintptr(unsafe.Pointer(value)))
 }
 func GetListener3f(param int32, value1, value2, value3 *float32) {
-	syscall.Syscall6(alGetListener3f.Addr(), 4,
+	syscall.SyscallN(alGetListener3f.Addr(),
 		uintptr(param),
 		uintptr(unsafe.Pointer(value1)),
 		uintptr(unsafe.Pointer(value2)),
-		uintptr(unsafe.Pointer(value3)),
-		0,
-		0)
+		uintptr(unsafe.Pointer(value3)))
 }
 func GetListenerfv(param int32, values *float32) {
-	syscall.Syscall(alGetListenerfv.Addr(), 2,
+	syscall.SyscallN(alGetListenerfv.Addr(),
 		uintptr(param),
-		uintptr(unsafe.Pointer(values)),
-		0)
+		uintptr(unsafe.Pointer(values)))
 }
 func GetListeneri(param int32, value *int32) {
-	syscall.Syscall(alGetListeneri.Addr(), 2,
+	syscall.SyscallN(alGetListeneri.Addr(),
 		uintptr(param),
-		uintptr(unsafe.Pointer(value)),
-		0)
+		uintptr(unsafe.Pointer(value)))
 }
 func GetListener3i(param int32, value1, value2, value3 *int32) {
-	syscall.Syscall6(alGetListener3i.Addr(), 4,
+	syscall.SyscallN(alGetListener3i.Addr(),
 		uintptr(param),
 		uintptr(unsafe.Pointer(value1)),
 		uintptr(unsafe.Pointer(value2)),
-		uintptr(unsafe.Pointer(value3)),
-		0,
-		0)
+		uintptr(unsafe.Pointer(value3)))
 }
 func GetListeneriv(param int32, values *int32) {
-	syscall.Syscall(alGetListeneriv.Addr(), 2,
+	syscall.SyscallN(alGetListeneriv.Addr(),
 		uintptr(param),
-		uintptr(unsafe.Pointer(values)),
-		0)
+		uintptr(unsafe.Pointer(values)))
 }
 func GenSources(n int32, sources *uint32) {
-	syscall.Syscall(alGenSources.Addr(), 2,
+	syscall.SyscallN(alGenSources.Addr(),
 		uintptr(n),
-		uintptr(unsafe.Pointer(sources)),
-		0)
+		uintptr(unsafe.Pointer(sources)))
 }
 func DeleteSources(n int32, sources *uint32) {
-	syscall.Syscall(alDeleteSources.Addr(), 2,
+	syscall.SyscallN(alDeleteSources.Addr(),
 		uintptr(n),
-		uintptr(unsafe.Pointer(sources)),
-		0)
+		uintptr(unsafe.Pointer(sources)))
 }
 func IsSource(sid uint32) bool {
-	ret, _, _ := syscall.Syscall(alIsSource.Addr(), 1,
-		uintptr(sid),
-		0,
-		0)
+	ret, _, _ := syscall.SyscallN(alIsSource.Addr(),
+		uintptr(sid))
 	return ret == TRUE
 }
 func Sourcef(sid uint32, param int32, value float32) {
-	syscall.Syscall(alSourcef.Addr(), 3,
+	syscall.SyscallN(alSourcef.Addr(),
 		uintptr(sid),
 		uintptr(param),
 		uintptr(value))
 }
 func Source3f(sid uint32, param int32, value1, value2, value3 float32) {
-	syscall.Syscall6(alSource3f.Addr(), 5,
+	syscall.SyscallN(alSource3f.Addr(),
 		uintptr(sid),
 		uintptr(param),
 		uintptr(value1),
 		uintptr(value2),
-		uintptr(value3),
-		0)
+		uintptr(value3))
 }
 func Sourcefv(sid uint32, param int32, values *float32) {
-	syscall.Syscall(alSourcefv.Addr(), 3,
+	syscall.SyscallN(alSourcefv.Addr(),
 		uintptr(sid),
 		uintptr(param),
 		uintptr(unsafe.Pointer(values)))
 }
 func Sourcei(sid uint32, param int32, value int32) {
-	syscall.Syscall(alSourcei.Addr(), 3,
+	syscall.SyscallN(alSourcei.Addr(),
 		uintptr(sid),
 		uintptr(param),
 		uintptr(value))
 }
 func Source3i(sid uint32, param int32, value1, value2, value3 int32) {
-	syscall.Syscall6(alSource3i.Addr(), 5,
+	syscall.SyscallN(alSource3i.Addr(),
 		uintptr(sid),
 		uintptr(param),
 		uintptr(value1),
 		uintptr(value2),
-		uintptr(value3),
-		0)
+		uintptr(value3))
 }
 func Sourceiv(sid uint32, param int32, values *int32) {
-	syscall.Syscall(alSourceiv.Addr(), 3,
+	syscall.SyscallN(alSourceiv.Addr(),
 		uintptr(sid),
 		uintptr(param),
 		uintptr(unsafe.Pointer(values)))
 }
 func GetSourcef(sid uint32, param int32, value *float32) {
-	syscall.Syscall(alGetSourcef.Addr(), 3,
+	syscall.SyscallN(alGetSourcef.Addr(),
 		uintptr(sid),
 		uintptr(param),
 		uintptr(unsafe.Pointer(value)))
 }
 func GetSource3f(sid uint32, param int32, value1, value2, value3 *float32) {
-	syscall.Syscall6(alGetSource3f.Addr(), 5,
+	syscall.SyscallN(alGetSource3f.Addr(),
 		uintptr(sid),
 		uintptr(param),
 		uintptr(unsafe.Pointer(value1)),
 		uintptr(unsafe.Pointer(value2)),
-		uintptr(unsafe.Pointer(value3)),
-		0)
+		uintptr(unsafe.Pointer(value3)))
 }
 func GetSourcefv(sid uint32, param int32, values *float32) {
-	syscall.Syscall(alGetSourcefv.Addr(), 3,
+	syscall.SyscallN(alGetSourcefv.Addr(),
 		uintptr(sid),
 		uintptr(param),
 		uintptr(unsafe.Pointer(values)))
 }
 func GetSourcei(sid uint32, param int32, value *int32) {
-	syscall.Syscall(alGetSourcei.Addr(), 3,
+	syscall.SyscallN(alGetSourcei.Addr(),
 		uintptr(sid),
 		uintptr(param),
 		uintptr(unsafe.Pointer(value)))
 }
 func GetSource3i(sid uint32, param int32, value1, value2, value3 *int32) {
-	syscall.Syscall6(alGetSource3i.Addr(), 5,
+	syscall.SyscallN(alGetSource3i.Addr(),
 		uintptr(sid),
 		uintptr(param),
 		uintptr(unsafe.Pointer(value1)),
 		uintptr(unsafe.Pointer(value2)),
-		uintptr(unsafe.Pointer(value3)),
-		0)
+		uintptr(unsafe.Pointer(value3)))
 }
 func GetSourceiv(sid uint32, param int32, values *int32) {
-	syscall.Syscall(alGetSourceiv.Addr(), 3,
+	syscall.SyscallN(alGetSourceiv.Addr(),
 		uintptr(sid),
 		uintptr(param),
 		uintptr(unsafe.Pointer(values)))
 }
 func SourcePlayv(ns int32, sids *uint32) {
-	syscall.Syscall(alSourcePlayv.Addr(), 2,
+	syscall.SyscallN(alSourcePlayv.Addr(),
 		uintptr(ns),
-		uintptr(unsafe.Pointer(sids)),
-		0)
+		uintptr(unsafe.Pointer(sids)))
 }
 func SourceStopv(ns int32, sids *uint32) {
-	syscall.Syscall(alSourceStopv.Addr(), 2,
+	syscall.SyscallN(alSourceStopv.Addr(),
 		uintptr(ns),
-		uintptr(unsafe.Pointer(sids)),
-		0)
+		uintptr(unsafe.Pointer(sids)))
 }
 func SourceRewindv(ns int32, sids *uint32) {
-	syscall.Syscall(alSourceRewindv.Addr(), 2,
+	syscall.SyscallN(alSourceRewindv.Addr(),
 		uintptr(ns),
-		uintptr(unsafe.Pointer(sids)),
-		0)
+		uintptr(unsafe.Pointer(sids)))
 }
 func SourcePausev(ns int32, sids *uint32) {
-	syscall.Syscall(alSourcePausev.Addr(), 2,
+	syscall.SyscallN(alSourcePausev.Addr(),
 		uintptr(ns),
-		uintptr(unsafe.Pointer(sids)),
-		0)
+		uintptr(unsafe.Pointer(sids)))
 }
 func SourcePlay(sid uint32) {
-	syscall.Syscall(alSourcePlay.Addr(), 1,
-		uintptr(sid),
-		0,
-		0)
+	syscall.SyscallN(alSourcePlay.Addr(),
+		uintptr(sid))
 }
 func SourceStop(sid uint32) {
-	syscall.Syscall(alSourceStop.Addr(), 1,
-		uintptr(sid),
-		0,
-		0)
+	syscall.SyscallN(alSourceStop.Addr(),
+		uintptr(sid))
 }
 func SourceRewind(sid uint32) {
-	syscall.Syscall(alSourceRewind.Addr(), 1,
-		uintptr(sid),
-		0,
-		0)
+	syscall.SyscallN(alSourceRewind.Addr(),
+		uintptr(sid))
 }
 func SourcePause(sid uint32) {
-	syscall.Syscall(alSourcePause.Addr(), 1,
-		uintptr(sid),
-		0,
-		0)
+	syscall.SyscallN(alSourcePause.Addr(),
+		uintptr(sid))
 }
 func SourceQueueBuffers(sid uint32, numEntries int32, bids *uint32) {
-	syscall.Syscall(alSourceQueueBuffers.Addr(), 3,
+	syscall.SyscallN(alSourceQueueBuffers.Addr(),
 		uintptr(sid),
 		uintptr(numEntries),
 		uintptr(unsafe.Pointer(bids)))
 }
 func SourceUnqueueBuffers(sid uint32, numEntries int32, bids *uint32) {
-	syscall.Syscall(alSourceUnqueueBuffers.Addr(), 3,
+	syscall.SyscallN(alSourceUnqueueBuffers.Addr(),
 		uintptr(sid),
 		uintptr(numEntries),
 		uintptr(unsafe.Pointer(bids)))
 }
 func GenBuffers(n int32, buffers *uint32) {
-	syscall.Syscall(alGenBuffers.Addr(), 2,
+	syscall.SyscallN(alGenBuffers.Addr(),
 		uintptr(n),
-		uintptr(unsafe.Pointer(buffers)),
-		0)
+		uintptr(unsafe.Pointer(buffers)))
 }
 func DeleteBuffers(n int32, buffers *uint32) {
-	syscall.Syscall(alDeleteBuffers.Addr(), 2,
+	syscall.SyscallN(alDeleteBuffers.Addr(),
 		uintptr(n),
-		uintptr(unsafe.Pointer(buffers)),
-		0)
+		uintptr(unsafe.Pointer(buffers)))
 }
 func IsBuffer(bid uint32) bool {
-	ret, _, _ := syscall.Syscall(alIsBuffer.Addr(), 1,
-		uintptr(bid),
-		0,
-		0)
+	ret, _, _ := syscall.SyscallN(alIsBuffer.Addr(),
+		uintptr(bid))
 	return ret == TRUE
 }
 func BufferData(bid uint32, format int32, data Pointer, size int32, freq int32) {
-	syscall.Syscall6(alBufferData.Addr(), 5,
+	syscall.SyscallN(alBufferData.Addr(),
 		uintptr(bid),
 		uintptr(format),
 		uintptr(data),
 		uintptr(size),
-		uintptr(freq),
-		0)
+		uintptr(freq))
 }
 func Bufferf(bid uint32, param int32, value float32) {
-	syscall.Syscall(alBufferf.Addr(), 3,
+	syscall.SyscallN(alBufferf.Addr(),
 		uintptr(bid),
 		uintptr(param),
 		uintptr(value))
 }
 func Buffer3f(bid uint32, param int32, value1, value2, value3 float32) {
-	syscall.Syscall6(alBuffer3f.Addr(), 1,
+	syscall.SyscallN(alBuffer3f.Addr(),
 		uintptr(bid),
 		uintptr(param),
 		uintptr(value1),
 		uintptr(value2),
-		uintptr(value3),
-		0)
+		uintptr(value3))
 }
 func Bufferfv(bid uint32, param int32, values *float32) {
-	syscall.Syscall(alBufferfv.Addr(), 3,
+	syscall.SyscallN(alBufferfv.Addr(),
 		uintptr(bid),
 		uintptr(param),
 		uintptr(unsafe.Pointer(values)))
 }
 func Bufferi(bid uint32, param int32, value int32) {
-	syscall.Syscall(alBufferi.Addr(), 3,
+	syscall.SyscallN(alBufferi.Addr(),
 		uintptr(bid),
 		uintptr(param),
 		uintptr(value))
 }
 func Buffer3i(bid uint32, param int32, value1, value2, value3 int32) {
-	syscall.Syscall6(alBuffer3i.Addr(), 5,
+	syscall.SyscallN(alBuffer3i.Addr(),
 		uintptr(bid),
 		uintptr(param),
 		uintptr(value1),
 		uintptr(value2),
-		uintptr(value3),
-		0)
+		uintptr(value3))
 }
 func Bufferiv(bid uint32, param int32, values *int32) {
-	syscall.Syscall(alBufferiv.Addr(), 3,
+	syscall.SyscallN(alBufferiv.Addr(),
 		uintptr(bid),
 		uintptr(param),
 		uintptr(unsafe.Pointer(values)))
 }
 func GetBufferf(bid uint32, param int32, value *float32) {
-	syscall.Syscall(alGetBufferf.Addr(), 3,
+	syscall.SyscallN(alGetBufferf.Addr(),
 		uintptr(bid),
 		uintptr(param),
 		uintptr(unsafe.Pointer(value)))
 }
 func GetBuffer3f(bid uint32, param int32, value1, value2, value3 *float32) {
-	syscall.Syscall6(alGetBuffer3f.Addr(), 5,
+	syscall.SyscallN(alGetBuffer3f.Addr(),
 		uintptr(bid),
 		uintptr(param),
 		uintptr(unsafe.Pointer(value1)),
 		uintptr(unsafe.Pointer(value2)),
-		uintptr(unsafe.Pointer(value3)),
-		0)
+		uintptr(unsafe.Pointer(value3)))
 }
 func GetBufferfv(bid uint32, param int32, values *float32) {
-	syscall.Syscall(alGetBufferfv.Addr(), 3,
+	syscall.SyscallN(alGetBufferfv.Addr(),
 		uintptr(bid),
 		uintptr(param),
 		uintptr(unsafe.Pointer(values)))
 }
 func GetBufferi(bid uint32, param int32, value *int32) {
-	syscall.Syscall(alGetBufferi.Addr(), 3,
+	syscall.SyscallN(alGetBufferi.Addr(),
 		uintptr(bid),
 		uintptr(param),
 		uintptr(unsafe.Pointer(value)))
 }
 func GetBuffer3i(bid uint32, param int32, value1, value2, value3 *int32) {
-	syscall.Syscall6(alGetBuffer3i.Addr(), 5,
+	syscall.SyscallN(alGetBuffer3i.Addr(),
 		uintptr(bid),
 		uintptr(param),
 		uintptr(unsafe.Pointer(value1)),
 		uintptr(unsafe.Pointer(value2)),
-		uintptr(unsafe.Pointer(value3)),
-		0)
+		uintptr(unsafe.Pointer(value3)))
 }
 func GetBufferiv(bid uint32, param int32, values *int32) {
-	syscall.Syscall(alGetBufferiv.Addr(), 3,
+	syscall.SyscallN(alGetBufferiv.Addr(),
 		uintptr(bid),
 		uintptr(param),
 		uintptr(unsafe.Pointer(values)))
 }
 func DopplerFactor(value float32) {
-	syscall.Syscall(alDopplerFactor.Addr(), 1,
-		uintptr(value),
-		0,
-		0)
+	syscall.SyscallN(alDopplerFactor.Addr(),
+		uintptr(value))
 }
 func DopplerVelocity(value float32) {
-	syscall.Syscall(alDopplerVelocity.Addr(), 1,
-		uintptr(value),
-		0,
-		0)
+	syscall.SyscallN(alDopplerVelocity.Addr(),
+		uintptr(value))
 }
 func SpeedOfSound(value float32) {
-	syscall.Syscall(alSpeedOfSound.Addr(), 1,
-		uintptr(value),
-		0,
-		0)
+	syscall.SyscallN(alSpeedOfSound.Addr(),
+		uintptr(value))
 }
 func DistanceModel(distanceModel float32) {
-	syscall.Syscall(alDistanceModel.Addr(), 1,
-		uintptr(distanceModel),
-		0,
-		0)
+	syscall.SyscallN(alDistanceModel.Addr(),
+		uintptr(distanceModel))
 }
 
 // AL/alc.h go bindings
 func CreateContext(device Device, attrlist *int32) Context {
-	ret, _, _ := syscall.Syscall(alcCreateContext.Addr(), 2,
+	ret, _, _ := syscall.SyscallN(alcCreateContext.Addr(),
 		uintptr(device),
-		uintptr(unsafe.Pointer(attrlist)),
-		0)
+		uintptr(unsafe.Pointer(attrlist)))
 	return Context(ret)
 }
 func MakeContextCurrent(context Context) bool {
-	ret, _, _ := syscall.Syscall(alcMakeContextCurrent.Addr(), 1,
-		uintptr(context),
-		0,
-		0)
+	ret, _, _ := syscall.SyscallN(alcMakeContextCurrent.Addr(),
+		uintptr(context))
 	return ret == TRUE
 }
 func ProcessContext(context Context) {
-	syscall.Syscall(alcProcessContext.Addr(), 1,
-		uintptr(context),
-		0,
-		0)
+	syscall.SyscallN(alcProcessContext.Addr(),
+		uintptr(context))
 }
 func SuspendContext(context Context) {
-	syscall.Syscall(alcSuspendContext.Addr(), 1,
-		uintptr(context),
-		0,
-		0)
+	syscall.SyscallN(alcSuspendContext.Addr(),
+		uintptr(context))
 }
 func DestroyContext(context Context) {
-	syscall.Syscall(alcDestroyContext.Addr(), 1,
-		uintptr(context),
-		0,
-		0)
+	syscall.SyscallN(alcDestroyContext.Addr(),
+		uintptr(context))
 }
 func GetCurrentContext() Context {
-	ret, _, _ := syscall.Syscall(alcGetCurrentContext.Addr(), 0,
-		0,
-		0,
-		0)
+	ret, _, _ := syscall.SyscallN(alcGetCurrentContext.Addr())
 	return Context(ret)
 }
 func GetContextsDevice(context Context) Device {
-	ret, _, _ := syscall.Syscall(alcGetContextsDevice.Addr(), 1,
-		uintptr(context),
-		0,
-		0)
+	ret, _, _ := syscall.SyscallN(alcGetContextsDevice.Addr(),
+		uintptr(context))
 	return Device(ret)
 }
 func OpenDevice(devicename string) Device {
 	if devicename == "" {
 		// request default device
-		ret, _, _ := syscall.Syscall(alcOpenDevice.Addr(), 1,
-			uintptr(0),
-			0,
-			0)
+		ret, _, _ := syscall.SyscallN(alcOpenDevice.Addr(),
+			uintptr(0))
 		return Device(ret)
 	}
 	str16, err := syscall.UTF16PtrFromString(devicename)
 	if err != nil {
 		return 0
 	}
-	ret, _, _ := syscall.Syscall(alcOpenDevice.Addr(), 1,
-		uintptr(unsafe.Pointer(str16)),
-		0,
-		0)
+	ret, _, _ := syscall.SyscallN(alcOpenDevice.Addr(),
+		uintptr(unsafe.Pointer(str16)))
 	return Device(ret)
 }
 func CloseDevice(device Device) bool {
-	ret, _, _ := syscall.Syscall(alcCloseDevice.Addr(), 1,
-		uintptr(device),
-		0,
-		0)
+	ret, _, _ := syscall.SyscallN(alcCloseDevice.Addr(),
+		uintptr(device))
 	return ret == TRUE
 }
 func GetDeviceError(device Device) int32 {
-	ret, _, _ := syscall.Syscall(alcGetError.Addr(), 1,
-		uintptr(device),
-		0,
-		0)
+	ret, _, _ := syscall.SyscallN(alcGetError.Addr(),
+		uintptr(device))
 	return int32(ret)
 }
 func IsDeviceExtensionPresent(device Device, extname string) bool {
@@ -932,10 +828,9 @@ func IsDeviceExtensionPresent(device Device, extname string) bool {
 	if err != nil {
 		return false
 	}
-	ret, _, _ := syscall.Syscall(alcIsExtensionPresent.Addr(), 2,
+	ret, _, _ := syscall.SyscallN(alcIsExtensionPresent.Addr(),
 		uintptr(device),
-		uintptr(unsafe.Pointer(str16)),
-		0)
+		uintptr(unsafe.Pointer(str16)))
 	return ret == TRUE
 }
 func GetDeviceProcAddress(device Device, fname string) Pointer {
@@ -943,10 +838,9 @@ func GetDeviceProcAddress(device Device, fname string) Pointer {
 	if err != nil {
 		return nil
 	}
-	ret, _, _ := syscall.Syscall(alcGetProcAddress.Addr(), 2,
+	ret, _, _ := syscall.SyscallN(alcGetProcAddress.Addr(),
 		uintptr(device),
-		uintptr(unsafe.Pointer(str16)),
-		0)
+		uintptr(unsafe.Pointer(str16)))
 	return Pointer(ret)
 }
 func GetDeviceEnumValue(device Device, ename string) int32 {
@@ -954,15 +848,14 @@ func GetDeviceEnumValue(device Device, ename string) int32 {
 	if err != nil {
 		return -1
 	}
-	ret, _, _ := syscall.Syscall(alcGetEnumValue.Addr(), 2,
+	ret, _, _ := syscall.SyscallN(alcGetEnumValue.Addr(),
 		uintptr(device),
-		uintptr(unsafe.Pointer(str16)),
-		0)
+		uintptr(unsafe.Pointer(str16)))
 	return int32(ret)
 }
 
 //	func GetDeviceString(device Device, param int32) string {
-//		ret, _, _ := syscall.Syscall(alcGetString.Addr(), 2,
+//		ret, _, _ := syscall.SyscallN(alcGetString.Addr(), 2,
 //			uintptr(device),
 //			uintptr(param),
 //			0)
@@ -970,49 +863,39 @@ func GetDeviceEnumValue(device Device, ename string) int32 {
 //		// return C.GoString(alcGetString((C.uintptr_t)(device), C.int(param)))
 //	}
 func GetDeviceIntegerv(device Device, param int32, size int32, data *int32) {
-	syscall.Syscall6(alcGetIntegerv.Addr(), 4,
+	syscall.SyscallN(alcGetIntegerv.Addr(),
 		uintptr(device),
 		uintptr(param),
 		uintptr(size),
-		uintptr(unsafe.Pointer(data)),
-		0,
-		0)
+		uintptr(unsafe.Pointer(data)))
 }
 func CaptureOpenDevice(devicename string, frequency uint32, format int32, buffersize int32) Device {
 	str16, err := syscall.UTF16PtrFromString(devicename)
 	if err != nil {
 		return 0
 	}
-	ret, _, _ := syscall.Syscall6(alcCaptureOpenDevice.Addr(), 4,
+	ret, _, _ := syscall.SyscallN(alcCaptureOpenDevice.Addr(),
 		uintptr(unsafe.Pointer(str16)),
 		uintptr(frequency),
 		uintptr(format),
-		uintptr(buffersize),
-		0,
-		0)
+		uintptr(buffersize))
 	return Device(ret)
 }
 func CaptureCloseDevice(device Device) bool {
-	ret, _, _ := syscall.Syscall(alcCaptureCloseDevice.Addr(), 1,
-		uintptr(device),
-		0,
-		0)
+	ret, _, _ := syscall.SyscallN(alcCaptureCloseDevice.Addr(),
+		uintptr(device))
 	return ret == TRUE
 }
 func CaptureStart(device Device) {
-	syscall.Syscall(alcCaptureStart.Addr(), 1,
-		uintptr(device),
-		0,
-		0)
+	syscall.SyscallN(alcCaptureStart.Addr(),
+		uintptr(device))
 }
 func CaptureStop(device Device) {
-	syscall.Syscall(alcCaptureStop.Addr(), 1,
-		uintptr(device),
-		0,
-		0)
+	syscall.SyscallN(alcCaptureStop.Addr(),
+		uintptr(device))
 }
 func CaptureSamples(device Device, buffer Pointer, samples int) {
-	syscall.Syscall(alcCaptureSamples.Addr(), 3,
+	syscall.SyscallN(alcCaptureSamples.Addr(),
 		uintptr(device),
 		uintptr(buffer),
 		uintptr(samples))

@@ -54,9 +54,9 @@ and lucid developers. Thank you in particular to:
   [https://github.com/travisvroman/kohi](https://github.com/travisvroman/kohi) Apache License.
 
 * [https://github.com/bbredesen/go-vk](https://github.com/bbredesen/go-vk) MIT License.
-  Go bindings for Vulkan with minimal cgo.
-  This is a huge amount of work due to the size and complexity of Vulkan.
-  The generated bindings were dragged directly into `vu/internal/render/vk`
+  Go bindings for Vulkan. This is a huge amount of work due to the size and complexity of the Vulkan spec.
+  Bindings were generated from a hacked version, `gazed/vk-gen`, that uses Syscall instead of Cgo.
+  The generated bindings were dropped into `vu/internal/render/vk`
 
 * [https://github.com/felipeek/raw-physics](https://github.com/felipeek/raw-physics) MIT License.
   Raw-physics provides the ability to collide spheres and convex hulls in less than 4000 lines of code.

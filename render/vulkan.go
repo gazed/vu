@@ -975,7 +975,8 @@ func (vr *vulkanRenderer) createBuffer(buff *vulkanBuffer, size vk.DeviceSize,
 		return fmt.Errorf("vk.CreateBuffer: %w", err)
 	}
 	if buff.handle == 0 {
-		// TODO debug why handle is sometimes 0.
+		// TODO debug why handle is sometimes 0....
+		// currently open issue with vulkan bindings author, but likely something I'm doing.
 		return fmt.Errorf("vk.CreateBuffer: 0 handle: %+v", buffInfo)
 	}
 
@@ -1482,9 +1483,11 @@ func (vr *vulkanRenderer) loadTexture(w, h uint32, pixels []byte) (tid uint32, e
 	err = vr.createBuffer(&stagingBuffer, imageSize, vk.BUFFER_USAGE_TRANSFER_SRC_BIT,
 		vk.MEMORY_PROPERTY_HOST_VISIBLE_BIT|vk.MEMORY_PROPERTY_HOST_COHERENT_BIT)
 	if err != nil {
+		vr.disposeBuffer(&stagingBuffer)
 		return 0, err
 	}
 	if err = vr.loadCPUBuffer(&stagingBuffer, 0, pixels); err != nil {
+		vr.disposeBuffer(&stagingBuffer)
 		return 0, err
 	}
 
@@ -1496,6 +1499,7 @@ func (vr *vulkanRenderer) loadTexture(w, h uint32, pixels []byte) (tid uint32, e
 		vk.IMAGE_USAGE_TRANSFER_DST_BIT|vk.IMAGE_USAGE_SAMPLED_BIT,
 		vk.MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
 	if err != nil {
+		vr.disposeBuffer(&stagingBuffer)
 		return 0, err
 	}
 	vr.transitionImageLayout(&tex.image, format, vk.IMAGE_LAYOUT_UNDEFINED, vk.IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
@@ -1564,9 +1568,11 @@ func (vr *vulkanRenderer) updateTexture(tid, width, height uint32, pixels []byte
 	err = vr.createBuffer(&stagingBuffer, imageSize, vk.BUFFER_USAGE_TRANSFER_SRC_BIT,
 		vk.MEMORY_PROPERTY_HOST_VISIBLE_BIT|vk.MEMORY_PROPERTY_HOST_COHERENT_BIT)
 	if err != nil {
+		vr.disposeBuffer(&stagingBuffer)
 		return fmt.Errorf("updateTexture create staging %w", err)
 	}
 	if err = vr.loadCPUBuffer(&stagingBuffer, 0, pixels); err != nil {
+		vr.disposeBuffer(&stagingBuffer)
 		return fmt.Errorf("updateTexture upload staging %w", err)
 	}
 
