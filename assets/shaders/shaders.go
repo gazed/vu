@@ -29,6 +29,8 @@ package shaders
 //go:generate glslc bboard.frag -o bboard.frag.spv
 //go:generate glslc circle.vert -o circle.vert.spv
 //go:generate glslc circle.frag -o circle.frag.spv
+//go:generate glslc col3D.vert -o col3D.vert.spv
+//go:generate glslc col3D.frag -o col3D.frag.spv
 //go:generate glslc lines.vert -o lines.vert.spv
 //go:generate glslc lines.frag -o lines.frag.spv
 //go:generate glslc pbr0.vert -o pbr0.vert.spv

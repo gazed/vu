@@ -41,7 +41,7 @@ func ps() {
 	// import assets from asset files.
 	// This creates the assets referenced by the models below.
 	// Note that circle and quad meshes engine defaults.
-	eng.ImportAssets("circle.shd", "lines.shd", "lines2D.shd", "pbr0.shd")
+	eng.ImportAssets("circle.shd", "lines.shd", "lines2D.shd", "pbr0.shd", "col3D.shd")
 
 	// The scene holds the cameras and lighting information
 	// and acts as the root for all models added to the scene.
@@ -63,6 +63,11 @@ func ps() {
 	c3 := ps.scene.AddModel("shd:lines", "msh:circle")
 	c3.SetAt(+3.0, 0, -5).SetScale(scale/2, scale/2, scale/2)
 	c3.SetColor(1, 0, 0, 1) // red
+
+	// draw a 3D quad.
+	q1 := ps.scene.AddModel("shd:col3D", "msh:quad")
+	q1.SetAt(0, 0, -10).SetScale(5, 5, 1)
+	q1.SetColor(0, 0, 1, 1) // blue
 
 	// Add a 2D scene and draw a frame using a 2D line shader.
 	ps.ui = eng.AddScene(vu.Scene2D)

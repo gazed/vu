@@ -1,0 +1,11 @@
+# col3D 
+name: col3D
+pass: 3D
+stages: [ vert, frag ]
+attrs:
+    - { name: position, data: vec3, scope: vertex }
+uniforms:
+    - { name: proj,  data: mat4, scope: scene }
+    - { name: view,  data: mat4, scope: scene }
+    - { name: model, data: mat4, scope: model }
+    - { name: color, data: vec4, scope: model }
