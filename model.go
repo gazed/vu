@@ -199,6 +199,20 @@ func (e *Entity) UpdateTexture(eng *Engine, img *image.NRGBA) *Entity {
 	return e
 }
 
+// SetLayer helps to order draws - normally 2D UI elements.
+// Layer values are 0 (first) to 15 (last). Normally packets
+// are drawn in the creation order, but this allows specific ordering.
+//
+// Depends on Entity.AddModel.
+func (e *Entity) SetLayer(layer uint8) *Entity {
+	if m := e.app.models.get(e.eid); m != nil {
+		m.layer = layer
+		return e
+	}
+	slog.Error("SetLayer needs AddModel", "eid", e.eid)
+	return e
+}
+
 // FUTURE: AddEffect(...) generate quad for particle effects in geometry stage.
 
 // =============================================================================
@@ -243,14 +257,16 @@ type model struct {
 	instanceCount uint32 // default false.
 	instanceID    uint32 // render instance data ID.
 
-	// TODO anim   *actor  // set for an animated model
-	// TODO effect *effect // set for a particle effect
+	// FUTURE
+	// anim   *actor  // set for an animated model
+	// effect *effect // set for a particle effect
 
 	// generic uniforms set the app and passed to the shader.
 	uniforms map[load.PacketUniform][]byte
 
-	// distance to camera helps with 3D render order.
-	tocam float64
+	// packet bucket sort values.
+	tocam float64 // distance to camera helps with 3D render order.
+	layer uint8   // draw layer 0-15
 }
 
 // newModel initializes the data structures and default uniforms.
@@ -456,6 +472,7 @@ func (m *model) fillPacket(packet *render.Packet, pov *pov, cam *Camera) error {
 	}
 	packet.Bucket = setBucketShader(packet.Bucket, m.shader.sid)
 	packet.Bucket = setBucketDistance(packet.Bucket, math.MaxFloat64-m.tocam)
+	packet.Bucket = setBucketLayer(packet.Bucket, m.layer)
 	return nil // model has all information needed to render.
 }
 

@@ -322,13 +322,24 @@ func setBucketShader(b uint64, sid uint16) uint64 {
 	return b&clearShaderID | uint64(sid)<<40
 }
 
+// setBucketLayer
+func setBucketLayer(b uint64, layer uint8) uint64 {
+	if layer < 16 {
+		return b&clearLayer | uint64(layer)<<52
+	}
+	return b
+}
+
 // Useful bits for setting or clearing the bucket.
 const (
 	clearDistance uint64 = 0xFFFFFFFF00000000
 	clearShaderID uint64 = 0xFFFF0000FFFFFFFF
-	clearType     uint64 = 0xFF00FFFFFFFFFFFF
 
 	// draw types.
+	clearType       uint64 = 0xFFF0FFFFFFFFFFFF
 	drawOpaque      uint64 = 0x0001000000000000 // opaque objects before transparent
 	drawTransparent uint64 = 0x0008000000000000 // transparent objects last.
+
+	// layers.
+	clearLayer uint64 = 0xFF0FFFFFFFFFFFFF
 )
