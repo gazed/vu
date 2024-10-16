@@ -53,6 +53,12 @@ func (d *Device) SetResizeHandler(callback func()) {
 	d.platform.setResizeHandler(callback)
 }
 
+// ToggleFullscreen toggles between windowed with border
+// and windowed fullscreen with no border.
+func (d *Device) ToggleFullscreen() {
+	d.platform.toggleFullscreen()
+}
+
 // platformAPI is the interface that each platform must implement.
 // One platform will be active on startup.
 type platformAPI interface {
@@ -67,6 +73,7 @@ type platformAPI interface {
 	dispose()                         // see Dispose
 	isRunning() bool                  // see IsRunning
 	setResizeHandler(callback func()) // see SetResizeHandler
+	toggleFullscreen()                // see ToggleFullscreen
 }
 
 // =============================================================================

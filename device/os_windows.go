@@ -21,12 +21,14 @@ func newPlatform() platformAPI { return &windowsDevice{} }
 type windowsDevice struct {
 	hinstance win.HINSTANCE // module instance
 	hwnd      win.HWND      // window handle
-	windowed  bool          // windowed vs full screen
-	title     string        // windowed title
-	x         int32         // windowed bottom left corner
-	y         int32         // windowed bottom left corner
-	w         int32         // windowed width
-	h         int32         // windowed height
+	windowed  bool          // window bordered vs full screen
+	title     string        // window with border title
+	windx     int32         // window with border bottom left corner
+	windy     int32         // window with border bottom left corner
+	windw     int32         // window with border width
+	windh     int32         // window with border height
+	fullw     int32         // fullscreen width
+	fullh     int32         // fullscreen height
 }
 
 // newPlatform gets the platform specific window and input handler.
@@ -41,10 +43,12 @@ func (wd *windowsDevice) init(windowed bool, title string, x int32, y int32, w i
 	runtime.LockOSThread()
 	wd.windowed = windowed
 	wd.title = title
-	wd.x = x
-	wd.y = y
-	wd.w = w
-	wd.h = h
+	wd.windx = x
+	wd.windy = y
+	wd.windw = w
+	wd.windh = h
+	wd.fullw = win.GetSystemMetrics(win.SM_CXSCREEN)
+	wd.fullh = win.GetSystemMetrics(win.SM_CYSCREEN)
 }
 
 // GetRenderSurfaceInfo exposes the windows API specific information
@@ -104,18 +108,24 @@ func (wd *windowsDevice) createDisplay() error {
 		return fmt.Errorf("RegisterClassEx failed %d", win.GetLastError())
 	}
 
+	var style uint32
+	var wx, wy, ww, wh int32
 	styleEx := uint32(win.WS_EX_APPWINDOW)
-	style := uint32(win.WS_OVERLAPPED | win.WS_SYSMENU | win.WS_CAPTION)
 	if wd.windowed {
+		style = uint32(win.WS_OVERLAPPED | win.WS_SYSMENU | win.WS_CAPTION)
 
 		// adjust the window dimensions to accommodate the window frame.
 		style = style | win.WS_THICKFRAME | win.WS_MINIMIZEBOX | win.WS_MAXIMIZEBOX
 		border := win.RECT{0, 0, 0, 0}
 		win.AdjustWindowRectEx(&border, style, false, styleEx)
-		wd.w += border.Right - border.Left
-		wd.h += border.Bottom - border.Top
-		wd.x += border.Left
-		wd.y += border.Top
+		wd.windw += border.Right - border.Left
+		wd.windh += border.Bottom - border.Top
+		wd.windx += border.Left
+		wd.windy += border.Top
+		wx, wy, ww, wh = wd.windx, wd.windy, wd.windw, wd.windh
+	} else {
+		style = uint32(win.WS_POPUP | win.WS_VISIBLE)
+		wx, wy, ww, wh = 0, 0, wd.fullw, wd.fullh
 	}
 
 	// create the application window.
@@ -126,10 +136,10 @@ func (wd *windowsDevice) createDisplay() error {
 		classname, // must match the classname used in RegisterClassEx
 		wintitle,  // visible window title
 		style,
-		int32(wd.x),
-		int32(wd.y),
-		int32(wd.w),
-		int32(wd.h),
+		wx,
+		wy,
+		ww,
+		wh,
 		win.HWND(0),
 		win.HMENU(0),
 		wd.hinstance,
@@ -316,6 +326,25 @@ func (wd *windowsDevice) cursorLocation() (mx, my int32) {
 	var rect win.RECT
 	win.GetClientRect(wd.hwnd, &rect)
 	return point.X, point.Y
+}
+
+// switch between a window with a border and a fullscreen
+// window with no border. Expected to be called using F11.
+func (wd *windowsDevice) toggleFullscreen() {
+	wd.windowed = !wd.windowed
+	if wd.windowed {
+		// enter bordered window.
+		style := uint32(win.WS_OVERLAPPEDWINDOW | win.WS_VISIBLE | win.WS_CLIPCHILDREN | win.WS_MAXIMIZE)
+		win.SetWindowLongPtr(wd.hwnd, win.GWL_STYLE, uintptr(style))
+		wx, wy, ww, wh := wd.windx, wd.windy, wd.windw, wd.windh
+		win.SetWindowPos(wd.hwnd, 0, wx, wy, ww, wh, win.SWP_FRAMECHANGED|win.SWP_SHOWWINDOW)
+	} else {
+		// enter fullscreen window.
+		style := uint32(win.WS_POPUP | win.WS_VISIBLE)
+		win.SetWindowLongPtr(wd.hwnd, win.GWL_STYLE, uintptr(style))
+		ww, wh := wd.fullw, wd.fullh
+		win.SetWindowPos(wd.hwnd, 0, 0, 0, ww, wh, win.SWP_FRAMECHANGED|win.SWP_SHOWWINDOW)
+	}
 }
 
 // =============================================================================

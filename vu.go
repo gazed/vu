@@ -266,6 +266,12 @@ func (eng *Engine) SetResizeListener(resizer Resizer) {
 	eng.app.resizer = resizer
 }
 
+// ToggleFullscreen switches between a borderless fullscren window and
+// a bordered window.
+func (eng *Engine) ToggleFullscreen() {
+	eng.dev.ToggleFullscreen()
+}
+
 // MakeMeshes loads application generated mesh data.
 func (eng *Engine) MakeMeshes(name string, meshes []load.MeshData) (err error) {
 	mids, err := eng.rc.LoadMeshes(meshes) // upload all mesh data.

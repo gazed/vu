@@ -107,6 +107,8 @@ func (is *istag) Update(eng *vu.Engine, in *vu.Input, delta time.Duration) {
 			// quit if Q is pressed
 			eng.Shutdown()
 			return
+		case vu.KF11:
+			eng.ToggleFullscreen()
 		}
 	}
 
