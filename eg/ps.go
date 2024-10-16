@@ -74,6 +74,11 @@ func ps() {
 	frame := ps.ui.AddModel("shd:lines2D", "msh:frame")
 	frame.SetAt(800, 450, 0).SetScale(900, 500, 0).SetColor(1, 1, 1, 1)
 
+	// draw a 2D circle
+	c4 := ps.ui.AddModel("shd:lines2D", "msh:circle2D")
+	c4.SetAt(800, 450, 0).SetScale(150, 150, 0)
+	c4.SetColor(1, 0, 1, 1)
+
 	eng.Run(ps) // does not return while example is running.
 }
 
