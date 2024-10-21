@@ -5,12 +5,15 @@ package vu
 // label.go groups the 2D/3D string rendering code.
 
 import (
+	"fmt"
+	"image"
+	"image/draw"
 	"log/slog"
 
 	"github.com/gazed/vu/load"
 )
 
-// AddLabel adds a new label model and transform to the given entity.
+// AddLabel creates a static string model for 2D or 3D text display.
 // It is intended for single letters, words or small phrases. eg:
 //
 //	letter2D := scene.AddLabel("text", 0, "shd:icon", "fnt:lucon18", "tex:color:lucon18")
@@ -22,6 +25,9 @@ func (e *Entity) AddLabel(s string, wrap int, assets ...string) (me *Entity) {
 	me = e.addPart() // add a transform node for the label.
 	if mod := me.app.models.createLabel(s, wrap, me); mod != nil {
 		mod.getAssets(me, assets...)
+
+		// tell the loader to finalized this static label once the font is loaded.
+		me.app.ld.finalizeLabelMesh(mod.fntAid, me)
 	}
 	return me
 }
@@ -89,6 +95,7 @@ type font struct {
 	tag   aid            // Name and type as a number.
 	w, h  int            // Width and height of the entire font bitmap image.
 	chars map[rune]*char // The "character" image information.
+	img   *image.NRGBA   // the font bitmap image.
 }
 
 // newFont allocates space for font mapping data.
@@ -203,4 +210,84 @@ type char struct {
 	yOffset  int       // Current position offset for texture to screen.
 	xAdvance int       // Current position advance after drawing character.
 	uvcs     []float32 // Character bitmap texture coordinates 0:0, 1:0, 0:1, 1:1.
+}
+
+// =============================================================================
+// support for writing font strings to images.
+
+// WriteImageText uses the font assets associated with this model
+// to write a string to the given image. The starting string location
+// is specified by indent is in pixels line number is based on the font size.
+func (e *Entity) WriteImageText(s string, indent, line int, dst *image.NRGBA) (me *Entity) {
+	if m := e.app.models.get(e.eid); m != nil && m.fnt != nil {
+		m.fnt.writeText(s, indent, line, dst)
+		return e
+	}
+	slog.Error("WriteImageText model or font not loaded", "entity", e.eid)
+	return e
+}
+
+// writeText writes the given string into the given image starting
+// at the given indent and line.
+func (f *font) writeText(str string, indent, line int, dst *image.NRGBA) error {
+	if len(f.chars) <= 0 {
+		return fmt.Errorf("writeText uninitalized font")
+	}
+	if dst == nil {
+		return fmt.Errorf("writeText nil image")
+	}
+	imgw := dst.Bounds().Size().X
+	imgh := dst.Bounds().Size().Y
+
+	// due to the way the font atlas is created all the characters
+	// height have the same size.
+	fontSize := 0 // starting line xoffset pixel.
+	for _, c := range f.chars {
+		fontSize = c.h // the font size is the line height.
+		break
+	}
+	px := indent                   // starting xoffset pixel.
+	py := line*fontSize + fontSize // starting yoffset pixel.
+	if px < 0 || px >= imgw || py < 0 || py >= imgh {
+		return fmt.Errorf("writeText invalid location %d:%d", px, py)
+	}
+
+	// gather and arrange the letters for the phrase.
+	// Don't complain if the string runs off the edge or bottom of the destination image.
+	src := f.img // copy from the font bitmap image
+	srcw := src.Bounds().Size().X
+	srch := src.Bounds().Size().Y
+	width, height := px, py //
+	for _, char := range str {
+		c := f.chars[char]
+		if c == nil {
+			// replace unavailable characters with "."
+			// If the "." char is nil, then ignore the character.
+			c = f.chars['.']
+		}
+		switch {
+		case c != nil:
+			xo, yo := c.xOffset, c.yOffset
+			if c.w != 0 && c.h != 0 && len(c.uvcs) == 8 {
+				uvx0, uvy0 := c.uvcs[0], c.uvcs[1] // 0,0
+				uvx1, uvy1 := c.uvcs[6], c.uvcs[7] // 1,1
+
+				// src and dest locations
+				srcRect := image.Rect(
+					int(uvx0*float32(srcw)), int(uvy0*float32(srch)),
+					int(uvx1*float32(srcw)), int(uvy1*float32(srch)))
+				dstPoint := image.Point{width + xo, height + yo}
+				dstRect := image.Rectangle{dstPoint, dstPoint.Add(srcRect.Size())}
+
+				// copy character glyph to destination text block image
+				draw.Draw(dst, dstRect, src, srcRect.Min, draw.Src)
+			}
+			width += c.xAdvance
+		case char == '\n':
+			// auto wrap at newlines.
+			width = px         // start at indent.
+			height += fontSize // one line lower
+		}
+	}
+	return nil
 }

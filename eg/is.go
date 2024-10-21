@@ -62,7 +62,8 @@ func is() {
 	// This is because the normal transparency sorting doesn't work with instanced
 	// data since instanced data does not have a distance to the camera..
 	is.pick = is.scene3D.AddModel("shd:bboard", "msh:quad", "tex:color:ring")
-	is.pick.Cull(true) // hide until mouse is over a star
+	is.pick.SetLayer(1) // draw over stars.
+	is.pick.Cull(true)  // hide until mouse is over a star
 
 	// one draw call to draw over 9000 stars.
 	s1 := is.scene3D.AddInstancedModel("shd:bbinst", "msh:quad", "tex:color:star")
@@ -142,7 +143,7 @@ func (is *istag) Update(eng *vu.Engine, in *vu.Input, delta time.Duration) {
 	}
 
 	// raycast: show the label for a star if the mouse is over that star.
-	for _, v := range is.names {
+	for _, v := range is.names { // hide all names
 		v.Cull(true)
 	}
 	is.pick.Cull(true)
@@ -153,7 +154,7 @@ func (is *istag) Update(eng *vu.Engine, in *vu.Input, delta time.Duration) {
 			name.SetAt(20, 20, 0).SetColor(1, 1, 0, 1) // yellow label
 			is.names[starID] = name
 		} else {
-			name.Cull(false)
+			name.Cull(false) // show the name
 		}
 
 		// draw the pick ring around the star.

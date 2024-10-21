@@ -251,6 +251,10 @@ type model struct {
 	mtype modelType // indicates expected model data.
 	label *label    // for a labelModel
 
+	// support using fonts outside of labels.
+	fnt    *font // font assets for text blocks
+	fntAid aid   // font aid
+
 	// true if this model will be rendered at each of
 	// its child transforms.
 	isInstanced   bool   // default false.
@@ -294,9 +298,8 @@ func (m *model) getAssets(me *Entity, assets ...string) {
 			case "shd":
 				me.app.ld.getAsset(assetID(shd, name), me.eid, me.app.models.assetLoaded)
 			case "fnt":
-				fontAid := assetID(fnt, name)
-				me.app.ld.getAsset(fontAid, me.eid, me.app.models.assetLoaded)
-				me.app.ld.getLabelMesh(fontAid, me)
+				m.fntAid = assetID(fnt, name)
+				me.app.ld.getAsset(m.fntAid, me.eid, me.app.models.assetLoaded)
 			case "anm":
 				// TODO get animation bone data from GLB files.
 			default:
@@ -337,11 +340,11 @@ func (m *model) addAsset(a asset) {
 		// uniforms from the shader config when they are used for rendering.
 		m.texs = append(m.texs, la)
 	case *font:
-		if m.mtype != labelModel || m.label == nil {
-			slog.Error("dev: fix non-label loading font data", "font", la.name)
-			return
+		if m.mtype == labelModel && m.label != nil {
+			m.label.fnt = la
+		} else {
+			m.fnt = la
 		}
-		m.label.fnt = la
 	case *shader:
 		m.shader = la
 	default:

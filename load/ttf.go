@@ -104,6 +104,7 @@ func Ttf(ttfBytes []byte, size int) (atlas *FontAtlas, err error) {
 	atlas.Img.Width = uint32(img.Bounds().Size().X)
 	atlas.Img.Height = uint32(img.Bounds().Size().Y)
 	atlas.Img.Opaque = true
+	atlas.NRGBA = img
 
 	// DEBUG dump atlas image as png.
 	// atlasPng, _ := os.Create("atlas.png")

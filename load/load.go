@@ -240,6 +240,7 @@ type FontAtlas struct {
 	Tag    string    // asset ID is filename + font-size.
 	Img    ImageData // Atlas image ready for upload to GPU.
 	Glyphs []Glyph   // Character position mapping data.
+	NRGBA  *image.NRGBA
 }
 
 // Glyph holds UV texture mapping information for one character.

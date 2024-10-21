@@ -79,12 +79,11 @@ func (l *assetLoader) getAsset(aid aid, eid eID, callback assetReady) {
 	}
 }
 
-// getLabelMesh remembers the request for a label mesh and handles
-// it within loadAssets
+// finalizeLabelMesh finishes a static label once the font assets are loaded.
 //
 // FUTURE: reuse label assets, ie: reuse mesh for the same string, same font.
 // eg: strings "0%", "1%" to "100%" could be reused by multiple UI controls.
-func (l *assetLoader) getLabelMesh(aid aid, me *Entity) {
+func (l *assetLoader) finalizeLabelMesh(aid aid, me *Entity) {
 	if reqs, ok := l.labelRequests[aid]; ok {
 		l.labelRequests[aid] = append(reqs, me)
 	} else {
@@ -211,6 +210,7 @@ func (l *assetLoader) loadAssets(rc render.Loader, ac audio.Loader) (assetsCreat
 					assetsCreated += 1
 					f := newFont(data.Tag)
 					f.setSize(int(data.Img.Width), int(data.Img.Height))
+					f.img = data.NRGBA
 					for _, g := range data.Glyphs {
 						f.addChar(g.Char, g.X, g.Y, g.W, g.H, g.Xo, g.Yo, g.Xa)
 					}
@@ -275,7 +275,7 @@ func (l *assetLoader) loadAssets(rc render.Loader, ac audio.Loader) (assetsCreat
 }
 
 // loadLabels checks for outstanding label asset requests and
-// creates the label mesh if all the assets are available.
+// loads the label mesh if all the assets are available.
 func (l *assetLoader) loadLabels(rc render.Loader) {
 	for aid, entities := range l.labelRequests {
 
