@@ -45,8 +45,8 @@ func Ttf(ttfBytes []byte, size int) (atlas *FontAtlas, err error) {
 	}
 
 	// A reasonable amount of runes with a reasonable font size should easily
-	// fit into a 256x256 image. FUTURE: make this configurable.
-	imgSize := 256 // image width and height in pixels
+	// fit into a 512x512 image. FUTURE: make this configurable.
+	imgSize := 512 // image width and height in pixels
 
 	atlas = &FontAtlas{}
 	img := image.NewNRGBA(image.Rect(0, 0, imgSize, imgSize))

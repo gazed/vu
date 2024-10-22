@@ -223,7 +223,7 @@ func (e *Entity) WriteImageText(s string, indent, line int, dst *image.NRGBA) (m
 		m.fnt.writeText(s, indent, line, dst)
 		return e
 	}
-	slog.Error("WriteImageText model or font not loaded", "entity", e.eid)
+	slog.Debug("WriteImageText model or font not loaded", "entity", e.eid)
 	return e
 }
 
@@ -246,8 +246,8 @@ func (f *font) writeText(str string, indent, line int, dst *image.NRGBA) error {
 		fontSize = c.h // the font size is the line height.
 		break
 	}
-	px := indent                   // starting xoffset pixel.
-	py := line*fontSize + fontSize // starting yoffset pixel.
+	px := indent          // starting xoffset pixel.
+	py := line * fontSize // starting yoffset pixel.
 	if px < 0 || px >= imgw || py < 0 || py >= imgh {
 		return fmt.Errorf("writeText invalid location %d:%d", px, py)
 	}
