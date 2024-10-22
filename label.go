@@ -280,7 +280,7 @@ func (f *font) writeText(str string, indent, line int, dst *image.NRGBA) error {
 				dstRect := image.Rectangle{dstPoint, dstPoint.Add(srcRect.Size())}
 
 				// copy character glyph to destination text block image
-				draw.Draw(dst, dstRect, src, srcRect.Min, draw.Src)
+				draw.Draw(dst, dstRect, src, srcRect.Min, draw.Over)
 			}
 			width += c.xAdvance
 		case char == '\n':

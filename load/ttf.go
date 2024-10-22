@@ -82,7 +82,7 @@ func Ttf(ttfBytes []byte, size int) (atlas *FontAtlas, err error) {
 		d := &font.Drawer{
 			Dot:  fixed.P(-minX+1, -minY), // glyph origin with width pad adjustment.
 			Dst:  dst,
-			Src:  image.Black,
+			Src:  image.White,
 			Face: face,
 		}
 		dr, mask, maskp, xadvance, _ := d.Face.Glyph(d.Dot, r)
