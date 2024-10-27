@@ -26,8 +26,8 @@ func (e *Entity) AddLabel(s string, wrap int, assets ...string) (me *Entity) {
 	if mod := me.app.models.createLabel(s, wrap, me); mod != nil {
 		mod.getAssets(me, assets...)
 
-		// tell the loader to finalized this static label once the font is loaded.
-		me.app.ld.finalizeLabelMesh(mod.fntAid, me)
+		// labels need a backing mesh once the font loads.
+		me.app.ld.loadLabelMesh(mod.fntAID, me)
 	}
 	return me
 }
@@ -218,18 +218,27 @@ type char struct {
 // WriteImageText uses the font assets associated with this model
 // to write a string to the given image. The starting string location
 // is specified by indent is in pixels line number is based on the font size.
-func (e *Entity) WriteImageText(s string, indent, line int, dst *image.NRGBA) (me *Entity) {
-	if m := e.app.models.get(e.eid); m != nil && m.fnt != nil {
-		m.fnt.writeText(s, indent, line, dst)
+func (e *Entity) WriteImageText(fontID, s string, xoff, yoff int, dst *image.NRGBA) (me *Entity) {
+	if m := e.app.models.get(e.eid); m != nil {
+
+		// get font from loader... the font must already be loaded.
+		a := e.app.ld.getLoadedAsset(assetID(fnt, fontID))
+		if a == nil {
+			slog.Debug("WriteImageText font not loaded", "font", fontID)
+			return e
+		}
+		if fnt, ok := a.(*font); ok {
+			fnt.writeText(s, xoff, yoff, dst)
+		}
 		return e
 	}
-	slog.Debug("WriteImageText model or font not loaded", "entity", e.eid)
+	slog.Debug("WriteImageText model not loaded", "entity", e.eid)
 	return e
 }
 
 // writeText writes the given string into the given image starting
 // at the given indent and line.
-func (f *font) writeText(str string, indent, line int, dst *image.NRGBA) error {
+func (f *font) writeText(str string, xoff, yoff int, dst *image.NRGBA) error {
 	if len(f.chars) <= 0 {
 		return fmt.Errorf("writeText uninitalized font")
 	}
@@ -238,16 +247,7 @@ func (f *font) writeText(str string, indent, line int, dst *image.NRGBA) error {
 	}
 	imgw := dst.Bounds().Size().X
 	imgh := dst.Bounds().Size().Y
-
-	// due to the way the font atlas is created all the characters
-	// height have the same size.
-	fontSize := 0 // starting line xoffset pixel.
-	for _, c := range f.chars {
-		fontSize = c.h // the font size is the line height.
-		break
-	}
-	px := indent          // starting xoffset pixel.
-	py := line * fontSize // starting yoffset pixel.
+	px, py := xoff, yoff // starting pixel locations.
 	if px < 0 || px >= imgw || py < 0 || py >= imgh {
 		return fmt.Errorf("writeText invalid location %d:%d", px, py)
 	}
@@ -283,10 +283,6 @@ func (f *font) writeText(str string, indent, line int, dst *image.NRGBA) error {
 				draw.Draw(dst, dstRect, src, srcRect.Min, draw.Over)
 			}
 			width += c.xAdvance
-		case char == '\n':
-			// auto wrap at newlines.
-			width = px         // start at indent.
-			height += fontSize // one line lower
 		}
 	}
 	return nil

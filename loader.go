@@ -79,15 +79,19 @@ func (l *assetLoader) getAsset(aid aid, eid eID, callback assetReady) {
 	}
 }
 
-// finalizeLabelMesh finishes a static label once the font assets are loaded.
-//
-// FUTURE: reuse label assets, ie: reuse mesh for the same string, same font.
-// eg: strings "0%", "1%" to "100%" could be reused by multiple UI controls.
-func (l *assetLoader) finalizeLabelMesh(aid aid, me *Entity) {
+// asset returns a previously loaded asset
+// or nil if no such asset was loaded.
+func (l *assetLoader) getLoadedAsset(aid aid) asset {
+	return l.assets[aid]
+}
+
+// loadLabelMesh requests a mesh for a static label once
+// the font assets are loaded.
+func (l *assetLoader) loadLabelMesh(aid aid, me *Entity) {
 	if reqs, ok := l.labelRequests[aid]; ok {
 		l.labelRequests[aid] = append(reqs, me)
 	} else {
-		l.labelRequests[aid] = []*Entity{me}
+		l.labelRequests[aid] = []*Entity{me} // lazy create.
 	}
 }
 

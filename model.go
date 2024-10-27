@@ -247,13 +247,12 @@ type model struct {
 	mat        *material         // material parameters.
 	updatable  []*texture        // two updatable textures when set.
 
+	// fntAID is needed for static text labels.
+	fntAID aid
+
 	// specific model type data.
 	mtype modelType // indicates expected model data.
 	label *label    // for a labelModel
-
-	// support using fonts outside of labels.
-	fnt    *font // font assets for text blocks
-	fntAid aid   // font aid
 
 	// true if this model will be rendered at each of
 	// its child transforms.
@@ -298,8 +297,8 @@ func (m *model) getAssets(me *Entity, assets ...string) {
 			case "shd":
 				me.app.ld.getAsset(assetID(shd, name), me.eid, me.app.models.assetLoaded)
 			case "fnt":
-				m.fntAid = assetID(fnt, name)
-				me.app.ld.getAsset(m.fntAid, me.eid, me.app.models.assetLoaded)
+				m.fntAID = assetID(fnt, name)
+				me.app.ld.getAsset(m.fntAID, me.eid, me.app.models.assetLoaded)
 			case "anm":
 				// TODO get animation bone data from GLB files.
 			default:
@@ -342,8 +341,6 @@ func (m *model) addAsset(a asset) {
 	case *font:
 		if m.mtype == labelModel && m.label != nil {
 			m.label.fnt = la
-		} else {
-			m.fnt = la
 		}
 	case *shader:
 		m.shader = la
