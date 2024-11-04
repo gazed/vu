@@ -228,8 +228,9 @@ func (eng *Engine) Run(updator Updator) {
 
 // handleResize processes user window changes.
 func (eng *Engine) handleResize() {
-	w, h := eng.dev.SurfaceSize() // display window size - updated
-	pw, ph := eng.rc.Size()       // renderer surface size - current
+	w, h := eng.dev.SurfaceSize()     // display window size - updated
+	pw, ph := eng.rc.Size()           // renderer surface size - current
+	x, y := eng.dev.SurfaceLocation() // display window upper left corner
 
 	// window has been minimized
 	if w == 0 || h == 0 {
@@ -241,15 +242,16 @@ func (eng *Engine) handleResize() {
 		slog.Debug("app restored: resuming")
 		eng.suspended = false
 	}
-	if w == pw && h == ph {
-		return // same size.
+
+	// update display surface if size has changed.
+	if w != pw || h != ph {
+		eng.rc.Resize(w, h)         // request render resize.
+		eng.app.scenes.resize(w, h) // update scene cameras.
 	}
-	eng.rc.Resize(w, h)         // request render resize.
-	eng.app.scenes.resize(w, h) // update scene cameras.
 
 	// update apps that have registered for resize callbacks.
 	if eng.app.resizer != nil {
-		eng.app.resizer.Resize(w, h)
+		eng.app.resizer.Resize(x, y, w, h)
 	}
 }
 
@@ -257,7 +259,7 @@ func (eng *Engine) handleResize() {
 // is resized. It is implemented by the user app and set on startup.
 type Resizer interface {
 	// Resize is called when the window is resized.
-	Resize(windowWidth, windowHeight uint32)
+	Resize(windowLeft, windowTop, windowWidth, windowHeight uint32)
 }
 
 // SetResizeListener sets the application callback

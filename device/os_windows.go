@@ -284,6 +284,13 @@ func (wd *windowsDevice) surfaceSize() (w, h uint32) {
 	return w, h
 }
 
+// surfaceLocation implements Device.
+func (wd *windowsDevice) surfaceLocation() (x, y uint32) {
+	var rect win.RECT
+	win.GetWindowRect(wd.hwnd, &rect)
+	return uint32(rect.Left), uint32(rect.Top)
+}
+
 // isRunning implement Device.
 func (wd *windowsDevice) isRunning() bool { return wd.hwnd != 0 }
 

@@ -92,7 +92,7 @@ type istag struct {
 }
 
 // Resize is called by the engine when the window size changes.
-func (is *istag) Resize(windowWidth, windowHeight uint32) {
+func (is *istag) Resize(windowLeft, windowTop, windowWidth, windowHeight uint32) {
 	// keep these updated for ray picking.
 	is.ww, is.wh = int(windowWidth), int(windowHeight)
 }

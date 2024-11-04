@@ -31,6 +31,11 @@ func (d *Device) SurfaceSize() (w, h uint32) {
 	return d.platform.surfaceSize()
 }
 
+// Returns the upper corner location of the surface in pixels.
+func (d *Device) SurfaceLocation() (x, y uint32) {
+	return d.platform.surfaceLocation()
+}
+
 // GetInput updates the user input. Expected to be called frequently,
 // ie: once before each game update.
 func (d *Device) GetInput() *Input {
@@ -69,6 +74,7 @@ type platformAPI interface {
 	// exposed as Device public methods.
 	createDisplay() error             // see CreateDisplay
 	surfaceSize() (w, h uint32)       // see SurfaceSize
+	surfaceLocation() (x, y uint32)   // see SurfaceLocation
 	getInput() *Input                 // see GetInput
 	dispose()                         // see Dispose
 	isRunning() bool                  // see IsRunning
