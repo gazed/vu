@@ -112,10 +112,9 @@ func (wd *windowsDevice) createDisplay() error {
 	var wx, wy, ww, wh int32
 	styleEx := uint32(win.WS_EX_APPWINDOW)
 	if wd.windowed {
-		style = uint32(win.WS_OVERLAPPED | win.WS_SYSMENU | win.WS_CAPTION)
+		style = uint32(win.WS_OVERLAPPED | win.WS_CAPTION | win.WS_SYSMENU | win.WS_THICKFRAME)
 
 		// adjust the window dimensions to accommodate the window frame.
-		style = style | win.WS_THICKFRAME | win.WS_MINIMIZEBOX | win.WS_MAXIMIZEBOX
 		border := win.RECT{0, 0, 0, 0}
 		win.AdjustWindowRectEx(&border, style, false, styleEx)
 		wd.windw += border.Right - border.Left
@@ -341,7 +340,7 @@ func (wd *windowsDevice) toggleFullscreen() {
 	wd.windowed = !wd.windowed
 	if wd.windowed {
 		// enter bordered window.
-		style := uint32(win.WS_OVERLAPPEDWINDOW | win.WS_VISIBLE | win.WS_CLIPCHILDREN | win.WS_MAXIMIZE)
+		style := uint32(win.WS_OVERLAPPED | win.WS_CAPTION | win.WS_SYSMENU | win.WS_THICKFRAME | win.WS_VISIBLE | win.WS_CLIPCHILDREN)
 		win.SetWindowLongPtr(wd.hwnd, win.GWL_STYLE, uintptr(style))
 		wx, wy, ww, wh := wd.windx, wd.windy, wd.windw, wd.windh
 		win.SetWindowPos(wd.hwnd, 0, wx, wy, ww, wh, win.SWP_FRAMECHANGED|win.SWP_SHOWWINDOW)
