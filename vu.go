@@ -259,7 +259,7 @@ func (eng *Engine) handleResize() {
 // is resized. It is implemented by the user app and set on startup.
 type Resizer interface {
 	// Resize is called when the window is resized.
-	Resize(windowLeft, windowTop, windowWidth, windowHeight uint32)
+	Resize(windowLeft, windowTop int32, windowWidth, windowHeight uint32)
 }
 
 // SetResizeListener sets the application callback

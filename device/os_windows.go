@@ -284,10 +284,10 @@ func (wd *windowsDevice) surfaceSize() (w, h uint32) {
 }
 
 // surfaceLocation implements Device.
-func (wd *windowsDevice) surfaceLocation() (x, y uint32) {
-	var rect win.RECT
-	win.GetWindowRect(wd.hwnd, &rect)
-	return uint32(rect.Left), uint32(rect.Top)
+func (wd *windowsDevice) surfaceLocation() (x, y int32) {
+	var point win.POINT                 // upper left is point 0:0
+	win.ClientToScreen(wd.hwnd, &point) // get the screen pixel location
+	return point.X, point.Y
 }
 
 // isRunning implement Device.
@@ -329,8 +329,6 @@ func (wd *windowsDevice) cursorLocation() (mx, my int32) {
 	var point win.POINT
 	win.GetCursorPos(&point)
 	win.ScreenToClient(wd.hwnd, &point)
-	var rect win.RECT
-	win.GetClientRect(wd.hwnd, &rect)
 	return point.X, point.Y
 }
 
