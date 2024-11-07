@@ -86,8 +86,8 @@ func (c *Camera) Move(x, y, z float64, q *lin.Q) {
 	c.at.Loc.Z += dz
 }
 
-// Lookat returns an orientation which is good for flying around.
-// It is a combination of Pitch and Yaw.
+// Lookat returns the current camera rotation.
+// The rotation is created from Pitch and Yaw.
 func (c *Camera) Lookat() *lin.Q { return c.at.Rot }
 
 // SetPitch sets the rotation around the X axis and updates

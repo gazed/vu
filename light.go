@@ -31,7 +31,7 @@ func (e *Entity) AddLight(lightType int) *Entity {
 
 	// lights must be set directly on scenes
 	if s := e.app.scenes.get(e.eid); s != nil {
-		me := e.addPart() // add a transform node for the light.
+		me := e.AddPart() // add a transform node for the light.
 		if l := me.app.lights.create(me, e, lightType); l != nil {
 			return me
 		}

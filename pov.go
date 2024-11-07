@@ -204,14 +204,14 @@ func (e *Entity) SetScale(x, y, z float64) *Entity {
 	return e
 }
 
-// addPart creates a new entity with a point-of-view component (pov).
+// AddPart creates a new entity with a point-of-view component (pov).
 // A pov adds a location and orientation to an entity. The entity can
 // now be positioned and rotated.
 //
 // The entity is also added to the scene graph so that this entities
 // world pov is affected by its parents and will also affect any
 // child entities created from this one.
-func (e *Entity) addPart() *Entity {
+func (e *Entity) AddPart() *Entity {
 	eid := e.app.eids.create()
 	e.app.povs.create(eid, e.eid) // add new entity to parent.
 	return &Entity{app: e.app, eid: eid}

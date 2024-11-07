@@ -22,7 +22,7 @@ import (
 // texture atlas. The mesh is calculated from the string once the font
 // assets have loaded.
 func (e *Entity) AddLabel(s string, wrap int, assets ...string) (me *Entity) {
-	me = e.addPart() // add a transform node for the label.
+	me = e.AddPart() // add a transform node for the label.
 	if mod := me.app.models.createLabel(s, wrap, me); mod != nil {
 		mod.getAssets(me, assets...)
 

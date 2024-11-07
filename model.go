@@ -17,7 +17,7 @@ import (
 
 // AddModel adds a new transform with a model component to the given entity.
 func (e *Entity) AddModel(assets ...string) (me *Entity) {
-	me = e.addPart() // add a transform node for the model.
+	me = e.AddPart() // add a transform node for the model.
 	if mod := me.app.models.create(me); mod != nil {
 		mod.req = strings.Join(assets, ",")
 		mod.getAssets(me, assets...)
@@ -29,7 +29,7 @@ func (e *Entity) AddModel(assets ...string) (me *Entity) {
 // instances of the parent model. The parent model will be rendered
 // for each childs transform data.
 func (e *Entity) AddInstancedModel(assets ...string) (me *Entity) {
-	me = e.addPart() // add a transform node
+	me = e.AddPart() // add a transform node
 	if mod := me.app.models.create(me); mod != nil {
 		mod.getAssets(me, assets...)
 		mod.isInstanced = true
