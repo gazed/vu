@@ -90,6 +90,10 @@ func (c *Camera) Move(x, y, z float64, q *lin.Q) {
 // The rotation is created from Pitch and Yaw.
 func (c *Camera) Lookat() *lin.Q { return c.at.Rot }
 
+// SetLook directly sets the camera orientation to the given quaternion.
+// The orientation will be overwritten with new calls to SetPitch and SetYaw.
+func (c *Camera) SetLook(q *lin.Q) { c.at.Rot.Set(q) }
+
 // SetPitch sets the rotation around the X axis and updates
 // the Look direction. The camera instance is returned.
 func (c *Camera) SetPitch(deg float64) *Camera {
