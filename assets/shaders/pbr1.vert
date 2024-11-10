@@ -48,8 +48,9 @@ void main() {
     dto.texcoord = texcoord;
 
     // calcuate unit normal in world space
-    mat4 mvm = su.view * mu.model; // view-model matrix.
-    dto.normal = normalize((mvm * vec4(normal, 0)).xyz);
+	// TODO create the normal matix once on the CPU and pass in as a uniform.
+	mat4 nmat = transpose(inverse(mu.model));
+    dto.normal = normalize((nmat * vec4(normal, 0)).xyz);
 
     // calculate vertex world space position
     dto.world_pos = (mu.model * vec4(position, 1.0)).xyz;
