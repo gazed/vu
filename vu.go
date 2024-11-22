@@ -268,7 +268,7 @@ func (eng *Engine) SetResizeListener(resizer Resizer) {
 	eng.app.resizer = resizer
 }
 
-// ToggleFullscreen switches between a borderless fullscren window and
+// ToggleFullscreen switches between a borderless fullscreen window and
 // a bordered window.
 func (eng *Engine) ToggleFullscreen() {
 	eng.dev.ToggleFullscreen()

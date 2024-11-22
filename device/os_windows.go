@@ -23,12 +23,6 @@ type windowsDevice struct {
 	hwnd      win.HWND      // window handle
 	windowed  bool          // window bordered vs full screen
 	title     string        // window with border title
-	windx     int32         // window with border bottom left corner
-	windy     int32         // window with border bottom left corner
-	windw     int32         // window with border width
-	windh     int32         // window with border height
-	fullw     int32         // fullscreen width
-	fullh     int32         // fullscreen height
 }
 
 // newPlatform gets the platform specific window and input handler.
@@ -43,12 +37,14 @@ func (wd *windowsDevice) init(windowed bool, title string, x int32, y int32, w i
 	runtime.LockOSThread()
 	wd.windowed = windowed
 	wd.title = title
-	wd.windx = x
-	wd.windy = y
-	wd.windw = w
-	wd.windh = h
-	wd.fullw = win.GetSystemMetrics(win.SM_CXSCREEN)
-	wd.fullh = win.GetSystemMetrics(win.SM_CYSCREEN)
+
+	// set global variable to track display size and position.
+	display.x = x
+	display.y = y
+	display.w = w
+	display.h = h
+	display.fw = win.GetSystemMetrics(win.SM_CXSCREEN)
+	display.fh = win.GetSystemMetrics(win.SM_CYSCREEN)
 }
 
 // GetRenderSurfaceInfo exposes the windows API specific information
@@ -69,6 +65,20 @@ var input = &Input{
 	Released: map[int32]time.Duration{},
 }
 var userShutdown bool = false // set to true if the user closes the window.
+
+// display is an internal global variable to track display size and position.
+// It is used to restore the bordered window size when exiting fullscreen.
+var display struct {
+	x  int32 // window with border bottom left corner
+	y  int32 // window with border bottom left corner
+	w  int32 // window with border width
+	h  int32 // window with border height
+	fw int32 // fullscreen width
+	fh int32 // fullscreen height
+
+	// used to ignore extra WM_SIZE message when going fullscreen.
+	toggledFull bool // set when calling toggle to fullscreen.
+}
 
 // resizeHandler processes resize events immediately since the windows loop
 // shuts down on MINIMIZED events
@@ -112,19 +122,18 @@ func (wd *windowsDevice) createDisplay() error {
 	var wx, wy, ww, wh int32
 	styleEx := uint32(win.WS_EX_APPWINDOW)
 	if wd.windowed {
-		style = uint32(win.WS_OVERLAPPED | win.WS_CAPTION | win.WS_SYSMENU | win.WS_THICKFRAME)
+		style = uint32(win.WS_CAPTION | win.WS_SYSMENU | win.WS_THICKFRAME)
 
 		// adjust the window dimensions to accommodate the window frame.
-		border := win.RECT{0, 0, 0, 0}
+		border := win.RECT{display.x, display.y, display.x + display.w, display.y + display.h}
 		win.AdjustWindowRectEx(&border, style, false, styleEx)
-		wd.windw += border.Right - border.Left
-		wd.windh += border.Bottom - border.Top
-		wd.windx += border.Left
-		wd.windy += border.Top
-		wx, wy, ww, wh = wd.windx, wd.windy, wd.windw, wd.windh
+		ww = border.Right - border.Left
+		wh = border.Bottom - border.Top
+		wx = border.Left
+		wy = border.Top
 	} else {
 		style = uint32(win.WS_POPUP | win.WS_VISIBLE)
-		wx, wy, ww, wh = 0, 0, wd.fullw, wd.fullh
+		wx, wy, ww, wh = 0, 0, display.fw, display.fh
 	}
 
 	// create the application window.
@@ -174,11 +183,23 @@ func winProcessMsg(hwnd win.HWND, msg uint32, wParam uintptr, lParam uintptr) ui
 		win.PostQuitMessage(0) // generates WM_QUIT message
 		return 0
 	case win.WM_SIZE:
+		// called when resizing a window or when changing between
+		// fullscreen and non-fullscreen. Remembers non-fullscreen resizes.
 		if resizeHandler != nil {
+			w := int32(win.LOWORD(uint32(lParam)))
+			h := int32(win.HIWORD(uint32(lParam)))
+			if !(w == display.fw && h == display.fh) && !display.toggledFull {
+				display.w, display.h = w, h
+			}
 			resizeHandler()
 		}
 	case win.WM_EXITSIZEMOVE:
+		// called when a window move has finished.
+		// to remember screen moves
 		if resizeHandler != nil {
+			var point win.POINT              // upper left is point 0:0
+			win.ClientToScreen(hwnd, &point) // get the screen pixel location
+			display.x, display.y = point.X, point.Y
 			resizeHandler()
 		}
 		return 0
@@ -276,18 +297,30 @@ func (wd *windowsDevice) dispose() {
 
 // surfaceSize implements Device.
 func (wd *windowsDevice) surfaceSize() (w, h uint32) {
-	var rect win.RECT
-	win.GetClientRect(wd.hwnd, &rect)
-	w = uint32(rect.Right - rect.Left)
-	h = uint32(rect.Bottom - rect.Top)
-	return w, h
+	if wd.isFullscreen() {
+		return uint32(display.fw), uint32(display.fh)
+	}
+	return uint32(display.w), uint32(display.h)
 }
 
 // surfaceLocation implements Device.
 func (wd *windowsDevice) surfaceLocation() (x, y int32) {
-	var point win.POINT                 // upper left is point 0:0
-	win.ClientToScreen(wd.hwnd, &point) // get the screen pixel location
-	return point.X, point.Y
+	if wd.isFullscreen() {
+		return 0, 0
+	}
+	return display.x, display.y
+}
+
+// isFullscreen is an internal utility method.
+// FUTURE: expose when needed.
+func (wd *windowsDevice) isFullscreen() bool {
+	var a, b win.RECT
+	win.GetWindowRect(wd.hwnd, &a)
+	win.GetWindowRect(win.GetDesktopWindow(), &b)
+	return a.Left == b.Left &&
+		a.Top == b.Top &&
+		a.Right == b.Right &&
+		a.Bottom == b.Bottom
 }
 
 // isRunning implement Device.
@@ -338,15 +371,24 @@ func (wd *windowsDevice) toggleFullscreen() {
 	wd.windowed = !wd.windowed
 	if wd.windowed {
 		// enter bordered window.
-		style := uint32(win.WS_OVERLAPPED | win.WS_CAPTION | win.WS_SYSMENU | win.WS_THICKFRAME | win.WS_VISIBLE | win.WS_CLIPCHILDREN)
+		display.toggledFull = false
+		style := uint32(win.WS_CAPTION | win.WS_SYSMENU | win.WS_THICKFRAME)
 		win.SetWindowLongPtr(wd.hwnd, win.GWL_STYLE, uintptr(style))
-		wx, wy, ww, wh := wd.windx, wd.windy, wd.windw, wd.windh
+
+		// set the previous size and location.
+		border := win.RECT{display.x, display.y, display.x + display.w, display.y + display.h}
+		win.AdjustWindowRectEx(&border, style, false, 0)
+		ww := border.Right - border.Left
+		wh := border.Bottom - border.Top
+		wx := border.Left
+		wy := border.Top
 		win.SetWindowPos(wd.hwnd, 0, wx, wy, ww, wh, win.SWP_FRAMECHANGED|win.SWP_SHOWWINDOW)
 	} else {
 		// enter fullscreen window.
+		display.toggledFull = true
 		style := uint32(win.WS_POPUP | win.WS_VISIBLE)
 		win.SetWindowLongPtr(wd.hwnd, win.GWL_STYLE, uintptr(style))
-		ww, wh := wd.fullw, wd.fullh
+		ww, wh := display.fw, display.fh
 		win.SetWindowPos(wd.hwnd, 0, 0, 0, ww, wh, win.SWP_FRAMECHANGED|win.SWP_SHOWWINDOW)
 	}
 }
