@@ -43,6 +43,8 @@ package shaders
 //go:generate glslc sdf.frag -o sdf.frag.spv
 
 // 2D shaders
+//go:generate glslc col2D.vert -o col2D.vert.spv
+//go:generate glslc col2D.frag -o col2D.frag.spv
 //go:generate glslc icon.vert -o icon.vert.spv
 //go:generate glslc icon.frag -o icon.frag.spv
 //go:generate glslc label.vert -o label.vert.spv
