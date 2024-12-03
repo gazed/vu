@@ -394,14 +394,14 @@ func (l *assetLoader) loadDefaultAssets(rc render.Loader) (err error) {
 	slog.Debug("vu built-in", "asset", "tex:"+t.label(), "id", t.tid)
 
 	// create a basic shader as the first shader.
-	s := newShader("tex3D")
-	s.config, err = load.ShaderConfig("tex3D.shd")
+	s := newShader("icon")
+	s.config, err = load.ShaderConfig("icon.shd")
 	if err != nil {
-		return fmt.Errorf("load.ShaderConfig tex3D.shd: %w", err)
+		return fmt.Errorf("load.ShaderConfig icon.shd: %w", err)
 	}
 	s.sid, err = rc.LoadShader(s.config)
 	if err != nil {
-		return fmt.Errorf("LoadShader tex3D: %w", err)
+		return fmt.Errorf("LoadShader icon: %w", err)
 	}
 	l.assets[s.aid()] = s
 	slog.Debug("vu built-in", "asset", "shd:"+s.label(), "id", s.sid)
