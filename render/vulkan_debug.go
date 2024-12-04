@@ -28,8 +28,10 @@ func init() {
 			}
 		}
 
-		// validation layers are expected to be found in developer builds
-		// Install the LunarG Vulkan SDK if they are missing
-		return layers, fmt.Errorf("khronos validation layer not found")
+		// complain, but continue. This may be a debug load running on
+		// a testers machine that does not have the vulkan SDK.
+		// Install the LunarG Vulkan SDK where appropriate.
+		slog.Error("khronos validation layer not found")
+		return layers, nil
 	}
 }

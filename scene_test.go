@@ -39,9 +39,9 @@ func TestScene(t *testing.T) {
 		app := newApplication()
 		app.ld.loadDefaultAssets(rc) // direct loads (no goroutine)
 		scene := app.addScene(Scene3D)
-		scene.AddModel("shd:tex3D", "msh:cube", "tex:color:test")
-		scene.AddModel("shd:tex3D", "msh:icon", "tex:color:test")
-		scene.AddModel("shd:tex3D", "msh:quad", "tex:color:test")
+		scene.AddModel("shd:icon", "msh:cube", "tex:color:test")
+		scene.AddModel("shd:icon", "msh:icon", "tex:color:test")
+		scene.AddModel("shd:icon", "msh:quad", "tex:color:test")
 
 		// check passes
 		passes := app.scenes.getFrame(app, app.frame)

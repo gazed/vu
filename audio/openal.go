@@ -26,9 +26,11 @@ type openal struct {
 // init runs the one time openal library initialization. It is expected to
 // be called once by the engine on startup.
 func (a *openal) init() (err error) {
-	al.Init()
+	if err := al.Init(); err != nil {
+		return fmt.Errorf("openal init %s", err)
+	}
 	if err = a.validate(); err != nil {
-		return fmt.Errorf("%s", err)
+		return fmt.Errorf("openal validate %s", err)
 	}
 
 	// Open the audio device create a context for all sounds.

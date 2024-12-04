@@ -123,10 +123,12 @@ var (
 )
 
 // bind the methods to the function pointers
-func Init() {
-	// Library
-	// libopenal32 = windows.NewLazyDLL("OpenAL32.dll")
-	libopenal32 = windows.NewLazyDLL("soft_oal.dll")
+func Init() error {
+	audiolib := "soft_oal.dll" // previously "OpenAL32.dll"
+	libopenal32 = windows.NewLazyDLL(audiolib)
+	if libopenal32.Load() != nil {
+		return fmt.Errorf("missing %s", audiolib)
+	}
 
 	// Functions AL/al.h
 	alEnable = libopenal32.NewProc("alEnable")
@@ -224,6 +226,7 @@ func Init() {
 	alcCaptureStart = libopenal32.NewProc("alcCaptureStart")
 	alcCaptureStop = libopenal32.NewProc("alcCaptureStop")
 	alcCaptureSamples = libopenal32.NewProc("alcCaptureSamples ")
+	return nil
 }
 
 // AL/al.h constants (with AL_ removed). Refer to the original header for constant documentation.
