@@ -85,6 +85,14 @@ type AssetData struct {
 	Data     interface{} // struct of loaded data.
 }
 
+// ReadFile can be overridden by the app to use other
+// options than loading files from the file system.
+// Eg: the app can use a go:embed FS.
+var ReadFile func(string) ([]byte, error) = osReadFile
+
+// osReadFile is the default file system reader.
+func osReadFile(filepath string) ([]byte, error) { return os.ReadFile(filepath) }
+
 // getData returns the raw bytes in the requested file.
 //
 //	filename: name of the file including the file extension.
@@ -95,7 +103,7 @@ func getData(filename string) (data []byte, err error) {
 		assetDir = dir
 	}
 	filepath := strings.TrimSpace(path.Join(assetDir, filename))
-	return os.ReadFile(filepath)
+	return ReadFile(filepath)
 }
 
 // getFileExtension returns the given filename extension
