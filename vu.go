@@ -40,6 +40,7 @@ import (
 // the engine.
 func NewEngine(config ...Attr) (eng *Engine, err error) {
 	eng = &Engine{}
+	eng.SetFrameLimit(60) // default FPS throttle
 
 	// apply configuration overrides to the defaults.
 	cfg := configDefaults
@@ -107,6 +108,17 @@ func (eng *Engine) ImportAssets(assetFilenames ...string) {
 	eng.app.ld.importAssetData(assetFilenames...)
 }
 
+// SetFrameLimit throttles the engine to the given frames-per-second
+// This reduces GPU usage when the actual FPS is higher than the given limit.
+// It will not make the engine faster if the actual FPS is lower than
+// the given limit. Throttle limits less than 30FPS and greater than 240FPS
+// are ignored.
+func (eng *Engine) SetFrameLimit(limit int) {
+	if limit >= 30 && limit <= 240 {
+		eng.throttle = time.Duration(float64(time.Second) / float64(limit))
+	}
+}
+
 // =============================================================================
 
 // Engine controls the engine subsystems and the run loop.
@@ -119,8 +131,9 @@ type Engine struct {
 	app *application    // User application resources and state
 
 	// Track time each refresh cycle to ensure fixed timestamp updates.
-	suspended bool // true if updating the game state is on hold.
-	running   bool // true if engine is alive.
+	suspended bool          // true if updating the game state is on hold.
+	running   bool          // true if engine is alive.
+	throttle  time.Duration // FPS throttle.
 }
 
 // Updator is responsible for updating application state each render frame.
@@ -142,6 +155,7 @@ type Updator interface {
 var (
 	timestep     = time.Duration(16666667) // nanoseconds for 16.7ms
 	timestepSecs = timestep.Seconds()
+	startTime    = time.Now()
 )
 
 // Run the game engine. This method starts the game loop and does not
@@ -218,9 +232,13 @@ func (eng *Engine) Run(updator Updator) {
 			// frame complete, remember the start of this frame.
 			previousFrameStart = frameStart
 
-			// Small sleep to rest the CPU.
+			// throttle to rest the CPU/GPU.
 			// Requires go1.23+ to get 1ms pecision on windows. See go issue #44343.
-			time.Sleep(2 * time.Millisecond) // briefly release thread
+			extra := eng.throttle - time.Since(frameStart) // FPS throttle
+			extra = extra - extra%10_000                   // round down for wiggle room.
+			if extra > 0 {
+				time.Sleep(extra)
+			}
 		}
 	}
 	eng.dispose()
