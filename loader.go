@@ -223,6 +223,11 @@ func (l *assetLoader) loadAssets(rc render.Loader, ac audio.Loader) (assetsCreat
 				case *load.AudioData:
 					assetsCreated += 1
 					s := newSound(name)
+					s.data.Channels = data.Attrs.Channels
+					s.data.SampleBits = data.Attrs.SampleBits
+					s.data.Frequency = data.Attrs.Frequency
+					s.data.DataSize = data.Attrs.DataSize
+					s.data.AudioData = append(s.data.AudioData, data.Data...)
 					err = ac.LoadSound(&s.sid, &s.did, s.data) // upload audio data to audio device
 					if err != nil {
 						slog.Error("LoadSound failed", "error", err)

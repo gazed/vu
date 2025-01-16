@@ -45,6 +45,7 @@ func main() {
 
 	examples := []example{
 		{"au", "Audio", au},                // test audio bindings.
+		{"ax", "Engine Audio", ax},         // test engine audio.
 		{"vv", "Vulkan Version", vv},       // test vulkan availability and version
 		{"sh", "Simple Shell", sh},         // test device package.
 		{"kc", "Keyboard Controller", kc},  // test 2D render

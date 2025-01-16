@@ -83,7 +83,7 @@ func (a *openal) setGain(zeroToOne float64) {
 // with valid references.
 func (a *openal) loadSound(snd, buff *uint64, d *Data) (err error) {
 	if alerr := al.GetError(); alerr != al.NO_ERROR {
-		slog.Error("openal.BindSound find and fix prior error", "error", alerr)
+		slog.Error("openal.loadSound find and fix prior error", "error", alerr)
 	}
 
 	// create the sound buffer and copy the audio data into the buffer
@@ -138,7 +138,7 @@ func (a *openal) format(d *Data) (format int32, err error) {
 		format = al.FORMAT_STEREO16
 	}
 	if format < 0 {
-		err = fmt.Errorf("openal:format cannot recognize audio format")
+		err = fmt.Errorf("openal:unknown audio format Channels:%d SampleBits:%d", d.Channels, d.SampleBits)
 	}
 	return format, err
 }

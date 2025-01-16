@@ -89,15 +89,18 @@ func (eng *Engine) AddScene(st SceneType) *Entity {
 	return eng.app.addScene(st) // app does the real work.
 }
 
-// AddSound loads audio data and returns a unique sound identifier.
+// AddSound creates an entity from the named sound asset.
+// The name is the sound asset filename without the .wav extension.
+//
 // Passing the sound identifier to an entity PlaySound() method will
 // assigned using SetListener(). Sounds are louder the closer the
 // played sound to the sound listener.
-//
-//	name is the sound asset filename without the .wav extension.
-func (eng *Engine) AddSound(name string) (soundID uint32) {
-	eid := eng.app.sounds.create(eng.app.eids, name)
-	return uint32(eid)
+func (eng *Engine) AddSound(name string) (sound *Entity) {
+	eid := eng.app.sounds.create(eng.app.eids, name) // new sound entity.
+
+	// get the asset for this entity once it has been loaded.
+	eng.app.ld.getAsset(assetID(aud, name), eid, eng.app.sounds.assetLoaded)
+	return &Entity{app: eng.app, eid: eid} // return the sound entity.
 }
 
 // ImportAssets creates assets from the given asset files.
