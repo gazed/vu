@@ -589,6 +589,7 @@ func (vr *vulkanRenderer) createSwapchain() (err error) {
 		Clipped:          true,
 		OldSwapchain:     0,
 	}
+
 	// TODO allow separate present and graphic queues
 	// if vr.graphicsQIndex != vr.presentQIndex {
 	// 	swapchainInfo.ImageSharingMode = vk.SHARING_MODE_CONCURRENT
@@ -975,8 +976,7 @@ func (vr *vulkanRenderer) createBuffer(buff *vulkanBuffer, size vk.DeviceSize,
 		return fmt.Errorf("vk.CreateBuffer: %w", err)
 	}
 	if buff.handle == 0 {
-		// TODO debug why handle is sometimes 0....
-		// currently open issue with vulkan bindings author, but likely something I'm doing.
+		// Check is here because there was a bug in the original vulkan bindings.
 		return fmt.Errorf("vk.CreateBuffer: 0 handle: %+v", buffInfo)
 	}
 
@@ -1154,7 +1154,7 @@ func (vr *vulkanRenderer) loadMeshes(meshes []load.MeshData) (mids []uint32, err
 	return mids, nil
 }
 
-// TODO handle deallocates using linked lists.
+// FUTURE: handle deallocates using linked lists.
 // For now never deallocate so that the lastMesh is always valid.
 func (vr *vulkanRenderer) dropMesh(mid uint32) {}
 
@@ -1195,7 +1195,36 @@ func (vr *vulkanRenderer) loadInstanceData(data []load.Buffer) (iid uint32, err 
 	return iid, nil
 }
 
-// TODO handle deallocates using linked lists.
+// updateInstanceData : see docs on render:UpdateInstanceData
+func (vr *vulkanRenderer) updateInstanceData(iid uint32, data []load.Buffer) (err error) {
+	if int(iid) >= len(vr.instances) {
+		return fmt.Errorf("updateInstanceData invalid ID: %d", iid)
+	}
+	inst := vr.instances[iid]
+
+	// check that the buffer data matches.
+	for i := 0; i < load.InstanceTypes; i++ {
+		if inst[i].count != data[i].Count {
+			return fmt.Errorf("updateInstanceData count mismatch %d %d", inst[i].count, data[i].Count)
+		}
+		if inst[i].stride != data[i].Stride {
+			return fmt.Errorf("updateInstanceData stride mismatch %d %d", inst[i].stride, data[i].Stride)
+		}
+	}
+
+	// everything matches, so re-upload data.
+	for i := 0; i < load.InstanceTypes; i++ {
+		if data[i].Count > 0 {
+			// upload data - existing instance data remains the same: count, stride, offset
+			buff := &vr.instanceBuffers[i]
+			offset := uint64(inst[i].offset)
+			vr.uploadData(vr.graphicsQCmdPool, vr.graphicsQ, buff, offset, data[i].Data)
+		}
+	}
+	return nil // everything ok.
+}
+
+// FUTURE: handle deallocates using linked lists.
 // For now never deallocate so that the lastMesh is always valid.
 func (vr *vulkanRenderer) dropInstanceData(iid uint32) {}
 
@@ -1241,7 +1270,7 @@ func (vr *vulkanRenderer) drawInstancedMesh(frame *vulkanFrame, mid, instID, ins
 		return
 	}
 	vmsh := vr.meshes[mid]
-	if instID < 0 || instID >= uint32(len(vr.instances)) {
+	if instID >= uint32(len(vr.instances)) {
 		slog.Error("invalid instance ID", "inst_ID", instID)
 		return
 	}
@@ -1548,10 +1577,7 @@ func (vr *vulkanRenderer) dropTexture(tid uint32) {
 	}
 }
 
-// TODO
-// Warning... must not be an actively used textured.
-//
-//	... must be the same size as the existing texture.
+// updateTexture : see docs on render:UpdateTexture
 func (vr *vulkanRenderer) updateTexture(tid, width, height uint32, pixels []byte) (err error) {
 	if tid >= uint32(len(vr.textures)) {
 		return fmt.Errorf("updateTexture invalid texture ID %d", tid)

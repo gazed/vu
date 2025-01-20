@@ -53,6 +53,21 @@ func (e *Entity) SetInstanceData(eng *Engine, count uint32, data []load.Buffer) 
 	return e
 }
 
+// UpdateInstanceData updates the instance data for an instanced model.
+// This should only be done on instance data that has already been set and is
+// not currently being rendered. The data attributes, sizes, and number of instances
+// must match the original instance data.
+func (e *Entity) UpdateInstanceData(eng *Engine, data []load.Buffer) (me *Entity) {
+	if mod := e.app.models.get(e.eid); mod != nil && mod.isInstanced && mod.instanceID >= 0 {
+		if err := eng.rc.UpdateInstanceData(mod.instanceID, data); err != nil {
+			slog.Error("UpdateInstanceData", "error", err)
+		}
+		return e
+	}
+	slog.Error("UpdateInstanceData needs AddInstancedModel and SetInstanceData", "eid", e.eid)
+	return e
+}
+
 // SetColor sets the solid color for this model - not the texture
 // color information. This affects shaders like pbr0 and label
 // that use model uniform "color" The color is passed per object

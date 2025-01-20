@@ -96,7 +96,9 @@ func (c *Context) LoadTexture(img *load.ImageData) (tid uint32, err error) {
 }
 
 // UpdateTexture updates the GPU texture data for the given texture ID.
-// Ignore textures that are not exactly the same size as the existing texture.
+// Do not update Textures that are being rendered. Double buffer the textures
+// to update a texture and then swap for the rendered texture. UpdateTexture
+// ignores textures that are not exactly the same size as the existing texture.
 func (c *Context) UpdateTexture(tid uint32, img *load.ImageData) (err error) {
 	return c.renderer.updateTexture(tid, img.Width, img.Height, img.Pixels)
 }
@@ -125,6 +127,14 @@ func (c *Context) DropMesh(mid uint32) { c.renderer.dropMesh(mid) }
 // LoadInstanceData allocates GPU resources for the instanced mesh data.
 func (c *Context) LoadInstanceData(data []load.Buffer) (iid uint32, err error) {
 	return c.renderer.loadInstanceData(data)
+}
+
+// UpdateInstanceData updates the GPU instance data for the given instance data ID.
+// Do not update instance data that is being rendered. Double buffer the instance
+// data and then swap with the rendered instance data. UpdateInstanceData ignores data
+// buffers that are not exactly the same sizes and types as the existing data buffers.
+func (c *Context) UpdateInstanceData(iid uint32, data []load.Buffer) (err error) {
+	return c.renderer.updateInstanceData(iid, data)
 }
 
 // DropInstanced discards the instanced resources.
@@ -191,6 +201,7 @@ type renderAPI interface {
 	// load instance data for an instanced mesh.
 	// return an identifier for the instance data.
 	loadInstanceData(data []load.Buffer) (iid uint32, err error)
+	updateInstanceData(iid uint32, data []load.Buffer) (err error)
 	dropInstanceData(iid uint32)
 }
 
