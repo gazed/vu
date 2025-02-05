@@ -295,6 +295,16 @@ func (eng *Engine) ToggleFullscreen() {
 	eng.dev.ToggleFullscreen()
 }
 
+// Mute toggles the sound volume.
+// Engine attribute for use in Eng.Set().
+func (eng *Engine) Mute(mute bool) {
+	gain := 1.0
+	if mute {
+		gain = 0.0
+	}
+	eng.ac.SetGain(gain)
+}
+
 // MakeMeshes loads application generated mesh data.
 func (eng *Engine) MakeMeshes(name string, meshes []load.MeshData) (err error) {
 	mids, err := eng.rc.LoadMeshes(meshes) // upload all mesh data.

@@ -38,7 +38,7 @@ Build and Test
 
 * Go version 1.23 or later.
 * Vulkan version 1.3 or later, and vulkan validation layer from the SDK at https://www.lunarg.com/vulkan-sdk/
-* OpenAL (https://openal.org) latest 64-bit version `soft_oal.dll` from https://openal-soft.org/openal-binaries/
+* OpenAL (https://openal.org) latest 64-bit version `OpenAL32.dll`+`soft_oal.dll` from https://openal-soft.org/openal-binaries/
 * `glslc` executable from https://github.com/google/shaderc is needed to build shaders in `vu/assets/shaders`.
 
 Credit Where Credit is Due

@@ -8,16 +8,19 @@
 // Package al is provided as part of the vu (virtual universe) 3D engine.
 package al
 
-// OpenAL: https://openal.org
-// Requires the 64-bit soft_oal.dll from:
-// o https://openal-soft.org/openal-binaries/
+// OpenAL: https://openal.org (not using their installer)
+// Requires the 64-bit OpenAL32.dll router and soft_oal.dll from:
+// https://openal-soft.org/openal-binaries/
+// - router/Win64/OpenAL32.dll
+// - bin/Win64/soft_oal.dll
+// Copy the DLLs to the C:/Windows/system32 folder
 
 import (
 	"fmt"
+	"math"
 	"syscall"
 	"unsafe"
 
-	"github.com/gazed/vu/internal/device/win"
 	"golang.org/x/sys/windows"
 )
 
@@ -124,7 +127,7 @@ var (
 
 // bind the methods to the function pointers
 func Init() error {
-	audiolib := "soft_oal.dll" // previously "OpenAL32.dll"
+	audiolib := "OpenAL32.dll"
 	libopenal32 = windows.NewLazyDLL(audiolib)
 	if libopenal32.Load() != nil {
 		return fmt.Errorf("missing %s", audiolib)
@@ -325,8 +328,8 @@ const (
 	C_CAPTURE_SAMPLES                  = 0x312
 )
 
-func UTF16PtrToString(s *uint16) string {
-	return windows.UTF16PtrToString(s)
+func BytePtrToString(s *byte) string {
+	return windows.BytePtrToString(s)
 }
 
 // convert a uint boolean to a go bool
@@ -359,7 +362,7 @@ func IsEnabled(capability int32) bool {
 func GetString(param int32) string {
 	ret, _, _ := syscall.SyscallN(alGetString.Addr(),
 		uintptr(param))
-	return win.UTF16PtrToString((*uint16)(unsafe.Pointer(ret)))
+	return BytePtrToString((*byte)(unsafe.Pointer(ret)))
 }
 func GetBooleanv(param int32, data *int8) {
 	syscall.SyscallN(alGetBooleanv.Addr(),
@@ -408,46 +411,46 @@ func GetError() int32 {
 }
 
 func IsExtensionPresent(extname string) bool {
-	str16, err := syscall.UTF16PtrFromString(extname)
+	str8, err := syscall.BytePtrFromString(extname)
 	if err != nil {
 		return false
 	}
 	ret, _, _ := syscall.SyscallN(alIsExtensionPresent.Addr(),
-		uintptr(unsafe.Pointer(str16)))
+		uintptr(unsafe.Pointer(str8)))
 	return ret == TRUE
 }
 
 func GetProcAddress(fname string) Pointer {
-	str16, err := syscall.UTF16PtrFromString(fname)
+	str8, err := syscall.BytePtrFromString(fname)
 	if err != nil {
 		return nil
 	}
 	ret, _, _ := syscall.SyscallN(alGetProcAddress.Addr(),
-		uintptr(unsafe.Pointer(str16)))
+		uintptr(unsafe.Pointer(str8)))
 	return Pointer(ret)
 }
 
 func GetEnumValue(ename string) int32 {
-	str16, err := syscall.UTF16PtrFromString(ename)
+	str8, err := syscall.BytePtrFromString(ename)
 	if err != nil {
 		return -1
 	}
 	ret, _, _ := syscall.SyscallN(alGetEnumValue.Addr(),
-		uintptr(unsafe.Pointer(str16)))
+		uintptr(unsafe.Pointer(str8)))
 	return int32(ret)
 }
 
 func Listenerf(param int32, value float32) {
 	syscall.SyscallN(alListenerf.Addr(),
 		uintptr(param),
-		uintptr(value))
+		uintptr(math.Float32bits(value)))
 }
 func Listener3f(param int32, value1, value2, value3 float32) {
 	syscall.SyscallN(alListener3f.Addr(),
 		uintptr(param),
-		uintptr(value1),
-		uintptr(value2),
-		uintptr(value3))
+		uintptr(math.Float32bits(value1)),
+		uintptr(math.Float32bits(value2)),
+		uintptr(math.Float32bits(value3)))
 }
 func Listenerfv(param int32, values *float32) {
 	syscall.SyscallN(alListenerfv.Addr(),
@@ -524,15 +527,15 @@ func Sourcef(sid uint32, param int32, value float32) {
 	syscall.SyscallN(alSourcef.Addr(),
 		uintptr(sid),
 		uintptr(param),
-		uintptr(value))
+		uintptr(math.Float32bits(value)))
 }
 func Source3f(sid uint32, param int32, value1, value2, value3 float32) {
 	syscall.SyscallN(alSource3f.Addr(),
 		uintptr(sid),
 		uintptr(param),
-		uintptr(value1),
-		uintptr(value2),
-		uintptr(value3))
+		uintptr(math.Float32bits(value1)),
+		uintptr(math.Float32bits(value2)),
+		uintptr(math.Float32bits(value3)))
 }
 func Sourcefv(sid uint32, param int32, values *float32) {
 	syscall.SyscallN(alSourcefv.Addr(),
@@ -675,15 +678,15 @@ func Bufferf(bid uint32, param int32, value float32) {
 	syscall.SyscallN(alBufferf.Addr(),
 		uintptr(bid),
 		uintptr(param),
-		uintptr(value))
+		uintptr(math.Float32bits(value)))
 }
 func Buffer3f(bid uint32, param int32, value1, value2, value3 float32) {
 	syscall.SyscallN(alBuffer3f.Addr(),
 		uintptr(bid),
 		uintptr(param),
-		uintptr(value1),
-		uintptr(value2),
-		uintptr(value3))
+		uintptr(math.Float32bits(value1)),
+		uintptr(math.Float32bits(value2)),
+		uintptr(math.Float32bits(value3)))
 }
 func Bufferfv(bid uint32, param int32, values *float32) {
 	syscall.SyscallN(alBufferfv.Addr(),
@@ -753,19 +756,19 @@ func GetBufferiv(bid uint32, param int32, values *int32) {
 }
 func DopplerFactor(value float32) {
 	syscall.SyscallN(alDopplerFactor.Addr(),
-		uintptr(value))
+		uintptr(math.Float32bits(value)))
 }
 func DopplerVelocity(value float32) {
 	syscall.SyscallN(alDopplerVelocity.Addr(),
-		uintptr(value))
+		uintptr(math.Float32bits(value)))
 }
 func SpeedOfSound(value float32) {
 	syscall.SyscallN(alSpeedOfSound.Addr(),
-		uintptr(value))
+		uintptr(math.Float32bits(value)))
 }
 func DistanceModel(distanceModel float32) {
 	syscall.SyscallN(alDistanceModel.Addr(),
-		uintptr(distanceModel))
+		uintptr(math.Float32bits(distanceModel)))
 }
 
 // AL/alc.h go bindings
@@ -808,12 +811,12 @@ func OpenDevice(devicename string) Device {
 			uintptr(0))
 		return Device(ret)
 	}
-	str16, err := syscall.UTF16PtrFromString(devicename)
+	str8, err := syscall.BytePtrFromString(devicename)
 	if err != nil {
 		return 0
 	}
 	ret, _, _ := syscall.SyscallN(alcOpenDevice.Addr(),
-		uintptr(unsafe.Pointer(str16)))
+		uintptr(unsafe.Pointer(str8)))
 	return Device(ret)
 }
 func CloseDevice(device Device) bool {
@@ -827,44 +830,41 @@ func GetDeviceError(device Device) int32 {
 	return int32(ret)
 }
 func IsDeviceExtensionPresent(device Device, extname string) bool {
-	str16, err := syscall.UTF16PtrFromString(extname)
+	str8, err := syscall.BytePtrFromString(extname)
 	if err != nil {
 		return false
 	}
 	ret, _, _ := syscall.SyscallN(alcIsExtensionPresent.Addr(),
 		uintptr(device),
-		uintptr(unsafe.Pointer(str16)))
+		uintptr(unsafe.Pointer(str8)))
 	return ret == TRUE
 }
 func GetDeviceProcAddress(device Device, fname string) Pointer {
-	str16, err := syscall.UTF16PtrFromString(fname)
+	str8, err := syscall.BytePtrFromString(fname)
 	if err != nil {
 		return nil
 	}
 	ret, _, _ := syscall.SyscallN(alcGetProcAddress.Addr(),
 		uintptr(device),
-		uintptr(unsafe.Pointer(str16)))
+		uintptr(unsafe.Pointer(str8)))
 	return Pointer(ret)
 }
 func GetDeviceEnumValue(device Device, ename string) int32 {
-	str16, err := syscall.UTF16PtrFromString(ename)
+	str8, err := syscall.BytePtrFromString(ename)
 	if err != nil {
 		return -1
 	}
 	ret, _, _ := syscall.SyscallN(alcGetEnumValue.Addr(),
 		uintptr(device),
-		uintptr(unsafe.Pointer(str16)))
+		uintptr(unsafe.Pointer(str8)))
 	return int32(ret)
 }
-
-//	func GetDeviceString(device Device, param int32) string {
-//		ret, _, _ := syscall.SyscallN(alcGetString.Addr(), 2,
-//			uintptr(device),
-//			uintptr(param),
-//			0)
-//		return ""
-//		// return C.GoString(alcGetString((C.uintptr_t)(device), C.int(param)))
-//	}
+func GetDeviceString(device Device, param int32) string {
+	ret, _, _ := syscall.SyscallN(alcGetString.Addr(),
+		uintptr(device),
+		uintptr(param))
+	return BytePtrToString((*byte)(unsafe.Pointer(ret)))
+}
 func GetDeviceIntegerv(device Device, param int32, size int32, data *int32) {
 	syscall.SyscallN(alcGetIntegerv.Addr(),
 		uintptr(device),
@@ -873,12 +873,12 @@ func GetDeviceIntegerv(device Device, param int32, size int32, data *int32) {
 		uintptr(unsafe.Pointer(data)))
 }
 func CaptureOpenDevice(devicename string, frequency uint32, format int32, buffersize int32) Device {
-	str16, err := syscall.UTF16PtrFromString(devicename)
+	str8, err := syscall.BytePtrFromString(devicename)
 	if err != nil {
 		return 0
 	}
 	ret, _, _ := syscall.SyscallN(alcCaptureOpenDevice.Addr(),
-		uintptr(unsafe.Pointer(str16)),
+		uintptr(unsafe.Pointer(str8)),
 		uintptr(frequency),
 		uintptr(format),
 		uintptr(buffersize))
