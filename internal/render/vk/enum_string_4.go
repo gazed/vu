@@ -523,8 +523,8 @@ func _() {
 	_ = x[PIPELINE_COMPILE_REQUIRED_EXT-1000297000]
 	_ = x[ERROR_FRAGMENTATION_EXT - -1000161000]
 	_ = x[ERROR_INVALID_EXTERNAL_HANDLE_KHR - -1000072003]
-	_ = x[ERROR_INVALID_OPAQUE_CAPTURE_ADDRESS_KHR - -1000257000]
 	_ = x[ERROR_INVALID_DEVICE_ADDRESS_EXT - -1000257000]
+	_ = x[ERROR_INVALID_OPAQUE_CAPTURE_ADDRESS_KHR - -1000257000]
 	_ = x[ERROR_OUT_OF_POOL_MEMORY_KHR - -1000069000]
 	_ = x[ERROR_PIPELINE_COMPILE_REQUIRED_EXT-1000297000]
 	_ = x[ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT - -1000255000]
@@ -658,13 +658,13 @@ func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
-	_ = x[SAMPLER_CREATE_SUBSAMPLED_BIT_EXT-1000218000]
 	_ = x[SAMPLER_CREATE_SUBSAMPLED_COARSE_RECONSTRUCTION_BIT_EXT-1000218000]
+	_ = x[SAMPLER_CREATE_SUBSAMPLED_BIT_EXT-1000218000]
 }
 
-const _SamplerCreateFlagBits_name = "SAMPLER_CREATE_SUBSAMPLED_BIT_EXT"
+const _SamplerCreateFlagBits_name = "SAMPLER_CREATE_SUBSAMPLED_COARSE_RECONSTRUCTION_BIT_EXT"
 
-var _SamplerCreateFlagBits_index = [...]uint8{0, 33}
+var _SamplerCreateFlagBits_index = [...]uint8{0, 55}
 
 func (i SamplerCreateFlagBits) String() string {
 	i -= 1000218000
