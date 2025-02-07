@@ -24,8 +24,9 @@ import (
 	"golang.org/x/image/math/fixed"
 )
 
-// basic runes plus some symbols. FUTURE: make this configurable.
-var ttfRunes = []rune(" ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890`~!@#$%^&*()[]{}/=?+\\|-_.>,<'\";:")
+// TTFRunes can be overridden by the application.
+// Default: attampt to load basic runes plus some symbols.
+var TTFRunes = []rune(" ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890`~!@#$%^&*()[]{}/=?+\\|-_.>,<'\";:")
 
 // Ttf reads the truetype font and generates the atlas image and atlas
 // character mapping data.
@@ -53,10 +54,10 @@ func Ttf(ttfBytes []byte, size int) (atlas *FontAtlas, err error) {
 	penx, peny := 0, 0
 	lineHeight := face.Metrics().Height.Round()
 	XAscent := face.Metrics().Ascent.Round()
-	for _, r := range ttfRunes {
+	for _, r := range TTFRunes {
 		bounds, _, ok := face.GlyphBounds(r)
 		if !ok {
-			slog.Error("failed to find rune", "rune", r)
+			slog.Error("failed to find rune", "rune", r, "char", string(r))
 			continue
 		}
 		minX := bounds.Min.X.Floor()
