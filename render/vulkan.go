@@ -230,6 +230,14 @@ func (vr *vulkanRenderer) createInstance() (err error) {
 	return err
 }
 
+// deviceCandidate is a physical device that meets the requirements.
+type deviceCandidate struct {
+	physicalDevice vk.PhysicalDevice // the physical device
+	graphicsQIndex uint32            // queue index
+	transferQIndex uint32            // queue index
+	presentQIndex  uint32            // queue index
+}
+
 // selectPhysicalDevice finds a physical device for 3D rendering.
 func (vr *vulkanRenderer) selectPhysicalDevice() error {
 	devices, err := vk.EnumeratePhysicalDevices(vr.instance)
@@ -237,12 +245,10 @@ func (vr *vulkanRenderer) selectPhysicalDevice() error {
 		fmt.Errorf("vk.EnumeratePhysicalDevices: %w", err)
 	}
 	surface := surfaceProperties{}
+
+	candidates := []deviceCandidate{}
 	for _, d := range devices {
 		properties := vk.GetPhysicalDeviceProperties(d)
-		if properties.DeviceType != vk.PHYSICAL_DEVICE_TYPE_DISCRETE_GPU {
-			slog.Debug("missing discrete GPU")
-			break // skip any devices that are not discrete GPUs
-		}
 
 		// ensure that the device has the required queues.
 		graphicsQIndex, transferQIndex, presentQIndex := -1, -1, -1
@@ -326,17 +332,35 @@ func (vr *vulkanRenderer) selectPhysicalDevice() error {
 		}
 
 		// reaching here means that the device meets all requirements.
-		slog.Debug("vulkan device found",
-			"device_name", properties.DeviceName,
+		slog.Debug("vulkan device found", "device", d,
+			"name", properties.DeviceName,
 			"driver", vr.version(properties.DriverVersion),
 			"api", vr.version(properties.ApiVersion))
 
-		// save some of the queried data in the vulkan context
-		vr.physicalDevice = d                      // the physical device
-		vr.graphicsQIndex = uint32(graphicsQIndex) // queue index
-		vr.transferQIndex = uint32(transferQIndex) // queue index
-		vr.presentQIndex = uint32(presentQIndex)   // queue index
-		slog.Debug("vulkan physical device created",
+		// save devices that meet the requirements
+		dc := deviceCandidate{
+			physicalDevice: d,                      // the physical device
+			graphicsQIndex: uint32(graphicsQIndex), // queue index
+			transferQIndex: uint32(transferQIndex), // queue index
+			presentQIndex:  uint32(presentQIndex),  // queue index
+		}
+
+		// prefer discrete GPU if available, ie: put the discrete GPUs at the front.
+		if properties.DeviceType == vk.PHYSICAL_DEVICE_TYPE_DISCRETE_GPU {
+			candidates = append([]deviceCandidate{dc}, candidates...)
+		} else {
+			candidates = append(candidates, dc)
+		}
+	}
+
+	// save the preferred physical device in the vulkan context
+	if len(candidates) > 0 {
+		dc := candidates[0] // discrete GPU if available.
+		vr.physicalDevice = dc.physicalDevice
+		vr.graphicsQIndex = dc.graphicsQIndex
+		vr.transferQIndex = dc.transferQIndex
+		vr.presentQIndex = dc.presentQIndex
+		slog.Debug("vulkan device created", "device", vr.physicalDevice,
 			"graphicsQ", vr.graphicsQIndex,
 			"presentQ", vr.presentQIndex,
 			"transferQ", vr.transferQIndex)
