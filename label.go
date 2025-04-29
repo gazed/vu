@@ -132,13 +132,20 @@ func (f *font) setStr(str string, wrap int) (sx, sy int, md load.MeshData) {
 	// gather and arrange the letters for the phrase.
 	width, height, fh, cnt := 0, 0, 0, 0
 	for _, char := range str {
-		c := f.chars[char]
-		if c == nil {
-			// replace unavailable characters with "."
-			c = f.chars['.']
-		}
 		switch {
-		case c != nil:
+		case char == '\n':
+			// auto wrap at newlines.
+			width = 0
+			height += fh // fh set by first regular character.
+		default:
+			c := f.chars[char]
+			if c == nil {
+				// replace unavailable characters with "."
+				c = f.chars['.']
+				if c == nil {
+					continue
+				}
+			}
 			fh = c.h // remember font height for wrapping with newlines.
 			uv = append(uv, c.uvcs...)
 			xo, yo := float32(c.xOffset), float32(c.yOffset)
@@ -169,10 +176,6 @@ func (f *font) setStr(str string, wrap int) (sx, sy int, md load.MeshData) {
 			i0 := uint16(cnt * 4)
 			ix = append(ix, i0, i0+2, i0+1, i0+1, i0+2, i0+3)
 			cnt++ // count characters rendered.
-		case char == '\n':
-			// auto wrap at newlines.
-			width = 0
-			height += fh
 		}
 	}
 	md = make(load.MeshData, load.VertexTypes)

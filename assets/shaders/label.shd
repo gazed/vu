@@ -1,4 +1,4 @@
-# icon puts a texture on a 2D quad. 
+# label puts a texture on a 2D quad.
 name: label
 pass: 2D
 stages: [ vert, frag ]
