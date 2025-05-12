@@ -246,6 +246,7 @@ func (vr *vulkanRenderer) selectPhysicalDevice() error {
 	}
 	surface := surfaceProperties{}
 
+	GPU = INTEGRATED_GPU // set global default unless discrete GPU found.
 	candidates := []deviceCandidate{}
 	for _, d := range devices {
 		properties := vk.GetPhysicalDeviceProperties(d)
@@ -348,6 +349,7 @@ func (vr *vulkanRenderer) selectPhysicalDevice() error {
 		// prefer discrete GPU if available, ie: put the discrete GPUs at the front.
 		if properties.DeviceType == vk.PHYSICAL_DEVICE_TYPE_DISCRETE_GPU {
 			candidates = append([]deviceCandidate{dc}, candidates...)
+			GPU = DISCRETE_GPU // discrete GPU used when found.
 		} else {
 			candidates = append(candidates, dc)
 		}

@@ -29,6 +29,18 @@ const (
 	METAL_RENDERER                   // FUTURE: iOS, macOS, tvOS, watchOS, visionOS
 )
 
+// GPU exposes whether the selected GPU is integrated or discrete.
+// Generally discrete GPU's are more powerful.
+var GPU GPUType // set on startup by the render layer.
+
+// GPUType is a const for the two types of GPU.
+type GPUType int
+
+const (
+	INTEGRATED_GPU GPUType = iota // Separate graphics processor and memory
+	DISCRETE_GPU                  // GPU packaged with CPU and uses shared memory
+)
+
 // New creates an initialized renderer and returns a render context.
 func New(api RenderAPI, dev *device.Device, appTitle string) (rc *Context, err error) {
 	switch api {

@@ -66,6 +66,7 @@ func NewEngine(config ...Attr) (eng *Engine, err error) {
 		return nil, fmt.Errorf("render.New failed %w", err)
 	}
 	eng.rc.SetClearColor(cfg.r, cfg.g, cfg.b, cfg.a)
+	GPU = render.GPU // expose GPU type found by the render layer.
 
 	// initialize audio.
 	eng.ac = audio.New()
@@ -121,6 +122,18 @@ func (eng *Engine) SetFrameLimit(limit int) {
 		eng.throttle = time.Duration(float64(time.Second) / float64(limit))
 	}
 }
+
+// GPU is either IntegratedGPU or DiscreteGPU based on what was
+// found by the render layer. Exposed to allow the application
+// to modify itself for smooth renders on less powerful GPUs.
+var GPU render.GPUType // Set on startup after render layer is initialized.
+
+// Expose some render layer values so the render package does
+// not always need to be included.
+const (
+	IntegratedGPU = render.INTEGRATED_GPU
+	DiscreteGPU   = render.DISCRETE_GPU
+)
 
 // =============================================================================
 
