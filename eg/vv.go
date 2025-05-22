@@ -39,8 +39,8 @@ func vv() {
 		return
 	}
 	defer vk.DestroyInstance(instance, nil)
-	slog.Info("vulkan started", "instance", instance)
-	slog.Info("vulkan shutdown")
+	fmt.Printf("vulkan started successfully: %+v\n", instance)
+	fmt.Printf("vulkan shutdown\n")
 }
 
 // Helper to extract parts of the Vulkan version and convert to a string

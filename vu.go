@@ -191,9 +191,9 @@ func (eng *Engine) Run(updator Updator) {
 		// process user input.
 		eng.app.input.Clone(eng.dev.GetInput())
 		if !eng.dev.IsRunning() {
-			slog.Debug("engine shutdown!") // likely user closed window.
-			eng.Shutdown()                 //
-			break                          // exit loop to eng.dispose()
+			slog.Info("engine shutdown!") // likely user closed window.
+			eng.Shutdown()                //
+			break                         // exit loop to eng.dispose()
 		}
 
 		// run updates while game is not suspended.
@@ -227,8 +227,8 @@ func (eng *Engine) Run(updator Updator) {
 			// update the client app before each render frame
 			eng.app.updator.Update(eng, eng.app.input, delta)
 			if !eng.running {
-				slog.Debug("app shutdown!") // app called eng.Shutdown()
-				break                       // exit loop to eng.dispose()
+				slog.Info("app shutdown!") // app called eng.Shutdown()
+				break                      // exit loop to eng.dispose()
 			}
 
 			// check for any newly created assets.

@@ -150,7 +150,7 @@ func getVulkanRenderer(dev *device.Device, title string) (vr *vulkanRenderer, er
 
 	// init is done... throw it back to the application
 	// to create the shaders and upload the render data.
-	slog.Debug("vulkan initialized")
+	slog.Info("vulkan initialized")
 	return vr, err
 }
 
@@ -284,7 +284,7 @@ func (vr *vulkanRenderer) selectPhysicalDevice() error {
 			}
 		}
 		if graphicsQIndex < 0 || transferQIndex < 0 || presentQIndex < 0 {
-			slog.Debug("missing required Queues")
+			slog.Warn("missing required Queues")
 			break // missing required queue
 		}
 
@@ -293,7 +293,7 @@ func (vr *vulkanRenderer) selectPhysicalDevice() error {
 			return fmt.Errorf("querySwapchainSupport %w", err)
 		}
 		if len(surface.formats) < 1 || len(surface.presentModes) < 1 {
-			slog.Debug("missing swapchain support")
+			slog.Warn("missing swapchain support")
 			break // required swapchain suipport not present on this device.
 		}
 
@@ -310,7 +310,7 @@ func (vr *vulkanRenderer) selectPhysicalDevice() error {
 		// check that the required device extensions are available
 		for _, req := range vr.deviceExtensions {
 			if _, ok := availableExtensions[req]; !ok {
-				slog.Debug("missing required device extension", "name", req)
+				slog.Warn("missing required device extension", "name", req)
 				break // try the next device.
 			}
 		}
@@ -328,12 +328,12 @@ func (vr *vulkanRenderer) selectPhysicalDevice() error {
 		// check for required features
 		features := vk.GetPhysicalDeviceFeatures(d)
 		if !features.SamplerAnisotropy {
-			slog.Debug("missing required features")
+			slog.Warn("missing required features")
 			break // device missing samplerAnisotropy
 		}
 
 		// reaching here means that the device meets all requirements.
-		slog.Debug("vulkan device found", "device", d,
+		slog.Info("vulkan device found", "device", d,
 			"name", properties.DeviceName,
 			"driver", vr.version(properties.DriverVersion),
 			"api", vr.version(properties.ApiVersion))
@@ -362,7 +362,7 @@ func (vr *vulkanRenderer) selectPhysicalDevice() error {
 		vr.graphicsQIndex = dc.graphicsQIndex
 		vr.transferQIndex = dc.transferQIndex
 		vr.presentQIndex = dc.presentQIndex
-		slog.Debug("vulkan device created", "device", vr.physicalDevice,
+		slog.Info("vulkan device created", "device", vr.physicalDevice,
 			"graphicsQ", vr.graphicsQIndex,
 			"presentQ", vr.presentQIndex,
 			"transferQ", vr.transferQIndex)
@@ -409,7 +409,7 @@ func (vr *vulkanRenderer) createLogicalDevice() (err error) {
 	vr.transferQ = vk.GetDeviceQueue(vr.device, vr.transferQIndex, 0)
 
 	// success
-	slog.Debug("vulkan logical device created")
+	slog.Info("vulkan logical device created")
 	return nil
 }
 
@@ -528,7 +528,7 @@ func (vr *vulkanRenderer) setRenderProperties() (err error) {
 	if surface.capabilities.MaxImageCount != 0 && vr.imageCount > surface.capabilities.MaxImageCount {
 		vr.imageCount = surface.capabilities.MaxImageCount
 	}
-	slog.Debug("vulkan surface",
+	slog.Info("vulkan surface",
 		"width", vr.frameWidth, "height", vr.frameHeight,
 		"frames", vr.frameCount, "images", vr.imageCount)
 	return nil
@@ -574,7 +574,7 @@ func (vr *vulkanRenderer) createSwapchainResources() (err error) {
 			return err
 		}
 	}
-	slog.Debug("vulkan swapchain created", "images", len(vr.images))
+	slog.Info("vulkan swapchain created", "images", len(vr.images))
 	return nil
 }
 
@@ -2631,7 +2631,6 @@ func (vr *vulkanRenderer) version(v uint32) string {
 func (vr *vulkanRenderer) setSceneUniforms(shader *vulkanShader, pass Pass) {
 	for _, u := range shader.usets.index {
 		if u.scope == load.SceneScope {
-			// slog.Debug("scene uniform", "name", shader.name, "pid", u.passUID, "offset", u.offset, "len", len(pass.Uniforms[u.passUID]))
 			vr.setUniform(shader, u, 0, pass.Uniforms[u.passUID])
 		}
 	}
@@ -2641,7 +2640,6 @@ func (vr *vulkanRenderer) setSceneUniforms(shader *vulkanShader, pass Pass) {
 func (vr *vulkanRenderer) setModelUniforms(shader *vulkanShader, packet Packet) {
 	for _, u := range shader.usets.index {
 		if u.scope == load.ModelScope {
-			// slog.Debug("model uniform", "name", shader.name, "pid", u.packetUID, "offset", u.offset, "len", len(packet.Uniforms[u.packetUID]))
 			vr.setUniform(shader, u, packet.MeshID, packet.Uniforms[u.packetUID])
 		}
 	}

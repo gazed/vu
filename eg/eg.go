@@ -26,7 +26,9 @@ import (
 
 // setLogLevel keeps the default logging settings.
 // It can be overridden by debug builds.
-var setLogLevel func() = func() {}
+var setLogLevel func() = func() {
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn})))
+}
 
 // Launch the requested example or list available examples.
 // Examples are roughly ordered from simple/basic at the top of the list
