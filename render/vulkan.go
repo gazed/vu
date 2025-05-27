@@ -95,8 +95,10 @@ type vulkanRenderer struct {
 
 	// mesh vertex attribute buffers.
 	vertexBuffers []vulkanBuffer // non-interleaved.
+	maxVertexBuff []uint64       // max bytes allowed
 	// instanced model data buffers.
 	instanceBuffers []vulkanBuffer // non-interleaved.
+	maxInstanceBuff []uint64       //max bytes allowed
 
 	// application GPU resources.
 	meshes    []vulkanMesh     // application GPU mesh data
@@ -362,10 +364,7 @@ func (vr *vulkanRenderer) selectPhysicalDevice() error {
 		vr.graphicsQIndex = dc.graphicsQIndex
 		vr.transferQIndex = dc.transferQIndex
 		vr.presentQIndex = dc.presentQIndex
-		slog.Info("vulkan device created", "device", vr.physicalDevice,
-			"graphicsQ", vr.graphicsQIndex,
-			"presentQ", vr.presentQIndex,
-			"transferQ", vr.transferQIndex)
+		slog.Info("vulkan device created", "device", vr.physicalDevice, "discrete", GPU == DISCRETE_GPU)
 		return nil // found a physical device.
 	}
 	return fmt.Errorf("no physical device found")
@@ -409,7 +408,7 @@ func (vr *vulkanRenderer) createLogicalDevice() (err error) {
 	vr.transferQ = vk.GetDeviceQueue(vr.device, vr.transferQIndex, 0)
 
 	// success
-	slog.Info("vulkan logical device created")
+	slog.Debug("vulkan logical device created")
 	return nil
 }
 
@@ -574,7 +573,7 @@ func (vr *vulkanRenderer) createSwapchainResources() (err error) {
 			return err
 		}
 	}
-	slog.Info("vulkan swapchain created", "images", len(vr.images))
+	slog.Debug("vulkan swapchain created", "images", len(vr.images))
 	return nil
 }
 
@@ -818,19 +817,14 @@ func (vr *vulkanRenderer) disposeFramebuffers() {
 }
 
 // createVertexBuffers creates separate buffers for the different possible
-// mesh vertex data and triangle index data. Currently allocating:
-//   - 50Mb for vertex position
-//   - 33Mb for vertex texcoords
-//   - 12Mb for vertex colors
-//   - 50Mb for vertex normals
-//   - 16Mb for indexes
-//   - Total 161Mb
+// mesh vertex data and triangle index data.
 func (vr *vulkanRenderer) createVertexBuffers() (err error) {
 	vr.vertexBuffers = make([]vulkanBuffer, load.VertexTypes)
+	vr.maxVertexBuff = make([]uint64, load.VertexTypes)
 	flags := vk.BUFFER_USAGE_VERTEX_BUFFER_BIT | vk.BUFFER_USAGE_TRANSFER_DST_BIT | vk.BUFFER_USAGE_TRANSFER_SRC_BIT
 	props := vk.MEMORY_PROPERTY_DEVICE_LOCAL_BIT
 	var size vk.DeviceSize
-	var space vk.DeviceSize = 2048 * 2048 // space for lots of meshes.
+	var space vk.DeviceSize = vk.DeviceSize(GPUVertexBytes)
 
 	// vertex positions.
 	var buff *vulkanBuffer
@@ -839,6 +833,7 @@ func (vr *vulkanRenderer) createVertexBuffers() (err error) {
 	if err = vr.createBuffer(buff, size, flags, props); err != nil {
 		return fmt.Errorf("createBuffers:position %w", err)
 	}
+	vr.maxVertexBuff[load.Vertexes] = uint64(size)
 
 	// vertex texcoords
 	buff = &vr.vertexBuffers[load.Texcoords] // V2 float32
@@ -846,6 +841,7 @@ func (vr *vulkanRenderer) createVertexBuffers() (err error) {
 	if err = vr.createBuffer(buff, size, flags, props); err != nil {
 		return fmt.Errorf("createBuffers:texcoord %w", err)
 	}
+	vr.maxVertexBuff[load.Texcoords] = uint64(size)
 
 	// vertex colors
 	buff = &vr.vertexBuffers[load.Colors] // V3 uint8
@@ -853,6 +849,7 @@ func (vr *vulkanRenderer) createVertexBuffers() (err error) {
 	if err = vr.createBuffer(buff, size, flags, props); err != nil {
 		return fmt.Errorf("createBuffers:color %w", err)
 	}
+	vr.maxVertexBuff[load.Colors] = uint64(size)
 
 	// vertex normals
 	buff = &vr.vertexBuffers[load.Normals] // V3 float32
@@ -860,6 +857,7 @@ func (vr *vulkanRenderer) createVertexBuffers() (err error) {
 	if err = vr.createBuffer(buff, size, flags, props); err != nil {
 		return fmt.Errorf("createBuffers:normal %w", err)
 	}
+	vr.maxVertexBuff[load.Normals] = uint64(size)
 
 	// FUTURE:
 	// vertex load.Tangents V4 float32
@@ -873,6 +871,7 @@ func (vr *vulkanRenderer) createVertexBuffers() (err error) {
 	if err = vr.createBuffer(buff, size, iflags, props); err != nil {
 		return fmt.Errorf("createBuffers:index %w", err)
 	}
+	vr.maxVertexBuff[load.Indexes] = uint64(size)
 	return nil
 }
 
@@ -884,18 +883,14 @@ func (vr *vulkanRenderer) disposeVertexBuffers() {
 }
 
 // createInstanceBuffers creates separate buffers for the different possible
-// instance data buffers. Currently allocating:
-//   - 50Mb for instance position
-//   - 12Mb for instance colors
-//   - 16Mb for instance scale
-//   - Total 78Mb
-var space vk.DeviceSize = 2048 * 2048 // 4,194,304 bytes - space for lots of instance data.
+// instance data buffers.
 func (vr *vulkanRenderer) createInstanceBuffers() (err error) {
 	vr.instanceBuffers = make([]vulkanBuffer, load.InstanceTypes)
+	vr.maxInstanceBuff = make([]uint64, load.InstanceTypes)
 	flags := vk.BUFFER_USAGE_VERTEX_BUFFER_BIT | vk.BUFFER_USAGE_TRANSFER_DST_BIT | vk.BUFFER_USAGE_TRANSFER_SRC_BIT
 	props := vk.MEMORY_PROPERTY_DEVICE_LOCAL_BIT
 	var size vk.DeviceSize
-	var space vk.DeviceSize = 2048 * 2048 // 4,194,304 bytes - space for lots of instance data.
+	var space vk.DeviceSize = vk.DeviceSize(GPUInstanceBytes)
 
 	// instance positions.
 	var buff *vulkanBuffer
@@ -904,6 +899,7 @@ func (vr *vulkanRenderer) createInstanceBuffers() (err error) {
 	if err = vr.createBuffer(buff, size, flags, props); err != nil {
 		return fmt.Errorf("createBuffers:position %w", err)
 	}
+	vr.maxInstanceBuff[load.InstancePosition] = uint64(size)
 
 	// instance colors
 	buff = &vr.instanceBuffers[load.InstanceColors] // V3 uint8
@@ -911,6 +907,7 @@ func (vr *vulkanRenderer) createInstanceBuffers() (err error) {
 	if err = vr.createBuffer(buff, size, flags, props); err != nil {
 		return fmt.Errorf("createBuffers:color %w", err)
 	}
+	vr.maxInstanceBuff[load.InstanceColors] = uint64(size)
 
 	// instance scale
 	buff = &vr.instanceBuffers[load.InstanceScales] // float32
@@ -918,6 +915,7 @@ func (vr *vulkanRenderer) createInstanceBuffers() (err error) {
 	if err = vr.createBuffer(buff, size, flags, props); err != nil {
 		return fmt.Errorf("createBuffers:normal %w", err)
 	}
+	vr.maxInstanceBuff[load.InstanceScales] = uint64(size)
 	return nil
 }
 
@@ -975,7 +973,7 @@ func (vr *vulkanRenderer) resizeSwapchain() (err error) {
 	// ---
 	vr.recreatingSwapchain = false // ok to render
 	vr.resizesCompleted = vr.resizesRequested
-	slog.Debug("vulkan resize complete", "size", fmt.Sprintf("%d:%d", vr.frameWidth, vr.frameHeight))
+	slog.Info("vulkan resize complete", "size", fmt.Sprintf("%d:%d", vr.frameWidth, vr.frameHeight))
 	return nil
 }
 
@@ -1155,9 +1153,17 @@ func (vr *vulkanRenderer) loadMeshes(meshes []load.MeshData) (mids []uint32, err
 				vmsh[i].stride = msh[i].Stride
 				vmsh[i].offset = meshOffsets[i]
 
+				// check if the data exceeds what was allocated.
+				total := uint64(vmsh[i].offset + msh[i].Count*msh[i].Stride)
+				if total > vr.maxVertexBuff[i] {
+					return mids, fmt.Errorf("loadMeshes:insufficient memory %d", i)
+				}
+
 				// consolidate the upload data into temp buffers.
 				data[i] = append(data[i], msh[i].Data...)
 
+				// track the total amount of uploaded bytes
+				GPUTotalMeshBytes += msh[i].Count * msh[i].Stride
 			} else {
 				// push forward the previous offset for the vertex data
 				// types that were not used by this mesh.
@@ -1210,10 +1216,19 @@ func (vr *vulkanRenderer) loadInstanceData(data []load.Buffer) (iid uint32, err 
 			inst[i].stride = data[i].Stride
 			inst[i].offset = offsets[i]
 
+			// check if the data exceeds what was allocated.
+			total := uint64(inst[i].offset + inst[i].count*inst[i].stride)
+			if total > vr.maxInstanceBuff[i] {
+				return iid, fmt.Errorf("loadInstanceData:insufficient memory %d", i)
+			}
+
 			// upload data
 			buff := &vr.instanceBuffers[i]
 			offset := uint64(inst[i].offset)
 			vr.uploadData(vr.graphicsQCmdPool, vr.graphicsQ, buff, offset, data[i].Data)
+
+			// track the total amount of uploaded bytes
+			GPUTotalInstanceBytes += data[i].Count * data[i].Stride
 		}
 	}
 	iid = uint32(len(vr.instances)) // instance ID for the new instance data.
@@ -1525,15 +1540,14 @@ type vulkanTexture struct {
 //
 // CURRENT: immutable once uploaded. Updating a texture means adding a new
 // texture and refering to it in future draw calls.
-//
-// FUTURE - allow replacing textures.
 func (vr *vulkanRenderer) loadTexture(w, h uint32, pixels []byte) (tid uint32, err error) {
 	vr.textures = append(vr.textures, vulkanTexture{})
 	tid = uint32(len(vr.textures) - 1)
 	tex := &vr.textures[tid]
 
 	// put image data into staging buffer
-	imageSize := vk.DeviceSize(len(pixels))
+	imageSize := vk.DeviceSize(len(pixels))     //
+	GPUTotalTextureBytes += uint32(len(pixels)) // track the total amount of uploaded bytes
 	stagingBuffer := vulkanBuffer{}
 	err = vr.createBuffer(&stagingBuffer, imageSize, vk.BUFFER_USAGE_TRANSFER_SRC_BIT,
 		vk.MEMORY_PROPERTY_HOST_VISIBLE_BIT|vk.MEMORY_PROPERTY_HOST_COHERENT_BIT)
@@ -2498,7 +2512,7 @@ func (vr *vulkanRenderer) drawFrame(passes []Pass) (err error) {
 
 			// bind model scope uniforms for this shader.
 			vr.setModelUniforms(shader, packet)
-			if packet.IsInstanced {
+			if packet.IsInstanced && packet.InstanceCount > 0 {
 				// draw multiple models.
 				vr.drawInstancedMesh(frame, packet.MeshID, packet.InstanceID, packet.InstanceCount, shader.attrs)
 			} else {

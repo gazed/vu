@@ -42,11 +42,12 @@ func (e *Entity) AddInstancedModel(assets ...string) (me *Entity) {
 func (e *Entity) SetInstanceData(eng *Engine, count uint32, data []load.Buffer) (me *Entity) {
 	if mod := e.app.models.get(e.eid); mod != nil && mod.isInstanced {
 		var err error
+		mod.instanceCount = count
 		mod.instanceID, err = eng.rc.LoadInstanceData(data)
 		if err != nil {
 			slog.Error("SetInstanceData", "error", err)
+			mod.instanceCount = 0
 		}
-		mod.instanceCount = count
 		return e
 	}
 	slog.Error("SetInstanceData needs AddInstancedModel", "eid", e.eid)

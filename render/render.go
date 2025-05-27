@@ -29,9 +29,40 @@ const (
 	METAL_RENDERER                   // FUTURE: iOS, macOS, tvOS, watchOS, visionOS
 )
 
-// GPU exposes whether the selected GPU is integrated or discrete.
-// Generally discrete GPU's are more powerful.
-var GPU GPUType // set on startup by the render layer.
+// Public data accessible to the application.
+var (
+	// GPU exposes whether the selected GPU is integrated or discrete.
+	// Generally discrete GPU's are more powerful.
+	GPU GPUType // set on startup by the render layer.
+
+	// GPUVertexBytes is exposed for applications to override before engine startup.
+	// Default is 2048 * 2048 == 4,194,304 bytes
+	//
+	// Default allocation for vertex data is 161MB
+	//   - 12*GPUVertexBytes for vertex position   :50MB
+	//   - 8*GPUVertexBytes  for vertex texcoords  :33MB
+	//   - 3*GPUVertexBytes  for vertex colors     :12MB
+	//   - 12*GPUVertexBytes for vertex normals    :50MB
+	//   - 4*GPUVertexBytes  for indexes           :16MB
+	//   - Total 161Mb
+	GPUVertexBytes uint32 = 2048 * 2048
+
+	// GPUInstanceBytes is exposed for applications to override before engine startup.
+	// Default is 2048 * 2048 == 4,194,304 bytes
+	//
+	// Default allocation for instance data is 78MB
+	//   - 12*GPUInstanceBytes for vertex positions :50MB
+	//   - 3*GPUInstanceBytes for vertex colors     :12MB
+	//   - 4*GPUInstanceBytes for vertex scaling    :16MB
+	GPUInstanceBytes uint32 = 2048 * 2048
+
+	// GPUTotalMeshBytes are the total bytes for all GPU mesh buffers.
+	GPUTotalMeshBytes uint32
+	// GPUTotalTextureBytes are the total bytes for all GPU texture data.
+	GPUTotalTextureBytes uint32
+	// GPUTotalInstanceBytes are the total bytes for all GPU instance data buffers.
+	GPUTotalInstanceBytes uint32
+)
 
 // GPUType is a const for the two types of GPU.
 type GPUType int
@@ -172,7 +203,6 @@ type Loader interface {
 	LoadShader(config *load.Shader) (mid uint16, err error)
 
 	// FUTURE: LoadAnimation
-
 }
 
 // =============================================================================

@@ -1,5 +1,4 @@
 // Copyright © 2015-2024 Galvanized Logic Inc.
-
 package vu
 
 // loader.go uses a goroutine to load asset data from disk.
@@ -30,6 +29,10 @@ type assetLoader struct {
 
 	// requests tracks outstanding entities requests for assets.
 	requests map[aid][]assetRequest
+
+	// failed counts the number of assets that failed to load.
+	// This is for debugging as all requested assets should load.
+	failed int
 
 	// labelRequests match a font aid with an label Entity.
 	// The label Entity needs a mesh generated that matches its string.
@@ -158,6 +161,7 @@ func (l *assetLoader) loadAssets(rc render.Loader, ac audio.Loader) (assetsCreat
 			assets := []asset{}
 			for _, assetData := range loaded {
 				if assetData.Err != nil {
+					l.failed += 1
 					slog.Error("failed asset load", "filename", assetData.Filename, "error", assetData.Err)
 					break // developer needs to debug why asset is missing.
 				}
@@ -167,6 +171,7 @@ func (l *assetLoader) loadAssets(rc render.Loader, ac audio.Loader) (assetsCreat
 					msh := newMesh(name)
 					msh.mid, err = rc.LoadMesh(data)
 					if err != nil {
+						l.failed += 1
 						slog.Error("LoadMesh failed", "error", err)
 						break
 					}
@@ -191,6 +196,7 @@ func (l *assetLoader) loadAssets(rc render.Loader, ac audio.Loader) (assetsCreat
 					t.opaque = data.Opaque
 					t.tid, err = rc.LoadTexture(data)
 					if err != nil {
+						l.failed += 1
 						slog.Error("LoadTexture failed", "error", err)
 						break
 					}
@@ -204,6 +210,7 @@ func (l *assetLoader) loadAssets(rc render.Loader, ac audio.Loader) (assetsCreat
 					t.opaque = false // a font atlas always have some alpha values.
 					t.tid, err = rc.LoadTexture(&data.Img)
 					if err != nil {
+						l.failed += 1
 						slog.Error("FontAtlas LoadTexture failed", "error", err)
 						break
 					}
@@ -230,6 +237,7 @@ func (l *assetLoader) loadAssets(rc render.Loader, ac audio.Loader) (assetsCreat
 					s.data.AudioData = append(s.data.AudioData, data.Data...)
 					err = ac.LoadSound(&s.sid, &s.did, s.data) // upload audio data to audio device
 					if err != nil {
+						l.failed += 1
 						slog.Error("LoadSound failed", "error", err)
 						break
 					}
@@ -241,6 +249,7 @@ func (l *assetLoader) loadAssets(rc render.Loader, ac audio.Loader) (assetsCreat
 					s.setConfig(data)
 					s.sid, err = rc.LoadShader(s.config)
 					if err != nil {
+						l.failed += 1
 						slog.Error("LoadShader failed", "error", err)
 						break
 					}
@@ -253,6 +262,7 @@ func (l *assetLoader) loadAssets(rc render.Loader, ac audio.Loader) (assetsCreat
 				// case TODO animation asset from glb
 
 				default:
+					l.failed += 1
 					dtype := fmt.Sprintf("%T", data)
 					slog.Error("unknown asset data", "datatype", dtype)
 					break // developer needs sync code with the load package.
@@ -274,12 +284,28 @@ func (l *assetLoader) loadAssets(rc render.Loader, ac audio.Loader) (assetsCreat
 			}
 
 		default:
-			l.loadLabels(rc)     // check outstanding label requests
+			l.loadLabels(rc) // check outstanding label requests
+			if assetsCreated > 0 {
+				slog.Info("created assets", "created", assetsCreated,
+					"outstanding", len(l.requests),
+					"failed", l.failed,
+					"msh", render.GPUTotalMeshBytes,
+					"tex", render.GPUTotalTextureBytes,
+					"inst", render.GPUTotalInstanceBytes)
+			}
 			return assetsCreated // return if there are no loaded assets.
 		}
 		l.loadLabels(rc) // check outstanding label requests
 		timeUsed = time.Since(start)
 	}
+
+	// timed out with outstanding assets still to load.
+	slog.Info("created assets", "created", assetsCreated,
+		"outstanding", len(l.requests),
+		"failed", l.failed,
+		"msh", render.GPUTotalMeshBytes,
+		"tex", render.GPUTotalTextureBytes,
+		"inst", render.GPUTotalInstanceBytes)
 	return assetsCreated
 }
 
@@ -293,6 +319,7 @@ func (l *assetLoader) loadLabels(rc render.Loader) {
 			for _, me := range entities {
 				fnt, ok := a.(*font)
 				if !ok {
+					l.failed += 1
 					slog.Error("loadLabels expected font asset", "asset", a.label())
 					break
 				}
@@ -302,6 +329,7 @@ func (l *assetLoader) loadLabels(rc render.Loader) {
 				// upload the mesh data
 				mid, err := rc.LoadMesh(md)
 				if err != nil {
+					l.failed += 1
 					slog.Error("generateLabelMesh:LoadMesh failed", "error", err)
 					break
 				}

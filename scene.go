@@ -268,8 +268,10 @@ func (ss *scenes) renderParts(app *application, sc *scene, parts []uint32, packe
 			}
 		}
 	}
-	if len(modelsNotReady) > 0 {
-		slog.Debug("models not ready", "err#", len(modelsNotReady), "err0", modelsNotReady[0])
+
+	// warn about models missing assets when there are no outstanding assets to load.
+	if len(app.ld.requests) == 0 && len(modelsNotReady) > 0 {
+		slog.Warn("models not ready", "err#", len(modelsNotReady), "err0", modelsNotReady[0])
 	}
 	return packets
 }

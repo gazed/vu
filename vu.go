@@ -308,6 +308,10 @@ func (eng *Engine) ToggleFullscreen() {
 	eng.dev.ToggleFullscreen()
 }
 
+// LoadErrors returns true if there were assets that failed to load.
+// Ideally completely debug any loading problems prior to shipping.
+func (eng *Engine) LoadErrors() bool { return eng.app.ld.failed > 0 }
+
 // Mute toggles the sound volume.
 // Engine attribute for use in Eng.Set().
 func (eng *Engine) Mute(mute bool) {
