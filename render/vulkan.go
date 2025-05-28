@@ -2633,8 +2633,8 @@ func (vr *vulkanRenderer) setViewportAndScissor() {
 }
 
 // used for waits.
-var waitFrame uint64 = uint64(time.Duration(16 * time.Millisecond))
-var maxTimeout uint64 = math.MaxUint64
+var waitFrame uint64 = uint64(time.Duration(100 * time.Millisecond)) // 10 frames/sec
+var maxTimeout uint64 = math.MaxUint64                               // no limit.
 
 // version returns a vulkan integer version as a string.
 func (vr *vulkanRenderer) version(v uint32) string {
