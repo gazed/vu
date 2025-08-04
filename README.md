@@ -41,6 +41,11 @@ Build and Test
 * OpenAL (https://openal.org) latest 64-bit version `OpenAL32.dll`+`soft_oal.dll` from https://openal-soft.org/openal-binaries/
 * `glslc` executable from https://github.com/google/shaderc is needed to build shaders in `vu/assets/shaders`.
 
+Example Game
+------
+
+[Floworlds](https://www.floworlds.com) is a strategic puzzle terraforming game coded entirely in Go using the `vu` engine.
+
 Credit Where Credit is Due
 --------
 
