@@ -322,7 +322,7 @@ func (eng *Engine) Mute(mute bool) {
 	eng.ac.SetGain(gain)
 }
 
-// MakeMeshes loads application generated mesh data.
+// MakeMeshes loads application generated mesh assets.
 func (eng *Engine) MakeMeshes(name string, meshes []load.MeshData) (err error) {
 	mids, err := eng.rc.LoadMeshes(meshes) // upload all mesh data.
 	if err != nil || len(mids) != len(meshes) {
@@ -336,6 +336,23 @@ func (eng *Engine) MakeMeshes(name string, meshes []load.MeshData) (err error) {
 	labelRange := fmt.Sprintf("msh:%s%d:msh:%s%d", name, mids[0], name, mids[len(mids)-1])
 	meshIDRange := fmt.Sprintf("%d:%d", mids[0], mids[len(mids)-1])
 	slog.Debug("MakeMeshes", "asset", labelRange, "ids", meshIDRange)
+	return nil
+}
+
+// MakeTextures loads application generated texture assets.
+// FUTURE: have the render layer upload all the textures at once, similar to rc.LoadMeshes.
+func (eng *Engine) MakeTextures(name string, textureData []*load.ImageData) (err error) {
+	for i := range textureData {
+		tid, err := eng.rc.LoadTexture(textureData[i])
+		if err != nil {
+			slog.Debug("MakeTextures error", "asset", "name", name, "index", i, "err", err)
+			continue
+		}
+		t := newTexture(fmt.Sprintf("%s%d", name, i))
+		t.tid = tid
+		eng.app.ld.assets[t.aid()] = t
+		slog.Debug("MakeTextures", "asset", "tex:"+t.label(), "tid", t.tid, "opaque", t.opaque)
+	}
 	return nil
 }
 
