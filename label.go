@@ -221,22 +221,19 @@ type char struct {
 // WriteImageText uses the font assets associated with this model
 // to write a string to the given image. The starting string location
 // is specified by indent is in pixels line number is based on the font size.
-func (e *Entity) WriteImageText(fontID, s string, xoff, yoff int, dst *image.NRGBA) (me *Entity) {
+func (e *Entity) WriteImageText(fontID, s string, xoff, yoff int, dst *image.NRGBA) (err error) {
 	if m := e.app.models.get(e.eid); m != nil {
 
 		// get font from loader... the font must already be loaded.
 		a := e.app.ld.getLoadedAsset(assetID(fnt, fontID))
 		if a == nil {
-			slog.Debug("WriteImageText font not loaded", "font", fontID)
-			return e
+			return fmt.Errorf("WriteImageText font %s not loaded", fontID)
 		}
 		if fnt, ok := a.(*font); ok {
-			fnt.writeText(s, xoff, yoff, dst)
+			return fnt.writeText(s, xoff, yoff, dst)
 		}
-		return e
 	}
-	slog.Debug("WriteImageText model not loaded", "entity", e.eid)
-	return e
+	return fmt.Errorf("WriteImageText model not loaded %d", e.eid)
 }
 
 // writeText writes the given string into the given image starting
