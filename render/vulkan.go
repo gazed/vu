@@ -89,6 +89,10 @@ type vulkanRenderer struct {
 	frames     []vulkanFrame   // frame resources for maxFrames
 	frameIndex uint32          // index for frames - loop using mod maxFrames
 
+	// create a semaphore per image. These are signaled when the GPU has
+	// finished rendering an image and the image is ready for presentation.
+	imageRendered []vk.Semaphore // wait for images renders prior to presentation.
+
 	// render frame dynamic state.
 	viewport vk.Viewport // same as frame size.
 	scissor  vk.Rect2D   // same as frame size.
@@ -132,6 +136,7 @@ func getVulkanRenderer(dev *device.Device, title string) (vr *vulkanRenderer, er
 		// render properties and swapchain are set on initialization
 		// and updated and/or recreated on a window resize.
 		vr.setRenderProperties,      // surface format, depth format, etc.
+		vr.createImageSemaphores,    // one render semaphore per image.
 		vr.createSwapchainResources, // one swapchain with one render frame per image
 		vr.createRenderFrames,       // two frames
 
@@ -183,6 +188,9 @@ func (vr *vulkanRenderer) dispose() {
 		vk.DestroyRenderPass(vr.device, vr.render2D, nil)
 		vr.render2D = 0
 	}
+
+	// dispose the per-image render semaphores.
+	vr.disposeImageSemaphores()
 
 	// swapchain and related resources: image views, depthbuffer
 	// Also scraps all application mesh data.
@@ -556,6 +564,30 @@ func (vr *vulkanRenderer) setDepthFormat() (err error) {
 	return fmt.Errorf("setDepthFormat failed")
 }
 
+// createImageSemaphores tracks the render complete semaphore for each image.
+// Called once on startup after vr.imageCount is initialized. See:
+// - https://docs.vulkan.org/guide/latest/swapchain_semaphore_reuse.html
+func (vr *vulkanRenderer) createImageSemaphores() (err error) {
+	vr.imageRendered = make([]vk.Semaphore, vr.imageCount)
+	for i := range vr.imageRendered {
+		vr.imageRendered[i], err = vk.CreateSemaphore(vr.device, &vk.SemaphoreCreateInfo{}, nil)
+		if err != nil {
+			return fmt.Errorf("vk.CreateSemaphore.2: %w", err)
+		}
+	}
+	return nil
+}
+
+// disposeImageSemaphores is called once on shutdown.
+func (vr *vulkanRenderer) disposeImageSemaphores() {
+	for i := range vr.imageRendered {
+		if vr.imageRendered[i] != 0 {
+			vk.DestroySemaphore(vr.device, vr.imageRendered[i], nil)
+			vr.imageRendered[i] = 0
+		}
+	}
+}
+
 // =============================================================================
 // swapchain recreated each window resize.
 
@@ -615,7 +647,7 @@ func (vr *vulkanRenderer) createSwapchain() (err error) {
 		OldSwapchain:     0,
 	}
 
-	// TODO allow separate present and graphic queues
+	// FUTURE: allow separate present and graphic queues
 	// if vr.graphicsQIndex != vr.presentQIndex {
 	// 	swapchainInfo.ImageSharingMode = vk.SHARING_MODE_CONCURRENT
 	// 	swapchainInfo.PQueueFamilyIndices = []uint32{vr.graphicsQIndex, vr.presentQIndex}
@@ -2304,7 +2336,6 @@ type vulkanFrame struct {
 
 	// frame render synchonization.
 	imageAvailable vk.Semaphore // done presenting, ready for rendering.
-	renderComplete vk.Semaphore // GPU completed, ready for presentation
 	inFlightFence  vk.Fence     // render to frames not in use by GPU.
 }
 
@@ -2326,10 +2357,6 @@ func (vr *vulkanRenderer) disposeRenderFrames() {
 		if vr.frames[i].imageAvailable != 0 {
 			vk.DestroySemaphore(vr.device, vr.frames[i].imageAvailable, nil)
 			vr.frames[i].imageAvailable = 0
-		}
-		if vr.frames[i].renderComplete != 0 {
-			vk.DestroySemaphore(vr.device, vr.frames[i].renderComplete, nil)
-			vr.frames[i].renderComplete = 0
 		}
 		if vr.frames[i].inFlightFence != 0 {
 			vk.DestroyFence(vr.device, vr.frames[i].inFlightFence, nil)
@@ -2363,10 +2390,6 @@ func (vr *vulkanRenderer) createFrameSyncronization(fr *vulkanFrame) (err error)
 	fr.imageAvailable, err = vk.CreateSemaphore(vr.device, &vk.SemaphoreCreateInfo{}, nil)
 	if err != nil {
 		return fmt.Errorf("vk.CreateSemaphore.1: %w", err)
-	}
-	fr.renderComplete, err = vk.CreateSemaphore(vr.device, &vk.SemaphoreCreateInfo{}, nil)
-	if err != nil {
-		return fmt.Errorf("vk.CreateSemaphore.2: %w", err)
 	}
 
 	// Create the fence in a signaled state, indicating that the first frame has
@@ -2487,7 +2510,7 @@ func (vr *vulkanRenderer) drawFrame(passes []Pass) (err error) {
 
 		// draw 3D packets
 		for _, packet := range pass.Packets {
-			// TODO complain about packets without meshes.
+			// FUTURE: complain about packets without meshes.
 
 			// change shader when necessary.
 			if shaderID != packet.ShaderID {
@@ -2578,6 +2601,7 @@ func (vr *vulkanRenderer) drawFrame(passes []Pass) (err error) {
 	return nil
 }
 
+// upper limit on the number of materials.
 var lastMatID uint32 = 345234545
 
 func (vr *vulkanRenderer) endFrame(dt time.Duration) (err error) {
@@ -2592,7 +2616,7 @@ func (vr *vulkanRenderer) endFrame(dt time.Duration) (err error) {
 	submitInfo := vk.SubmitInfo{
 		PWaitSemaphores:   []vk.Semaphore{frame.imageAvailable},
 		PWaitDstStageMask: []vk.PipelineStageFlags{vk.PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT},
-		PSignalSemaphores: []vk.Semaphore{frame.renderComplete}, // signal present frame
+		PSignalSemaphores: []vk.Semaphore{vr.imageRendered[vr.imageIndex]},
 		PCommandBuffers:   []vk.CommandBuffer{frame.cmds},
 	}
 	if err = vk.QueueSubmit(vr.graphicsQ, []vk.SubmitInfo{submitInfo}, frame.inFlightFence); err != nil {
@@ -2601,7 +2625,7 @@ func (vr *vulkanRenderer) endFrame(dt time.Duration) (err error) {
 
 	// present the frame, waits for renderComplete.
 	presentInfo := vk.PresentInfoKHR{
-		PWaitSemaphores: []vk.Semaphore{frame.renderComplete}, // wait for GPU render
+		PWaitSemaphores: []vk.Semaphore{vr.imageRendered[vr.imageIndex]}, // wait for GPU render
 		PSwapchains:     []vk.SwapchainKHR{vr.swapchain},
 		PImageIndices:   []uint32{vr.imageIndex},
 	}
