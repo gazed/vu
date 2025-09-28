@@ -11,7 +11,7 @@ Vu is a small engine intended for simple games. It currently supports Vulkan on 
 
 * `vu/physics` handles spheres and convex hulls.
 * `vu/render` uses Vulkan 1.3 without any extensions.
-* `vu/device` supports a basic window, button presses, mouse clicks, and mouse movement. 
+* `vu/device` supports a basic window, button presses, mouse clicks, and mouse movement.
 
 Vu started as a learning project for Go and 3D programming.
 It is currently being used by the author to develop games and other 3D applications.
@@ -55,7 +55,7 @@ and lucid developers. Thank you in particular to:
 * [https://www.youtube.com/@TravisVroman](https://www.youtube.com/@TravisVroman)
   Travis Vroman brilliantly explains how to use Vulkan in a game engine.
   His video devlog and code base provides an overall context for Vulkan that is
-  difficult to get from the specification. Want a Vulkan C engine? Checkout 
+  difficult to get from the specification. Want a Vulkan C engine? Checkout
   [https://github.com/travisvroman/kohi](https://github.com/travisvroman/kohi) Apache License.
 
 * [https://github.com/bbredesen/go-vk](https://github.com/bbredesen/go-vk) MIT License.
