@@ -1,4 +1,4 @@
-// Copyright © 2013-2024 Galvanized Logic Inc.
+// Copyright © 2024 Galvanized Logic Inc.
 
 //go:build windows
 

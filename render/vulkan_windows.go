@@ -21,12 +21,11 @@ func (vr *vulkanRenderer) instanceExtensions() []string {
 }
 
 // createSurface associates a vulkan instance with a winOS window.
-// It gets display surface information from the windows specific method
-// in the device layer.
+// It gets display surface information from the device layer.
 func (vr *vulkanRenderer) createSurface() (err error) {
 	hinstance, hwnd, err := device.GetRenderSurfaceInfo(vr.osdev)
 	if hinstance == 0 || hwnd == 0 || err != nil {
-		return fmt.Errorf("device.GetWindowsSurfaceInfo failed %w", err)
+		return fmt.Errorf("device.GetRenderSurfaceInfo failed %w", err)
 	}
 	ci := vk.Win32SurfaceCreateInfoKHR{
 		Hinstance: windows.Handle(hinstance),
