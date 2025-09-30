@@ -1,3 +1,5 @@
 *.spv
 *.exe
 *.swp
+eg/eg
+internal/device/macos/OSXApp

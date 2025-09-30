@@ -27,7 +27,7 @@ import (
 // Variables are grouped by the function that initializes them.
 type vulkanRenderer struct {
 	title       string     // application name.
-	clear       [4]float32 // rgba clear color.
+	clearColor  [4]float32 // rgba clear color.
 	frameWidth  uint32     // current app size
 	frameHeight uint32     //  ""
 
@@ -963,6 +963,7 @@ func (vr *vulkanRenderer) disposeInstanceBuffers() {
 
 // resize implements render.renderer
 func (vr *vulkanRenderer) resize(width, height uint32) {
+	println("vulkan resize called", width, height)
 	vr.resizeWidth = width   // new width
 	vr.resizeHeight = height // new height
 	vr.resizesRequested += 1 // request resize
@@ -1411,7 +1412,7 @@ func (vr *vulkanRenderer) createImage(img *vulkanImage,
 			Height: img.height,
 			Depth:  1,
 		},
-		MipLevels:     4,
+		MipLevels:     1,
 		ArrayLayers:   1,
 		Format:        format,
 		Tiling:        vk.IMAGE_TILING_OPTIMAL,
@@ -2408,7 +2409,7 @@ func (vr *vulkanRenderer) createFrameSyncronization(fr *vulkanFrame) (err error)
 // beginFrame, render objects, endFrame
 
 func (vr *vulkanRenderer) setClearColor(r, g, b, a float32) {
-	vr.clear[0], vr.clear[1], vr.clear[2], vr.clear[3] = r, g, b, a
+	vr.clearColor[0], vr.clearColor[1], vr.clearColor[2], vr.clearColor[3] = r, g, b, a
 }
 
 func (vr *vulkanRenderer) beginFrame(dt time.Duration) (err error) {
@@ -2443,8 +2444,12 @@ func (vr *vulkanRenderer) beginFrame(dt time.Duration) (err error) {
 	vr.imageIndex, err = vk.AcquireNextImageKHR(vr.device, vr.swapchain, maxTimeout, frame.imageAvailable, 0)
 	if err != nil {
 		if err == vk.SUBOPTIMAL_KHR || err == vk.ERROR_OUT_OF_DATE_KHR {
-			vr.resize(vr.frameWidth, vr.frameHeight)
-			return nil // didn't quite work.
+			// TODO test on windows.
+			// if vr.frameWidth <= 1 || vr.frameHeight <= 1 {
+			// 	return nil // ignore render attempts prior to initial resize.
+			// }
+			// vr.resize(vr.frameWidth, vr.frameHeight)
+			return nil // wait for resize
 		}
 		return fmt.Errorf("beginFrame aborted: vk.AcquireNextImageKHR: %w", err)
 	}
@@ -2471,7 +2476,7 @@ func (vr *vulkanRenderer) drawFrame(passes []Pass) (err error) {
 
 	// color clear
 	colorClear, ccv := vk.ClearValue{}, vk.ClearColorValue{}
-	ccv.AsTypeFloat32(vr.clear)
+	ccv.AsTypeFloat32(vr.clearColor)
 	colorClear.AsColor(ccv)
 
 	// depth buffer clear.
@@ -2632,8 +2637,12 @@ func (vr *vulkanRenderer) endFrame(dt time.Duration) (err error) {
 	err = vk.QueuePresentKHR(vr.presentQ, &presentInfo)
 	if err != nil {
 		if err == vk.SUBOPTIMAL_KHR || err == vk.ERROR_OUT_OF_DATE_KHR {
-			vr.resize(vr.frameWidth, vr.frameHeight)
-			return nil // didn't quite work.
+			// TODO test on windows.
+			// if vr.frameWidth <= 1 || vr.frameHeight <= 1 {
+			// 	return nil // ignore render attempts prior to initial resize.
+			// }
+			// vr.resize(vr.frameWidth, vr.frameHeight)
+			return nil // wait for resize.
 		}
 		return fmt.Errorf("endFrame aborted: vkQueuePresentKHR: %w", err)
 	}

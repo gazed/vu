@@ -147,9 +147,10 @@ type Engine struct {
 	app *application    // User application resources and state
 
 	// Track time each refresh cycle to ensure fixed timestamp updates.
-	suspended bool          // true if updating the game state is on hold.
-	running   bool          // true if engine is alive.
-	throttle  time.Duration // FPS throttle.
+	suspended      bool          // true if updating the game state is on hold.
+	running        bool          // true if engine is alive.
+	throttle       time.Duration // FPS throttle.
+	prevFrameStart time.Time     // used to calculate delta time
 }
 
 // Updator is responsible for updating application state each render frame.
@@ -174,90 +175,73 @@ var (
 	startTime    = time.Now()
 )
 
-// Run the game engine. This method starts the game loop and does not
-// return until the game shuts down. The game Update method is called
-// each time the game loop updates.
-func (eng *Engine) Run(updator Updator) {
-	eng.app.updator = updator // application update callback
-
+// runLoop is called two different ways.
+// 1. directly  - vu_windows
+// 2. callbacks - vu_apple
+func (eng *Engine) runLoop() (running bool) {
 	// use a fixed timestep to run game updates 60 times a second
-	var elapsedTime time.Duration    // accumulate time to trigger timesteps
-	previousFrameStart := time.Now() // used to calculate delta time
-	eng.running = true
+	var elapsedTime time.Duration // accumulate time to trigger timesteps
 
-	// loop forever process user input, updating game state, and rendering.
-	for eng.running {
-
-		// process user input.
-		eng.app.input.Clone(eng.dev.GetInput())
-		if !eng.dev.IsRunning() {
-			slog.Info("engine shutdown!") // likely user closed window.
-			eng.Shutdown()                //
-			break                         // exit loop to eng.dispose()
-		}
-
-		// run updates while game is not suspended.
-		// reset previousFrameStart when resuming (un-pause).
-		if !eng.suspended {
-			frameStart := time.Now()
-
-			// delta measures the time it takes between frames.
-			delta := frameStart.Sub(previousFrameStart)
-			elapsedTime += delta
-
-			// handle persistent slowness by dropping updates.
-			// fix this by making the updates and render faster.
-			if elapsedTime > 3*timestep {
-				elapsedTime = timestep // run 1 update and drop the rest
-			}
-
-			// run updates at a fixed interval independent of frame rendering.
-			// run multiple updates to catch up in cases of periodic slowness.
-			for elapsedTime >= timestep {
-				elapsedTime -= timestep
-
-				// Simulate physics using a fixed timestep so that
-				// each update advances by the same amount.
-				eng.app.sim.simulate(eng.app.povs, timestepSecs)
-
-				// FUTURE move particle effects using fixed timestep.
-				// eng.app.models.moveParticles(timestepSecs)
-			}
-
-			// update the client app before each render frame
-			eng.app.updator.Update(eng, eng.app.input, delta)
-			if !eng.running {
-				slog.Info("app shutdown!") // app called eng.Shutdown()
-				break                      // exit loop to eng.dispose()
-			}
-
-			// check for any newly created assets.
-			eng.app.ld.loadAssets(eng.rc, eng.ac)
-
-			// FUTURE: advance model animations by elapsed time, not at fixed rate like physics.
-			// Animation data expects to be played back at a particular frame rate.
-			// eng.app.models.animate(delta)
-
-			// render frames outside the fixed timestep.
-			// FUTURE: interpolate the render as a fraction between this frame and last.
-			eng.app.scenes.setViewMatrixes(eng.rc.Size())
-			eng.app.povs.setWorldMatrix(delta)
-			eng.app.frame = eng.app.scenes.getFrame(eng.app, eng.app.frame)
-			eng.rc.Draw(eng.app.frame, delta)
-
-			// frame complete, remember the start of this frame.
-			previousFrameStart = frameStart
-
-			// throttle to rest the CPU/GPU.
-			// Requires go1.23+ to get 1ms pecision on windows. See go issue #44343.
-			extra := eng.throttle - time.Since(frameStart) // FPS throttle
-			extra = extra - extra%10_000                   // round down for wiggle room.
-			if extra > 0 {
-				time.Sleep(extra)
-			}
-		}
+	// process user input.
+	eng.app.input.Clone(eng.dev.GetInput())
+	if !eng.dev.IsRunning() {
+		slog.Info("engine shutdown!") // likely user closed window.
+		eng.Shutdown()                //
+		return false                  //
 	}
-	eng.dispose()
+
+	// run updates while game is not suspended.
+	if !eng.suspended {
+		frameStart := time.Now()
+
+		// delta measures the time it takes between frames.
+		delta := frameStart.Sub(eng.prevFrameStart)
+		elapsedTime += delta
+
+		// handle persistent slowness by dropping updates.
+		// fix this by making the updates and render faster.
+		if elapsedTime > 3*timestep {
+			elapsedTime = timestep // run 1 update and drop the rest
+		}
+
+		// run updates at a fixed interval independent of frame rendering.
+		// run multiple updates to catch up in cases of periodic slowness.
+		for elapsedTime >= timestep {
+			elapsedTime -= timestep
+
+			// Simulate physics using a fixed timestep so that
+			// each update advances by the same amount.
+			eng.app.sim.simulate(eng.app.povs, timestepSecs)
+
+			// FUTURE move particle effects using fixed timestep.
+			// eng.app.models.moveParticles(timestepSecs)
+		}
+
+		// update the client app before each render frame
+		eng.app.updator.Update(eng, eng.app.input, delta)
+		if !eng.running {
+			slog.Info("app shutdown!") // app called eng.Shutdown()
+			return false               //
+		}
+
+		// check for any newly created assets.
+		eng.app.ld.loadAssets(eng.rc, eng.ac)
+
+		// FUTURE: advance model animations by elapsed time, not at fixed rate like physics.
+		// Animation data expects to be played back at a particular frame rate.
+		// eng.app.models.animate(delta)
+
+		// render frames outside the fixed timestep.
+		// FUTURE: interpolate the render as a fraction between this frame and last.
+		eng.app.scenes.setViewMatrixes(eng.rc.Size())
+		eng.app.povs.setWorldMatrix(delta)
+		eng.app.frame = eng.app.scenes.getFrame(eng.app, eng.app.frame)
+		eng.rc.Draw(eng.app.frame, delta)
+
+		// frame complete, remember the start of this frame.
+		eng.prevFrameStart = frameStart
+	}
+	return true // continue running.
 }
 
 // handleResize processes user window changes.

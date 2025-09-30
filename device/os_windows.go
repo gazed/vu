@@ -1,6 +1,7 @@
 package device
 
 // os_windows.go wraps the the microsoft windows native layer.
+// FUTURE be specfic ie: //go:build windows && amd64
 
 import (
 	"fmt"
@@ -13,6 +14,28 @@ import (
 	"golang.org/x/sys/windows"
 )
 
+// GetRenderSurfaceInfo exposes the windows API specific information
+// needed by the render package to create a rendering surface.
+// Called by the platform specific code in the Render package.
+func GetRenderSurfaceInfo(d *Device) (hinst windows.Handle, hwnd windows.HWND, err error) {
+	if wd, ok := d.platform.(*windowsDevice); ok {
+		return windows.Handle(wd.hinstance), windows.HWND(wd.hwnd), nil
+	}
+	return 0, 0, fmt.Errorf("GetRenderSurfaceInfo: invalid device")
+}
+
+// =============================================================================
+// resizeHandler processes resize events immediately since the windows loop
+// shuts down on MINIMIZED events
+var resizeHandler func() = nil
+
+func (wd *windowsDevice) setResizeHandler(callback func()) { resizeHandler = callback }
+
+// =============================================================================
+// does nothing on windows.
+func SetInputHandler(handler func(event, data int64)) {}
+
+// =============================================================================
 // newPlatform returns the platform when running on a windows system.
 func newPlatform() platformAPI { return &windowsDevice{} }
 
@@ -47,16 +70,6 @@ func (wd *windowsDevice) init(windowed bool, title string, x int32, y int32, w i
 	display.fh = win.GetSystemMetrics(win.SM_CYSCREEN)
 }
 
-// GetRenderSurfaceInfo exposes the windows API specific information
-// needed by the render package to create a rendering surface.
-// Called by the platform specific code in the Render package.
-func GetRenderSurfaceInfo(d *Device) (hinst windows.Handle, hwnd windows.HWND, err error) {
-	if wd, ok := d.platform.(*windowsDevice); ok {
-		return windows.Handle(wd.hinstance), windows.HWND(wd.hwnd), nil
-	}
-	return 0, 0, fmt.Errorf("GetRenderSurfaceInfo: invalid device")
-}
-
 // User input data is refreshed each call to PollInput
 // This is shared with the App.
 var input = &Input{
@@ -79,12 +92,6 @@ var display struct {
 	// used to ignore extra WM_SIZE message when going fullscreen.
 	toggledFull bool // set when calling toggle to fullscreen.
 }
-
-// resizeHandler processes resize events immediately since the windows loop
-// shuts down on MINIMIZED events
-var resizeHandler func() = nil
-
-func (wd *windowsDevice) setResizeHandler(callback func()) { resizeHandler = callback }
 
 // Device interface: createDisplay
 func (wd *windowsDevice) createDisplay() error {
@@ -356,7 +363,36 @@ func (wd *windowsDevice) getInput() *Input {
 	return input // singleton for collecting the latest user input.
 }
 
-// Get the current mouse position relative to the bottom left corner
+func inputCallback(event, data int64) {
+	switch event {
+	case device.EVENT_KEYUP:
+	case device.EVENT_KEYDOWN:
+		switch data {
+		case device.KT:
+			fmt.Printf("T key %d\n", data)
+		case device.KML:
+			fmt.Printf("left mouse click %d\n", data)
+		default:
+			fmt.Printf("press/click %d\n", data)
+		}
+	case device.EVENT_SCROLL:
+		fmt.Printf("scroll %d\n", data)
+	case device.EVENT_MODIFIER:
+		fmt.Printf("modifier %d\n", data)
+	case device.EVENT_MOVED:
+		fmt.Printf("move %d\n", data)
+	case device.EVENT_RESIZED:
+		fmt.Printf("resize %d\n", data)
+	case device.EVENT_FOCUS_GAINED:
+		fmt.Printf("focus gained %d\n", data)
+	case device.EVENT_FOCUS_LOST:
+		fmt.Printf("focus lost %d\n", data)
+	default:
+		fmt.Printf("unexpected event type %d\n", data)
+	}
+}
+
+// Get the current mouse position relative to the top left corner
 // of the application window.
 func (wd *windowsDevice) cursorLocation() (mx, my int32) {
 	var point win.POINT
@@ -399,6 +435,15 @@ func (wd *windowsDevice) toggleFullscreen() {
 //
 //	http://msdn.microsoft.com/en-ca/library/windows/desktop/dd375731(v=vs.85).aspx
 const (
+	// TODO design... these don't exist in windows since the input is mapped directly
+	// EVENT_KEYUP        = macos.EVENT_KEYUP
+	// EVENT_KEYDOWN      = macos.EVENT_KEYDOWN
+	// EVENT_SCROLL       = macos.EVENT_SCROLL
+	// EVENT_MODIFIER     = macos.EVENT_MODIFIER
+	// EVENT_RESIZE       = macos.EVENT_RESIZE
+	// EVENT_FOCUS_GAINED = macos.EVENT_FOCUS_GAINED
+	// EVENT_FOCUS_LOST   = macos.EVENT_FOCUS_LOST
+
 	// keyboard numbers.
 	K0 = 0x30 // 0 key
 	K1 = 0x31 // 1 key

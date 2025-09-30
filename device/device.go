@@ -11,6 +11,8 @@ func New(windowed bool, title string, x int32, y int32, w int32, h int32) *Devic
 	// newPlatform is implemented by each platform.
 	// FUTURE: provide platforms for linux, macos, etc.
 	d := &Device{platform: newPlatform()}
+
+	// just init the underlying data structs. Use CreateDisplay() as the next step.
 	d.platform.init(windowed, title, x, y, w, h)
 	return d
 }
@@ -19,6 +21,12 @@ func New(windowed bool, title string, x int32, y int32, w int32, h int32) *Devic
 // and display surface.
 type Device struct {
 	platform platformAPI
+}
+
+// does not return while running
+// Used on platforms that require a render callback loop.
+func (d *Device) Run(renderCallback func()) {
+	d.platform.run(renderCallback)
 }
 
 // CreateDisplay initializes a window. Called once at initialization.
@@ -71,6 +79,7 @@ type platformAPI interface {
 
 	// initialize the platform.
 	init(windowed bool, title string, x, y, w, h int32)
+	run(renderCallback func())
 
 	// exposed as Device public methods.
 	createDisplay() error             // see CreateDisplay
@@ -114,10 +123,10 @@ type Input struct {
 
 // reset prepares input data for a refresh.
 func (in *Input) reset() {
-	in.Mx = 0       // to be refreshed with current mouse location.
-	in.My = 0       // ""
-	in.Scroll = 0   // no scrolling happening.
-	in.Focus = true // window has focus.
+	in.Mx = 0     // to be refreshed with current mouse location.
+	in.My = 0     // ""
+	in.Scroll = 0 // no scrolling happening.
+	// Focus is kept or set in getInput.
 
 	// clear the Pressed and Released as they are a one time notification.
 	// The Down keys are kept until they are released.

@@ -1,74 +1,64 @@
-// Copyright © 2013-2024 Galvanized Logic Inc.
+// Copyright © 2025 Galvanized Logic Inc.
+// Use is governed by a BSD-style license found in the LICENSE file.
 
 package main
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/gazed/vu/device"
 )
 
-// sh creates a shell to showcase the vu/device package. Just getting a window
+// sh is used to test and showcase the vu/device package. Just getting a window
 // to appear demonstrates that the majority of the functionality is working.
 // The remainder of the example dumps keyboard and mouse events showing that
-// user input is being processed.
+// user input is being processed. See vu/device package for more information.
 //
 // CONTROLS:
 //
 //	key   : print out key press info
 //	mouse : print out mouse click info
 func sh() {
-	windowed := true
-	dev := device.New(windowed, "Shell", 100, 100, 800, 600)
+	dev := device.New(false, "eg:sh", 400, 100, 800, 600)
 	dev.CreateDisplay()
-	for dev.IsRunning() {
-		in := dev.GetInput()
+	device.SetInputHandler(sh_inputHandler)
 
-		// quit if X is pressed
-		if _, ok := in.Pressed[device.KX]; ok {
-			dev.Dispose()
-		}
-
-		// show pressed keys
-		if len(in.Pressed) > 0 {
-			fmt.Print("pressed:")
-			for k, _ := range in.Pressed {
-				fmt.Print(" ", k)
-			}
-			fmt.Println()
-		}
-
-		// show keys held down.
-		if len(in.Down) > 0 {
-			fmt.Print("down:")
-			for k, _ := range in.Down {
-				fmt.Print(" ", k)
-			}
-
-			// show mouse position when holding down a mouse button.
-			_, mouseLeftDown := in.Down[device.KML]
-			_, mouseMiddleDown := in.Down[device.KMM]
-			_, mouseRightDown := in.Down[device.KMR]
-			if mouseLeftDown || mouseMiddleDown || mouseRightDown {
-				fmt.Print(" mx,my:", in.Mx, ",", in.My)
-			}
-			fmt.Println()
-		}
-
-		// show released keys
-		for k, v := range in.Released {
-			fmt.Println("released:", k, " ", v.Milliseconds(), "ms")
-		}
-
-		// show scroll amounts
-		if in.Scroll != 0 {
-			fmt.Println("scroll:", in.Scroll)
-		}
-
-		// sleep a bit to simulate a game update/render loop.
-		time.Sleep(50 * time.Millisecond)
-	}
+	// does not return while running
+	// Used on platforms that require a render callback loop.
+	dev.Run(sh_renderer) // does not return while example is running.
 }
 
 type shtag struct{} // Globally unique "tag" for this example.
+
+func sh_renderer() {} // no rendering.
+
+// device level input handler just for this example.
+// Normally expected to use input events from eng.Update callback
+func sh_inputHandler(event, data int64) {
+	switch event {
+	case device.EVENT_KEYUP:
+	case device.EVENT_KEYDOWN:
+		switch data {
+		case device.KT:
+			fmt.Printf("T key %d\n", data)
+		case device.KML:
+			fmt.Printf("left mouse click %d\n", data)
+		default:
+			fmt.Printf("press/click %d\n", data)
+		}
+	case device.EVENT_SCROLL:
+		fmt.Printf("scroll %d\n", data)
+	case device.EVENT_MODIFIER:
+		fmt.Printf("modifier %d\n", data)
+	case device.EVENT_MOVED:
+		fmt.Printf("moved %d\n", data)
+	case device.EVENT_RESIZED:
+		fmt.Printf("resized %d\n", data)
+	case device.EVENT_FOCUS_GAINED:
+		fmt.Printf("focus gained %d\n", data)
+	case device.EVENT_FOCUS_LOST:
+		fmt.Printf("focus lost %d\n", data)
+	default:
+		fmt.Printf("unexpected event type %d\n", data)
+	}
+}
