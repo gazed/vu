@@ -70,6 +70,9 @@ func (wd *windowsDevice) init(windowed bool, title string, x int32, y int32, w i
 	display.fh = win.GetSystemMetrics(win.SM_CYSCREEN)
 }
 
+// run does nothing on windows since windows is run from the main engine loop.
+func (md *windowsDevice) run(renderCallback func()) {}
+
 // User input data is refreshed each call to PollInput
 // This is shared with the App.
 var input = &Input{
@@ -363,35 +366,6 @@ func (wd *windowsDevice) getInput() *Input {
 	return input // singleton for collecting the latest user input.
 }
 
-func inputCallback(event, data int64) {
-	switch event {
-	case device.EVENT_KEYUP:
-	case device.EVENT_KEYDOWN:
-		switch data {
-		case device.KT:
-			fmt.Printf("T key %d\n", data)
-		case device.KML:
-			fmt.Printf("left mouse click %d\n", data)
-		default:
-			fmt.Printf("press/click %d\n", data)
-		}
-	case device.EVENT_SCROLL:
-		fmt.Printf("scroll %d\n", data)
-	case device.EVENT_MODIFIER:
-		fmt.Printf("modifier %d\n", data)
-	case device.EVENT_MOVED:
-		fmt.Printf("move %d\n", data)
-	case device.EVENT_RESIZED:
-		fmt.Printf("resize %d\n", data)
-	case device.EVENT_FOCUS_GAINED:
-		fmt.Printf("focus gained %d\n", data)
-	case device.EVENT_FOCUS_LOST:
-		fmt.Printf("focus lost %d\n", data)
-	default:
-		fmt.Printf("unexpected event type %d\n", data)
-	}
-}
-
 // Get the current mouse position relative to the top left corner
 // of the application window.
 func (wd *windowsDevice) cursorLocation() (mx, my int32) {
@@ -435,14 +409,6 @@ func (wd *windowsDevice) toggleFullscreen() {
 //
 //	http://msdn.microsoft.com/en-ca/library/windows/desktop/dd375731(v=vs.85).aspx
 const (
-	// TODO design... these don't exist in windows since the input is mapped directly
-	// EVENT_KEYUP        = macos.EVENT_KEYUP
-	// EVENT_KEYDOWN      = macos.EVENT_KEYDOWN
-	// EVENT_SCROLL       = macos.EVENT_SCROLL
-	// EVENT_MODIFIER     = macos.EVENT_MODIFIER
-	// EVENT_RESIZE       = macos.EVENT_RESIZE
-	// EVENT_FOCUS_GAINED = macos.EVENT_FOCUS_GAINED
-	// EVENT_FOCUS_LOST   = macos.EVENT_FOCUS_LOST
 
 	// keyboard numbers.
 	K0 = 0x30 // 0 key

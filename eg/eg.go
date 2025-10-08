@@ -49,7 +49,6 @@ func main() {
 		{"au", "Audio", au},                // test audio bindings.
 		{"ax", "Engine Audio", ax},         // test engine audio.
 		{"vv", "Vulkan Version", vv},       // test vulkan availability and version
-		{"sh", "Simple Shell", sh},         // test device package.
 		{"kc", "Keyboard Controller", kc},  // test 2D render
 		{"dr", "Display Ratio", dr},        // test window resizing
 		{"mh", "Monkey Heads", mh},         // test 3D render with GLB files and PBR shaders.
