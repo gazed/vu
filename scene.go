@@ -7,7 +7,7 @@ package vu
 import (
 	"log/slog"
 	"math"
-	"sort"
+	"slices"
 
 	"github.com/gazed/vu/load"
 	"github.com/gazed/vu/render"
@@ -202,8 +202,8 @@ func (ss *scenes) getFrame(app *application, frame []render.Pass) []render.Pass 
 			pass.Packets = ss.renderParts(app, sc, ss.parts, pass.Packets)
 
 			// sort the render pass packets.
-			sort.SliceStable(pass.Packets, func(i, j int) bool {
-				return pass.Packets[i].Bucket < pass.Packets[j].Bucket
+			slices.SortStableFunc(pass.Packets, func(a, b render.Packet) int {
+				return compareBuckets(a.Bucket, b.Bucket)
 			})
 		}
 		frame[sc.pid] = *pass // save the updated pass.
@@ -332,6 +332,11 @@ func setBucketLayer(b uint64, layer uint8) uint64 {
 	return b
 }
 
+// isTransparent returns true if the transparency bit is set.
+func isTransparent(b uint64) bool {
+	return b&drawTransparent == drawTransparent
+}
+
 // Useful bits for setting or clearing the bucket.
 const (
 	clearDistance uint64 = 0xFFFFFFFF00000000
@@ -339,9 +344,36 @@ const (
 
 	// draw types.
 	clearType       uint64 = 0xFFF0FFFFFFFFFFFF
-	drawOpaque      uint64 = 0x0001000000000000 // opaque objects before transparent
-	drawTransparent uint64 = 0x0008000000000000 // transparent objects last.
+	drawOpaque      uint64 = 0x0004000000000000 // opaque objects before transparent
+	drawTransparent uint64 = 0x0001000000000000 // transparent objects last.
 
 	// layers.
 	clearLayer uint64 = 0xFF0FFFFFFFFFFFFF
 )
+
+// compareBuckets ensures proper render sorting.
+// Sort is normally ascending, but opaque objects and
+// transparent objects need different ordering.
+//
+//	: -1 if a is less than b,
+//	:  0 if a equals b,
+//	: +1 if a is greater than b.
+func compareBuckets(a, b uint64) int {
+	switch {
+	case a == b:
+		return 0
+	case isTransparent(a) && isTransparent(b):
+		// transparent render front to back, so nearer distances before further
+		if a < b {
+			return -1 // ascending
+		}
+		return 1
+	default:
+		// opaque render back to front, so biggest distances before closer
+		if b < a {
+			return -1 // descending
+		}
+		return 1
+	}
+	return 0 // should never reach here.
+}
