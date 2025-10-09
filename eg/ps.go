@@ -34,7 +34,6 @@ func ps() {
 		vu.Background(0.01, 0.01, 0.01, 1.0),
 	)
 	if err != nil {
-		println("xxxxx")
 		slog.Error("ps: engine start", "err", err)
 		return
 	}

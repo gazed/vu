@@ -963,7 +963,6 @@ func (vr *vulkanRenderer) disposeInstanceBuffers() {
 
 // resize implements render.renderer
 func (vr *vulkanRenderer) resize(width, height uint32) {
-	println("vulkan resize called", width, height)
 	vr.resizeWidth = width   // new width
 	vr.resizeHeight = height // new height
 	vr.resizesRequested += 1 // request resize

@@ -128,7 +128,6 @@ func (c *Context) Draw(passes []Pass, dt time.Duration) (err error) {
 // Resize updates the graphics resources to the given size.
 // Expected to be called when the user resizes the app window.
 func (c *Context) Resize(width, height uint32) {
-	println("render Resize called", width, height)
 	c.renderer.resize(width, height)
 }
 
