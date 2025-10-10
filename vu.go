@@ -329,7 +329,7 @@ func (eng *Engine) MakeTextures(name string, textureData []*load.ImageData) (err
 	for i := range textureData {
 		tid, err := eng.rc.LoadTexture(textureData[i])
 		if err != nil {
-			slog.Debug("MakeTextures error", "asset", "name", name, "index", i, "err", err)
+			slog.Debug("MakeTextures error", "name", name, "index", i, "err", err)
 			continue
 		}
 		t := newTexture(fmt.Sprintf("%s%d", name, i))

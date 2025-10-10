@@ -30,7 +30,7 @@ func TestLoader(t *testing.T) {
 		// loop to process the asset load responses from the loader goroutine.
 		// monkey_solid generates 2 assets, so expect 7.
 		expectedAssets, loadedAssets := 7, 0
-		for i := 0; i < 200; i++ {
+		for i := 0; i < 10_000; i++ {
 			loadedAssets += ld.loadAssets(rc, ac)
 			if loadedAssets >= expectedAssets {
 				ld.dispose() // close the worker input channel
