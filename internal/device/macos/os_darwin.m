@@ -2,15 +2,16 @@
 // Use is governed by a BSD-style license found in the LICENSE file.
 //
 
+#import <os/log.h>
 #import <Cocoa/Cocoa.h>
 #import <Metal/Metal.h>
 #import <MetalKit/MetalKit.h>
+
 #import "os_darwin.h"
 
 // The golang device callbacks that would normally be defined in _cgo_export.h
 // are manually reproduced here and also implemented in the native test file
 // os_darwin_amd64_test.m.
-// extern void prepRender();
 extern void renderFrame();
 extern void handleInput(long event, long data);
 
@@ -22,23 +23,12 @@ NSWindow *app_window; // guaranteed to init to 0.
 static MTLClearColor CLEAR_COLOR = { 0.0, 0.0, 0.0, 1.0 };
 
 //==============================================================================
-// VuRenderer is used to get render callbacks that are
-// roughly related to the display refresh rate.
-@interface VuRenderer : NSObject <MTKViewDelegate>
-@end
-
-@implementation VuRenderer { }
-- (void)mtkView:(MTKView *)view drawableSizeWillChange:(CGSize) size { }
-- (void)drawInMTKView:(MTKView *)view { renderFrame(); }
-@end
-
-//==============================================================================
 // VuView handles the window content.
 // NOTES:
-// o MTKView is as UIView on ios and an NSView on macos.
+// o MTKView is an UIView on ios and an NSView on macos.
 // o UIView is used on iOS (Cocoa Touch): coords 0,0 in top left with positive values of Y going down
 // o NSView on Mac (Cocoa): 0,0 in lower left with positive values of Y going up
-@interface VuView : MTKView <NSWindowDelegate> {}
+@interface VuView : MTKView <NSWindowDelegate, MTKViewDelegate> {}
 @end
 
 @implementation VuView
@@ -62,6 +52,11 @@ static MTLClearColor CLEAR_COLOR = { 0.0, 0.0, 0.0, 1.0 };
 // Get one callback once resizing is finished.
 - (void)windowDidEndLiveResize:(NSNotification*)notification { handleInput(devResized, 0); }
 - (void)windowDidMove:(NSNotification*)notification { handleInput(devMoved, 0); }
+
+// MTKViewDelegate methods used to get render callbacks that are
+// roughly related to the display refresh rate.
+- (void)mtkView:(MTKView *)view drawableSizeWillChange:(CGSize) size { }
+- (void)drawInMTKView:(MTKView *)view { renderFrame(); }
 
 // register all key presses and releases.
 - (void) keyUp: (NSEvent*) event { handleInput(devUp, [event keyCode]); }
@@ -175,9 +170,8 @@ long int dev_init(char * title, long x, long y, long w, long h) {
     [window setTitle:appName];
     [window orderFrontRegardless];
 
-    // Create the render delegate to get draw callbacks.
-    VuRenderer *renderer = [VuRenderer alloc];
-    view.delegate = renderer;
+    // add the render delegate to get draw callbacks.
+    view.delegate = view;
     return (long int)(view.layer); // return a pointer to the CAMetalLayer
 }
 
@@ -186,19 +180,6 @@ long int dev_init(char * title, long x, long y, long w, long h) {
 // callbacks as events and render updates are required.
 void dev_run() {
     [NSApp run]; // Run event loop. Does not return until application exits.
-}
-
-// Update window size. No validation on values.
-void dev_set_size(long x, long y, long w, long h) {
-    if (app_window == 0) {
-        return; // window not yet initialized.
-    }
-    NSRect frame = [app_window frame];
-    NSRect content = [app_window contentRectForFrameRect:frame];
-    CGFloat titleBarHeight = app_window.frame.size.height - content.size.height;
-    CGSize windowSize = CGSizeMake(w, h + titleBarHeight);
-    NSRect windowFrame = CGRectMake(x, y, windowSize.width, windowSize.height);
-    [app_window setFrame:windowFrame display:YES animate:YES];
 }
 
 // Get current shell size.
@@ -248,3 +229,8 @@ void dev_cursor(long *x, long *y) {
 
 // Close down the application. Will cause call window terminate method.
 void dev_dispose() { [NSApp terminate:nil]; }
+
+// dev_log outputs application log to the device console.
+void dev_log(const char* log) {
+    os_log(OS_LOG_DEFAULT, "%{public}s", log);
+}

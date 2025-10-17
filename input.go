@@ -162,4 +162,9 @@ const (
 	KShift  = device.KShift  // ⇧ 8679     "
 	KCmd    = device.KCmd    // ◆ 9670     "
 	KAlt    = device.KAlt    // ◇ 9671     "
+
+	TOUCH_BEGIN = device.TOUCH_BEGIN
+	TOUCH_MOVE  = device.TOUCH_MOVE
+	TOUCH_END   = device.TOUCH_END
+	TOUCH       = device.TOUCH
 )

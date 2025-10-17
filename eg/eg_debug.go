@@ -12,9 +12,10 @@ import (
 	"os"
 )
 
-// init runs before main is called.
+// init runs after globals vars are initialized and before main is called
+// so this overrides the configLogging called at startup.
 func init() {
-	setLogLevel = func() {
+	configLogging = func() {
 		slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug})))
 	}
 }

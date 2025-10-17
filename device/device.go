@@ -25,8 +25,8 @@ type Device struct {
 
 // does not return while running
 // Used on platforms that require a render callback loop.
-func (d *Device) Run(renderCallback func()) {
-	d.platform.run(renderCallback)
+func (d *Device) Run(renderCallback, initCallback func()) {
+	d.platform.run(renderCallback, initCallback)
 }
 
 // CreateDisplay initializes a window. Called once at initialization.
@@ -79,7 +79,7 @@ type platformAPI interface {
 
 	// initialize the platform.
 	init(windowed bool, title string, x, y, w, h int32)
-	run(renderCallback func())
+	run(renderCallback, initCallback func())
 
 	// exposed as Device public methods.
 	createDisplay() error             // see CreateDisplay

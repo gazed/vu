@@ -5,7 +5,6 @@ package device
 
 import (
 	"fmt"
-	"runtime"
 	"syscall"
 	"time"
 	"unsafe"
@@ -32,10 +31,6 @@ var resizeHandler func() = nil
 func (wd *windowsDevice) setResizeHandler(callback func()) { resizeHandler = callback }
 
 // =============================================================================
-// does nothing on windows.
-func SetInputHandler(handler func(event, data int64)) {}
-
-// =============================================================================
 // newPlatform returns the platform when running on a windows system.
 func newPlatform() platformAPI { return &windowsDevice{} }
 
@@ -50,14 +45,6 @@ type windowsDevice struct {
 
 // newPlatform gets the platform specific window and input handler.
 func (wd *windowsDevice) init(windowed bool, title string, x int32, y int32, w int32, h int32) {
-	// https://stackoverflow.com/questions/25361831/benefits-of-runtime-lockosthread-in-golang
-	// "With the Go threading model, calls to C code, assembler code, or blocking
-	//  system calls occur in the same thread as the calling Go code, which is
-	//  managed by the Go runtime scheduler. The os.LockOSThread() mechanism is
-	//  mostly useful when Go has to interface with some foreign library
-	//  (a C library for instance). It guarantees that several successive calls
-	//  to this library will be done in the same thread."
-	runtime.LockOSThread()
 	wd.windowed = windowed
 	wd.title = title
 
@@ -71,7 +58,7 @@ func (wd *windowsDevice) init(windowed bool, title string, x int32, y int32, w i
 }
 
 // run does nothing on windows since windows is run from the main engine loop.
-func (md *windowsDevice) run(renderCallback func()) {}
+func (md *windowsDevice) run(renderCallback, initCallback func()) {}
 
 // User input data is refreshed each call to PollInput
 // This is shared with the App.
@@ -531,4 +518,10 @@ const (
 	KML = win.VK_LBUTTON // 0x01 Left mouse button
 	KMM = win.VK_MBUTTON // 0x04 Middle mouse button
 	KMR = win.VK_RBUTTON // 0x02 Right mouse button
+
+	// touch events are never generated.
+	TOUCH_BEGIN = 0xFFF0
+	TOUCH_MOVE  = 0xFFF1
+	TOUCH_END   = 0xFFF2
+	TOUCH       = 0xFFF3
 )

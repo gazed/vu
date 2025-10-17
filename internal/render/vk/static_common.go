@@ -32,17 +32,7 @@ func max(nums ...int) int {
 // TODO: A way for commands to indicate if the Result code is an error for that command, or an unexpected return value?
 func (r Result) Error() string {
 	// hacked to avoid the stringer tool.
-	return fmt.Sprintf("%d", r) // r.String()
-}
-
-var overrideLibName string
-
-// OverrideDefaultVulkanLibrary allows you to set a specific Vulkan library name to be used in your program. For
-// example, if you want to enable the validation layers, those layers are only available in the Vulkan SDK libary. go-vk
-// passes the name to the host operating system's library opening/search method, so you must provide a relative or
-// absolute path if your Vulkan library is not in the default search path for the platform.
-func OverrideDefaultVulkanLibrary(nameOrPath string) {
-	overrideLibName = nameOrPath
+	return fmt.Sprintf("%d", r)
 }
 
 func stringToNullTermBytes(s string) *byte {
@@ -54,4 +44,16 @@ func stringToNullTermBytes(s string) *byte {
 func nullTermBytesToString(b []byte) string {
 	n := bytes.IndexByte(b, 0)
 	return string(b[:n])
+}
+
+// LoadVulkan loads the vulkan library. This must be called once on startup.
+// Override the default Vulkan library name by setting libName to a non-empty string.
+// For example, if you want to enable the validation layers, those layers are only available in the
+// Vulkan SDK libary. go-vk passes the name to the host operating system's library opening/search method,
+// so you must provide a relative or absolute path if your Vulkan library is not in the default search
+// path for the platform.
+func LoadVulkan(overrideLibName string) error {
+
+	// non-empty strings override the default name.
+	return loadLibrary(overrideLibName)
 }

@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 void* OpenLibrary(const char *name);
+char* OpenLibraryError();
 void CloseLibrary(void *lib_handle);
 
 size_t Trampoline3(void *symbol, uintptr_t p0, uintptr_t p1, uintptr_t p2);

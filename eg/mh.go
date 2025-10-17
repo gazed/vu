@@ -25,9 +25,8 @@ import (
 //   - RMouse : look around
 //   - Q      : quit and close window.
 func mh() {
-	mh := &mhtag{}
-
 	defer catchErrors()
+	mh := &mhtag{}
 	eng, err := vu.NewEngine(
 		vu.Windowed(),
 		vu.Title("Monkey Heads"),
@@ -38,6 +37,21 @@ func mh() {
 		slog.Error("mh: engine start", "err", err)
 		return
 	}
+
+	// Run will call Load once and then call Update each engine tick.
+	eng.Run(mh, mh) // does not return while example is running.
+}
+
+// Globally unique "tag" that encapsulates example specific data.
+type mhtag struct {
+	scene  *vu.Entity
+	mx, my int32   // mouse position
+	pitch  float64 // Up-down look direction.
+	yaw    float64 // Left-right look direction.
+}
+
+// Load is the one time startup engine callback to create initial assets.
+func (mh *mhtag) Load(eng *vu.Engine) error {
 
 	// import assets from asset files.
 	// This creates the assets referenced by the models below.
@@ -61,19 +75,10 @@ func mh() {
 	// The texture matches the shader "color" sampler.
 	mh2 := mh.scene.AddModel("shd:pbr1", "msh:monkey1", "tex:color:monkey1", "mat:monkey1")
 	mh2.SetAt(+1.5, 0, -5)
-
-	eng.Run(mh) // does not return while example is running.
+	return nil
 }
 
-// Globally unique "tag" that encapsulates example specific data.
-type mhtag struct {
-	scene  *vu.Entity
-	mx, my int32   // mouse position
-	pitch  float64 // Up-down look direction.
-	yaw    float64 // Left-right look direction.
-}
-
-// Update is the application engine callback.
+// Update is the ongoing engine callback.
 func (mh *mhtag) Update(eng *vu.Engine, in *vu.Input, delta time.Duration) {
 	// react to one time press events.
 	for press := range in.Pressed {

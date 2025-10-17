@@ -29,9 +29,8 @@ import (
 //   - RMouse : look around
 //   - Q      : quit and close window.
 func is() {
-	is := &istag{ww: 1600, wh: 900, names: map[int]*vu.Entity{}}
-
 	defer catchErrors()
+	is := &istag{ww: 1600, wh: 900, names: map[int]*vu.Entity{}}
 	eng, err := vu.NewEngine(
 		vu.Windowed(),
 		vu.Title("Instanced Stars"),
@@ -43,9 +42,34 @@ func is() {
 		return
 	}
 
+	// listen for screen resizes.
+	eng.SetResizeListener(is)
+
 	// load the bright star data.
-	iData := []load.Buffer{}
-	is.stars, iData, err = is.loadBrightStars()
+	is.stars, is.starData, err = is.loadBrightStars()
+
+	// Run will call Load once and then call Update each engine tick.
+	eng.Run(is, is) // does not return while example is running.
+}
+
+// Globally unique "tag" that encapsulates example specific data.
+type istag struct {
+	scene3D  *vu.Entity    // stars
+	scene2D  *vu.Entity    // star names
+	pick     *vu.Entity    // highlight a picked star
+	ww, wh   int           // window width, height
+	mx, my   int32         // mouse position
+	pitch    float64       // Up-down look direction.
+	yaw      float64       // Left-right look direction.
+	stars    []brightStar  // bright star data.
+	starData []load.Buffer //
+
+	// star names are created as needed and then reused.
+	names map[int]*vu.Entity
+}
+
+// Load is the one time startup engine callback to create initial assets.
+func (is *istag) Load(eng *vu.Engine) error {
 
 	// import assets from asset files.
 	// This creates the assets referenced by the models below.
@@ -67,28 +91,11 @@ func is() {
 
 	// one draw call to draw over 9000 stars.
 	s1 := is.scene3D.AddInstancedModel("shd:bbinst", "msh:quad", "tex:color:star")
-	s1.SetInstanceData(eng, uint32(len(is.stars)), iData)
+	s1.SetInstanceData(eng, uint32(len(is.stars)), is.starData)
 
 	// create a 2D scene to show the star name when holding the mouse over a star.
 	is.scene2D = eng.AddScene(vu.Scene2D)
-
-	eng.SetResizeListener(is)
-	eng.Run(is) // does not return while example is running.
-}
-
-// Globally unique "tag" that encapsulates example specific data.
-type istag struct {
-	scene3D *vu.Entity   // stars
-	scene2D *vu.Entity   // star names
-	pick    *vu.Entity   // highlight a picked star
-	ww, wh  int          // window width, height
-	mx, my  int32        // mouse position
-	pitch   float64      // Up-down look direction.
-	yaw     float64      // Left-right look direction.
-	stars   []brightStar // bright star data.
-
-	// star names are created as needed and then reused.
-	names map[int]*vu.Entity
+	return nil
 }
 
 // Resize is called by the engine when the window size changes.
@@ -97,7 +104,7 @@ func (is *istag) Resize(windowLeft, windowTop int32, windowWidth, windowHeight u
 	is.ww, is.wh = int(windowWidth), int(windowHeight)
 }
 
-// Update is the application engine callback.
+// Update is the ongoing engine callback.
 func (is *istag) Update(eng *vu.Engine, in *vu.Input, delta time.Duration) {
 	cam := is.scene3D.Cam()
 

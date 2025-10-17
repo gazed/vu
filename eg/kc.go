@@ -33,6 +33,21 @@ func kc() {
 		return
 	}
 
+	// Run will call Load once and then call Update each engine tick.
+	eng.Run(kc, kc) // does not return while example is running.
+}
+
+// Globally unique "tag" that encapsulates example specific data.
+type kctag struct {
+	ww        int         // window width
+	wh        int         // window height
+	focus     *vu.Entity  // Hilights first pressed key.
+	positions map[int]pos // Screen position for each key.
+}
+
+// Load is the one time startup engine callback to create initial assets.
+func (kc *kctag) Load(eng *vu.Engine) error {
+
 	// import assets from asset files.
 	// This creates the assets referenced by the models below.
 	// "20:lucon.ttf" the font size is prefixed to the font ttf file name.
@@ -61,19 +76,10 @@ func kc() {
 			letter.SetAt(cx-4, cy-9, 0).SetColor(0, 0, 0, 1) // black
 		}
 	}
-	defer catchErrors()
-	eng.Run(kc) // does not return while example is running.
+	return nil
 }
 
-// Globally unique "tag" that encapsulates example specific data.
-type kctag struct {
-	ww        int         // window width
-	wh        int         // window height
-	focus     *vu.Entity  // Hilights first pressed key.
-	positions map[int]pos // Screen position for each key.
-}
-
-// Update is the application engine callback.
+// Update is the ongoing engine callback.
 func (kc *kctag) Update(eng *vu.Engine, in *vu.Input, delta time.Duration) {
 	// react to one time press events.
 	for press := range in.Pressed {

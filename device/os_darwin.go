@@ -1,11 +1,13 @@
+//go:build darwin && !ios
+
+// Above exclusion necessary since goos=ios will attempt to include goos=darwin files.
+
 package device
 
 // os_darwin.go wraps the macos native layer.
-// FUTURE be specfic ie: //go:build darwin && arm64
 
 import (
 	"fmt"
-	"runtime"
 	"time"
 	"unsafe"
 
@@ -31,7 +33,7 @@ func GetRenderSurfaceInfo(d *Device) (display unsafe.Pointer, err error) {
 }
 
 // =============================================================================
-// newPlatform returns the platform when running on a windows system.
+// newPlatform returns the platform when running on macos.
 func newPlatform() platformAPI { return &macosDevice{} }
 
 // macosDevice holds display state and implements the Device interface
@@ -44,21 +46,14 @@ type macosDevice struct {
 }
 
 func (md *macosDevice) init(windowed bool, title string, x, y, w, h int32) {
-	// https://stackoverflow.com/questions/25361831/benefits-of-runtime-lockosthread-in-golang
-	// "With the Go threading model, calls to C code, assembler code, or blocking
-	//  system calls occur in the same thread as the calling Go code, which is
-	//  managed by the Go runtime scheduler. The os.LockOSThread() mechanism is
-	//  mostly useful when Go has to interface with some foreign library
-	//  (a C library for instance). It guarantees that several successive calls
-	//  to this library will be done in the same thread."
-	runtime.LockOSThread()
 	md.windowed = windowed
 	md.title = title
 	md.x, md.y, md.w, md.h = uint32(x), uint32(y), uint32(w), uint32(h)
 }
 
 // run does not return.
-func (md *macosDevice) run(renderCallback func()) {
+// macos does not use initCallback.
+func (md *macosDevice) run(renderCallback, initCallback func()) {
 	macos.Run(renderCallback, darwinInputHandler)
 }
 
@@ -83,9 +78,6 @@ func (md *macosDevice) isRunning() bool { return md.display != nil }
 // user input handling.
 var (
 
-	// Allow app, mainly test apps, to override the default input handler.
-	inputHandlerHook func(event, data int64) = nil
-
 	// shared singleton input data returned to engine.
 	input = &Input{
 		Pressed:  map[int32]bool{},
@@ -103,24 +95,11 @@ var (
 // set by engine on startup.
 func (md *macosDevice) setResizeHandler(callback func()) { resizeHandler = callback }
 
-// SetInputHandler expected to be called once on startup.
-func SetInputHandler(handler func(event, data int64)) {
-	inputHandlerHook = handler
-}
-
 // darwinInputHandler consolidates user input until it is requested
 // by the engine. Apple user input is delivered by callback.
 // The engine requests the user input from the main run loop.
 // For Apple devices the main run loop is triggered by a render callback.
 func darwinInputHandler(event, data int64) {
-	// redirect input to the the hook if it exists.
-	// Generally this is for testing, or apps that want direct
-	// osx input.
-	if inputHandlerHook != nil {
-		inputHandlerHook(event, data)
-		return
-	}
-
 	// resized events are handled immediately.
 	if event == macos.EVENT_RESIZED || event == macos.EVENT_MOVED {
 		resizeHandler()
@@ -305,4 +284,10 @@ const (
 	KML = macos.KML
 	KMM = macos.KMM
 	KMR = macos.KMR
+
+	// touch events are never generated.
+	TOUCH_BEGIN = 0xFFF0
+	TOUCH_MOVE  = 0xFFF1
+	TOUCH_END   = 0xFFF2
+	TOUCH       = 0xFFF3
 )

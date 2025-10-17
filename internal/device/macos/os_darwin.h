@@ -10,7 +10,6 @@ void dev_run(); // run - does not return.
 
 // Customize the window and context by setting attributes after
 // the display is initialized.
-void dev_set_size(long x, long y, long w, long h);
 void dev_set_title(char * label);
 
 // Flip the front and back rendering buffers. This is expected to be called
@@ -48,3 +47,6 @@ enum {
     devMouseM   = 0xA1, //   ""
     devMouseR   = 0xA2, //   ""
 };
+
+// Wrap logging so that normal logs show up in the iOS device console.
+void dev_log(const char* log);

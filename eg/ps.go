@@ -24,9 +24,8 @@ import (
 //   - RMouse : look around
 //   - Q      : quit and close window.
 func ps() {
-	ps := &pstag{}
-
 	defer catchErrors()
+	ps := &pstag{}
 	eng, err := vu.NewEngine(
 		vu.Windowed(),
 		vu.Title("Primitive Shapes"),
@@ -38,6 +37,21 @@ func ps() {
 		return
 	}
 
+	// Run will call Load once and then call Update each engine tick.
+	eng.Run(ps, ps) // does not return while example is running.
+}
+
+// Globally unique "tag" that encapsulates example specific data.
+type pstag struct {
+	scene  *vu.Entity // 3D scene
+	ui     *vu.Entity // 2D scene
+	mx, my int32      // mouse position
+	pitch  float64    // Up-down look direction.
+	yaw    float64    // Left-right look direction.
+}
+
+// Load is the one time startup engine callback to create initial assets.
+func (ps *pstag) Load(eng *vu.Engine) error {
 	// import assets from asset files.
 	// This creates the assets referenced by the models below.
 	// Note that circle and quad meshes engine defaults.
@@ -78,20 +92,10 @@ func ps() {
 	c4 := ps.ui.AddModel("shd:lines2D", "msh:circle2D")
 	c4.SetAt(800, 450, 0).SetScale(150, 150, 0)
 	c4.SetColor(1, 0, 1, 1)
-
-	eng.Run(ps) // does not return while example is running.
+	return nil
 }
 
-// Globally unique "tag" that encapsulates example specific data.
-type pstag struct {
-	scene  *vu.Entity // 3D scene
-	ui     *vu.Entity // 2D scene
-	mx, my int32      // mouse position
-	pitch  float64    // Up-down look direction.
-	yaw    float64    // Left-right look direction.
-}
-
-// Update is the application engine callback.
+// Update is the ongoing engine callback for rendering.
 func (ps *pstag) Update(eng *vu.Engine, in *vu.Input, delta time.Duration) {
 	// react to one time press events.
 	for press := range in.Pressed {

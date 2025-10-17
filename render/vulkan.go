@@ -120,6 +120,13 @@ var addValidationLayer func([]string) ([]string, error) = func(layers []string) 
 func getVulkanRenderer(dev *device.Device, title string) (vr *vulkanRenderer, err error) {
 	vr = &vulkanRenderer{}
 	vr.title = title
+
+	// load the vulkan library
+	if err := vk.LoadVulkan(""); err != nil {
+		return nil, fmt.Errorf("failed to load vulkan library: %w", err)
+	}
+
+	// create the vulkan stack.
 	vr.osdev = dev
 	vr.frameWidth, vr.frameHeight = vr.osdev.SurfaceSize() // initial size
 	vr.deviceExtensions = []string{vk.KHR_SWAPCHAIN_EXTENSION_NAME}

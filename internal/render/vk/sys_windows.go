@@ -2,6 +2,7 @@
 
 package vk
 
+import "fmt"
 import "golang.org/x/sys/windows"
 
 func sys_stringToBytePointer(s string) *byte {
@@ -18,11 +19,18 @@ type vkCommand struct {
 	fnHandle  *windows.LazyProc
 }
 
-// called once automatically on package init.
-func init() {
+func loadLibrary(overrideLibName string) error {
 	libName := "vulkan-1.dll"
 	if overrideLibName != "" {
 		libName = overrideLibName
 	}
 	dlHandle = windows.NewLazyDLL(libName)
+
+	// report any errors.
+	if dlHandle == nil {
+		cStr := C.OpenLibraryError()
+		str := C.GoString(cStr)
+		return fmt.Errorf("LoadVulkan failed: %s", str)
+	}
+	return nil
 }

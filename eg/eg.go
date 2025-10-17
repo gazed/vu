@@ -24,9 +24,9 @@ import (
 	"github.com/gazed/vu/load"
 )
 
-// setLogLevel keeps the default logging settings.
-// It can be overridden by debug builds.
-var setLogLevel func() = func() {
+// configLogging keeps the default logging settings.
+// This runs before init() and is overridden in eg_debug.go by debug builds.
+var configLogging func() = func() {
 	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn})))
 }
 
@@ -34,7 +34,7 @@ var setLogLevel func() = func() {
 // Examples are roughly ordered from simple/basic at the top of the list
 // to more complex/interesting at the bottom of the list.
 func main() {
-	setLogLevel()
+	configLogging()
 
 	// change the default asset location to work for the examples.
 	load.SetAssetDir(".spv", "../assets/shaders")

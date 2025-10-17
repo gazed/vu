@@ -1,6 +1,8 @@
 // Copyright © 2025 Galvanized Logic Inc.
 // Use is governed by a BSD-style license found in the LICENSE file.
 
+//go:build !ios
+
 package macos
 
 // The macOS (darwin) c-go binding layer. This wraps the objective-c code that
@@ -23,9 +25,7 @@ package macos
 // #import "os_darwin.h"       // native function signatures and constants.
 import "C" // must be located just after C code and cgo directives.
 
-import (
-	"unsafe"
-)
+import "unsafe"
 
 // =============================================================================
 // macOS Device implementation. app->native calls.
@@ -230,3 +230,17 @@ const (
 	KMM = C.devMouseM //   "
 	KMR = C.devMouseR //   "
 )
+
+// =============================================================================
+// MacOSConsoleWriter
+
+// macosWriter wraps regular logging so the logs appear in the console.
+type MacOSConsoleWriter struct{}
+
+// Write provides a writer for regular logging.
+func (MacOSConsoleWriter) Write(p []byte) (n int, err error) {
+	cstr := C.CString(string(p))
+	C.dev_log(cstr)
+	C.free(unsafe.Pointer(cstr))
+	return len(p), nil
+}

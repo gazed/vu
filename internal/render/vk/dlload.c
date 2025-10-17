@@ -10,10 +10,14 @@
 void* OpenLibrary(const char *name) {
 	void* lib_handle = dlopen(name, RTLD_LOCAL|RTLD_LAZY);
 	if (!lib_handle) {
-		printf("Unable to load %s: %s\n", name, dlerror());
 		return NULL;
 	}
 	return lib_handle;
+}
+
+// Expected to be called if OpenLibrary returns nil.
+char* OpenLibraryError() {
+    return dlerror();
 }
 
 void CloseLibrary(void *lib_handle) {

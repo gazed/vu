@@ -1,4 +1,4 @@
-//go:build linux
+//go:build ios
 
 package vk
 
@@ -20,7 +20,7 @@ type vkCommand struct {
 }
 
 func loadLibrary(overrideLibName string) error {
-	libName := "libvulkan.so"
+	libName := "MoltenVK.framework/MoltenVK"
 	if overrideLibName != "" {
 		libName = overrideLibName
 	}

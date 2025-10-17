@@ -40,6 +40,23 @@ func cr() {
 		return
 	}
 
+	// seed some randomness for colors and start the engine.
+	rand.Seed(time.Now().UTC().UnixNano())
+
+	// Run will call Load once and then call Update each engine tick.
+	eng.Run(cr, cr) // does not return while example is running.
+}
+
+// Globally unique "tag" that encapsulates example specific data.
+type crtag struct {
+	scene *vu.Entity
+	pos   *lin.V3 // initial location.
+	rot   float64 // rotation around origin.
+}
+
+// Load is the one time startup engine callback to create initial assets.
+func (cr *crtag) Load(eng *vu.Engine) error {
+
 	// import assets from asset files.
 	// This creates the assets referenced by the models below.
 	eng.ImportAssets("pbr0.shd", "sphere.glb", "box0.glb")
@@ -69,20 +86,10 @@ func cr() {
 			}
 		}
 	}
-
-	// seed some randomness for colors and start the engine.
-	rand.Seed(time.Now().UTC().UnixNano())
-	eng.Run(cr) // does not return while example is running.
+	return nil
 }
 
-// Globally unique "tag" that encapsulates example specific data.
-type crtag struct {
-	scene *vu.Entity
-	pos   *lin.V3 // initial location.
-	rot   float64 // rotation around origin.
-}
-
-// Update is the regular engine callback.
+// Update is the ongoing engine callback.
 func (cr *crtag) Update(eng *vu.Engine, in *vu.Input, delta time.Duration) {
 	cam := cr.scene.Cam()
 

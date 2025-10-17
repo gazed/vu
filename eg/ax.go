@@ -31,6 +31,22 @@ func ax() {
 		return
 	}
 
+	// listen for screen resizes.
+	eng.SetResizeListener(ax)
+
+	// Run will call Load once and then call Update each engine tick.
+	eng.Run(ax, ax) // does not return while example is running.
+}
+
+// Globally unique "tag" that encapsulates example specific data.
+type axtag struct {
+	model   *vu.Entity // Box representing the desired ratio.
+	soundID *vu.Entity // loaded sound asset ready to play
+}
+
+// Load is the one time startup engine callback to create initial assets.
+func (ax *axtag) Load(eng *vu.Engine) error {
+
 	// load the model and sound assets.
 	eng.ImportAssets("col3D.shd", "bloop.wav")
 
@@ -44,22 +60,13 @@ func ax() {
 	ax.model = scene.AddModel("shd:col3D", "msh:cube").SetColor(1, 1, 1, 0.1)
 	ax.model.SetAt(0, 0, -4).SetScale(2, 2, 0)
 	ax.model.SetListener() // set the sound listener to this models location.
-
-	// listen for screen resizes.
-	eng.SetResizeListener(ax)
-	eng.Run(ax) // does not return while example is running.
-}
-
-// Globally unique "tag" that encapsulates example specific data.
-type axtag struct {
-	model   *vu.Entity // Box representing the desired ratio.
-	soundID *vu.Entity // loaded sound asset ready to play
+	return nil
 }
 
 // Resize is called by the engine when the window size changes.
 func (ax *axtag) Resize(windowLeft, windowTop int32, windowWidth, windowHeight uint32) {}
 
-// Update is the regular engine callback.
+// Update is the ongoing engine callback.
 func (ax *axtag) Update(eng *vu.Engine, in *vu.Input, delta time.Duration) {
 
 	// react to one time press events.

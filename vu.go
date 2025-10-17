@@ -23,6 +23,7 @@ package vu
 import (
 	"fmt"
 	"log/slog"
+	"runtime"
 	"time"
 
 	"github.com/gazed/vu/audio"
@@ -31,54 +32,35 @@ import (
 	"github.com/gazed/vu/render"
 )
 
-// NewEngine is called by the game to initialize the engine
-// and its subsystems like rendering, physics, and audio. Eg:
+// init is called once on package load. Needed because
+// underlying platforms insist that the windows are created
+// on the main startup thread.
+func init() { runtime.LockOSThread() }
+
+// NewEngine is called by the game to initialize as much of
+// the engine as the underlying platform allows before entering
+// the main run loop. Eg: creating an ios display enters a run
+// loop that does not return.
 //
 //	eng, err := vu.NewEngine(vu.Windowed())
-//
-// The app uses eng to create the initial scenes prior to running
-// the engine.
 func NewEngine(config ...Attr) (eng *Engine, err error) {
 	eng = &Engine{}
 	eng.SetFrameLimit(60) // default FPS throttle
 
 	// apply configuration overrides to the defaults.
-	cfg := configDefaults
+	eng.cfg = configDefaults
 	for _, attr := range config {
-		attr(&cfg)
+		attr(&eng.cfg)
 	}
 
-	// create engine systems to handle application data.
+	// create app to hold application created objects and resources.
 	eng.app = newApplication()
-
-	// initialize the device layer needed by the renderer
-	eng.dev = device.New(cfg.windowed, cfg.title, cfg.x, cfg.y, cfg.w, cfg.h)
-	if err = eng.dev.CreateDisplay(); err != nil {
-		eng.dispose() // can't continue without a display.
-		return nil, fmt.Errorf("device.CreateDisplay failed %w", err)
-	}
-	eng.dev.SetResizeHandler(eng.handleResize)
-
-	// initialize the graphic renderer and the display surface.
-	eng.rc, err = render.New(render.VULKAN_RENDERER, eng.dev, cfg.title)
-	if err != nil {
-		eng.dispose() // can't continue without a renderer.
-		return nil, fmt.Errorf("render.New failed %w", err)
-	}
-	eng.rc.SetClearColor(cfg.r, cfg.g, cfg.b, cfg.a)
-	GPU = render.GPU // expose GPU type found by the render layer.
 
 	// initialize audio.
 	eng.ac = audio.New()
 	if err := eng.ac.Init(); err != nil {
 		slog.Error("no audio", "error", err)
 		eng.ac.DisableAudio()
-	}
-
-	// default and fallback assets.
-	if err := eng.app.ld.loadDefaultAssets(eng.rc); err != nil {
-		eng.dispose() // can't continue without basic assets.
-		return nil, fmt.Errorf("render.New failed %w", err)
 	}
 	return eng, nil
 }
@@ -139,8 +121,9 @@ const (
 
 // Engine controls the engine subsystems and the run loop.
 //
-//	eng.Run(updater) // Run the engine.
+//	eng.Run(loader, updater) // Run the engine.
 type Engine struct {
+	cfg Config          // engine configuration settings.
 	dev *device.Device  // OS specific platform for display and input.
 	rc  *render.Context // Render interface.
 	ac  *audio.Context  // Audio interface.
@@ -151,17 +134,58 @@ type Engine struct {
 	running        bool          // true if engine is alive.
 	throttle       time.Duration // FPS throttle.
 	prevFrameStart time.Time     // used to calculate delta time
+	elapsedTime    time.Duration // accumulate time to trigger timesteps
+}
+
+// Loader is responsible for creating the initial application objects.
+// The loader is implemented by the user app and passed to eng.Run().
+// It is called once on startup.
+type Loader interface {
+	// Load allows applications to change state prior to the next render.
+	// Update is called each game loop update (many times a second) while the
+	// game is running.
+	//    eng : the game engine.
+	// Returning an error will stop the engine.
+	Load(eng *Engine) error
 }
 
 // Updator is responsible for updating application state each render frame.
-// It is implemented by the user app and passed to eng.Run().
+// The updated is implemented by the user app and passed to eng.Run().
+// It is called once per engine update.
 type Updator interface {
 	// Update allows applications to change state prior to the next render.
 	// Update is called each game loop update (many times a second) while the
 	// game is running.
-	//    eng : the game
-	//    i   : user input refreshed prior to each call.
+	//    eng  : the game engine.
+	//    i    : user input refreshed prior to each call.
+	//    delta: elapsed time since last call.
 	Update(eng *Engine, i *Input, delta time.Duration)
+}
+
+// initializeDevice is called once on startup.
+// The darwin systems can terminate the process on dispose.
+func (eng *Engine) initializeDevice() (err error) {
+
+	// initialize the device layer needed by the renderer
+	if err := eng.dev.CreateDisplay(); err != nil {
+		return fmt.Errorf("device.CreateDisplay failed %w", err)
+	}
+	eng.dev.SetResizeHandler(eng.handleResize)
+
+	// initialize the graphic renderer and the display surface.
+	cfg := eng.cfg
+	eng.rc, err = render.New(render.VULKAN_RENDERER, eng.dev, cfg.title)
+	if err != nil {
+		return fmt.Errorf("render.New failed %w", err)
+	}
+	eng.rc.SetClearColor(cfg.r, cfg.g, cfg.b, cfg.a)
+	GPU = render.GPU // expose GPU type found by the render layer.
+
+	// default and fallback assets.
+	if err := eng.app.ld.loadDefaultAssets(eng.rc); err != nil {
+		return fmt.Errorf("render.New failed %w", err)
+	}
+	return nil
 }
 
 // timestep is how often the state is updated. It is fixed at
@@ -176,72 +200,92 @@ var (
 )
 
 // runLoop is called two different ways.
-// 1. directly  - vu_windows
-// 2. callbacks - vu_apple
+// 1. directly  on windows
+// 2. callbacks on apple devices
 func (eng *Engine) runLoop() (running bool) {
-	// use a fixed timestep to run game updates 60 times a second
-	var elapsedTime time.Duration // accumulate time to trigger timesteps
 
 	// process user input.
 	eng.app.input.Clone(eng.dev.GetInput())
 	if !eng.dev.IsRunning() {
 		slog.Info("engine shutdown!") // likely user closed window.
 		eng.Shutdown()                //
-		return false                  //
+		return false                  // stop running
 	}
 
-	// run updates while game is not suspended.
-	if !eng.suspended {
-		frameStart := time.Now()
-
-		// delta measures the time it takes between frames.
-		delta := frameStart.Sub(eng.prevFrameStart)
-		elapsedTime += delta
-
-		// handle persistent slowness by dropping updates.
-		// fix this by making the updates and render faster.
-		if elapsedTime > 3*timestep {
-			elapsedTime = timestep // run 1 update and drop the rest
-		}
-
-		// run updates at a fixed interval independent of frame rendering.
-		// run multiple updates to catch up in cases of periodic slowness.
-		for elapsedTime >= timestep {
-			elapsedTime -= timestep
-
-			// Simulate physics using a fixed timestep so that
-			// each update advances by the same amount.
-			eng.app.sim.simulate(eng.app.povs, timestepSecs)
-
-			// FUTURE move particle effects using fixed timestep.
-			// eng.app.models.moveParticles(timestepSecs)
-		}
-
-		// update the client app before each render frame
-		eng.app.updator.Update(eng, eng.app.input, delta)
-		if !eng.running {
-			slog.Info("app shutdown!") // app called eng.Shutdown()
-			return false               //
-		}
-
-		// check for any newly created assets.
-		eng.app.ld.loadAssets(eng.rc, eng.ac)
-
-		// FUTURE: advance model animations by elapsed time, not at fixed rate like physics.
-		// Animation data expects to be played back at a particular frame rate.
-		// eng.app.models.animate(delta)
-
-		// render frames outside the fixed timestep.
-		// FUTURE: interpolate the render as a fraction between this frame and last.
-		eng.app.scenes.setViewMatrixes(eng.rc.Size())
-		eng.app.povs.setWorldMatrix(delta)
-		eng.app.frame = eng.app.scenes.getFrame(eng.app, eng.app.frame)
-		eng.rc.Draw(eng.app.frame, delta)
-
-		// frame complete, remember the start of this frame.
-		eng.prevFrameStart = frameStart
+	// ignore updates while game is suspended.
+	if eng.suspended {
+		return true // continue running.
 	}
+
+	// render a frame.
+	frameStart := time.Now()
+
+	// delta measures the time it takes between frames.
+	delta := frameStart.Sub(eng.prevFrameStart)
+	eng.elapsedTime += delta
+	eng.prevFrameStart = frameStart // remember for next frame.
+
+	// handle persistent slowness by dropping updates.
+	// fix this by making the updates and render faster.
+	if eng.elapsedTime > 3*timestep {
+		eng.elapsedTime = timestep // run 1 update and drop the rest
+	}
+
+	// run updates at a fixed interval independent of frame rendering.
+	// run multiple updates to catch up in cases of periodic slowness.
+	for eng.elapsedTime >= timestep {
+		eng.elapsedTime -= timestep
+
+		// Simulate physics using a fixed timestep so that
+		// each update advances by the same amount.
+		eng.app.sim.simulate(eng.app.povs, timestepSecs)
+
+		// FUTURE move particle effects using fixed timestep.
+		// eng.app.models.moveParticles(timestepSecs)
+	}
+
+	// update the client app before each render frame
+	eng.app.updator.Update(eng, eng.app.input, delta)
+	if !eng.running {
+		slog.Info("app shutdown!") // app called eng.Shutdown()
+		return false               //
+	}
+
+	// check for any newly created assets.
+	eng.app.ld.loadAssets(eng.rc, eng.ac)
+
+	// FUTURE: advance model animations by elapsed time, not at fixed rate like physics.
+	// Animation data expects to be played back at a particular frame rate.
+	// eng.app.models.animate(delta)
+
+	// render frames outside the fixed timestep.
+	// FUTURE: interpolate the render as a fraction between this frame and last.
+	eng.app.scenes.setViewMatrixes(eng.rc.Size())
+	eng.app.povs.setWorldMatrix(delta)
+	eng.app.frame = eng.app.scenes.getFrame(eng.app, eng.app.frame)
+	eng.rc.Draw(eng.app.frame, delta)
 	return true // continue running.
+}
+
+// WindowSize can be called once the display has initialized.
+// This is any time after or during the Loader.Load() callback.
+// Mainly needed for ios devices where the size is not known
+// until the display has been created.
+func (eng *Engine) WindowSize() (x, y, w, h uint32) {
+	if eng.dev == nil {
+		return 0, 0, 0, 0
+	}
+	xi, yi := eng.dev.SurfaceLocation()
+	w, h = eng.dev.SurfaceSize()
+	return uint32(xi), uint32(yi), w, h
+}
+
+// initialResize is called one time after the display surface has
+// been initialized and after the app has created the initial scenes.
+func (eng *Engine) initialResize() {
+	w, h := eng.rc.Size()       // renderer surface size.
+	eng.app.scenes.resize(w, h) // update scene cameras.
+	eng.handleResize()          // call app resize.
 }
 
 // handleResize processes user window changes.
