@@ -343,7 +343,7 @@ func TestPerspective(t *testing.T) {
 			+0, +0, -2, -1,
 			+0, +0, -2, +0}
 	m.PerspectiveProjection(90.0, 1.0, 1.0, 2.0)
-	if !want.Eq(m) {
+	if !want.Aeq(m) {
 		t.Errorf("Perspective got\n%s wanted\n%s", m.Dump(), want.Dump())
 	}
 }

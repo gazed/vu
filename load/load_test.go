@@ -18,8 +18,8 @@ func TestTtf(t *testing.T) {
 	if atlas.Tag != "hack24" {
 		t.Errorf("expecting hack24 got %s", atlas.Tag)
 	}
-	if len(ttfRunes) != len(atlas.Glyphs) {
-		t.Errorf("expecting %d got %d", len(ttfRunes), len(atlas.Glyphs))
+	if len(TTFRunes) != len(atlas.Glyphs) {
+		t.Errorf("expecting %d got %d", len(TTFRunes), len(atlas.Glyphs))
 	}
 }
 

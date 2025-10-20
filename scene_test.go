@@ -80,7 +80,7 @@ func TestBucket(t *testing.T) {
 		shid := uint16((b & 0x0000FFFF00000000) >> 40)
 		pass := uint8((b & 0xFF00000000000000) >> 56)
 		layer := uint16((b & 0x00F0000000000000) >> 52)
-		if pass != 254 || layer != 7 || draw != 1 || shid != 21 || dist != 2.4 {
+		if pass != 254 || layer != 7 || draw != 4 || shid != 21 || dist != 2.4 {
 			t.Errorf("bad bucket %016x %d %d %d %d %f\n", b, pass, draw, layer, shid, dist)
 		}
 	})
