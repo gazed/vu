@@ -8,8 +8,11 @@ package vu
 
 import (
 	"io"
+	"log/slog"
 	"os"
 	"time"
+
+	"github.com/gazed/vu/device"
 )
 
 // Run the game engine. This method starts the game loop and does not
