@@ -212,9 +212,13 @@ func (eng *Engine) runLoop() (running bool) {
 		return false                  // stop running
 	}
 
-	// ignore updates while game is suspended.
+	// suspend if focus is lost.
+	eng.suspended = !eng.app.input.Focus
+
+	// ignore updates and rendering while suspended. IOS in particular
+	// causes Vulkan errors when rendering to an app without focus.
 	if eng.suspended {
-		return true // continue running.
+		return true // continue running to process input.
 	}
 
 	// render a frame.
