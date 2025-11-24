@@ -2450,11 +2450,6 @@ func (vr *vulkanRenderer) beginFrame(dt time.Duration) (err error) {
 	vr.imageIndex, err = vk.AcquireNextImageKHR(vr.device, vr.swapchain, maxTimeout, frame.imageAvailable, 0)
 	if err != nil {
 		if err == vk.SUBOPTIMAL_KHR || err == vk.ERROR_OUT_OF_DATE_KHR {
-			// TODO test on windows.
-			// if vr.frameWidth <= 1 || vr.frameHeight <= 1 {
-			// 	return nil // ignore render attempts prior to initial resize.
-			// }
-			// vr.resize(vr.frameWidth, vr.frameHeight)
 			return nil // wait for resize
 		}
 		return fmt.Errorf("beginFrame aborted: vk.AcquireNextImageKHR: %w", err)
@@ -2643,11 +2638,6 @@ func (vr *vulkanRenderer) endFrame(dt time.Duration) (err error) {
 	err = vk.QueuePresentKHR(vr.presentQ, &presentInfo)
 	if err != nil {
 		if err == vk.SUBOPTIMAL_KHR || err == vk.ERROR_OUT_OF_DATE_KHR {
-			// TODO test on windows.
-			// if vr.frameWidth <= 1 || vr.frameHeight <= 1 {
-			// 	return nil // ignore render attempts prior to initial resize.
-			// }
-			// vr.resize(vr.frameWidth, vr.frameHeight)
 			return nil // wait for resize.
 		}
 		return fmt.Errorf("endFrame aborted: vkQueuePresentKHR: %w", err)

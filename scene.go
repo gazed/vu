@@ -7,7 +7,7 @@ package vu
 import (
 	"log/slog"
 	"math"
-	"slices"
+	"sort"
 
 	"github.com/gazed/vu/load"
 	"github.com/gazed/vu/render"
@@ -200,11 +200,7 @@ func (ss *scenes) getFrame(app *application, frame []render.Pass) []render.Pass 
 			index := app.povs.index[sc.eid]
 			ss.parts = ss.listParts(app, sc, index, ss.parts[:0])
 			pass.Packets = ss.renderParts(app, sc, ss.parts, pass.Packets)
-
-			// sort the render pass packets.
-			slices.SortStableFunc(pass.Packets, func(a, b render.Packet) int {
-				return compareBuckets(a.Bucket, b.Bucket)
-			})
+			sortPackets(pass.Packets) // render order based on Bucket values.
 		}
 		frame[sc.pid] = *pass // save the updated pass.
 	}
@@ -286,13 +282,22 @@ func (ss *scenes) dispose(eid eID, dead []eID) []eID {
 
 // =============================================================================
 
+// sortPackets sorts the packet buckets highest to lowest.
+func sortPackets(packets render.Packets) {
+	sort.SliceStable(packets, func(i, j int) bool {
+		return packets[i].Bucket > packets[j].Bucket
+	})
+}
+
 // newBucket produces a number that is used to order draw calls
-// from lowest to highest bucket value, ie: sort a<b.
-//   - Pass.... DrawType ShaderID ........ Distance to Camera.................
+// Sorting highest to lowest bucket allows the distance field to
+// be sorted so that further away objects are drawn before closer.
+//   - Pass.... LayrType ShaderID ........ Distance to Camera.................
 //     00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
 //     F   F    F   F    F   F    F   F    F   F    F   F    F   F    F   F
-//   - Pass bits is the render pass.
-//   - DrawType sorts within groups of objects.
+//   - Pass is the render pass.
+//   - Layer can be set by the app to force ordering.
+//   - Type sorts within groups of objects.
 //     8 Skydome     : draw first
 //     4 Opaque      : draw next, generally drawn in order created.
 //     1 Transparent : draw last, sorted back to front using distance to camera.
@@ -303,7 +308,7 @@ func (ss *scenes) dispose(eid eID, dead []eID) []eID {
 //   - 0 (render.Pass3D) = 255 bucket Pass value - render first
 //   - 1 (render.Pass2D) = 254 bucket Pass value - render next
 func newBucket(pass render.PassID) uint64 {
-	b := uint64(math.MaxUint8-pass) << 56 // render lower numbers before higher.
+	b := uint64(math.MaxUint8-pass) << 56 // render higher numbers before lower.
 	return b | drawOpaque                 // opaque is default
 }
 
@@ -324,17 +329,13 @@ func setBucketShader(b uint64, sid uint16) uint64 {
 	return b&clearShaderID | uint64(sid)<<40
 }
 
-// setBucketLayer
+// setBucketLayer, reverse the layer value so that higher values
+// are rendered after lower values.
 func setBucketLayer(b uint64, layer uint8) uint64 {
 	if layer < 16 {
-		return b&clearLayer | uint64(layer)<<52
+		return b&clearLayer | uint64(16-layer)<<52
 	}
 	return b
-}
-
-// isTransparent returns true if the transparency bit is set.
-func isTransparent(b uint64) bool {
-	return b&drawTransparent == drawTransparent
 }
 
 // Useful bits for setting or clearing the bucket.
@@ -350,30 +351,3 @@ const (
 	// layers.
 	clearLayer uint64 = 0xFF0FFFFFFFFFFFFF
 )
-
-// compareBuckets ensures proper render sorting.
-// Sort is normally ascending, but opaque objects and
-// transparent objects need different ordering.
-//
-//	: -1 if a is less than b,
-//	:  0 if a equals b,
-//	: +1 if a is greater than b.
-func compareBuckets(a, b uint64) int {
-	switch {
-	case a == b:
-		return 0
-	case isTransparent(a) && isTransparent(b):
-		// transparent render front to back, so nearer distances before further
-		if a < b {
-			return -1 // ascending
-		}
-		return 1
-	default:
-		// opaque render back to front, so biggest distances before closer
-		if b < a {
-			return -1 // descending
-		}
-		return 1
-	}
-	return 0 // should never reach here.
-}

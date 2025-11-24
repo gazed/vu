@@ -4,7 +4,6 @@ package vu
 
 import (
 	"math"
-	"sort"
 	"testing"
 
 	"github.com/gazed/vu/load"
@@ -72,7 +71,7 @@ func TestBucket(t *testing.T) {
 	// Check the bits placement
 	t.Run("set bucket", func(t *testing.T) {
 		b := setBucketShader(setBucketDistance(newBucket(render.Pass2D), 2.4), 21)
-		b = setBucketLayer(b, 7)
+		b = setBucketLayer(b, 2) // stored as to 16-2
 
 		// pull out the values to check placement.
 		dist := math.Float32frombits(uint32(b & 0x00000000FFFFFFFF))
@@ -80,7 +79,7 @@ func TestBucket(t *testing.T) {
 		shid := uint16((b & 0x0000FFFF00000000) >> 40)
 		pass := uint8((b & 0xFF00000000000000) >> 56)
 		layer := uint16((b & 0x00F0000000000000) >> 52)
-		if pass != 254 || layer != 7 || draw != 4 || shid != 21 || dist != 2.4 {
+		if pass != 254 || layer != 14 || draw != 4 || shid != 21 || dist != 2.4 {
 			t.Errorf("bad bucket %016x %d %d %d %d %f\n", b, pass, draw, layer, shid, dist)
 		}
 	})
@@ -96,12 +95,9 @@ func TestBucket(t *testing.T) {
 		}
 
 		// sort the render packets.
-		sort.SliceStable(packets, func(i, j int) bool {
-			return packets[i].Bucket < packets[j].Bucket
-		})
-
-		if packets[0].Bucket != 0 || packets[4].Bucket != 1025 {
-			t.Errorf("expected low to high %+v\n", packets)
+		sortPackets(packets)
+		if packets[0].Bucket != 1025 || packets[4].Bucket != 0 {
+			t.Errorf("expected high to low %+v\n", packets)
 		}
 	})
 }

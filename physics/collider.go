@@ -273,18 +273,6 @@ func collider_convex_hull_create(vertices []lin.V3, indices []uint32) collider {
 		hull_triangle_faces = append(hull_triangle_faces, triangle)
 	}
 
-	// TODO remove debug prints.
-	// fmt.Printf("convex hull vertexes %d\n", len(hull))
-	// for i := 0; i < len(hull); i++ {
-	// 	vtx := hull[i]
-	// 	fmt.Printf("  %d:vert %f,%f,%f\n", i, vtx.X, vtx.Y, vtx.Z)
-	// }
-	// fmt.Printf("convex hull triangle faces %d\n", len(hull_triangle_faces))
-	// for i := 0; i < len(hull_triangle_faces); i++ {
-	// 	tri := hull_triangle_faces[i]
-	// 	fmt.Printf("  %d:face %d,%d,%d\n", i, tri.x, tri.y, tri.z)
-	// }
-
 	// Prepare vertex to faces map
 	vertex_to_faces_map := make([][]uint32, len(hull))
 	for i := 0; i < len(hull); i++ {

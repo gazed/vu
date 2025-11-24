@@ -48,7 +48,7 @@ void main() {
     dto.texcoord = texcoord;
 
     // calcuate unit normal in world space
-	// TODO create the normal matix once on the CPU and pass in as a uniform.
+	// FUTURE create the normal matix once on the CPU and pass in as a uniform.
 	mat4 nmat = transpose(inverse(mu.model));
     dto.normal = normalize((nmat * vec4(normal, 0)).xyz);
 

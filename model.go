@@ -170,9 +170,6 @@ func (e *Entity) AddUpdatableTexture(eng *Engine, name string, img *image.NRGBA)
 			return e
 		}
 		slog.Debug("model", "asset", "tex:"+t2.label(), "tid", t2.tid, "opaque", t2.opaque)
-
-		// TODO fake this
-		// m.samplerMap[uniform] = name // remember uniform to texture mapping.
 		mod.samplerMap["color"] = t1.label()
 
 		// m.texs only takes one of the 2 textures.

@@ -171,7 +171,7 @@ const (
 	KF17    = C.kVK_F17                 //
 	KF18    = C.kVK_F18                 //
 	KF19    = C.kVK_F19                 //
-	KF20    = C.kVK_F20                 // TODO check if available on Windows.
+	KF20    = C.kVK_F20                 //
 	KPDot   = C.kVK_ANSI_KeypadDecimal  // Extended keyboard keypad keys
 	KPMlt   = C.kVK_ANSI_KeypadMultiply //   "
 	KPAdd   = C.kVK_ANSI_KeypadPlus     //   "
