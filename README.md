@@ -7,7 +7,7 @@ Vu is composed of packages, detailed in [GoDoc](http://godoc.org/github.com/gaze
 and briefly summarized below. More getting started and background information is available
 on the [Wiki](https://github.com/gazed/vu/wiki)
 
-Vu is a small engine intended for simple games. It currently supports Vulkan on Windows.
+Vu is a small engine intended for simple games. It currently supports Vulkan on Windows, MacOS, and IOS.
 
 * `vu/physics` handles spheres and convex hulls.
 * `vu/render` uses Vulkan 1.3 without any extensions.
@@ -38,13 +38,15 @@ Build and Test
 
 * Go version 1.23 or later.
 * Vulkan version 1.3 or later, and vulkan validation layer from the SDK at https://www.lunarg.com/vulkan-sdk/
+  Includes MoltenVK needed for MacOS and IOS.
 * OpenAL (https://openal.org) latest 64-bit version `OpenAL32.dll`+`soft_oal.dll` from https://openal-soft.org/openal-binaries/
 * `glslc` executable from https://github.com/google/shaderc is needed to build shaders in `vu/assets/shaders`.
 
-Example Game
+Example Games
 ------
 
-[Floworlds](https://www.floworlds.com) is a strategic puzzle terraforming game coded entirely in Go using the `vu` engine.
+* [Pure Freecell](https://apps.apple.com/us/app/pure-freecell/id1659399857) is freecell coded coded entirely in Go using the `vu` engine.
+* [Floworlds](https://www.floworlds.com) is a strategic puzzle terraforming game coded entirely in Go using the `vu` engine.
 
 Credit Where Credit is Due
 --------
