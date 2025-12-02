@@ -1,6 +1,7 @@
-//go:build darwin || ios
+// SPDX-FileCopyrightText : © 2025 Galvanized Logic Inc.
+// SPDX-License-Identifier: BSD-2-Clause
 
-// Copyright © 2025 Galvanized Logic Inc.
+//go:build darwin || ios
 
 package render
 

@@ -1,4 +1,5 @@
-// Copyright © 2015-2018 Galvanized Logic Inc.
+// SPDX-FileCopyrightText : © 2016-2025 Galvanized Logic Inc.
+// SPDX-License-Identifier: BSD-2-Clause
 
 package vu
 

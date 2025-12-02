@@ -1,4 +1,5 @@
-// Copyright © 2013-2024 Galvanized Logic Inc.
+// SPDX-FileCopyrightText : © 2014-2022 Galvanized Logic Inc.
+// SPDX-License-Identifier: BSD-2-Clause
 
 // Package lin provides a linear math library intended for games.
 // It includes vectors, matrices, quaternions, transforms, and some

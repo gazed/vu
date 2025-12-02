@@ -1,5 +1,5 @@
-// Copyright © 2025 Galvanized Logic Inc.
-// Use is governed by a BSD-style license found in the LICENSE file.
+// SPDX-FileCopyrightText : © 2025 Galvanized Logic Inc.
+// SPDX-License-Identifier: BSD-2-Clause
 
 //go:build !ios
 

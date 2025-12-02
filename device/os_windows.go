@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText : © 2014-2025 Galvanized Logic Inc.
+// SPDX-License-Identifier: BSD-2-Clause
+
 package device
 
 // os_windows.go wraps the the microsoft windows native layer.

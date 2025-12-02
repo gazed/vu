@@ -1,4 +1,5 @@
-// Copyright © 2024 Galvanized Logic Inc.
+// SPDX-FileCopyrightText : © 2024 Galvanized Logic Inc.
+// SPDX-License-Identifier: BSD-2-Clause
 
 package physics
 

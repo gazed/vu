@@ -1,4 +1,5 @@
-// Copyright © 2013-2024 Galvanized Logic Inc.
+// SPDX-FileCopyrightText : © 2014-2025 Galvanized Logic Inc.
+// SPDX-License-Identifier: BSD-2-Clause
 
 package audio
 

@@ -69,7 +69,7 @@ and lucid developers. Thank you in particular to:
   Raw-physics provides the ability to collide spheres and convex hulls in less than 4000 lines of code.
   This was perfect for porting from C into Go `vu/physics` pretty much line for line.
 
-* [https://github.com/lxn/win](https://github.com/lxn/win)
+* [https://github.com/lxn/win](https://github.com/lxn/win) BSD License.
   Go bindings for the Windows API that do not require c-go and a C compiler.
   The parts needed were put directly into `vu/internal/device/win` along with the original License.
 

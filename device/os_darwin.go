@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText : © 2014-2025 Galvanized Logic Inc.
+// SPDX-License-Identifier: BSD-2-Clause
+
 //go:build darwin && !ios
 
 // Above exclusion necessary since goos=ios will attempt to include goos=darwin files.

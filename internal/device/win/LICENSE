@@ -1,5 +1,6 @@
 win    :: API golang syscall bindings copied from
-          https://github.com/lxn/win
+          https://github.com/lxn/win.
+Original license:
 
 Copyright (c) 2010 The win Authors. All rights reserved.
 

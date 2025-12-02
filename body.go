@@ -1,8 +1,9 @@
-// Copyright © 2024 Galvanized Logic Inc.
+// SPDX-FileCopyrightText : © 2016-2022 Galvanized Logic Inc.
+// SPDX-License-Identifier: BSD-2-Clause
 
 package vu
 
-// simulation.go integrates physics into the engine.
+// body.go integrates physics into the engine.
 
 import (
 	"log/slog"

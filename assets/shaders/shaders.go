@@ -1,4 +1,5 @@
-// Copyright © 2024 Galvanized Logic Inc.
+// SPDX-FileCopyrightText : © 2022-2024 Galvanized Logic Inc.
+// SPDX-License-Identifier: BSD-2-Clause
 
 // Package shaders contains the builtin engine shaders.
 // Run "go generate" to create the shader .spv byte code files.

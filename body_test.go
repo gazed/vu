@@ -1,4 +1,5 @@
-// Copyright © 2014-2024 Galvanized Logic Inc.
+// SPDX-FileCopyrightText : © 2022 Galvanized Logic Inc.
+// SPDX-License-Identifier: BSD-2-Clause
 
 package vu
 
@@ -8,8 +9,8 @@ import (
 	"github.com/gazed/vu/math/lin"
 )
 
-// go test -run Sim
-func TestSimulation(t *testing.T) {
+// go test -run Body
+func TestBody(t *testing.T) {
 
 	// go test -run Sim/gravity
 	t.Run("gravity on kinematic sphere", func(t *testing.T) {
@@ -77,39 +78,4 @@ func TestSimulation(t *testing.T) {
 			t.Errorf("expected both balls to move")
 		}
 	})
-}
-
-// go test -run Bug
-// Used to debug physics port.
-// Adds test bodies to simulation and then loops the simulation.
-// Match the results to the same loop output in raw-physics.
-func TestBug(t *testing.T) {
-	// app := newApplication()
-	// scene := app.addScene(Scene3D)
-
-	// slab := scene.AddModel("shd:pbr0", "msh:box0", "mat:box0")
-	// slab.SetScale(50, 10, 50).SetAt(0, -5, 0)
-	// slab.AddToSimulation(Box(50, 10, 50, StaticSim))
-
-	// // const sphere_radius = 1.2849 // from blender
-	// // b := scene.AddModel("shd:pbr0", "msh:sphere", "mat:sphere")
-	// // b.SetScale(2, 2, 2).SetAt(0, 6.5, 0) // <- position of infinite loop
-	// // b.SetAa(1, 0, 0, lin.Rad(-45))
-	// // b.AddToSimulation(Sphere(sphere_radius, KinematicSim))
-
-	// b := scene.AddModel("shd:pbr0", "msh:sphere", "mat:sphere")
-	// b.SetScale(2, 2, 2).SetAt(0, 7, 0)
-	// b.SetAa(1, 0, 0, lin.Rad(-45))
-	// b.AddToSimulation(Box(2, 2, 2, KinematicSim))
-
-	// // run one physics simulation step
-	// for i := 0; i < 120; i++ {
-	// 	app.sim.simulate(app.povs, timestepSecs)
-	// 	pbod := (*physics.Body)(b.Body())
-	// 	pos := pbod.Position()
-	// 	vel := pbod.Velocity()
-	// 	rot := pbod.Rotation()
-	// 	fmt.Printf("%03d pos:%+9.6f %+9.6f %+9.6f vel:%+9.6f %+9.6f %+9.6f rot:%+9.6f %+9.6f %+9.6f %+9.6f\n",
-	// 		i, pos.X, pos.Y, pos.Z, vel.X, vel.Y, vel.Z, rot.X, rot.Y, rot.Z, rot.W)
-	// }
 }

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText : © 2025 Galvanized Logic Inc.
+// SPDX-License-Identifier: BSD-2-Clause
+
 //go:build ios
 
 package device

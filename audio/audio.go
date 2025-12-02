@@ -1,4 +1,5 @@
-// Copyright © 2013-2024 Galvanized Logic Inc.
+// SPDX-FileCopyrightText : © 2014-2022 Galvanized Logic Inc.
+// SPDX-License-Identifier: BSD-2-Clause
 
 // Package audio plays sounds at 3D locations.
 // The expected usage is to initialize the audio system and load sound data.

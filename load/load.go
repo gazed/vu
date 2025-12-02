@@ -1,4 +1,5 @@
-// Copyright © 2013-2024 Galvanized Logic Inc.
+// SPDX-FileCopyrightText : © 2014-2024 Galvanized Logic Inc.
+// SPDX-License-Identifier: BSD-2-Clause
 
 // Package load fetches disk based 3D asset data. It's main purpose is to
 // find the asset file and load its data into intermediate data structs.

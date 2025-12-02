@@ -1,4 +1,5 @@
-// Copyright © 2013-2024 Galvanized Logic Inc.
+// SPDX-FileCopyrightText : © 2014-2022 Galvanized Logic Inc.
+// SPDX-License-Identifier: BSD-2-Clause
 
 package main
 
@@ -13,6 +14,7 @@ import (
 
 // au checks that OpenAL is installed and the bindings are working
 // by loading and playing a sound.
+// Requires OpenAL32.dll in this directory or a standard system location.
 //
 // CONTROLS: NA
 func au() {

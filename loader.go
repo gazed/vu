@@ -1,4 +1,6 @@
-// Copyright © 2015-2024 Galvanized Logic Inc.
+// SPDX-FileCopyrightText : © 2015-2025 Galvanized Logic Inc.
+// SPDX-License-Identifier: BSD-2-Clause
+
 package vu
 
 // loader.go uses a goroutine to load asset data from disk.
