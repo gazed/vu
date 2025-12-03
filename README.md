@@ -45,7 +45,7 @@ Build and Test
 Example Games
 ------
 
-* [Pure Freecell](https://apps.apple.com/us/app/pure-freecell/id1659399857) is freecell coded coded entirely in Go using the `vu` engine.
+* [Pure Freecell](https://apps.apple.com/us/app/pure-freecell/id1659399857) is freecell coded entirely in Go using the `vu` engine.
 * [Floworlds](https://www.floworlds.com) is a strategic puzzle terraforming game coded entirely in Go using the `vu` engine.
 
 Credit Where Credit is Due
