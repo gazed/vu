@@ -157,6 +157,14 @@ func (body *Body) Push(x, y, z float64) {
 	body.linear_velocity.Z += z
 }
 
+// Stop all linear and angular velocity.
+// Also remove all existing forces.
+func (body *Body) Stop() {
+	body.linear_velocity.SetS(0, 0, 0)
+	body.angular_velocity.SetS(0, 0, 0)
+	body.clear_forces()
+}
+
 // AddForce to this body.
 // If local_coords is false, then the position and force are represented
 // in world coordinates, assuming that the center of the

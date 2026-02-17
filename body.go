@@ -56,9 +56,34 @@ func (e *Entity) Push(x, y, z float64) {
 	slog.Error("Push needs AddToSimulation", "entity_id", e.eid)
 }
 
-// Body returns the physics body for this entity, returning nil
-// if no physics body exists.
-func (e *Entity) Body() Body { return e.app.sim.get(e.eid) }
+// Velocity returns the physics body linear velocity.
+// It is a wrapper for physics.Body.Velocity
+//
+// Depends on AddToSimultation.
+func (e *Entity) Velocity() (x, y, z float64) {
+	if body := e.app.sim.get(e.eid); body != nil {
+		v3 := (*physics.Body)(body).Velocity()
+		return v3.X, v3.Y, v3.Z
+	}
+	slog.Error("Velocity needs AddToSimulation", "entity_id", e.eid)
+	return 0, 0, 0
+}
+
+// Stop all physics movement (set velocity and forces to zero).
+// Stop is a wrapper for physics.Body.Stop
+//
+// Depends on AddToSimultation.
+func (e *Entity) Stop() {
+	if body := e.app.sim.get(e.eid); body != nil {
+		(*physics.Body)(body).Stop()
+		return
+	}
+	slog.Error("Stop needs AddToSimulation", "entity_id", e.eid)
+}
+
+// Body returns the underlying physics body for this entity,
+// returning nil if no physics body exists.
+func (e *Entity) Body() *physics.Body { return e.app.sim.get(e.eid) }
 
 // DisposeBody removes the physics body from the given entity.
 // Does nothing if there was no physics body.
