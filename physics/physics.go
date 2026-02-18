@@ -40,14 +40,16 @@ func Simulate(bods []Body, timestep float64) {
 		b := bodies[i]
 		colliders_update(b.colliders, b.world_position, &b.world_rotation)
 	}
-	const GRAVITY float64 = 10.0
 	for i := range bodies {
 		bod := &bodies[i]
 		if bod.fixed {
 			continue // don't bother adding force to fixed bodies.
 		}
-		position := lin.NewV3()
-		force := lin.NewV3().SetS(0.0, -GRAVITY*1.0/bod.inverse_mass, 0.0)
+		position := &lin.V3{}
+		force := &lin.V3{}
+		if bod.gravity > 0.0 {
+			force.SetS(0.0, -bod.gravity*1.0/bod.inverse_mass, 0.0)
+		}
 		bod.AddForce(*position, *force, false)
 	}
 	pbd_simulate(timestep, bodies, 1, 1, true)

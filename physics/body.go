@@ -16,9 +16,10 @@ import (
 // Bodies are added for objects that need to participate in physics.
 // Bodies transforms are set by the physics simulation and not the application.
 type Body struct {
-	world_position lin.V3 // set/get using accessor methods
-	world_rotation lin.Q  // set/get using accessor methods
-	world_scale    lin.V3 // set/get using accessor methods
+	world_position lin.V3  // set/get using accessor methods
+	world_rotation lin.Q   // set/get using accessor methods
+	world_scale    lin.V3  // set/get using accessor methods
+	gravity        float64 // down force applied each simulation. Default: 10.0.
 
 	// Physics Related
 	colliders                    []collider
@@ -79,8 +80,9 @@ func body_create_ex(
 	body.world_position = world_position
 	body.world_rotation = world_rotation
 	body.world_scale = world_scale
+	body.gravity = 10.0 // ie: 9.8m/s accelleration.
 
-	// initial velocities all default to zero, V3{0,0,0}
+	// NOTE: initial velocities all default to zero, V3{0,0,0}
 	// body.angular_velocity
 	// body.linear_velocity
 	// body.previous_angular_velocity
@@ -142,6 +144,21 @@ func (body *Body) Rotation() (world_rotation *lin.Q) {
 // SetScale sets the bodies scale
 func (body *Body) SetScale(world_scale lin.V3) {
 	body.world_scale = world_scale
+}
+
+// SetGravity sets the downward force on this object.
+// Defaults to 10.0
+func (body *Body) SetGravity(downForce float64) {
+	body.gravity = downForce
+}
+
+// SetMass sets the bodies mass. Mass must be positive.
+func (body *Body) SetMass(mass float64) {
+	if mass > 0.0 {
+		body.inverse_mass = 1.0 / mass
+		body.inertia_tensor = colliders_get_default_inertia_tensor(body.colliders, mass)
+		body.inverse_inertia_tensor.Inv(&body.inertia_tensor)
+	}
 }
 
 // Activate set the body as active in the simulation.

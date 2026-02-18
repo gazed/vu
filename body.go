@@ -81,6 +81,20 @@ func (e *Entity) Stop() {
 	slog.Error("Stop needs AddToSimulation", "entity_id", e.eid)
 }
 
+// SetGravity sets the down force applied to this body.
+// Gravity is 10.0m/s by default.
+// SetGravity is a wrapper for physics.Body.SetGravity
+//
+// Depends on AddToSimultation.
+func (e *Entity) SetGravity(downForce float64) *Entity {
+	if body := e.app.sim.get(e.eid); body != nil {
+		(*physics.Body)(body).SetGravity(downForce)
+		return e
+	}
+	slog.Error("SetGravity needs AddToSimulation", "entity_id", e.eid)
+	return e
+}
+
 // Body returns the underlying physics body for this entity,
 // returning nil if no physics body exists.
 func (e *Entity) Body() *physics.Body { return e.app.sim.get(e.eid) }
