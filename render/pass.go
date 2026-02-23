@@ -22,8 +22,8 @@ const (
 // The returned Pass is expected to be reused in render loops.
 func NewPass() Pass {
 	return Pass{
-		Uniforms: map[load.PassUniform][]byte{},      // map of data
-		Lights:   []Light{Light{}, Light{}, Light{}}, // max 3 lights
+		Uniforms: map[load.PassUniform][]byte{},                        // map of data
+		Lights:   []Light{Light{}, Light{}, Light{}, Light{}, Light{}}, // max 5 lights
 	}
 }
 

@@ -11,6 +11,7 @@ import (
 	"sort"
 
 	"github.com/gazed/vu/load"
+	"github.com/gazed/vu/math/lin"
 	"github.com/gazed/vu/render"
 )
 
@@ -79,16 +80,22 @@ func (s *scene) setProjection(ww, wh uint32) {
 	c.focus = true
 }
 
-// setPassUniformData sets the pass uniform data.
+// setPassUniformData sets the render pass scene level data.
 func (s *scene) setPassUniformData(app *application, pass *render.Pass) {
 	pass.Uniforms[load.PROJ] = render.M4ToBytes(s.cam.pm, pass.Uniforms[load.PROJ])
 	pass.Uniforms[load.VIEW] = render.M4ToBytes(s.cam.vm, pass.Uniforms[load.VIEW])
 	cx, cy, cz := s.cam.At()
 	pass.Uniforms[load.CAM] = render.V4SToBytes(cx, cy, cz, 0, pass.Uniforms[load.CAM])
 
+	// temp struct for sorting lights.
+	type sceneLight struct {
+		p pov
+		l *light
+	}
+	activeLights := []sceneLight{}
+
 	// adds any scene lights to the render pass.
 	// lights are children of the scene.
-	nlights := 0
 	index := app.povs.index[s.eid] // scene eID
 	n := app.povs.nodes[index]
 	for _, kid := range n.kids {
@@ -103,28 +110,68 @@ func (s *scene) setPassUniformData(app *application, pass *render.Pass) {
 			continue
 		}
 
-		// get the light
+		// check if a light exists on this node.
 		kp := app.povs.povs[ki]
 		l := app.lights.get(kp.eid)
 		if l == nil {
 			continue
 		}
 
-		// fill in the light render information into pass.Lights.
-		if nlights >= len(pass.Lights) {
+		// save the light and pov information.
+		activeLights = append(activeLights, sceneLight{p: kp, l: l})
+	}
+
+	// shader code depends on the lights being sorted by type.
+	sort.Slice(activeLights, func(i, j int) bool {
+		return activeLights[i].l.kind < activeLights[j].l.kind
+	})
+
+	// use light information to fill the render pass.Lights.
+	sunLights, pointLights, spotLights := int32(0), int32(0), int32(0)
+	for _, al := range activeLights {
+
+		// count the type of lights.
+		switch al.l.kind {
+		case SunLight:
+			sunLights += 1
+		case PointLight:
+			pointLights += 1
+		case SpotLight:
+			spotLights += 1
+		default:
+			slog.Error("scene:setPassUniformData unknown light type", "light_type", al.l.kind)
+		}
+
+		// ignore lights past the maximum supported by the shaders.
+		numLights := int(sunLights + pointLights + spotLights)
+		if numLights >= len(pass.Lights) {
 			slog.Warn("scene:setPassUniformData to many lights")
 			break
 		}
-		light := &pass.Lights[nlights]
-		px, py, pz := kp.at()
-		light.X, light.Y, light.Z = float32(px), float32(py), float32(pz)
-		light.R, light.G, light.B = l.r, l.g, l.b
-		light.Intensity = l.intensity
-		nlights += 1
+		if numLights <= 0 {
+			slog.Warn("scene:setPassUniformData not enough lights")
+			break
+		}
 
+		// fill in the render pass light information needed by the shaders.
+		light := &pass.Lights[numLights-1]
+		light.R, light.G, light.B = al.l.r, al.l.g, al.l.b
+		light.Intensity = al.l.intensity
+
+		// light position
+		px, py, pz := al.p.at()
+		light.Px, light.Py, light.Pz = float32(px), float32(py), float32(pz)
+		light.Attenuation = 1.0 // TODO
+
+		// get the light direction by applying the light rotation
+		// to the original look direction (down the -Z axis).
+		dir := &lin.V3{0, 0, -1}           // original look direction
+		dir.MultQ(dir, al.p.tn.Rot).Unit() // normalized
+		light.Dx, light.Dy, light.Dz = float32(dir.X), float32(dir.Y), float32(dir.Z)
+		light.Cutoff = al.l.cutoff
 	}
 	pass.Uniforms[load.LIGHTS] = render.LightsToBytes(pass.Lights, pass.Uniforms[load.LIGHTS])
-	pass.Uniforms[load.NLIGHTS] = render.U8ToBytes(uint8(nlights), pass.Uniforms[load.NLIGHTS])
+	pass.Uniforms[load.LIGHTCNT] = render.IV4ToBytes(sunLights, pointLights, spotLights, 0, pass.Uniforms[load.LIGHTCNT])
 }
 
 // =============================================================================

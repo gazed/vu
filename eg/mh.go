@@ -14,7 +14,9 @@ import (
 // This example demonstrates:
 //   - loading assets.
 //   - creating a 3D scene.
-//   - adding a light to a scene.
+//   - adding a directional sun light to a scene.
+//   - adding a point light to a scene.
+//   - adding a spot light to a scene.
 //   - controlling scene camera movement.
 //   - shaders for Physically Based Rendering (PBR).
 //   - binary GLTF (GLB) imports for mesh, texture, and material assets.
@@ -46,9 +48,10 @@ func mh() {
 // Globally unique "tag" that encapsulates example specific data.
 type mhtag struct {
 	scene  *vu.Entity
-	mx, my int32   // mouse position
-	pitch  float64 // Up-down look direction.
-	yaw    float64 // Left-right look direction.
+	mx, my int32      // mouse position
+	pitch  float64    // Up-down look direction.
+	yaw    float64    // Left-right look direction.
+	spot   *vu.Entity // spot light
 }
 
 // Load is the one time startup engine callback to create initial assets.
@@ -56,25 +59,33 @@ func (mh *mhtag) Load(eng *vu.Engine) error {
 
 	// import assets from asset files.
 	// This creates the assets referenced by the models below.
-	eng.ImportAssets("pbr0.shd", "monkey0.glb", "pbr1.shd", "monkey1.glb")
+	eng.ImportAssets("PBRCol.shd", "monkey0.glb", "PBRTex.shd", "monkey1.glb")
 
 	// The scene holds the cameras and lighting information
 	// and acts as the root for all models added to the scene.
 	mh.scene = eng.AddScene(vu.Scene3D)
 
 	// add one directional light. SetAt sets the direction.
-	mh.scene.AddLight(vu.DirectionalLight).SetAt(-1, -2, -2)
+	// mh.scene.AddLight(vu.SunLight).SetAt(0, 5, -15)
+
+	// add a bright red point light just behind the heads.
+	point := mh.scene.AddLight(vu.PointLight)
+	point.SetAt(0, 0, -6).SetLight(1, 0, 0, 1)
+
+	// add a bright blue spot light that follows the camera position and orienation.
+	mh.spot = mh.scene.AddLight(vu.SpotLight)
+	mh.spot.SetLight(0, 0, 1, 10)
 
 	// add monkey heads: facing +Z by default.
 	// Request model assets and render once those assets have been loaded.
 	//
-	// pbr0 uses fixed color:metallic:roughness values.
-	mh1 := mh.scene.AddModel("shd:pbr0", "msh:monkey0", "mat:monkey0")
+	// fixed color:metallic:roughness values.
+	mh1 := mh.scene.AddModel("shd:PBRCol", "msh:monkey0", "mat:monkey0")
 	mh1.SetAt(-1.5, 0, -5)
 	//
-	// pbr1 uses fixed a color texture and fixed metallic:roughness values.
+	// use color texture and fixed metallic:roughness values.
 	// The texture matches the shader "color" sampler.
-	mh2 := mh.scene.AddModel("shd:pbr1", "msh:monkey1", "tex:color:monkey1", "mat:monkey1")
+	mh2 := mh.scene.AddModel("shd:PBRTex", "msh:monkey1", "tex:color:monkey1", "mat:monkey1")
 	mh2.SetAt(+1.5, 0, -5)
 	return nil
 }
@@ -125,6 +136,10 @@ func (mh *mhtag) Update(eng *vu.Engine, in *vu.Input, delta time.Duration) {
 			}
 		}
 	}
+
+	// position the spot light to follow the camera.
+	mh.spot.SetAt(cam.At())
+	mh.spot.SetView(cam.Lookat())
 }
 
 // limitPitch ensures that look up/down is limited to 90 degrees.

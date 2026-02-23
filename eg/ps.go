@@ -56,14 +56,14 @@ func (ps *pstag) Load(eng *vu.Engine) error {
 	// import assets from asset files.
 	// This creates the assets referenced by the models below.
 	// Note that circle and quad meshes engine defaults.
-	eng.ImportAssets("circle.shd", "lines.shd", "lines2D.shd", "pbr0.shd", "col3D.shd")
+	eng.ImportAssets("circle.shd", "lines.shd", "lines2D.shd", "col3D.shd")
 
 	// The scene holds the cameras and lighting information
 	// and acts as the root for all models added to the scene.
 	ps.scene = eng.AddScene(vu.Scene3D)
 
 	// add one directional light. SetAt sets the direction.
-	ps.scene.AddLight(vu.DirectionalLight).SetAt(-1, -2, -2)
+	ps.scene.AddLight(vu.SunLight).SetAt(-1, -2, -2)
 
 	// Draw a 3D line circle using a shader and a quad.
 	scale := 3.0

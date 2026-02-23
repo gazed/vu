@@ -5,7 +5,6 @@
 // Run "go generate" to create the shader .spv byte code files.
 //
 // Shaders are linked directly to the engine code in a few ways:
-//
 //   - vu/load/shd.go expects specific names for attributes and
 //     uniform types. The shd.go code may need to be updated for new shaders.
 //   - The order of attributes and uniforms in the shader description
@@ -14,10 +13,7 @@
 //   - The shader push constants block only guarantees upto 128 bytes.
 //
 // PBR shaders are based on the youtube tutorial43 from:
-//
-//	https://github.com/emeiri/ogldev/
-//	https://github.com/emeiri/ogldev/blob/master/Common/Shaders/lighting_new.fs
-//	https://github.com/emeiri/ogldev/blob/master/Common/Shaders/lighting_new.vs
+//   - https://github.com/emeiri/ogldev/
 package shaders
 
 // =============================================================================
@@ -34,10 +30,10 @@ package shaders
 //go:generate glslc col3D.frag -o col3D.frag.spv
 //go:generate glslc lines.vert -o lines.vert.spv
 //go:generate glslc lines.frag -o lines.frag.spv
-//go:generate glslc pbr0.vert -o pbr0.vert.spv
-//go:generate glslc pbr0.frag -o pbr0.frag.spv
-//go:generate glslc pbr1.vert -o pbr1.vert.spv
-//go:generate glslc pbr1.frag -o pbr1.frag.spv
+//go:generate glslc PBRCol.vert -o PBRCol.vert.spv
+//go:generate glslc PBRCol.frag -o PBRCol.frag.spv
+//go:generate glslc PBRTex.vert -o PBRTex.vert.spv
+//go:generate glslc PBRTex.frag -o PBRTex.frag.spv
 //go:generate glslc tex3D.vert -o tex3D.vert.spv
 //go:generate glslc tex3D.frag -o tex3D.frag.spv
 //go:generate glslc sdf.vert -o sdf.vert.spv

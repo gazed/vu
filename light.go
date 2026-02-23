@@ -8,14 +8,16 @@ package vu
 
 import (
 	"log/slog"
+	"math"
 
 	"github.com/gazed/vu/render"
 )
 
 // Types of lights
 const (
-	DirectionalLight = iota // no falloff ie: the sun
-	PointLight              // falloff ie: light bulb
+	SunLight   = iota // sun rays   : position implies direction.
+	PointLight        // light bulb : position and direction.
+	SpotLight         // flash light: position and direction and cone cutoff angle.
 )
 
 // AddLight adds a light to a scene.
@@ -56,25 +58,42 @@ func (e *Entity) SetLight(r, g, b, intensity float32) *Entity {
 	return e
 }
 
+// SetCutoff assigns the cone cutoff angle, in radians, that
+// is required for spot lights. The default is 0.5 radians, about 28.6deg.
+//
+// Depends on Entity.AddLight.
+func (e *Entity) SetCutoff(angleInRadians float32) *Entity {
+	if l := e.app.lights.get(e.eid); l != nil {
+		l.cutoff = float32(math.Cos(float64(angleInRadians)))
+		return e
+	}
+	slog.Error("SetCone needs AddLight", "eid", e.eid)
+	return e
+}
+
 // =============================================================================
 // light data.
 
-// light holds light color for now. Anticipate other future light parameters.
-// The lights world position are scatch values updated each render loop.
+// lights have color and intensity. Spot lights have a cutoff angle.
+// The position and orientation of lights are handle by pov components.
 type light struct {
-	kind      int     // light type
-	r, g, b   float32 // Light color: values are 0 to 1.
-	intensity float32 //
+	kind        int     // light type
+	r, g, b     float32 // Light color: values are 0 to 1.
+	attenuation float32 // light attenuation.
+	intensity   float32 // light intensity.
+	cutoff      float32 // spot light cone.
 }
 
 // newLight creates a white light.
 func newLight(lightType int) (l *light) {
+	cutoffAngle := float32(math.Cos(0.5)) // default spotlight cutoff angle ~28.6deg.
 	return &light{
 		kind:      lightType,
-		r:         1.0, // default white color.
-		g:         1.0, //   ""
-		b:         1.0, //   ""
-		intensity: 5.0, // default intensity.
+		r:         1.0,         // default white color.
+		g:         1.0,         //   ""
+		b:         1.0,         //   ""
+		intensity: 5.0,         // default intensity.
+		cutoff:    cutoffAngle, // default cutoff angle.
 	}
 }
 
@@ -115,13 +134,24 @@ func (ls *lights) create(light, scene *Entity, lightType int) (l *light) {
 // at the given pov.
 func (ls *lights) fillLight(light *render.Light, lid eID, pov *pov) {
 	l := ls.data[lid]
-	px, py, pz := pov.at()
-	light.X = float32(px)
-	light.Y = float32(py)
-	light.Z = float32(pz)
 	light.R = l.r
 	light.G = l.g
 	light.B = l.b
+	light.Intensity = l.intensity
+
+	// position for all lights.
+	px, py, pz := pov.at()
+	light.Px = float32(px)
+	light.Py = float32(py)
+	light.Pz = float32(pz)
+	light.Attenuation = l.attenuation
+
+	// direction for spotlight.
+	dx, dy, dz, _ := pov.tn.Rot.Aa()
+	light.Dx = float32(dx)
+	light.Dy = float32(dy)
+	light.Dz = float32(dz)
+	light.Cutoff = l.cutoff
 }
 
 // dispose the light associated for the given entity. Do nothing

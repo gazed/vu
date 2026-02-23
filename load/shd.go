@@ -75,12 +75,12 @@ var ShaderUniformScope = map[string]UniformScope{
 // a single scene (render pass).
 // Expected use is for passing data from the engine to the render system.
 var ShaderPassUniforms = map[string]PassUniform{
-	"proj":    PROJ,    //
-	"view":    VIEW,    //
-	"cam":     CAM,     //
-	"lights":  LIGHTS,  //
-	"nlights": NLIGHTS, //
-	"time":    TIME,    //
+	"proj":     PROJ,     //
+	"view":     VIEW,     //
+	"cam":      CAM,      //
+	"lights":   LIGHTS,   //
+	"lightCnt": LIGHTCNT, //
+	"time":     TIME,     //
 }
 
 // ShaderPacketUniforms are shader uniforms that apply to one model.
@@ -100,13 +100,14 @@ var ShaderPacketUniforms = map[string]PacketUniform{
 var ShaderUniformData = map[string]ShaderDataType{
 	"int":     DataType_INT,
 	"float":   DataType_FLOAT,
-	"light3":  DataType_LIGHT3,
+	"lights":  DataType_LIGHTARRAY,
 	"mat3":    DataType_MAT3,
 	"mat4":    DataType_MAT4,
 	"sampler": DataType_SAMPLER,
 	"vec2":    DataType_VEC2,
 	"vec3":    DataType_VEC3,
 	"vec4":    DataType_VEC4,
+	"ivec4":   DataType_IVEC4,
 }
 
 // Shd loads a yaml shader configuration and returns it as
@@ -301,7 +302,7 @@ const (
 	VIEW                            // scene
 	CAM                             // scene
 	LIGHTS                          // scene
-	NLIGHTS                         // scene
+	LIGHTCNT                        // scene
 	TIME                            // scene
 	PassUniforms                    // must be last
 )
@@ -361,23 +362,25 @@ type ShaderDataType uint8
 const (
 	DataType_INT ShaderDataType = iota
 	DataType_FLOAT
-	DataType_LIGHT3 // array of 3 lights
+	DataType_LIGHTARRAY // array of lights
 	DataType_MAT3
 	DataType_MAT4
 	DataType_SAMPLER
 	DataType_VEC2
 	DataType_VEC3
 	DataType_VEC4
+	DataType_IVEC4
 )
 
 var DataTypeSizes = map[ShaderDataType]uint32{
-	DataType_INT:     4,  // int32
-	DataType_FLOAT:   4,  // float32
-	DataType_LIGHT3:  96, // 3 light struct of 2 vec4 float
-	DataType_MAT3:    36, // 9 float32
-	DataType_MAT4:    64, // 16 float32
-	DataType_SAMPLER: 0,  // samplers don't have size.
-	DataType_VEC2:    8,  // float32 vec2
-	DataType_VEC3:    12, // float32 vec3
-	DataType_VEC4:    16, // float32 vec4
+	DataType_INT:        4,   // int32
+	DataType_FLOAT:      4,   // float32
+	DataType_LIGHTARRAY: 240, // 5 light struct of 3 vec4 float (5x48).
+	DataType_MAT3:       36,  // 9 float32
+	DataType_MAT4:       64,  // 16 float32
+	DataType_SAMPLER:    0,   // samplers don't have size.
+	DataType_VEC2:       8,   // float32 vec2
+	DataType_VEC3:       12,  // float32 vec3
+	DataType_VEC4:       16,  // float32 vec4
+	DataType_IVEC4:      16,  // int32 vec4
 }

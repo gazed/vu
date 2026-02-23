@@ -8,7 +8,6 @@ package render
 import (
 	"fmt"
 	"log/slog"
-	"math"
 	"time"
 	"unsafe"
 
@@ -288,15 +287,15 @@ func (us uniformSets) hasUniform(name string) bool {
 //
 // Due to buffer alignment when setting data.
 // The MinUniformBufferOffsetAlignment is at worst 256 bytes
-// so create each uniform buffer of 256 bytes and complain if
-// the uniform data exceeds this.
+// so create each uniform buffer in multiples of 256 bytes and
+// complain if the uniform data exceeds the max size.
 const (
-	maxSceneUniformBytes    = 256 // scene data fits in 256 bytes
+	maxSceneUniformBytes    = 512 // scene data fits in 512 bytes
 	maxMaterialUniformBytes = 256 // material data fits in 256 bytes
-	maxModelUniformBytes    = 128 // model data fits in 128 bytes
+	maxModelUniformBytes    = 128 // model data must fit in 128 bytes
 )
 
-// genUniforms creates shaderUniforms from shader the configuration.
+// genUniforms creates shaderUniforms from the shader configuration.
 func getUniformSets(configUniforms []load.ShaderUniform) (sets uniformSets) {
 	sets.uniforms = make([]uniform, len(configUniforms))
 	sets.index = map[string]*uniform{}
@@ -385,6 +384,23 @@ func (v *v4) toBytes() []byte {
 }
 func (v *v4) setInvalid() { v.x, v.y, v.z, v.w = -1, -1, -1, -1 }
 
+// -----------------------------------------------------------------------------
+
+// IV4ToBytes returns a byte slice of 4xint32 for the given integer vector.
+// The given byte slice is zeroed and returned filled with the vector bytes.
+func IV4ToBytes(x, y, z, w int32, bytes []byte) []byte {
+	bytes = bytes[:0]
+	return append(bytes, (&i4{x: x, y: y, z: z, w: w}).toBytes()...)
+}
+
+// i4 is a vec4 of int that is used to set shader uniforms.
+type i4 struct{ x, y, z, w int32 }
+
+// toBytes returns the data as a byte array.
+func (i *i4) toBytes() []byte {
+	return (*[int(unsafe.Sizeof(*i))]byte)(unsafe.Pointer(i))[:]
+}
+
 // =============================================================================
 
 // M4ToBytes returns a byte slice of float32 for the given float64 matrix.
@@ -430,26 +446,32 @@ func (m *m4) toBytes() []byte {
 // =============================================================================
 
 // Light holds the location and color for a directional light.
-// Effectively 2 float32 vec4 for 32 bytes.
+// It aligns with the data struct expected by the shader.
+// - vec4 color; // XYZ are rgb 0-1, W is light intensity
+// - vec4 pos;   // XYZ is the world space light position, W is attenuation.
+// - vec4 dir;   // XYZ is world space light direction, W is the cos(cutoff) angle in radians.
 type Light struct {
-	X, Y, Z, W float32 // location - W is 1 for point light, 0 for directional.
-	R, G, B    float32 // color
-	Intensity  float32 // light intensity
+	R, G, B, Intensity      float32 // light color and intensity.
+	Px, Py, Pz, Attenuation float32 // position and attenuation.
+	Dx, Dy, Dz, Cutoff      float32 // direction and cutoff angle.
 }
 
-// reset the light data before reusing the light struct.
+// reset is used to clear light data before reusing the light struct.
 // Called internally from pass.Reset()
 func (l *Light) reset() {
-	l.X, l.Y, l.Z, l.W = 0.0, 0.0, 0.0, 0.0
-	l.R, l.G, l.B = 0.0, 0.0, 0.0
-	l.Intensity = 0.0
+	l.R, l.G, l.B, l.Intensity = 0.0, 0.0, 0.0, 0.0
+	l.Px, l.Py, l.Pz, l.Attenuation = 0.0, 0.0, 0.0, 0.0
+	l.Dx, l.Dy, l.Dz, l.Cutoff = 0.0, 0.0, 0.0, 0.0
 }
 
 // LightsToBytes converts a slice of lights to bytes.
 // The given byte slice is zeroed and returned filled with the given light data.
 func LightsToBytes(lights []Light, bytes []byte) []byte {
+	const maxLights = 5
+	if len(lights) > maxLights {
+		slog.Error("LightsToBytes to many lights", "max_lights", maxLights)
+	}
 	bytes = bytes[:0]
-	const maxLights = 3
 	lbytes := (*[int(unsafe.Sizeof(Light{})) * maxLights]byte)(unsafe.Pointer(&lights[0]))[:]
 	return append(bytes, lbytes...)
 }
@@ -473,10 +495,4 @@ func Int32ToBytes(val int32, bytes []byte) []byte {
 	b2 := byte(val >> 16)
 	b3 := byte(val >> 24)
 	return append(bytes, b0, b1, b2, b3)
-}
-
-// Float32ToBytes returns a byte slice containing the given int32.
-// The given byte slice is zeroed and returned filled with the int32.
-func Float32ToBytes(val float32, bytes []byte) []byte {
-	return Int32ToBytes(int32(math.Float32bits(val)), bytes)
 }

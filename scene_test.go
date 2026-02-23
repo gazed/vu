@@ -4,6 +4,7 @@
 package vu
 
 import (
+	"encoding/binary"
 	"math"
 	"testing"
 
@@ -19,8 +20,9 @@ func TestScene(t *testing.T) {
 		app := newApplication()
 		app.ld.loadDefaultAssets(rc) // direct loads (no goroutine)
 		scene := app.addScene(Scene3D)
-		scene.AddLight(DirectionalLight).SetLight(0.8, 0.8, 0.8, 10).SetAt(1, 2, 3)
 		scene.AddLight(PointLight).SetLight(1.0, 0.1, 0.1, 10).SetAt(5, 4, 3)
+		scene.AddLight(SunLight).SetLight(0.8, 0.8, 0.8, 10).SetAt(1, 2, 3)
+		scene.AddLight(PointLight).SetLight(0.3, 0.3, 0.3, 12).SetAt(3, 4, 5)
 
 		// check passes
 		passes := app.scenes.getFrame(app, app.frame)
@@ -28,10 +30,13 @@ func TestScene(t *testing.T) {
 			t.Errorf("expected 2 render passes, got %d", len(passes))
 		}
 
-		// check light counts.
-		lightCount := passes[render.Pass3D].Uniforms[load.NLIGHTS][0]
-		if lightCount != 2 {
-			t.Errorf("expected 2-3D render lights, got %d", lightCount)
+		// check light counts, they should be sorted by light types.
+		lightCnt := passes[render.Pass3D].Uniforms[load.LIGHTCNT]
+		sunLights := binary.BigEndian.Uint32(lightCnt[0:4])
+		pointLights := binary.BigEndian.Uint32(lightCnt[4:8])
+		spotLights := binary.BigEndian.Uint32(lightCnt[8:12])
+		if sunLights != 1 && pointLights != 2 && spotLights != 0 {
+			t.Errorf("expected 1,2,0 render lights, got %d,%d,%d", sunLights, pointLights, spotLights)
 		}
 	})
 

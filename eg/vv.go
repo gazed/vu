@@ -17,6 +17,14 @@ import (
 // CONTROLS: NA
 func vv() {
 	fmt.Printf("eg.vv checks that a vulkan instance can be created.\n")
+
+	// load the vulkan library
+	if err := vk.LoadVulkan(""); err != nil {
+		slog.Error("vk.LoadVulkan() failed", "err", err.Error())
+		return
+	}
+
+	// check the vulkan version
 	ver, err := vk.EnumerateInstanceVersion()
 	if err != nil {
 		slog.Error("vk.EnumerateInstanceVersion() failed", "err", err.Error())

@@ -1,6 +1,6 @@
-# pbr0 physically based render with zero textures.
+# PBRCol physically based render with color only, no textures.
 # Uses set values for color:metallic:roughness.
-name: pbr0
+name: PBRCol
 pass: 3D
 stages: [ vert, frag ]
 attrs:
@@ -10,8 +10,8 @@ uniforms:
     - { name: proj,     data: mat4,   scope: scene } # scene transform
     - { name: view,     data: mat4,   scope: scene } # camera transform
     - { name: cam,      data: vec4,   scope: scene } # scene camera position
-    - { name: lights,   data: light3, scope: scene } # one to three scene lights
-    - { name: nlights,  data: int,    scope: scene } # 1 to 3
+    - { name: lightCnt, data: ivec4,  scope: scene } # count of light types.
+    - { name: lights,   data: lights, scope: scene } # up to 5 scene lights
     - { name: model,    data: mat4,   scope: model } # model transform
     - { name: color,    data: vec4,   scope: model } # base color
     - { name: material, data: vec4,   scope: model } # PBR x:metallic, y:roughness

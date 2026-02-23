@@ -79,7 +79,7 @@ func (c *Camera) SetAt(x, y, z float64) *Camera {
 }
 
 // Move adjusts the camera location relative to the given orientation.
-// For orientation, use Lookat() to fly, use Look to run along XZ.
+// Use Lookat() to get orientation.
 func (c *Camera) Move(x, y, z float64, q *lin.Q) {
 	dx, dy, dz := lin.MultSQ(x, y, z, q)
 	c.at.Loc.X += dx

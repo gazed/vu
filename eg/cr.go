@@ -60,7 +60,7 @@ func (cr *crtag) Load(eng *vu.Engine) error {
 
 	// import assets from asset files.
 	// This creates the assets referenced by the models below.
-	eng.ImportAssets("pbr0.shd", "sphere.glb", "box0.glb")
+	eng.ImportAssets("PBRCol.shd", "sphere.glb", "box0.glb")
 
 	// New scene with default camera.
 	cr.pos = lin.NewV3().SetS(0, 16, 30)
@@ -68,10 +68,10 @@ func (cr *crtag) Load(eng *vu.Engine) error {
 	cr.scene.Cam().SetAt(cr.pos.X, cr.pos.Y, cr.pos.Z)
 
 	// add one directional light. SetAt sets the direction.
-	cr.scene.AddLight(vu.DirectionalLight).SetAt(-1, -2, -2)
+	cr.scene.AddLight(vu.SunLight).SetAt(-1, -2, -2)
 
 	// create a static slab as a base for the other physics objects.
-	slab := cr.scene.AddModel("shd:pbr0", "msh:box0", "mat:box0")
+	slab := cr.scene.AddModel("shd:PBRCol", "msh:box0", "mat:box0")
 	slab.SetScale(50, 10, 50).SetAt(0, -5, 0)
 	slab.AddToSimulation(vu.Box(50, 10, 50, vu.StaticSim))
 
@@ -137,7 +137,7 @@ func (cr *crtag) Update(eng *vu.Engine, in *vu.Input, delta time.Duration) {
 // makeBall creates a visible sphere physics body.
 func (cr *crtag) makeBall(lx, ly, lz float64) (ball *vu.Entity) {
 	const sphere_radius = 1.2849 // from blender
-	ball = cr.scene.AddModel("shd:pbr0", "msh:sphere")
+	ball = cr.scene.AddModel("shd:PBRCol", "msh:sphere")
 	ball.SetScale(2, 2, 2).SetAt(lx, ly, lz)
 	ball.AddToSimulation(vu.Sphere(2*sphere_radius, vu.KinematicSim))
 	r, g, b, a, metallic, roughness := randomColor()
@@ -148,7 +148,7 @@ func (cr *crtag) makeBall(lx, ly, lz float64) (ball *vu.Entity) {
 
 // makeBox creates a visible box physics body.
 func (cr *crtag) makeBox(lx, ly, lz float64) (box *vu.Entity) {
-	box = cr.scene.AddModel("shd:pbr0", "msh:box0")
+	box = cr.scene.AddModel("shd:PBRCol", "msh:box0")
 	box.SetScale(2, 2, 2).SetAt(lx, ly, lz)
 	box.AddToSimulation(vu.Box(2, 2, 2, vu.KinematicSim))
 	r, g, b, a, metallic, roughness := randomColor()
