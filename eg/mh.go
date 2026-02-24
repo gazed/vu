@@ -14,7 +14,6 @@ import (
 // This example demonstrates:
 //   - loading assets.
 //   - creating a 3D scene.
-//   - adding a directional sun light to a scene.
 //   - adding a point light to a scene.
 //   - adding a spot light to a scene.
 //   - controlling scene camera movement.
@@ -65,28 +64,23 @@ func (mh *mhtag) Load(eng *vu.Engine) error {
 	// and acts as the root for all models added to the scene.
 	mh.scene = eng.AddScene(vu.Scene3D)
 
-	// add one directional light. SetAt sets the direction.
-	// mh.scene.AddLight(vu.SunLight).SetAt(0, 5, -15)
-
 	// add a bright red point light just behind the heads.
 	point := mh.scene.AddLight(vu.PointLight)
 	point.SetAt(0, 0, -6).SetLight(1, 0, 0, 1)
 
-	// add a bright blue spot light that follows the camera position and orienation.
+	// add a bright white spot light that follows the camera position and orienation.
 	mh.spot = mh.scene.AddLight(vu.SpotLight)
-	mh.spot.SetLight(0, 0, 1, 10)
+	mh.spot.SetLight(1, 1, 1, 10)
 
 	// add monkey heads: facing +Z by default.
 	// Request model assets and render once those assets have been loaded.
-	//
-	// fixed color:metallic:roughness values.
 	mh1 := mh.scene.AddModel("shd:PBRCol", "msh:monkey0", "mat:monkey0")
-	mh1.SetAt(-1.5, 0, -5)
+	mh1.SetAt(-1.5, 0, -5).SetMetallicRoughness(false, 0.8)
 	//
 	// use color texture and fixed metallic:roughness values.
 	// The texture matches the shader "color" sampler.
 	mh2 := mh.scene.AddModel("shd:PBRTex", "msh:monkey1", "tex:color:monkey1", "mat:monkey1")
-	mh2.SetAt(+1.5, 0, -5)
+	mh2.SetAt(+1.5, 0, -5).SetMetallicRoughness(false, 0.3)
 	return nil
 }
 

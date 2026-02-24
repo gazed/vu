@@ -146,7 +146,7 @@ func Glb(name string, r io.Reader) (data []AssetData) {
 			Roughness: mat.RoughnessFactorOrDefault(),
 		}
 		data = append(data, AssetData{Filename: name, Data: pbr, Err: nil})
-		slog.Debug("load.Glb: color texture PBR")
+		slog.Debug("load.Glb: color texture PBR", "roughness", pbr.Roughness, "metallic", pbr.Metallic)
 	case mat.BaseColorFactor != nil:
 		// support solid shaded PRB materials.
 		// corresponds to the pbr_solid shader - create one material.
@@ -160,7 +160,7 @@ func Glb(name string, r io.Reader) (data []AssetData) {
 		pbr.ColorB = color[2]
 		pbr.ColorA = color[3]
 		data = append(data, AssetData{Filename: name, Data: pbr, Err: nil})
-		slog.Debug("load.Glb: solid color PBR")
+		slog.Debug("load.Glb: solid color PBR", "roughness", pbr.Roughness, "metallic", pbr.Metallic)
 	default:
 		return []AssetData{{Filename: name, Err: fmt.Errorf("missing PBR material parameters")}}
 	}
