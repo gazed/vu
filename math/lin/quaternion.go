@@ -21,7 +21,7 @@ type Q struct {
 	W float64 // Angle of rotation.
 }
 
-// QI provides a reference identity matrix that can be used
+// QI provides a reference identity quaternion that can be used
 // in calculations. It should never be changed.
 var QI = &Q{0, 0, 0, 1}
 

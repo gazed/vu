@@ -68,7 +68,7 @@ func (cr *crtag) Load(eng *vu.Engine) error {
 	cr.scene.Cam().SetAt(cr.pos.X, cr.pos.Y, cr.pos.Z)
 
 	// add one directional light. SetAt sets the direction.
-	cr.scene.AddLight(vu.SunLight).SetAt(-1, -2, -2)
+	cr.scene.AddLight(vu.SunLight).SetAt(2, 2, 2)
 
 	// create a static slab as a base for the other physics objects.
 	slab := cr.scene.AddModel("shd:PBRCol", "msh:box0", "mat:box0")

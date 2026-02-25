@@ -161,9 +161,9 @@ func (body *Body) SetMass(mass float64) {
 	}
 }
 
-// Activate set the body as active in the simulation.
-func (body *Body) Activate() {
-	body.active = true
+// Activate set the body as active or in-active in the simulation.
+func (body *Body) Activate(active bool) {
+	body.active = active
 	body.deactivation_time = 0.0
 }
 

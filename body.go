@@ -81,6 +81,15 @@ func (e *Entity) Stop() {
 	slog.Error("Stop needs AddToSimulation", "entity_id", e.eid)
 }
 
+// SetActive activates or deactivates the body in the simulation.
+func (e *Entity) SetActive(active bool) {
+	if body := e.app.sim.get(e.eid); body != nil {
+		(*physics.Body)(body).Activate(active)
+		return
+	}
+	slog.Error("SetActive needs AddToSimulation", "entity_id", e.eid)
+}
+
 // SetGravity sets the down force applied to this body.
 // Gravity is 10.0m/s by default.
 // SetGravity is a wrapper for physics.Body.SetGravity
