@@ -111,14 +111,14 @@ func Glb(name string, r io.Reader) (data []AssetData) {
 	}
 	data = append(data, AssetData{Filename: name, Data: md, Err: nil})
 
-	// load material, expecting 1 PRB material.
+	// load material, expecting 1 PBR material.
 	if len(doc.Materials) != 1 || doc.Materials[0].PBRMetallicRoughness == nil {
 		return []AssetData{{Filename: name, Err: fmt.Errorf("expecting one PBR material")}}
 	}
 	mat := doc.Materials[0].PBRMetallicRoughness
 	switch {
 	case mat.BaseColorTexture != nil && mat.MetallicRoughnessTexture != nil:
-		// support PRB materials with base color and metallic-roughness textures
+		// support PBR materials with base color and metallic-roughness textures
 		// corresponds to the pbr_texture shader - create two textures
 		bc, err := getPNGTexture(&doc, mat.BaseColorTexture.Index)
 		if err != nil {
@@ -132,7 +132,7 @@ func Glb(name string, r io.Reader) (data []AssetData) {
 		data = append(data, AssetData{Filename: name, Data: mr, Err: nil})
 		slog.Debug("load.Glb: texture based PBR")
 	case mat.BaseColorTexture != nil:
-		// support PRB materials with just a base color texture.
+		// support PBR materials with just a base color texture.
 		// corresponds to the pbr_base_color shader - create one texture and one material.
 		img, err := getPNGTexture(&doc, mat.BaseColorTexture.Index)
 		if err != nil {
@@ -148,7 +148,7 @@ func Glb(name string, r io.Reader) (data []AssetData) {
 		data = append(data, AssetData{Filename: name, Data: pbr, Err: nil})
 		slog.Debug("load.Glb: color texture PBR", "roughness", pbr.Roughness, "metallic", pbr.Metallic)
 	case mat.BaseColorFactor != nil:
-		// support solid shaded PRB materials.
+		// support solid shaded PBR materials.
 		// corresponds to the pbr_solid shader - create one material.
 		color := mat.BaseColorFactorOrDefault()
 		pbr := PBRMaterialData{
