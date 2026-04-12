@@ -58,7 +58,7 @@ func get_face_normal_and_distance_to_origin(face v3Int, polytope []lin.V3) (norm
 		// in this case, we can't directly infer the orientation of the normal.
 		// since our shape is convex, we analyze the other vertices of the hull to deduce the orientation
 		was_able_to_calculate_normal := false
-		for i := 0; i < len(polytope); i++ {
+		for i := range polytope {
 			current := polytope[i]
 			auxiliar_distance := n.Dot(&current)
 			if auxiliar_distance < -DISTANCE_TO_ORIGIN_TOLERANCE || auxiliar_distance > DISTANCE_TO_ORIGIN_TOLERANCE {
@@ -83,7 +83,7 @@ func get_face_normal_and_distance_to_origin(face v3Int, polytope []lin.V3) (norm
 // add_edge
 func add_edge(edges []v2Int, edge v2Int, polytope []lin.V3) []v2Int {
 	// @TODO: we can use a hash table here
-	for i := 0; i < len(edges); i++ {
+	for i := range edges {
 		current := edges[i]
 		if edge.x == current.x && edge.y == current.y {
 			return slices.Delete(edges, i, i+1)
@@ -144,7 +144,7 @@ func epa(collider1, collider2 *collider, simplex *gjk_Simplex) (normal lin.V3, p
 
 	edges := []v2Int{}
 	converged := false
-	for it := 0; it < 100; it++ {
+	for range 100 {
 		support_point := support_point_of_minkowski_difference(collider1, collider2, *min_normal)
 
 		// If the support time lies on the face currently set as the closest to the origin, we are done.

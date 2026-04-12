@@ -84,9 +84,9 @@ func do_triangles_share_same_vertex(t1, t2 v3Int) bool {
 
 // do_faces_share_same_vertex
 func do_faces_share_same_vertex(e1, e2 []uint32) bool {
-	for i := 0; i < len(e1); i++ {
+	for i := range e1 {
 		i1 := e1[i]
-		for j := 0; j < len(e2); j++ {
+		for j := range e2 {
 			i2 := e2[j]
 			if i1 == i2 {
 				return true
@@ -119,7 +119,7 @@ func collect_faces_planar_to(hull []lin.V3, hull_triangle_faces []v3Int, triangl
 		is_triangle_face_already_processed_arr[face_to_test_idx] = true
 
 		neighbor_faces := triangle_faces_to_neighbor_faces_map[face_to_test_idx]
-		for i := 0; i < len(neighbor_faces); i++ {
+		for i := range neighbor_faces {
 			neighbor_face_idx := neighbor_faces[i]
 			out = collect_faces_planar_to(hull, hull_triangle_faces, triangle_faces_to_neighbor_faces_map,
 				is_triangle_face_already_processed_arr, neighbor_face_idx, target_normal, out)
@@ -130,7 +130,7 @@ func collect_faces_planar_to(hull []lin.V3, hull_triangle_faces []v3Int, triangl
 
 // get_edge_index
 func get_edge_index(edges []v2Int, edge v2Int) int32 {
-	for i := 0; i < len(edges); i++ {
+	for i := range edges {
 		current_edge := edges[i]
 		if current_edge.x == edge.x && current_edge.y == edge.y {
 			return int32(i)
@@ -147,7 +147,7 @@ func create_convex_hull_face(triangles []v3Int, face_normal lin.V3) collider_Con
 
 	// Collect the edges that form the border of the face
 	edges := []v2Int{}
-	for i := 0; i < len(triangles); i++ {
+	for i := range triangles {
 		triangle := triangles[i]
 		edge1 := v2Int{triangle.x, triangle.y}
 		edge2 := v2Int{triangle.y, triangle.z}
@@ -214,7 +214,7 @@ func create_convex_hull_face(triangles []v3Int, face_normal lin.V3) collider_Con
 
 // is_neighbor_already_in_vertex_to_neighbors_map
 func is_neighbor_already_in_vertex_to_neighbors_map(vertex_to_neighbors []uint32, neighbor uint32) bool {
-	for i := 0; i < len(vertex_to_neighbors); i++ {
+	for i := range vertex_to_neighbors {
 		if vertex_to_neighbors[i] == neighbor {
 			return true
 		}
@@ -243,7 +243,7 @@ func collider_convex_hull_create(vertices []lin.V3, indices []uint32) collider {
 
 	// Build hull, eliminating duplicated vertex
 	hull := []lin.V3{}
-	for i := 0; i < len(vertices); i++ {
+	for i := range vertices {
 		current_vertex := vertices[i]
 		current_index := uint32(0)
 		if _, ok := vertex_to_idx_map[current_vertex]; !ok {
@@ -432,7 +432,7 @@ func collider_update(collider *collider, translation lin.V3, rotation *lin.Q) {
 
 // colliders_update
 func colliders_update(colliders []collider, translation lin.V3, rotation *lin.Q) {
-	for i := 0; i < len(colliders); i++ {
+	for i := range colliders {
 		collider_update(&colliders[i], translation, rotation)
 	}
 }
@@ -455,14 +455,14 @@ func colliders_get_default_inertia_tensor(colliders []collider, mass float64) li
 	}
 
 	total_num_vertices := 0
-	for i := 0; i < len(colliders); i++ {
+	for i := range colliders {
 		collider := &colliders[i]
 		total_num_vertices += len(collider.convex_hull.vertices)
 	}
 	mass_per_vertex := mass / float64(total_num_vertices)
 
 	result := lin.NewM3()
-	for i := 0; i < len(colliders); i++ {
+	for i := range colliders {
 		collider := &colliders[i]
 		if collider.ctype != collider_TYPE_CONVEX_HULL {
 			slog.Error("colliders_get_default_inertia_tensor expects collider_TYPE_CONVEX_HULL")
@@ -498,7 +498,7 @@ func collider_get_bounding_sphere_radius(collider *collider) float64 {
 // colliders_get_bounding_sphere_radius
 func colliders_get_bounding_sphere_radius(colliders []collider) float64 {
 	max_bounding_sphere_radius := -math.MaxFloat64
-	for i := 0; i < len(colliders); i++ {
+	for i := range colliders {
 		collider := &colliders[i]
 		bounding_sphere_radius := collider_get_bounding_sphere_radius(collider)
 		if bounding_sphere_radius > max_bounding_sphere_radius {
@@ -545,9 +545,9 @@ func collider_get_contacts(collider1, collider2 *collider, contacts []collider_C
 // colliders_get_contacts
 func colliders_get_contacts(colliders1, colliders2 []collider) []collider_Contact {
 	contacts := []collider_Contact{}
-	for i := 0; i < len(colliders1); i++ {
+	for i := range colliders1 {
 		collider1 := &colliders1[i]
-		for j := 0; j < len(colliders2); j++ {
+		for j := range colliders2 {
 			collider2 := &colliders2[j]
 			contacts = collider_get_contacts(collider1, collider2, contacts)
 		}

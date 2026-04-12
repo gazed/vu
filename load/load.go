@@ -81,9 +81,9 @@ func LoadAssetFile(fname string) []AssetData {
 // AssetData is used to return loaded data.
 // The caller is expected to switch on the Data type.
 type AssetData struct {
-	Filename string      // request filename with extension
-	Err      error       // nil if load was successful
-	Data     interface{} // struct of loaded data.
+	Filename string // request filename with extension
+	Err      error  // nil if load was successful
+	Data     any    // struct of loaded data.
 }
 
 // ReadFile can be overridden by the app to use other

@@ -40,7 +40,7 @@ func (p *Packet) Reset() {
 	p.Bucket = 0                    //
 
 	// reset the uniform data.
-	for i := load.PacketUniform(0); i < load.PacketUniforms; i++ {
+	for i := range load.PacketUniforms {
 		d, ok := p.Uniforms[i]
 		if !ok {
 			p.Uniforms[i] = []byte{}

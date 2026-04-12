@@ -37,7 +37,7 @@ func TestPackets(t *testing.T) {
 	})
 
 	t.Run("allocate 100 more packets", func(t *testing.T) {
-		for i := 0; i < 100; i++ {
+		for range 100 {
 			if pass.Packets, p = pass.Packets.GetPacket(); p == nil {
 				t.Fatal("expected a packet")
 			}
@@ -63,7 +63,7 @@ func TestPackets(t *testing.T) {
 	})
 
 	t.Run("allocate 10 more packets", func(t *testing.T) {
-		for i := 0; i < 10; i++ {
+		for range 10 {
 			if pass.Packets, p = pass.Packets.GetPacket(); p == nil {
 				t.Fatal("expected a packet")
 			}

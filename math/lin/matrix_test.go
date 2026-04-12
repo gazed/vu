@@ -5,6 +5,7 @@ package lin
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 	"unsafe"
 )
@@ -14,17 +15,17 @@ func TestMemoryLayout(t *testing.T) {
 	m := M3{0x0, 0x1, 0x2,
 		0x3, 0x4, 0x5,
 		0x6, 0x7, 0x8}
-	out := ""
+	var out strings.Builder
 	unsafePointer := unsafe.Pointer(&m)
 	step := unsafe.Sizeof(float64(0))
-	for i := 0; i < 9; i++ {
+	for i := range 9 {
 		addr_n := unsafe.Add(unsafePointer, int(step)*i)
 		val := *(*float64)(addr_n)
 		// fmt.Printf("%d addr: %p, val: %f\n", i, addr_n, val)
-		out += fmt.Sprintf(":%2.1f", val)
+		out.WriteString(fmt.Sprintf(":%2.1f", val))
 	}
-	if out != ":0.0:1.0:2.0:3.0:4.0:5.0:6.0:7.0:8.0" {
-		t.Errorf("unexpected matrix memory layout %s", out)
+	if out.String() != ":0.0:1.0:2.0:3.0:4.0:5.0:6.0:7.0:8.0" {
+		t.Errorf("unexpected matrix memory layout %s", out.String())
 	}
 }
 

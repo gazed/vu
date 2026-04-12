@@ -67,7 +67,7 @@ func sutherland_hodgman(input_polygon []lin.V3, clip_planes []cPlane, remove_ins
 	input := append([]lin.V3{}, input_polygon...)
 	output := []lin.V3{}
 
-	for i := 0; i < len(clip_planes); i++ {
+	for i := range clip_planes {
 		// If every single point has already been removed previously, just exit
 		if len(input) == 0 {
 			break
@@ -123,7 +123,7 @@ func get_closest_point_polygon(position lin.V3, reference_plane *cPlane) lin.V3 
 func build_boundary_planes(convex_hull *collider_Convex_Hull, target_face_idx uint32) []cPlane {
 	result := []cPlane{}
 	face_neighbors := convex_hull.face_to_neighbors[target_face_idx]
-	for i := 0; i < len(face_neighbors); i++ {
+	for i := range face_neighbors {
 		neighbor_face := convex_hull.transformed_faces[face_neighbors[i]]
 		p := cPlane{}
 		p.point = convex_hull.transformed_vertices[neighbor_face.elements[0]]
@@ -140,7 +140,7 @@ func get_face_with_most_fitting_normal(support_idx uint32, convex_hull *collider
 
 	max_proj := -math.MaxFloat64
 	var selected_face_idx uint32
-	for i := 0; i < len(support_faces); i++ {
+	for i := range support_faces {
 		face := convex_hull.transformed_faces[support_faces[i]]
 		proj := face.normal.Dot(&normal)
 		if proj > max_proj {
@@ -166,10 +166,10 @@ func get_edge_with_most_fitting_normal(
 	max_dot := -math.MaxFloat64
 	selected_edges := v4Int{}
 
-	for i := 0; i < len(support1_neighbors); i++ {
+	for i := range support1_neighbors {
 		neighbor1 := convex_hull1.transformed_vertices[support1_neighbors[i]]
 		edge1 := lin.NewV3().Sub(support1, &neighbor1)
-		for j := 0; j < len(support2_neighbors); j++ {
+		for j := range support2_neighbors {
 			neighbor2 := convex_hull2.transformed_vertices[support2_neighbors[j]]
 			edge2 := lin.NewV3().Sub(support2, &neighbor2)
 

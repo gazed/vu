@@ -65,7 +65,7 @@ func TestEntityIDs(t *testing.T) {
 		}
 
 		// should be able to reuse the disposed 2*maxFree entity IDs.
-		for cnt := 0; cnt < 2*maxFree; cnt++ {
+		for range 2 * maxFree {
 			eid := ents.create()
 			if eid == 0 {
 				t.Errorf("expecting to reuse disposed entity ids")

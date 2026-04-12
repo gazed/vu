@@ -553,7 +553,7 @@ func copy_constraints(constraints []constraint) []constraint {
 	}
 	copied_constraints := make([]constraint, len(constraints))
 	copy(copied_constraints, constraints)
-	for i := 0; i < len(copied_constraints); i++ {
+	for i := range copied_constraints {
 		constraint := &copied_constraints[i]
 
 		// Reset lambda
@@ -596,10 +596,10 @@ func pbd_simulate_with_constraints(dt float64, bodies []Body, external_constrain
 
 	// All entities will be contained in the simulation islands.
 	// Update deactivation time and also, at the same time, its active status
-	for j := 0; j < len(simulation_islands); j++ {
+	for j := range simulation_islands {
 		simulation_island := simulation_islands[j]
 		all_inactive := true
-		for k := 0; k < len(simulation_island); k++ {
+		for k := range simulation_island {
 			b := body_get_by_id(simulation_island[k])
 
 			linear_velocity_len := b.linear_velocity.Len()
@@ -615,7 +615,7 @@ func pbd_simulate_with_constraints(dt float64, bodies []Body, external_constrain
 		}
 
 		// We only set entities to inactive if the whole island is inactive!
-		for k := 0; k < len(simulation_island); k++ {
+		for k := range simulation_island {
 			b := body_get_by_id(simulation_island[k])
 			b.active = !all_inactive
 		}
@@ -624,7 +624,7 @@ func pbd_simulate_with_constraints(dt float64, bodies []Body, external_constrain
 
 	// The main loop of the PBD simulation
 	for i := 0; i < int(num_substeps); i++ {
-		for j := 0; j < len(bodies); j++ {
+		for j := range bodies {
 			b := &bodies[j]
 
 			// Stores the previous position and orientation of the entity
@@ -672,7 +672,7 @@ func pbd_simulate_with_constraints(dt float64, bodies []Body, external_constrain
 
 		// As explained in sec 3.5, in each substep we need to check for collisions
 		if enable_collisions {
-			for j := 0; j < len(broad_collision_pairs); j++ {
+			for j := range broad_collision_pairs {
 				bid1 := broad_collision_pairs[j].b1_id
 				bid2 := broad_collision_pairs[j].b2_id
 				b1 := body_get_by_id(bid1)
@@ -694,7 +694,7 @@ func pbd_simulate_with_constraints(dt float64, bodies []Body, external_constrain
 				colliders_update(b1.colliders, b1.world_position, &b1.world_rotation)
 				colliders_update(b2.colliders, b2.world_position, &b2.world_rotation)
 				contacts := colliders_get_contacts(b1.colliders, b2.colliders)
-				for l := 0; l < len(contacts); l++ {
+				for l := range contacts {
 					contact := &contacts[l]
 					var constraint constraint
 					clipping_contact_to_collision_constraint(b1, b2, bid1, bid2, contact, &constraint)
@@ -712,7 +712,7 @@ func pbd_simulate_with_constraints(dt float64, bodies []Body, external_constrain
 		}
 
 		// The PBD velocity update
-		for j := 0; j < len(bodies); j++ {
+		for j := range bodies {
 			b := &bodies[j]
 			if b.fixed || !b.active {
 				continue

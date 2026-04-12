@@ -77,9 +77,9 @@ func (cr *crtag) Load(eng *vu.Engine) error {
 
 	// create a block of physics cubes.
 	cubeSize := 3
-	for x := 0; x < cubeSize; x++ {
-		for y := 0; y < cubeSize; y++ {
-			for z := 0; z < cubeSize; z++ {
+	for x := range cubeSize {
+		for y := range cubeSize {
+			for z := range cubeSize {
 				lx := float64(x)*4.05 - 2.0
 				ly := float64(y)*4.05 + 12.0
 				lz := float64(z)*4.05 - 2.0

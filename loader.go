@@ -637,7 +637,7 @@ func unitCircle() (verts []float32, indexes []uint16) {
 	count := 100
 	fraction := (1.0 / float64(count)) * (math.Pi * 2.0)
 	angle := 0.0
-	for i := 0; i < count; i++ {
+	for i := range count {
 		x := float32(math.Cos(angle))
 		y := float32(math.Sin(angle))
 		angle += fraction
@@ -663,7 +663,7 @@ func unitCircle2D() (verts []float32, indexes []uint16) {
 	count := 100
 	fraction := (1.0 / float64(count)) * (math.Pi * 2.0)
 	angle := 0.0
-	for i := 0; i < count; i++ {
+	for i := range count {
 		x := float32(math.Cos(angle))
 		y := float32(math.Sin(angle))
 		angle += fraction
@@ -699,9 +699,9 @@ func generateDefaultTexture() (squareSize uint32, pixels []byte) {
 
 	// create a checkerboard pattern
 	quad := size / 32 // 8x8 blocks
-	for x := 0; x < size; x++ {
+	for x := range size {
 		val := (x / quad) % 2
-		for y := 0; y < size; y++ {
+		for y := range size {
 			val2 := (y / quad) % 2
 			if (val+val2)%2 == 0 {
 				img.Set(x, y, gray)

@@ -41,7 +41,7 @@ type Pass struct {
 
 // Reset the pass data.
 func (rp *Pass) Reset() {
-	for i := load.PassUniform(0); i < load.PassUniforms; i++ {
+	for i := range load.PassUniforms {
 		d, ok := rp.Uniforms[i]
 		if !ok {
 			rp.Uniforms[i] = []byte{}

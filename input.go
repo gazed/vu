@@ -9,6 +9,8 @@ package vu
 // FUTURE: Have the device package support text entry.
 
 import (
+	"maps"
+
 	"github.com/gazed/vu/device"
 )
 
@@ -39,15 +41,9 @@ func (in *Input) Clone(b *device.Input) {
 	}
 
 	// clone the given device keymaps into these keymaps
-	for k, v := range b.Pressed {
-		in.Pressed[k] = v
-	}
-	for k, v := range b.Down {
-		in.Down[k] = v
-	}
-	for k, v := range b.Released {
-		in.Released[k] = v
-	}
+	maps.Copy(in.Pressed, b.Pressed)
+	maps.Copy(in.Down, b.Down)
+	maps.Copy(in.Released, b.Released)
 }
 
 // Expose the device package keys as a convenience so the

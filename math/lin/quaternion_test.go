@@ -144,7 +144,7 @@ func TestAa(t *testing.T) {
 func TestSetRotationM(t *testing.T) {
 	q2 := &Q{}
 	m := NewM3()
-	for deg := 0; deg < 360; deg++ {
+	for deg := range 360 {
 		q := NewQ().SetAa(0, 1, 0, Rad(float64(deg)))
 		m.SetQ(q)
 		q2.SetM3(m)

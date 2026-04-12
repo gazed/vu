@@ -351,7 +351,7 @@ func gjk_collides(collider1, collider2 *collider, _simplex *gjk_Simplex) bool {
 	simplex.a = support_point_of_minkowski_difference(collider1, collider2, lin.V3{0, 0, 1})
 	simplex.num = 1
 	direction := lin.NewV3().Scale(&simplex.a, -1.0)
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		next_point := support_point_of_minkowski_difference(collider1, collider2, *direction)
 		if next_point.Dot(direction) < 0.0 {
 			// No intersection.

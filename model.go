@@ -112,7 +112,7 @@ func (e *Entity) SetMetallicRoughness(metallic bool, roughness float64) *Entity 
 
 // SetModelUniform sets data for the given uniform. The uniform data is
 // passed to the shader.
-func (e *Entity) SetModelUniform(uniform string, data interface{}) *Entity {
+func (e *Entity) SetModelUniform(uniform string, data any) *Entity {
 	if m := e.app.models.get(e.eid); m != nil {
 		switch uniform {
 		case "args4":

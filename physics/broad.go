@@ -18,7 +18,7 @@ type broad_Collision_Pair struct {
 // broad_get_collision_pairs
 func broad_get_collision_pairs(bodies []Body) []broad_Collision_Pair {
 	collision_pairs := []broad_Collision_Pair{}
-	for i := 0; i < len(bodies); i++ {
+	for i := range bodies {
 		b1 := &bodies[i]
 		for j := i + 1; j < len(bodies); j++ {
 			b2 := &bodies[j]

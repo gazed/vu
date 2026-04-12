@@ -1163,10 +1163,10 @@ func (vr *vulkanRenderer) loadMeshes(meshes []load.MeshData) (mids []uint32, err
 	// Add the vertex data at the end of the current mesh data.
 	// Get the current offsets for each vertex data type
 	startingOffsets := make([]uint32, load.VertexTypes) // tracks first offset.
-	for i := 0; i < load.VertexTypes; i++ {
+	for range load.VertexTypes {
 		if len(vr.meshes) > 0 {
 			prev := vr.meshes[len(vr.meshes)-1]
-			for i := 0; i < load.VertexTypes; i++ {
+			for i := range load.VertexTypes {
 				startingOffsets[i] = prev[i].offset + prev[i].stride*prev[i].count
 			}
 		}
@@ -1180,14 +1180,14 @@ func (vr *vulkanRenderer) loadMeshes(meshes []load.MeshData) (mids []uint32, err
 		meshOffsets := make([]uint32, load.VertexTypes)
 		if len(vr.meshes) > 0 {
 			prev := vr.meshes[len(vr.meshes)-1]
-			for i := 0; i < load.VertexTypes; i++ {
+			for i := range load.VertexTypes {
 				meshOffsets[i] = prev[i].offset + prev[i].stride*prev[i].count
 			}
 		}
 
 		// track each mesh with a vulkan-mesh
 		vmsh := make(vulkanMesh, load.VertexTypes)
-		for i := 0; i < load.VertexTypes; i++ {
+		for i := range load.VertexTypes {
 			if msh[i].Count > 0 {
 				vmsh[i].count = msh[i].Count
 				vmsh[i].stride = msh[i].Stride
@@ -1215,7 +1215,7 @@ func (vr *vulkanRenderer) loadMeshes(meshes []load.MeshData) (mids []uint32, err
 	}
 
 	// upload the consolidated data once for each data type.
-	for i := 0; i < load.VertexTypes; i++ {
+	for i := range load.VertexTypes {
 		uploadData := data[i]
 		if len(uploadData) > 0 {
 			buff := &vr.vertexBuffers[i]
@@ -1246,11 +1246,11 @@ func (vr *vulkanRenderer) loadInstanceData(data []load.Buffer) (iid uint32, err 
 	offsets := make([]uint32, load.InstanceTypes)
 	if len(vr.instances) > 0 {
 		prev := vr.instances[len(vr.instances)-1]
-		for i := 0; i < load.InstanceTypes; i++ {
+		for i := range load.InstanceTypes {
 			offsets[i] = prev[i].offset + prev[i].stride*prev[i].count
 		}
 	}
-	for i := 0; i < load.InstanceTypes; i++ {
+	for i := range load.InstanceTypes {
 		if data[i].Count > 0 {
 			inst[i].count = data[i].Count
 			inst[i].stride = data[i].Stride
@@ -1284,7 +1284,7 @@ func (vr *vulkanRenderer) updateInstanceData(iid uint32, data []load.Buffer) (er
 	inst := vr.instances[iid]
 
 	// check that the buffer data matches.
-	for i := 0; i < load.InstanceTypes; i++ {
+	for i := range load.InstanceTypes {
 		if inst[i].count != data[i].Count {
 			return fmt.Errorf("updateInstanceData count mismatch %d %d", inst[i].count, data[i].Count)
 		}
@@ -1294,7 +1294,7 @@ func (vr *vulkanRenderer) updateInstanceData(iid uint32, data []load.Buffer) (er
 	}
 
 	// everything matches, so re-upload data.
-	for i := 0; i < load.InstanceTypes; i++ {
+	for i := range load.InstanceTypes {
 		if data[i].Count > 0 {
 			// upload data - existing instance data remains the same: count, stride, offset
 			buff := &vr.instanceBuffers[i]
