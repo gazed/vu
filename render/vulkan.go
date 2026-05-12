@@ -346,8 +346,8 @@ func (vr *vulkanRenderer) selectPhysicalDevice() error {
 		// check for required features
 		features := vk.GetPhysicalDeviceFeatures(d)
 		if !features.SamplerAnisotropy {
-			slog.Warn("missing required features")
-			break // device missing samplerAnisotropy
+			slog.Warn("missing features.SamplerAnisotropy", "device", vr.physicalDevice)
+			continue // device missing samplerAnisotropy
 		}
 
 		// reaching here means that the device meets all requirements.
