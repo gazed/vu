@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText : © 2022-2025 Galvanized Logic Inc.
-// SPDX-License-Identifier: BSD-2-Clause
+// SPDX-License-Identifier: MIT
 
 package vu
 
@@ -44,9 +44,9 @@ func TestScene(t *testing.T) {
 		app := newApplication()
 		app.ld.loadDefaultAssets(rc) // direct loads (no goroutine)
 		scene := app.addScene(Scene3D)
-		scene.AddModel("shd:icon", "msh:cube", "tex:color:test")
-		scene.AddModel("shd:icon", "msh:icon", "tex:color:test")
-		scene.AddModel("shd:icon", "msh:quad", "tex:color:test")
+		scene.AddModel("shd:image2D", "msh:cube", "tex:color:test")
+		scene.AddModel("shd:image2D", "msh:icon", "tex:color:test")
+		scene.AddModel("shd:image2D", "msh:quad", "tex:color:test")
 
 		// check passes
 		passes := app.scenes.getFrame(app, app.frame)

@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText : © 2022-2025 Galvanized Logic Inc.
-// SPDX-License-Identifier: BSD-2-Clause
+// SPDX-License-Identifier: MIT
 
 package render
 
@@ -883,14 +883,6 @@ func (vr *vulkanRenderer) createVertexBuffers() (err error) {
 	}
 	vr.maxVertexBuff[load.Texcoords] = uint64(size)
 
-	// vertex colors
-	buff = &vr.vertexBuffers[load.Colors] // V3 uint8
-	size = 3 * 1 * space                  // 3-uint8 * 1-bytes * lots of space.
-	if err = vr.createBuffer(buff, size, flags, props); err != nil {
-		return fmt.Errorf("createBuffers:color %w", err)
-	}
-	vr.maxVertexBuff[load.Colors] = uint64(size)
-
 	// vertex normals
 	buff = &vr.vertexBuffers[load.Normals] // V3 float32
 	size = 3 * 4 * space                   // 3-float32 * 4-bytes * lots of space.
@@ -1163,12 +1155,10 @@ func (vr *vulkanRenderer) loadMeshes(meshes []load.MeshData) (mids []uint32, err
 	// Add the vertex data at the end of the current mesh data.
 	// Get the current offsets for each vertex data type
 	startingOffsets := make([]uint32, load.VertexTypes) // tracks first offset.
-	for range load.VertexTypes {
-		if len(vr.meshes) > 0 {
-			prev := vr.meshes[len(vr.meshes)-1]
-			for i := range load.VertexTypes {
-				startingOffsets[i] = prev[i].offset + prev[i].stride*prev[i].count
-			}
+	if len(vr.meshes) > 0 {
+		prev := vr.meshes[len(vr.meshes)-1]
+		for i := range load.VertexTypes {
+			startingOffsets[i] = prev[i].offset + prev[i].stride*prev[i].count
 		}
 	}
 
@@ -1322,11 +1312,11 @@ func (vr *vulkanRenderer) drawMesh(frame *vulkanFrame, mid uint32, attrs []load.
 	buffs := []vk.Buffer{}
 	offsets := []vk.DeviceSize{}
 	for _, attr := range attrs {
-		switch attr.AttrScope {
+		switch attr.Scope {
 		case load.VertexAttribute:
-			i := attr.AttrType
+			i := attr.AType
 			if i < 0 || i >= load.Indexes {
-				slog.Error("unsupported vertex attribute", "attribute_type", attr.AttrType)
+				slog.Error("unsupported vertex attribute", "attribute_type", attr.AType)
 				continue
 			}
 			buffs = append(buffs, vr.vertexBuffers[i].handle)
@@ -1362,19 +1352,19 @@ func (vr *vulkanRenderer) drawInstancedMesh(frame *vulkanFrame, mid, instID, ins
 	buffs := []vk.Buffer{}
 	offsets := []vk.DeviceSize{}
 	for _, attr := range attrs {
-		switch attr.AttrScope {
+		switch attr.Scope {
 		case load.VertexAttribute:
-			i := attr.AttrType
+			i := attr.AType
 			if i < 0 || i >= load.Indexes {
-				slog.Error("unsupported vertex attribute", "attribute_type", attr.AttrType)
+				slog.Error("unsupported vertex attribute", "attribute_type", attr.AType)
 				continue
 			}
 			buffs = append(buffs, vr.vertexBuffers[i].handle)
 			offsets = append(offsets, vk.DeviceSize(vmsh[i].offset))
 		case load.InstanceAttribute:
-			i := attr.AttrType
+			i := attr.AType
 			if i < 0 || i >= load.InstanceTypes {
-				slog.Error("unsupported instance attribute", "attribute_type", attr.AttrType)
+				slog.Error("unsupported instance attribute", "attribute_type", attr.AType)
 				continue
 			}
 			buffs = append(buffs, vr.instanceBuffers[i].handle)
@@ -1713,9 +1703,9 @@ type vulkanShader struct {
 	sceneUniformsMap *byte        // unsafe pointer to uniform mapped memory
 
 	// track the number of unique material instances for this shader.
-	maxMaterials   uint32           // maximum materials supported by shader.
-	materials      []vulkanMaterial // track unique materials (sets) with...
-	nextMaterialID uint32           // ... a material ID.
+	maxSamplers   uint32          // maximum materials supported by shader.
+	samplers      []vulkanSampler // track unique sampler (sets) with...
+	nextSamplerID uint32          // ... a sampler ID.
 
 	// material uniform data buffer for all of this shaders material uniform data.
 	// indexed by vr.imageIndex and material ID.
@@ -1724,14 +1714,16 @@ type vulkanShader struct {
 
 	// descriptors for scene and material uniform data.
 	sceneLayout         vk.DescriptorSetLayout // scene uniforms per renderpass
-	materialLayout      vk.DescriptorSetLayout // material uniforms per object
+	materialLayout      vk.DescriptorSetLayout // material uniforms per model
+	modelLayout         vk.DescriptorSetLayout // model uniforms per model
 	descriptorPool      vk.DescriptorPool      // uniforms and samplers
 	sceneDescriptorSets []vk.DescriptorSet     // one per image.
+	modelDescriptorSets []vk.DescriptorSet     // one per image.
 	sceneUpdated        []bool                 // true if descriptor set updated.
 }
 
-// vulkanMaterial tracks existing resources to help reuse descriptor sets.
-type vulkanMaterial struct {
+// vulkanSampler tracks existing resources to help reuse descriptor sets.
+type vulkanSampler struct {
 	samplerSet     []uint32           // unique set of samplers.
 	descriptorSets []vk.DescriptorSet // one per surface image
 	updated        []bool             // one per surface image - set when updated.
@@ -1746,10 +1738,10 @@ var vulkanStages = map[load.ShaderStage]vk.ShaderStageFlagBits{
 
 // map the load data types to VK_FORMAT
 var vulkanDataFormats = map[load.ShaderDataType]vk.Format{
-	load.DataType_FLOAT: vk.FORMAT_R32_SFLOAT,
-	load.DataType_VEC2:  vk.FORMAT_R32G32_SFLOAT,
-	load.DataType_VEC3:  vk.FORMAT_R32G32B32_SFLOAT,
-	load.DataType_VEC4:  vk.FORMAT_R32G32B32A32_SFLOAT,
+	load.Type_FLOAT: vk.FORMAT_R32_SFLOAT,
+	load.Type_VEC2:  vk.FORMAT_R32G32_SFLOAT,
+	load.Type_VEC3:  vk.FORMAT_R32G32B32_SFLOAT,
+	load.Type_VEC4:  vk.FORMAT_R32G32B32A32_SFLOAT,
 }
 
 // loadShader creates a shader and corresponding pipeline based
@@ -1759,7 +1751,7 @@ func (vr *vulkanRenderer) loadShader(config *load.Shader) (sid uint16, err error
 	shader := vulkanShader{name: config.Name}
 	shader.attrs = append(shader.attrs, config.Attrs...)
 	shader.usets = getUniformSets(config.Uniforms)
-	shader.maxMaterials = 256 // FUTURE: get from shader config.
+	shader.maxSamplers = 256 // FUTURE: make configurable.
 	vr.createShaderUniformBuffers(&shader)
 
 	// stages for this shader. Module field is set by loadShaderModules
@@ -1792,12 +1784,12 @@ func (vr *vulkanRenderer) loadShader(config *load.Shader) (sid uint16, err error
 		for i, attr := range config.Attrs {
 			vertexAttrDescriptions[i].Location = uint32(i)
 			vertexAttrDescriptions[i].Binding = uint32(i)
-			vertexAttrDescriptions[i].Format = vulkanDataFormats[attr.DataType]
+			vertexAttrDescriptions[i].Format = vulkanDataFormats[attr.DType]
 			vertexAttrDescriptions[i].Offset = 0
 
 			vertexBindingDescriptions[i].Binding = uint32(i)
-			vertexBindingDescriptions[i].Stride = load.DataTypeSizes[attr.DataType]
-			switch attr.AttrScope {
+			vertexBindingDescriptions[i].Stride = attr.Stride
+			switch attr.Scope {
 			case load.VertexAttribute:
 				vertexBindingDescriptions[i].InputRate = vk.VERTEX_INPUT_RATE_VERTEX
 			case load.InstanceAttribute:
@@ -1813,21 +1805,24 @@ func (vr *vulkanRenderer) loadShader(config *load.Shader) (sid uint16, err error
 	// allocate the scene descriptor set layout if applicable.
 	scenes := config.GetSceneUniforms()
 	if len(scenes) > 0 {
-		bindings := []vk.DescriptorSetLayoutBinding{}
-		binding := vk.DescriptorSetLayoutBinding{
-			Binding:         0,
-			DescriptorType:  vk.DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-			DescriptorCount: 1,
-			StageFlags:      vk.SHADER_STAGE_VERTEX_BIT | vk.SHADER_STAGE_FRAGMENT_BIT,
+		bindings := []vk.DescriptorSetLayoutBinding{
+			vk.DescriptorSetLayoutBinding{
+				Binding:         0,
+				DescriptorType:  vk.DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+				DescriptorCount: 1,
+				StageFlags:      vk.SHADER_STAGE_VERTEX_BIT | vk.SHADER_STAGE_FRAGMENT_BIT,
+			},
 		}
-		bindings = append(bindings, binding)
 		shader.sceneLayout, err = vk.CreateDescriptorSetLayout(
 			vr.device, &vk.DescriptorSetLayoutCreateInfo{PBindings: bindings}, nil)
 	}
 
 	// allocate the material scope descriptor set layout if applicable.
+	// Also allocate the material scope layout (set:1) if there is
+	// a model layout (set:2).
 	samplers := config.GetSamplerUniforms()
-	if len(samplers) > 0 {
+	models := config.GetModelUniforms()
+	if len(samplers) > 0 || len(models) > 0 {
 		bindings := []vk.DescriptorSetLayoutBinding{}
 		for range samplers {
 			binding := vk.DescriptorSetLayoutBinding{
@@ -1840,13 +1835,16 @@ func (vr *vulkanRenderer) loadShader(config *load.Shader) (sid uint16, err error
 		}
 		shader.materialLayout, err = vk.CreateDescriptorSetLayout(
 			vr.device, &vk.DescriptorSetLayoutCreateInfo{PBindings: bindings}, nil)
+		if err != nil {
+			slog.Error("invalid material layout", "err", err)
+		}
 	}
 
 	// create descriptor pools. Each shader has its own pool that can allocate
 	// a descriptor set for each render image, normally 3.
 	shader.descriptorPool, err = vk.CreateDescriptorPool(vr.device,
 		&vk.DescriptorPoolCreateInfo{
-			MaxSets: 3 + 3*shader.maxMaterials + 3, // 3 scene sets + 3 per material.
+			MaxSets: 3 + 3*shader.maxSamplers + 3, // 3 scene sets + 3 per material.
 			PPoolSizes: []vk.DescriptorPoolSize{
 				{
 					Typ:             vk.DESCRIPTOR_TYPE_UNIFORM_BUFFER,
@@ -1883,7 +1881,7 @@ func (vr *vulkanRenderer) loadShader(config *load.Shader) (sid uint16, err error
 	}
 
 	// allocate material descriptor sets.
-	if shader.materialLayout != 0 {
+	if shader.materialLayout != 0 && len(samplers) > 0 {
 
 		// allocate three descriptor sets (one per surface image)...
 		allocLayouts := []vk.DescriptorSetLayout{}
@@ -1891,10 +1889,10 @@ func (vr *vulkanRenderer) loadShader(config *load.Shader) (sid uint16, err error
 			allocLayouts = append(allocLayouts, shader.materialLayout)
 		}
 		// ...for each material.
-		shader.materials = make([]vulkanMaterial, shader.maxMaterials)
-		for i := uint32(0); i < shader.maxMaterials; i++ {
-			shader.materials[i].updated = make([]bool, vr.imageCount)
-			shader.materials[i].descriptorSets, err = vk.AllocateDescriptorSets(vr.device,
+		shader.samplers = make([]vulkanSampler, shader.maxSamplers)
+		for i := uint32(0); i < shader.maxSamplers; i++ {
+			shader.samplers[i].updated = make([]bool, vr.imageCount)
+			shader.samplers[i].descriptorSets, err = vk.AllocateDescriptorSets(vr.device,
 				&vk.DescriptorSetAllocateInfo{
 					DescriptorPool: shader.descriptorPool,
 					PSetLayouts:    allocLayouts,
@@ -1914,15 +1912,18 @@ func (vr *vulkanRenderer) loadShader(config *load.Shader) (sid uint16, err error
 	if shader.materialLayout != 0 {
 		pipelineLayouts = append(pipelineLayouts, shader.materialLayout)
 	}
+	if shader.modelLayout != 0 {
+		pipelineLayouts = append(pipelineLayouts, shader.modelLayout)
+	}
 	layoutInfo := vk.PipelineLayoutCreateInfo{
 		PSetLayouts: pipelineLayouts,
 	}
 
 	// setup pipeline push constants if they exist
-	if shader.usets.modelSize > 0 {
+	if shader.usets.pushSize > 0 {
 		push_constant := vk.PushConstantRange{
 			Offset:     0,
-			Size:       maxModelUniformBytes, // allocate the max 128 bytes.
+			Size:       maxPushConstantBytes, // allocate the max 128 bytes.
 			StageFlags: vk.SHADER_STAGE_VERTEX_BIT | vk.SHADER_STAGE_FRAGMENT_BIT,
 		}
 		layoutInfo.PPushConstantRanges = []vk.PushConstantRange{push_constant}
@@ -2018,8 +2019,7 @@ func (vr *vulkanRenderer) loadShader(config *load.Shader) (sid uint16, err error
 		},
 	}
 
-	// create the pipeline. Use shader naming convention to pick
-	// a renderpass.
+	// create the pipeline.
 	pipelineInfo := vk.GraphicsPipelineCreateInfo{
 		PStages:             stages,
 		PVertexInputState:   vertexInputInfo,
@@ -2065,8 +2065,9 @@ func (vr *vulkanRenderer) loadShaderModules(shader *vulkanShader, name string, s
 			return fmt.Errorf("unsupported shader stage %d", stage.Stage)
 		}
 
-		// load the shader module bytes
-		filename := fmt.Sprintf("%s.%s.spv", name, stageName)
+		// load the shader module bytes using the
+		// shader generation naming convention.
+		filename := fmt.Sprintf("%s_%s.spv", name, stageName)
 		shaderCode, err := load.ShaderBytes(filename)
 		if err != nil {
 			return fmt.Errorf("load shader: %w", err)
@@ -2102,6 +2103,10 @@ func (vr *vulkanRenderer) disposeShader(s *vulkanShader) {
 		s.descriptorPool = 0
 	}
 	vr.disposeShaderUniformBuffers(s)
+	if s.modelLayout != 0 {
+		vk.DestroyDescriptorSetLayout(vr.device, s.modelLayout, nil)
+		s.modelLayout = 0
+	}
 	if s.materialLayout != 0 {
 		vk.DestroyDescriptorSetLayout(vr.device, s.materialLayout, nil)
 		s.materialLayout = 0
@@ -2137,7 +2142,7 @@ func (vr *vulkanRenderer) createShaderUniformBuffers(s *vulkanShader) (err error
 	bufferSize := vk.DeviceSize(maxSceneUniformBytes * numImages)
 	err = vr.createBuffer(&s.sceneUniforms, bufferSize, vk.BUFFER_USAGE_UNIFORM_BUFFER_BIT, flags)
 	if err != nil {
-		return fmt.Errorf("sceneUniformsMap:vk.createBuffer: %w", err)
+		return fmt.Errorf("sceneUniforms:vk.createBuffer: %w", err)
 	}
 	s.sceneUniformsMap, err = vk.MapMemory(vr.device, s.sceneUniforms.memory, 0, bufferSize, 0)
 	if err != nil {
@@ -2146,7 +2151,7 @@ func (vr *vulkanRenderer) createShaderUniformBuffers(s *vulkanShader) (err error
 
 	// create the material scope uniform buffer for this frame.
 	// map the uniform memory once for the lifetime of the app.
-	bufferSize = vk.DeviceSize(maxMaterialUniformBytes * s.maxMaterials * numImages)
+	bufferSize = vk.DeviceSize(maxMaterialUniformBytes * s.maxSamplers * numImages)
 	err = vr.createBuffer(&s.materialUniforms, bufferSize, vk.BUFFER_USAGE_UNIFORM_BUFFER_BIT, flags)
 	if err != nil {
 		return fmt.Errorf("materialUniformsMap:vk.createBuffer: %w", err)
@@ -2202,47 +2207,47 @@ func (vr *vulkanRenderer) applySceneUniforms(shader *vulkanShader) {
 	vk.CmdBindDescriptorSets(frame.cmds, vk.PIPELINE_BIND_POINT_GRAPHICS, shader.pipeLayout, setNum, dsets, nil)
 }
 
-// setMaterialSamplers sets all the samplers expected by this shader.
+// setSamplers sets all the samplers expected by this shader.
 // The samplers are in the order expected by the shader config.
-func (vr *vulkanRenderer) setMaterialSamplers(shader *vulkanShader, tids []uint32) (matID uint32, err error) {
+func (vr *vulkanRenderer) setSamplers(shader *vulkanShader, tids []uint32) (matID uint32, err error) {
 	// compare to the existing material samplers to see if there is a match
-	for i := uint32(0); i < shader.nextMaterialID; i++ {
-		if slices.Compare(tids, shader.materials[i].samplerSet) == 0 {
+	for i := uint32(0); i < shader.nextSamplerID; i++ {
+		if slices.Compare(tids, shader.samplers[i].samplerSet) == 0 {
 			return i, nil // reuse existing material.
 		}
 	}
 
 	// create a new material for these textures on this shader.
-	matID = shader.nextMaterialID
-	if matID >= shader.maxMaterials {
-		return 0, fmt.Errorf("setMaterialSamplers:max materials exceeded:%d", matID)
+	matID = shader.nextSamplerID
+	if matID >= shader.maxSamplers {
+		return 0, fmt.Errorf("setSamplers:max samplers exceeded:%d", matID)
 	}
-	shader.materials[matID].samplerSet = append(shader.materials[matID].samplerSet, tids...)
-	shader.nextMaterialID += 1
+	shader.samplers[matID].samplerSet = append(shader.samplers[matID].samplerSet, tids...)
+	shader.nextSamplerID += 1
 	return matID, nil
 }
 
 // applyMaterialUniforms updates the material scope descriptor sets
 // to point to the proper material uniform data buffer
-func (vr *vulkanRenderer) applyMaterialUniforms(shader *vulkanShader, matID uint32) {
+func (vr *vulkanRenderer) applyMaterialUniforms(shader *vulkanShader, sampID uint32) {
 	if shader.materialLayout == 0 {
 		slog.Error("applyMaterialUniforms: no material uniforms", "shader", shader.name)
 		return
 	}
-	if matID >= uint32(len(shader.materials)) {
-		slog.Error("applyMaterialUniforms:invalid material ID", "material_id", matID)
+	if sampID >= uint32(len(shader.samplers)) {
+		slog.Error("applyMaterialUniforms:invalid material ID", "material_id", sampID)
 		return
 	}
-	material := &shader.materials[matID]
-	descriptorSet := material.descriptorSets[vr.imageIndex]
+	sampler := &shader.samplers[sampID]
+	descriptorSet := sampler.descriptorSets[vr.imageIndex]
 	setNum := uint32(1) // material uniforms are set=1 (scene uniforms at set=0)
 
 	// check if the material descriptor set needs updating.
-	if !material.updated[vr.imageIndex] {
+	if !sampler.updated[vr.imageIndex] {
 		descriptorSetWrites := []vk.WriteDescriptorSet{}
 		descriptorIndex := uint32(0)
 
-		// FUTURE add support for material uniforms
+		// FUTURE: add adding support for material uniforms if needed
 		// if shader.usets.materialSize > 0 {
 		// 	offset := vk.DeviceSize(vr.imageIndex*shader.maxMaterials*maxMaterialUniformBytes + matID*maxMaterialUniformBytes)
 		// 	descriptorSetWrites = append(descriptorSetWrites, vk.WriteDescriptorSet{
@@ -2261,9 +2266,9 @@ func (vr *vulkanRenderer) applyMaterialUniforms(shader *vulkanShader, matID uint
 		// }
 
 		// check for samplers
-		if len(material.samplerSet) > 0 {
+		if len(sampler.samplerSet) > 0 {
 			samplerInfo := []vk.DescriptorImageInfo{}
-			for _, tid := range material.samplerSet {
+			for _, tid := range sampler.samplerSet {
 				t := vr.textures[tid]
 				samplerInfo = append(samplerInfo, vk.DescriptorImageInfo{
 					ImageLayout: vk.IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
@@ -2279,7 +2284,7 @@ func (vr *vulkanRenderer) applyMaterialUniforms(shader *vulkanShader, matID uint
 			})
 		}
 		vk.UpdateDescriptorSets(vr.device, descriptorSetWrites, nil)
-		material.updated[vr.imageIndex] = true
+		sampler.updated[vr.imageIndex] = true
 	}
 	frame := &vr.frames[vr.frameIndex]
 	dsets := []vk.DescriptorSet{descriptorSet}
@@ -2489,7 +2494,7 @@ func (vr *vulkanRenderer) drawFrame(passes []Pass) (err error) {
 	})
 
 	// reset the scene descriptor set updates for all shaders each frame render.
-	// OPTIMIZE: only reset the sceneUpdated if the view changed.
+	// OPTIMIZE: only reset sceneUpdated if the view changed.
 	for i := range vr.shaders {
 		s := &vr.shaders[i]
 		for j := range s.sceneUpdated {
@@ -2525,8 +2530,8 @@ func (vr *vulkanRenderer) drawFrame(passes []Pass) (err error) {
 					slog.Error("invalid shaderID", "shader_id", packet.ShaderID)
 					continue
 				}
-				shaderID = packet.ShaderID // changing shaders.
-				shader = &vr.shaders[shaderID]
+				shaderID = packet.ShaderID     // changing shaders.
+				shader = &vr.shaders[shaderID] //   ""
 				vk.CmdBindPipeline(frame.cmds, vk.PIPELINE_BIND_POINT_GRAPHICS, shader.pipe)
 
 				// setting scene uniforms for this shader
@@ -2536,8 +2541,8 @@ func (vr *vulkanRenderer) drawFrame(passes []Pass) (err error) {
 
 			// update material samplers
 			if len(packet.TextureIDs) > 0 {
-				matID, _ := vr.setMaterialSamplers(shader, packet.TextureIDs)
-				vr.applyMaterialUniforms(shader, matID)
+				samplerID, _ := vr.setSamplers(shader, packet.TextureIDs)
+				vr.applyMaterialUniforms(shader, samplerID)
 			}
 
 			// bind model scope uniforms for this shader.
@@ -2587,7 +2592,7 @@ func (vr *vulkanRenderer) drawFrame(passes []Pass) (err error) {
 
 			// update material samplers
 			if len(packet.TextureIDs) > 0 {
-				matID, _ := vr.setMaterialSamplers(shader, packet.TextureIDs)
+				matID, _ := vr.setSamplers(shader, packet.TextureIDs)
 				if lastMatID != matID {
 					lastMatID = matID
 				}
@@ -2675,7 +2680,7 @@ func (vr *vulkanRenderer) version(v uint32) string {
 func (vr *vulkanRenderer) setSceneUniforms(shader *vulkanShader, pass Pass) {
 	for _, u := range shader.usets.index {
 		if u.scope == load.SceneScope {
-			vr.setUniform(shader, u, 0, pass.Uniforms[u.passUID])
+			vr.setUniform(shader, u, pass.Uniforms[u.sceneUID])
 		}
 	}
 }
@@ -2683,27 +2688,27 @@ func (vr *vulkanRenderer) setSceneUniforms(shader *vulkanShader, pass Pass) {
 // setModelUniforms copies the render packet data to model scope uniforms.
 func (vr *vulkanRenderer) setModelUniforms(shader *vulkanShader, packet Packet) {
 	for _, u := range shader.usets.index {
-		if u.scope == load.ModelScope {
-			vr.setUniform(shader, u, packet.MeshID, packet.Uniforms[u.packetUID])
+		if u.scope == load.ModelScope || u.scope == load.PushScope {
+			vr.setUniform(shader, u, packet.Uniforms[u.modelUID])
 		}
 	}
 }
 
 // setUniform overwrites the uniform buffer with the given data.
 // The data size must match the size expected by the given shader.
-func (vr *vulkanRenderer) setUniform(shader *vulkanShader, u *uniform, instance uint32, data []byte) {
+func (vr *vulkanRenderer) setUniform(shader *vulkanShader, u *uniform, data []byte) {
 	switch u.scope {
 	case load.SceneScope:
 		offset := uintptr(vr.imageIndex*maxSceneUniformBytes + u.offset)
 		dst := (*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(shader.sceneUniformsMap)) + offset))
 		copy(unsafe.Slice(dst, len(data)), data)
 	case load.MaterialScope:
-		// FUTURE: add material scope uniforms.... not currently needed by any shader.
-		slog.Warn("the FUTURE is now -> add material scope uniforms")
-		// offset := uintptr(vr.imageIndex*shader.maxMaterials*maxMaterialUniformBytes + instance*maxMaterialUniformBytes + u.offset)
-		// dst := (*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(shader.materialUniformsMap)) + offset))
-		// copy(unsafe.Slice(dst, len(data)), data)
+		// FUTURE: add material scope uniforms to change
+		//         model materials separately from model transforms.
 	case load.ModelScope:
+		// FUTURE: add model scope uniforms for model data larger
+		//         than the 128byte push constant limit.
+	case load.PushScope:
 		frame := vr.frames[vr.frameIndex]
 		vk.CmdPushConstants(frame.cmds, shader.pipeLayout, vk.SHADER_STAGE_VERTEX_BIT|vk.SHADER_STAGE_FRAGMENT_BIT, u.offset, data)
 	}

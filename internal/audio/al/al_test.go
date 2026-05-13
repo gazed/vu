@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText : © 2022-2025 Galvanized Logic Inc.
-// SPDX-License-Identifier: BSD-2-Clause
+// SPDX-License-Identifier: MIT
 
 package al
 

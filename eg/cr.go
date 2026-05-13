@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText : © 2014-2025 Galvanized Logic Inc.
-// SPDX-License-Identifier: BSD-2-Clause
+// SPDX-License-Identifier: MIT
 
 package main
 
@@ -60,7 +60,7 @@ func (cr *crtag) Load(eng *vu.Engine) error {
 
 	// import assets from asset files.
 	// This creates the assets referenced by the models below.
-	eng.ImportAssets("PBRCol.shd", "sphere.glb", "box0.glb")
+	eng.ImportAssets("PBRColor.shd", "sphere.glb", "box0.glb")
 
 	// New scene with default camera.
 	cr.pos = lin.NewV3().SetS(0, 16, 30)
@@ -71,7 +71,7 @@ func (cr *crtag) Load(eng *vu.Engine) error {
 	cr.scene.AddLight(vu.SunLight).SetAt(2, 2, 2)
 
 	// create a static slab as a base for the other physics objects.
-	slab := cr.scene.AddModel("shd:PBRCol", "msh:box0", "mat:box0")
+	slab := cr.scene.AddModel("shd:PBRColor", "msh:box0", "mat:box0")
 	slab.SetScale(50, 10, 50).SetAt(0, -5, 0)
 	slab.AddToSimulation(vu.Box(50, 10, 50, vu.StaticSim))
 
@@ -137,10 +137,10 @@ func (cr *crtag) Update(eng *vu.Engine, in *vu.Input, delta time.Duration) {
 // makeBall creates a visible sphere physics body.
 func (cr *crtag) makeBall(lx, ly, lz float64) (ball *vu.Entity) {
 	const sphere_radius = 1.2849 // from blender
-	ball = cr.scene.AddModel("shd:PBRCol", "msh:sphere")
+	ball = cr.scene.AddModel("shd:PBRColor", "msh:sphere")
 	ball.SetScale(2, 2, 2).SetAt(lx, ly, lz)
 	ball.AddToSimulation(vu.Sphere(2*sphere_radius, vu.KinematicSim))
-	r, g, b, a, metallic, roughness := randomColor()
+	r, g, b, a, metallic, roughness := cr.randomColor()
 	ball.SetColor(r, g, b, a)
 	ball.SetMetallicRoughness(metallic, roughness)
 	return ball
@@ -148,17 +148,17 @@ func (cr *crtag) makeBall(lx, ly, lz float64) (ball *vu.Entity) {
 
 // makeBox creates a visible box physics body.
 func (cr *crtag) makeBox(lx, ly, lz float64) (box *vu.Entity) {
-	box = cr.scene.AddModel("shd:PBRCol", "msh:box0")
+	box = cr.scene.AddModel("shd:PBRColor", "msh:box0")
 	box.SetScale(2, 2, 2).SetAt(lx, ly, lz)
 	box.AddToSimulation(vu.Box(2, 2, 2, vu.KinematicSim))
-	r, g, b, a, metallic, roughness := randomColor()
+	r, g, b, a, metallic, roughness := cr.randomColor()
 	box.SetColor(r, g, b, a)
 	box.SetMetallicRoughness(metallic, roughness)
 	return box
 }
 
 // randomColor generates a random PBR solid color.
-func randomColor() (r, g, b, a float64, metallic bool, roughness float64) {
+func (cr *crtag) randomColor() (r, g, b, a float64, metallic bool, roughness float64) {
 	r = rand.Float64()
 	g = rand.Float64()
 	b = rand.Float64()

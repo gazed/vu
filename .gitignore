@@ -2,4 +2,5 @@
 *.exe
 *.swp
 eg/eg
+assets/shaders/*.shd
 internal/device/macos/OSXApp

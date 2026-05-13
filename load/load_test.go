@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText : © 2014-2025 Galvanized Logic Inc.
-// SPDX-License-Identifier: BSD-2-Clause
+// SPDX-License-Identifier: MIT
 
 package load
 
@@ -103,15 +103,15 @@ func TestShader(t *testing.T) {
 		}
 	})
 
-	t.Run("tex3D", func(t *testing.T) {
-		shd, err := ShaderConfig("tex3D.shd")
-		if err != nil || shd.Name != "tex3D" || shd.Pass != "3D" {
+	t.Run("image3D", func(t *testing.T) {
+		shd, err := ShaderConfig("image3D.shd")
+		if err != nil || shd.Name != "image3D" || shd.Pass != "3D" {
 			t.Errorf("shader configuration load failed %s", err)
 		}
 		if len(shd.Attrs) != 2 {
 			t.Fatalf("expected 2 attributes got %d", len(shd.Attrs))
 		}
-		if shd.Attrs[1].AttrType != Texcoords {
+		if shd.Attrs[1].AType != Texcoords {
 			t.Fatalf("expected texcoord as second attribute")
 		}
 		if len(shd.Uniforms) != 4 {
@@ -119,24 +119,24 @@ func TestShader(t *testing.T) {
 		}
 	})
 
-	t.Run("pbr0", func(t *testing.T) {
-		shd, err := ShaderConfig("pbr0.shd")
-		if err != nil || shd.Name != "pbr0" || shd.Pass != "3D" {
+	t.Run("PBRColor", func(t *testing.T) {
+		shd, err := ShaderConfig("PBRColor.shd")
+		if err != nil || shd.Name != "PBRColor" || shd.Pass != "3D" {
 			t.Errorf("shader configuration load failed %s", err)
 		}
 	})
 
-	t.Run("bbinst", func(t *testing.T) {
-		shd, err := ShaderConfig("bbinst.shd")
-		if err != nil || shd.Name != "bbinst" || shd.Pass != "3D" {
+	t.Run("billboardI", func(t *testing.T) {
+		shd, err := ShaderConfig("billboardI.shd")
+		if err != nil || shd.Name != "billboardI" || shd.Pass != "3D" {
 			t.Errorf("shader configuration load failed %s", err)
 		}
 		if len(shd.Attrs) != 5 {
 			t.Fatalf("expected 5 attributes got %d", len(shd.Attrs))
 		}
-		if shd.Attrs[2].AttrType != InstancePosition ||
-			shd.Attrs[3].AttrType != InstanceColors ||
-			shd.Attrs[4].AttrType != InstanceScales {
+		if shd.Attrs[2].AType != InstancePosition ||
+			shd.Attrs[3].AType != InstanceColors ||
+			shd.Attrs[4].AType != InstanceScales {
 			t.Fatalf("invalid instance attribute type")
 		}
 	})

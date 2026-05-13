@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText : © 2024 Galvanized Logic Inc.
-// SPDX-License-Identifier: BSD-2-Clause
+// SPDX-License-Identifier: MIT
 
 // Package physics is a real-time simulation of real-world physics.
 // Physics applies simulated forces to virtual 3D objects known as bodies.

@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText : © 2015-2025 Galvanized Logic Inc.
-// SPDX-License-Identifier: BSD-2-Clause
+// SPDX-License-Identifier: MIT
 
 package vu
 
@@ -20,7 +20,7 @@ func TestLoader(t *testing.T) {
 
 	// queue the asset load requests
 	files := []string{
-		"core.png", "22:hack.ttf", "bloop.wav", "box0.glb", "tex3D.shd",
+		"core.png", "22:hack.ttf", "bloop.wav", "box0.glb", "image3D.shd",
 	}
 	ld.importAssetData(files...)
 	ld.importAssetData(files...) // check that duplicate requests are ignored
@@ -70,7 +70,7 @@ func TestLoader(t *testing.T) {
 		ld.getAsset(assetID(tex, "core"), id1, loaderTestCallback)
 		ld.getAsset(assetID(tex, "core"), id2, loaderTestCallback)
 		ld.getAsset(assetID(msh, "box0"), id1, loaderTestCallback)
-		ld.getAsset(assetID(shd, "tex3D"), id1, loaderTestCallback)
+		ld.getAsset(assetID(shd, "image3D"), id1, loaderTestCallback)
 		ld.getAsset(assetID(aud, "bloop"), id1, loaderTestCallback)
 		if loaderTestID1Callbacks != 4 {
 			t.Errorf("entity 1 expected 4 callbacks, got %d", loaderTestID1Callbacks)

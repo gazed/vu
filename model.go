@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText : © 2015-2025 Galvanized Logic Inc.
-// SPDX-License-Identifier: BSD-2-Clause
+// SPDX-License-Identifier: MIT
 
 package vu
 
@@ -115,13 +115,13 @@ func (e *Entity) SetMetallicRoughness(metallic bool, roughness float64) *Entity 
 func (e *Entity) SetModelUniform(uniform string, data any) *Entity {
 	if m := e.app.models.get(e.eid); m != nil {
 		switch uniform {
-		case "args4":
+		case "f4":
 			if v, ok := data.([]float32); ok && len(v) == 4 {
-				m.uniforms[load.ARGS4] = render.V4S32ToBytes(v[0], v[1], v[2], v[3], m.uniforms[load.ARGS4])
+				m.uniforms[load.F4] = render.V4S32ToBytes(v[0], v[1], v[2], v[3], m.uniforms[load.F4])
 			}
-		case "args16":
+		case "f16":
 			if v, ok := data.([]float64); ok && len(v) == 16 {
-				m.uniforms[load.ARGS16] = render.V16ToBytes(v, m.uniforms[load.ARGS16])
+				m.uniforms[load.F16] = render.V16ToBytes(v, m.uniforms[load.F16])
 			}
 		default:
 			// FUTURE    : add uniforms as needed by shaders.
@@ -279,7 +279,7 @@ type model struct {
 	// effect *effect // set for a particle effect
 
 	// generic uniforms set the app and passed to the shader.
-	uniforms map[load.PacketUniform][]byte
+	uniforms map[load.ModelUniform][]byte
 
 	// packet bucket sort values.
 	tocam float64 // distance to camera helps with 3D render order.
@@ -291,7 +291,7 @@ func newModel(mt modelType) *model {
 	return &model{
 		mtype:      mt,
 		samplerMap: map[string]string{},
-		uniforms:   map[load.PacketUniform][]byte{},
+		uniforms:   map[load.ModelUniform][]byte{},
 	}
 }
 
@@ -344,8 +344,14 @@ func (m *model) addAsset(a asset) {
 		m.mesh = la
 	case *material:
 		if m.mat == nil {
-			// set materials not already set by app.
-			m.mat = la
+			m.mat = la // set materials not already set by app.
+		} else {
+			m.mat.color.r = la.color.r // override any existing values.
+			m.mat.color.g = la.color.g
+			m.mat.color.b = la.color.b
+			m.mat.color.a = la.color.a
+			m.mat.metallic = la.metallic
+			m.mat.roughness = la.roughness
 		}
 	case *texture:
 		// textures are added in the order they are loaded.
@@ -448,30 +454,33 @@ func (m *model) fillPacket(packet *render.Packet, pov *pov, cam *Camera) error {
 	uniforms := m.shader.config.Uniforms
 	for i := range uniforms {
 		u := &uniforms[i]
-		if u.DataType != load.DataType_SAMPLER && u.Scope == load.ModelScope {
-			switch u.PacketUID {
+		if u.UType != load.Type_SAMPLER && (u.Scope == load.ModelScope || u.Scope == load.PushScope) {
+			switch u.ModelUID {
 			case load.MODEL:
 				packet.Uniforms[load.MODEL] = render.M4ToBytes(pov.mm, packet.Uniforms[load.MODEL])
+			case load.PBRMR:
+				if m.mat == nil {
+					return fmt.Errorf("PBR metallic:roughness waiting on materials: %s", m.req)
+				}
+				m, r := m.mat.metallic, m.mat.roughness
+				packet.Uniforms[load.PBRMR] = render.V4S32ToBytes(m, r, 0, 0, packet.Uniforms[load.PBRMR])
 			case load.SCALE:
 				sx, sy, sz := pov.scale()
 				packet.Uniforms[load.SCALE] = render.V4SToBytes(sx, sy, sz, 0, packet.Uniforms[load.SCALE])
-			case load.COLOR, load.MATERIAL:
+			case load.COLOR:
 				if m.mat == nil {
-					return fmt.Errorf("waiting on materials: %s", m.req)
+					return fmt.Errorf("Color waiting on materials: %s", m.req)
 				}
-				// Set the model material uniform data.
 				r, g, b, a := m.mat.color.r, m.mat.color.g, m.mat.color.b, m.mat.color.a
 				packet.Uniforms[load.COLOR] = render.V4S32ToBytes(r, g, b, a, packet.Uniforms[load.COLOR])
-				metal, rough := m.mat.metallic, m.mat.roughness
-				packet.Uniforms[load.MATERIAL] = render.V4S32ToBytes(metal, rough, 0, 0, packet.Uniforms[load.MATERIAL])
 			default:
 				// basic uniforms are set using SetModelUniform.
-				data, ok := m.uniforms[u.PacketUID]
+				data, ok := m.uniforms[u.ModelUID]
 				if !ok {
 					return fmt.Errorf("waiting on uniforms: %s", m.req)
 				}
-				packet.Uniforms[u.PacketUID] = packet.Uniforms[u.PacketUID][:0]
-				packet.Uniforms[u.PacketUID] = append(packet.Uniforms[u.PacketUID], data...)
+				packet.Uniforms[u.ModelUID] = packet.Uniforms[u.ModelUID][:0]
+				packet.Uniforms[u.ModelUID] = append(packet.Uniforms[u.ModelUID], data...)
 			}
 		}
 	}

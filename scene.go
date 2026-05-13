@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText : © 2014-2025 Galvanized Logic Inc.
-// SPDX-License-Identifier: BSD-2-Clause
+// SPDX-License-Identifier: MIT
 
 package vu
 
@@ -80,8 +80,8 @@ func (s *scene) setProjection(ww, wh uint32) {
 	c.focus = true
 }
 
-// setPassUniformData sets the render pass scene level data.
-func (s *scene) setPassUniformData(app *application, pass *render.Pass) {
+// setSceneUniforms sets the render pass scene level data.
+func (s *scene) setSceneUniforms(app *application, pass *render.Pass) {
 	pass.Uniforms[load.PROJ] = render.M4ToBytes(s.cam.pm, pass.Uniforms[load.PROJ])
 	pass.Uniforms[load.VIEW] = render.M4ToBytes(s.cam.vm, pass.Uniforms[load.VIEW])
 	cx, cy, cz := s.cam.At()
@@ -241,9 +241,9 @@ func (ss *scenes) getFrame(app *application, frame []render.Pass) []render.Pass 
 
 	// turn the scene models into a frame of render.Packets.
 	for _, sc := range ss.all {
-		pass := &frame[sc.pid]           // a scene is either a 3D or 2D render pass.
-		pass.Reset()                     // reset and reuse previous pass.
-		sc.setPassUniformData(app, pass) // set scene uniform data in the pass.
+		pass := &frame[sc.pid]         // a scene is either a 3D or 2D render pass.
+		pass.Reset()                   // reset and reuse previous pass.
+		sc.setSceneUniforms(app, pass) // set scene uniform data in the pass.
 		if n := app.povs.getNode(sc.eid); n != nil && !n.cull {
 			index := app.povs.index[sc.eid]
 			ss.parts = ss.listParts(app, sc, index, ss.parts[:0])

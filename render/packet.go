@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText : © 2022-2024 Galvanized Logic Inc.
-// SPDX-License-Identifier: BSD-2-Clause
+// SPDX-License-Identifier: MIT
 
 package render
 
@@ -16,7 +16,7 @@ type Packet struct {
 	TextureIDs []uint32 // GPU texture references.
 
 	// packet (model) uniform data.
-	Uniforms map[load.PacketUniform][]byte
+	Uniforms map[load.ModelUniform][]byte
 
 	// used to draw instanced meshes.
 	IsInstanced   bool   // true for instanced models.
@@ -40,7 +40,7 @@ func (p *Packet) Reset() {
 	p.Bucket = 0                    //
 
 	// reset the uniform data.
-	for i := range load.PacketUniforms {
+	for i := range load.ModelUniforms {
 		d, ok := p.Uniforms[i]
 		if !ok {
 			p.Uniforms[i] = []byte{}
@@ -61,11 +61,11 @@ func (p Packets) GetPacket() (Packets, *Packet) {
 	switch {
 	case size == cap(p):
 		p = append(p, Packet{})
-		p[size].Uniforms = map[load.PacketUniform][]byte{}
+		p[size].Uniforms = map[load.ModelUniform][]byte{}
 	case size < cap(p): // use previously allocated.
 		p = p[:size+1]
 		if p[size].Uniforms == nil {
-			p[size].Uniforms = map[load.PacketUniform][]byte{}
+			p[size].Uniforms = map[load.ModelUniform][]byte{}
 		}
 		p[size].Reset() // clear existing data.
 	}

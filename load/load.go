@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText : © 2014-2024 Galvanized Logic Inc.
-// SPDX-License-Identifier: BSD-2-Clause
+// SPDX-License-Identifier: MIT
 
 // Package load fetches disk based 3D asset data. It's main purpose is to
 // find the asset file and load its data into intermediate data structs.
@@ -37,7 +37,7 @@ import (
 // These are the default directories and can be overridden using SetAssetDir.
 var assetDirs = map[string]string{
 	".spv":  "assets/shaders", // spir-v compiled shader byte files
-	".shd":  "assets/shaders", // yaml shader configuration files.
+	".shd":  "assets/shaders", // generated shader json reflection files.
 	".png":  "assets/images",  // png images, often textures.
 	".glb":  "assets/models",  // glb scenes, meshes, materials, animations, textures,...
 	".ttf":  "assets/fonts",   // true type font files.
@@ -146,7 +146,7 @@ func ShaderBytes(name string) (data ShaderData, err error) {
 // =============================================================================
 // ".shd" custom yaml shader configuration data.
 
-// ShaderConfig loads compiled shader (spir-v) byte data.
+// ShaderConfig loads the shader reflection data.
 func ShaderConfig(name string) (cfg *Shader, err error) {
 	data, err := getData(name)
 	if err != nil {
@@ -199,11 +199,10 @@ const (
 	Texcoords          // 1 optional:V2 float32
 	Normals            // 2 optional:V3 float32
 	Tangents           // 3 optional:V4 float32
-	Colors             // 4 optional:V3 uint8
-	Joints             // 5 FUTURE:V4 uint8    animations
-	Weights            // 6 FUTURE:V4 uint8    animations
-	Indexes            // 7 required:uint16             - must be second last.
-	VertexTypes        // 8 number of vertex data types - must be last.
+	Joints             // 4 FUTURE  :V4 uint8    animations
+	Weights            // 5 FUTURE  :V4 uint8    animations
+	Indexes            // 6 required:uint16             - must be second last.
+	VertexTypes        // 7 number of vertex data types - must be last.
 )
 
 // Instance Data attribute types describe per-instance model data.

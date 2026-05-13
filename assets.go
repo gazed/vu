@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText : © 2022-2024 Galvanized Logic Inc.
-// SPDX-License-Identifier: BSD-2-Clause
+// SPDX-License-Identifier: MIT
 
 package vu
 
@@ -132,7 +132,7 @@ func (t *texture) label() string { return t.name } // asset name
 // =============================================================================
 // material
 
-// material is used to color a mesh. It specifies the surface color and
+// PBR material used to color a mesh. It specifies the surface color and
 // how the surface is lit. Materials are applied to a rendered model by
 // a shader.
 type material struct {

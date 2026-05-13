@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText : © 2015-2025 Galvanized Logic Inc.
-// SPDX-License-Identifier: BSD-2-Clause
+// SPDX-License-Identifier: MIT
 
 package vu
 
@@ -429,14 +429,14 @@ func (l *assetLoader) loadDefaultAssets(rc render.Loader) (err error) {
 	slog.Debug("vu built-in", "asset", "tex:"+t.label(), "id", t.tid)
 
 	// create a basic shader as the first shader.
-	s := newShader("icon")
-	s.config, err = load.ShaderConfig("icon.shd")
+	s := newShader("image2D")
+	s.config, err = load.ShaderConfig("image2D.shd")
 	if err != nil {
-		return fmt.Errorf("load.ShaderConfig icon.shd: %w", err)
+		return fmt.Errorf("load.ShaderConfig image2D.shd: %w", err)
 	}
 	s.sid, err = rc.LoadShader(s.config)
 	if err != nil {
-		return fmt.Errorf("LoadShader icon: %w", err)
+		return fmt.Errorf("LoadShader image2D: %w", err)
 	}
 	l.assets[s.aid()] = s
 	slog.Debug("vu built-in", "asset", "shd:"+s.label(), "id", s.sid)

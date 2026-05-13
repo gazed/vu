@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText : © 2015-2025 Galvanized Logic Inc.
-// SPDX-License-Identifier: BSD-2-Clause
+// SPDX-License-Identifier: MIT
 
 package main
 
@@ -52,18 +52,18 @@ func (kc *kctag) Load(eng *vu.Engine) error {
 	// import assets from asset files.
 	// This creates the assets referenced by the models below.
 	// "20:lucon.ttf" the font size is prefixed to the font ttf file name.
-	eng.ImportAssets("icon.shd", "keyboard.png", "keyboard_press.png") // load some assets
-	eng.ImportAssets("label.shd", "20:lucon.ttf")                      // load more assets
+	eng.ImportAssets("image2D.shd", "keyboard.png", "keyboard_press.png") // load some assets
+	eng.ImportAssets("label.shd", "20:lucon.ttf")                         // load more assets
 
 	// create a 2D scene with a camera.
 	scene := eng.AddScene(vu.Scene2D)
 
 	// add the keyboard image to the scene.
-	kb := scene.AddModel("shd:icon", "msh:icon", "tex:color:keyboard")
+	kb := scene.AddModel("shd:image2D", "msh:icon", "tex:color:keyboard")
 	kb.SetScale(float64(kc.ww), float64(kc.wh), 0).SetAt(float64(kc.ww/2), float64(kc.wh/2), 0)
 
 	// add the pressed key focus model to the scene
-	kc.focus = scene.AddModel("shd:icon", "msh:icon", "tex:color:keyboard_press")
+	kc.focus = scene.AddModel("shd:image2D", "msh:icon", "tex:color:keyboard_press")
 	kc.focus.SetScale(50, 50, 0) // make it bigger
 	kc.focus.Cull(true)          // hide until a key is pressed.
 

@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText : © 2014-2025 Galvanized Logic Inc.
-// SPDX-License-Identifier: BSD-2-Clause
+// SPDX-License-Identifier: MIT
 
 // Package eg is used to test and demo different aspects of the vu engine.
 // The examples are run using:
@@ -56,6 +56,7 @@ func main() {
 		{"cr", "Collision Resolution", cr}, // test physics package.
 		{"ps", "Primitive Shapes", ps},     // test drawing primitive shapes.
 		{"is", "Instanced Stars", is},      // test drawing instanced models
+		{"sn", "Shader Noise", sn},         // test shader noise.
 
 		// FUTURE: {"ma", "Model Animation", ma}, // test animated models
 	}

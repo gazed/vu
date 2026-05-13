@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText : © 2024-2025 Galvanized Logic Inc.
-// SPDX-License-Identifier: BSD-2-Clause
+// SPDX-License-Identifier: MIT
 
 package main
 
@@ -43,17 +43,17 @@ type drtag struct {
 
 // Load is the one time startup engine callback to create initial assets.
 func (dr *drtag) Load(eng *vu.Engine) error {
-	eng.ImportAssets("col2D.shd")
+	eng.ImportAssets("color2D.shd")
 
 	// create root parts.
 	ui := eng.AddScene(vu.Scene2D)
 
 	// display area that matches the desired ratio.
-	dr.display = ui.AddModel("shd:col2D", "msh:icon").SetColor(1, 1, 1, 0.1)
+	dr.display = ui.AddModel("shd:color2D", "msh:icon").SetColor(1, 1, 1, 0.1)
 	dr.display.SetAt(dr.ww*0.5, dr.wh*0.5, 0).SetScale(dr.ww, dr.wh, 0)
 
 	// box placed in top left corner.
-	dr.box = ui.AddModel("shd:col2D", "msh:icon")
+	dr.box = ui.AddModel("shd:color2D", "msh:icon")
 	dr.box.SetAt(40, 40, 0).SetScale(64, 64, 1).SetColor(0, 1, 0, 1)
 	return nil
 }

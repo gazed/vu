@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText : © 2022-2024 Galvanized Logic Inc.
-// SPDX-License-Identifier: BSD-2-Clause
+// SPDX-License-Identifier: MIT
 
 package render
 
@@ -22,7 +22,7 @@ const (
 // The returned Pass is expected to be reused in render loops.
 func NewPass() Pass {
 	return Pass{
-		Uniforms: map[load.PassUniform][]byte{},                        // map of data
+		Uniforms: map[load.SceneUniform][]byte{},                       // map of data
 		Lights:   []Light{Light{}, Light{}, Light{}, Light{}, Light{}}, // max 5 lights
 	}
 }
@@ -32,7 +32,7 @@ type Pass struct {
 
 	// Packets are a reusable list of packets, one per model.
 	Packets  Packets
-	Uniforms map[load.PassUniform][]byte // Scene uniform data
+	Uniforms map[load.SceneUniform][]byte // Scene uniform data
 
 	// Light position and color information.
 	// Lights are reused to generate scene light uniform data.
@@ -41,7 +41,7 @@ type Pass struct {
 
 // Reset the pass data.
 func (rp *Pass) Reset() {
-	for i := range load.PassUniforms {
+	for i := range load.SceneUniforms {
 		d, ok := rp.Uniforms[i]
 		if !ok {
 			rp.Uniforms[i] = []byte{}

@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText : © 2025 Galvanized Logic Inc.
-// SPDX-License-Identifier: BSD-2-Clause
+// SPDX-License-Identifier: MIT
 
 package main
 
@@ -48,7 +48,7 @@ type axtag struct {
 func (ax *axtag) Load(eng *vu.Engine) error {
 
 	// load the model and sound assets.
-	eng.ImportAssets("col3D.shd", "bloop.wav")
+	eng.ImportAssets("color3D.shd", "bloop.wav")
 
 	// create a sound entity from the loaded asset.
 	ax.soundID = eng.AddSound("bloop")
@@ -57,7 +57,7 @@ func (ax *axtag) Load(eng *vu.Engine) error {
 	scene := eng.AddScene(vu.Scene3D)
 
 	// model as the sound focus.
-	ax.model = scene.AddModel("shd:col3D", "msh:cube").SetColor(1, 1, 1, 0.1)
+	ax.model = scene.AddModel("shd:color3D", "msh:cube").SetColor(1, 1, 1, 0.1)
 	ax.model.SetAt(0, 0, -4).SetScale(2, 2, 0)
 	ax.model.SetListener() // set the sound listener to this models location.
 	return nil

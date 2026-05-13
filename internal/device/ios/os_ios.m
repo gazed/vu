@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText : © 2025 Galvanized Logic Inc.
-// SPDX-License-Identifier: BSD-2-Clause
+// SPDX-License-Identifier: MIT
 
 // The iOS (darwin) native layer implementation.
 // This wraps the iOS API's (where the real work is done).

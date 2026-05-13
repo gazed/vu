@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText : © 2014-2025 Galvanized Logic Inc.
-// SPDX-License-Identifier: BSD-2-Clause
+// SPDX-License-Identifier: MIT
 
 package render
 
@@ -257,6 +257,7 @@ type uniformSets struct {
 	sceneSize    uint32    // set0: total scene uniforms byte size.
 	materialSize uint32    // set1: total material uniforms byte size.
 	modelSize    uint32    // set2: total model uniforms byte size.
+	pushSize     uint32    // push: total model push constant byte size.
 	numSamplers  uint32    // number of uniform samplers.
 	uniforms     []uniform // per-uniform data.
 
@@ -267,12 +268,12 @@ type uniformSets struct {
 // uniform describes a single uniform and is generated from
 // a shader configuration.
 type uniform struct {
-	scope     load.UniformScope  // matches descriptor set, ie: scene is set:0
-	offset    uint32             // uniform: offset is start of data bytes in buffer
-	size      uint32             // uniform: data size in bytes.
-	bind      uint32             // sampler: the sampler bind location
-	passUID   load.PassUniform   // pass data index.
-	packetUID load.PacketUniform // packet data index.
+	scope    load.UniformScope // matches descriptor set, ie: scene is set:0
+	offset   uint32            // uniform: offset is start of data bytes in buffer
+	size     uint32            // uniform: data size in bytes.
+	bind     uint32            // sampler: the sampler bind location
+	sceneUID load.SceneUniform // scene uniform data index.
+	modelUID load.ModelUniform // model uniform data index.
 }
 
 // hasUniform if the shader supports the given uniform.
@@ -290,9 +291,10 @@ func (us uniformSets) hasUniform(name string) bool {
 // so create each uniform buffer in multiples of 256 bytes and
 // complain if the uniform data exceeds the max size.
 const (
-	maxSceneUniformBytes    = 512 // scene data fits in 512 bytes
-	maxMaterialUniformBytes = 256 // material data fits in 256 bytes
-	maxModelUniformBytes    = 128 // model data must fit in 128 bytes
+	maxSceneUniformBytes    = 512 // scene uniform data fits in 512 bytes
+	maxMaterialUniformBytes = 256 // material uniform data fits in 256 bytes
+	maxModelUniformBytes    = 256 // model uniform data fits in 256 bytes
+	maxPushConstantBytes    = 128 // push constant data must fit in 128 bytes
 )
 
 // genUniforms creates shaderUniforms from the shader configuration.
@@ -302,11 +304,11 @@ func getUniformSets(configUniforms []load.ShaderUniform) (sets uniformSets) {
 	for i, cu := range configUniforms {
 		u := &sets.uniforms[i]
 		u.scope = cu.Scope
-		if cu.DataType == load.DataType_SAMPLER {
+		if cu.UType == load.Type_SAMPLER {
 			u.bind = sets.numSamplers
 			sets.numSamplers += 1
 		} else {
-			u.size = load.DataTypeSizes[cu.DataType]
+			u.size = uint32(cu.Size)
 			switch cu.Scope {
 			case load.SceneScope:
 				u.offset = sets.sceneSize
@@ -317,11 +319,14 @@ func getUniformSets(configUniforms []load.ShaderUniform) (sets uniformSets) {
 			case load.ModelScope:
 				u.offset = sets.modelSize
 				sets.modelSize += u.size
+			case load.PushScope:
+				u.offset = sets.pushSize
+				sets.pushSize += u.size
 			}
-			u.passUID = cu.PassUID     // one of these two...
-			u.packetUID = cu.PacketUID // ...will be valid.
+			u.sceneUID = cu.SceneUID // one of these two...
+			u.modelUID = cu.ModelUID // ...will be valid.
+			sets.index[cu.Name] = u
 		}
-		sets.index[cu.Name] = u
 	}
 
 	// complain if a shader exceeds the amount of allocated uniform bytes.
@@ -334,6 +339,9 @@ func getUniformSets(configUniforms []load.ShaderUniform) (sets uniformSets) {
 	}
 	if sets.modelSize > maxModelUniformBytes {
 		slog.Error("need to increase uniformBufferSize", "set2_model", sets.modelSize)
+	}
+	if sets.pushSize > maxPushConstantBytes {
+		slog.Error("exceeded push constant max size", "push_model", sets.pushSize)
 	}
 	return sets
 }
@@ -426,21 +434,28 @@ func (m *m4) set64(m64 *lin.M4) *m4 {
 	return m
 }
 
+// ToBytes returns the data as a byte array.
+func (m *m4) toBytes() []byte {
+	return (*[int(unsafe.Sizeof(*m))]byte)(unsafe.Pointer(m))[:]
+}
+
 // V16ToBytes returns a byte slice of float32 from the given float64.
 // The given byte slice is zeroed and returned filled with the float bytes.
 func V16ToBytes(args []float64, bytes []byte) []byte {
 	bytes = bytes[:0]
 	m := &m4{}
-	m.xx, m.xy, m.xz, m.xw = float32(args[0]), float32(args[1]), float32(args[2]), float32(args[3])
-	m.yx, m.yy, m.yz, m.yw = float32(args[4]), float32(args[5]), float32(args[6]), float32(args[7])
-	m.zx, m.zy, m.zz, m.zw = float32(args[8]), float32(args[9]), float32(args[10]), float32(args[11])
-	m.wx, m.wy, m.wz, m.ww = float32(args[12]), float32(args[13]), float32(args[14]), float32(args[15])
-	return append(bytes, m.toBytes()...)
-}
+	// historical glsl shaders.
+	// m.xx, m.xy, m.xz, m.xw = float32(args[0]), float32(args[1]), float32(args[2]), float32(args[3])
+	// m.yx, m.yy, m.yz, m.yw = float32(args[4]), float32(args[5]), float32(args[6]), float32(args[7])
+	// m.zx, m.zy, m.zz, m.zw = float32(args[8]), float32(args[9]), float32(args[10]), float32(args[11])
+	// m.wx, m.wy, m.wz, m.ww = float32(args[12]), float32(args[13]), float32(args[14]), float32(args[15])
 
-// ToBytes returns the data as a byte array.
-func (m *m4) toBytes() []byte {
-	return (*[int(unsafe.Sizeof(*m))]byte)(unsafe.Pointer(m))[:]
+	// transpose for slangc shaders.
+	m.xx, m.xy, m.xz, m.xw = float32(args[0]), float32(args[4]), float32(args[8]), float32(args[12])
+	m.yx, m.yy, m.yz, m.yw = float32(args[1]), float32(args[5]), float32(args[9]), float32(args[13])
+	m.zx, m.zy, m.zz, m.zw = float32(args[2]), float32(args[6]), float32(args[10]), float32(args[14])
+	m.wx, m.wy, m.wz, m.ww = float32(args[3]), float32(args[7]), float32(args[11]), float32(args[15])
+	return append(bytes, m.toBytes()...)
 }
 
 // =============================================================================

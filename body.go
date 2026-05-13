@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText : © 2016-2022 Galvanized Logic Inc.
-// SPDX-License-Identifier: BSD-2-Clause
+// SPDX-License-Identifier: MIT
 
 package vu
 

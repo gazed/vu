@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText : © 2015-2025 Galvanized Logic Inc.
-// SPDX-License-Identifier: BSD-2-Clause
+// SPDX-License-Identifier: MIT
 
 // Package vu - the virtual universe engine, provides 3D game support. Vu wraps
 // subsystems like rendering, physics, asset loading, audio, etc. to provide

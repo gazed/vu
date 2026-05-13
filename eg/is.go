@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText : © 2022-2025 Galvanized Logic Inc.
-// SPDX-License-Identifier: BSD-2-Clause
+// SPDX-License-Identifier: MIT
 
 package main
 
@@ -74,8 +74,8 @@ func (is *istag) Load(eng *vu.Engine) error {
 
 	// import assets from asset files.
 	// This creates the assets referenced by the models below.
-	eng.ImportAssets("bbinst.shd", "bboard.shd", "star.png", "ring.png") // 3D assets
-	eng.ImportAssets("label.shd", "22:hack.ttf")                         // 2D assets
+	eng.ImportAssets("billboardI.shd", "billboard.shd", "star.png", "ring.png") // 3D assets
+	eng.ImportAssets("label.shd", "22:hack.ttf")                                // 2D assets
 
 	// The scene holds the cameras and lighting information
 	// and acts as the root for all models added to the scene.
@@ -86,12 +86,12 @@ func (is *istag) Load(eng *vu.Engine) error {
 	// Create before instance data so it is drawn after the instanced data.
 	// This is because the normal transparency sorting doesn't work with instanced
 	// data since instanced data does not have a distance to the camera..
-	is.pick = is.scene3D.AddModel("shd:bboard", "msh:quad", "tex:color:ring")
+	is.pick = is.scene3D.AddModel("shd:billboard", "msh:quad", "tex:color:ring")
 	is.pick.SetLayer(1) // draw over stars.
 	is.pick.Cull(true)  // hide until mouse is over a star
 
 	// one draw call to draw over 9000 stars.
-	s1 := is.scene3D.AddInstancedModel("shd:bbinst", "msh:quad", "tex:color:star")
+	s1 := is.scene3D.AddInstancedModel("shd:billboardI", "msh:quad", "tex:color:star")
 	s1.SetInstanceData(eng, uint32(len(is.stars)), is.starData)
 
 	// create a 2D scene to show the star name when holding the mouse over a star.
