@@ -24,7 +24,7 @@ type Packet struct {
 	InstanceCount uint32 // instance count for instanced models.
 
 	// Rendering hints.
-	Tag    uint32 // Application tag (entity ID) for debugging.
+	EID    uint32 // Application (entity ID).
 	Bucket uint64 // Used to sort packets. Lower buckets rendered first.
 }
 
@@ -36,7 +36,7 @@ func (p *Packet) Reset() {
 	p.IsInstanced = false           //
 	p.InstanceID = 0                //
 	p.InstanceCount = 0             //
-	p.Tag = 0                       //
+	p.EID = 0                       //
 	p.Bucket = 0                    //
 
 	// reset the uniform data.

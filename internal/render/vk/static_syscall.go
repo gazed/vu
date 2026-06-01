@@ -11,7 +11,11 @@ import "golang.org/x/sys/windows"
 var dlHandle *windows.LazyDLL
 
 // reference to a vulkan command in the DLL.
-type vkCommand = *windows.LazyProc
+type vkCommand = uintptr
+
+// Needed to find vulkan command references with vkGetInstanceProcAddr.
+// Set externally to the vulkan instance from vkCreateInstance.
+var VKInst uintptr
 
 func loadLibrary(overrideLibName string) error {
 	libName := "vulkan-1.dll"

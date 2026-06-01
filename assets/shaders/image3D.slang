@@ -9,7 +9,7 @@ struct VIn {
 	float2 texcoord;
 };
 
-import "modTexture";
+import "textureMod";
 
 [shader("vertex")]
 VOut vertMain(VIn i) {

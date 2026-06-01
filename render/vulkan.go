@@ -71,12 +71,6 @@ type vulkanRenderer struct {
 	// createCommandPools
 	graphicsQCmdPool vk.CommandPool // graphics queue command pool
 
-	// createRenderpasses
-	render3D             vk.RenderPass    // world render pass.
-	render2D             vk.RenderPass    // UI overlay pass.
-	render3DFramebuffers []vk.Framebuffer // one framebuffer per swapchain image
-	render2DFramebuffers []vk.Framebuffer // one framebuffer per swapchain image
-
 	// createSwapchainResources
 	// imageIndex tracks the swapchain image acquired by vkAcquireNextImageKHR.
 	// This can be any of the swapchain images.
@@ -98,19 +92,35 @@ type vulkanRenderer struct {
 	viewport vk.Viewport // same as frame size.
 	scissor  vk.Rect2D   // same as frame size.
 
-	// mesh vertex attribute buffers.
-	vertexBuffers []vulkanBuffer // non-interleaved.
-	maxVertexBuff []uint64       // max bytes allowed
-	// instanced model data buffers.
-	instanceBuffers []vulkanBuffer // non-interleaved.
-	maxInstanceBuff []uint64       //max bytes allowed
+	// mesh vertex attribute data buffers.
+	vertexMem []vulkanBuffer // 0:vData, 1:vIndex
+	vertexPtr []uint32       // 0:vData, 1:vIndex - first empty data index.
+
+	// ray acceleration data buffers.
+	accelMem    []vulkanBuffer         // acceleration storage buffers BLAS, INST, TLAS, SCRATCH
+	accelPtr    []vk.DeviceSize        // current end of each accel buffer
+	accelMeshes map[uint32]accelStruct // BLAS accel data indexed by mesh ID
+	accelScenes map[uint32]accelStruct // TLAS accel data indexed by scene ID
 
 	// application GPU resources.
-	meshes    []vulkanMesh     // application GPU mesh data
-	textures  []vulkanTexture  // application GPU texture data
-	shaders   []vulkanShader   // shaders - one pipeline per shader.
-	instances []vulkanInstance // application GPU instance data
+	meshes   []vulkanMesh    // application GPU mesh data
+	textures []vulkanTexture // application GPU texture data
+	shaders  []vulkanShader  // shaders - one pipeline per shader.
 }
+
+// buffer indexing.
+const (
+	// vertex data buffer types.
+	vData  = 0 // all (non-index) vertex data
+	vIndex = 1 // all vertex index data.
+
+	// acceleration data buffer types.
+	aBLAS    = 0 // all bottom level acceleration structs
+	aINST0   = 1 // frame 0 TLAS instance acceleration structs
+	aINST1   = 2 // frame 1 TLAS instance acceleration structs
+	aTLAS    = 3 // the top level acceleration struct
+	aSCRATCH = 4 // scratch buffer for acceleration create/update
+)
 
 // vkEnabledLayers can be modified by debug builds
 // by overriding the addValidationLayer method.
@@ -120,6 +130,8 @@ var addValidationLayer func([]string) ([]string, error) = func(layers []string) 
 // getVulkanRenderer acquires the vulkan resources needed to render scenes.
 func getVulkanRenderer(dev *device.Device, title string) (vr *vulkanRenderer, err error) {
 	vr = &vulkanRenderer{}
+	vr.accelMeshes = map[uint32]accelStruct{}
+	vr.accelScenes = map[uint32]accelStruct{}
 	vr.title = title
 
 	// load the vulkan library
@@ -130,7 +142,15 @@ func getVulkanRenderer(dev *device.Device, title string) (vr *vulkanRenderer, er
 	// create the vulkan stack.
 	vr.osdev = dev
 	vr.frameWidth, vr.frameHeight = vr.osdev.SurfaceSize() // initial size
-	vr.deviceExtensions = []string{vk.KHR_SWAPCHAIN_EXTENSION_NAME}
+	vr.deviceExtensions = []string{
+		vk.KHR_SWAPCHAIN_EXTENSION_NAME,                // VK_KHR_swapchain is window system specific.
+		vk.KHR_RAY_QUERY_EXTENSION_NAME,                // VK_KHR_ray_query
+		vk.KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,   // VK_KHR_acceleration_structure
+		vk.KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME,    // VK_KHR_buffer_device_address
+		vk.KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME, // VK_KHR_deferred_host_operations
+		vk.EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME,      // VK_EXT_descriptor_indexing
+		vk.KHR_SPIRV_1_4_EXTENSION_NAME,                // VK_KHR_spirv_1_4
+	}
 
 	// acquire resources from the top down.
 	createFunctions := []func() error{
@@ -148,13 +168,11 @@ func getVulkanRenderer(dev *device.Device, title string) (vr *vulkanRenderer, er
 		vr.createSwapchainResources, // one swapchain with one render frame per image
 		vr.createRenderFrames,       // two frames
 
-		// two renderpass, each with their own framebuffers.
-		// - first draw the 3D world
-		// - then draw the 2D UI overlay.
-		vr.createRenderpasses,
-		vr.createFramebuffers,
+		// create storage for mesh data.
 		vr.createVertexBuffers,
-		vr.createInstanceBuffers,
+
+		// create storage for ray query acceleration data.
+		vr.createAccelerationBuffers,
 	}
 	for _, create := range createFunctions {
 		if err := create(); err != nil {
@@ -164,7 +182,7 @@ func getVulkanRenderer(dev *device.Device, title string) (vr *vulkanRenderer, er
 	}
 
 	// init is done... throw it back to the application
-	// to create the shaders and upload the render data.
+	// to load the shaders and render data.
 	slog.Info("vulkan initialized")
 	return vr, err
 }
@@ -177,24 +195,14 @@ func (vr *vulkanRenderer) dispose() {
 	}
 
 	// remove application allocated resources.
-	vr.disposeInstanceBuffers()
+	vr.disposeAccelerationStructs()
+	vr.disposeAccelerationBuffers()
 	vr.disposeVertexBuffers()
 	for i := range vr.textures {
 		vr.dropTexture(uint32(i))
 	}
 	for sid := range vr.shaders {
 		vr.disposeShader(&vr.shaders[sid])
-	}
-
-	// per renderpass..
-	vr.disposeFramebuffers()
-	if vr.render3D != 0 {
-		vk.DestroyRenderPass(vr.device, vr.render3D, nil)
-		vr.render3D = 0
-	}
-	if vr.render2D != 0 {
-		vk.DestroyRenderPass(vr.device, vr.render2D, nil)
-		vr.render2D = 0
 	}
 
 	// dispose the per-image render semaphores.
@@ -239,12 +247,16 @@ func (vr *vulkanRenderer) createInstance() (err error) {
 			ApplicationVersion: vk.MAKE_VERSION(1, 0, 0),
 			PEngineName:        "vu",
 			EngineVersion:      vk.HEADER_VERSION_COMPLETE,
-			ApiVersion:         vk.API_VERSION_1_2,
+			ApiVersion:         vk.API_VERSION_1_3,
 		},
 		PpEnabledLayerNames:     vkEnabledLayers,
 		PpEnabledExtensionNames: vr.instanceExtensions(), // vulkan_windows.go
 	}
 	vr.instance, err = vk.CreateInstance(&instanceInfo, nil)
+
+	// set the vulkan instance in the vulkan bindings.
+	// It is used to find function pointers to other vulkan methods.
+	vk.VKInst = uintptr(vr.instance)
 	return err
 }
 
@@ -267,7 +279,16 @@ func (vr *vulkanRenderer) selectPhysicalDevice() error {
 	GPU = INTEGRATED_GPU // set global default unless discrete GPU found.
 	candidates := []deviceCandidate{}
 	for _, d := range devices {
-		properties := vk.GetPhysicalDeviceProperties(d)
+		props2 := vk.GetPhysicalDeviceProperties2(d)
+		properties := props2.Properties
+
+		// require vulkan 1.4
+		if properties.ApiVersion < vk.API_VERSION_1_3 {
+			slog.Warn("vulkan version to low",
+				"name", properties.DeviceName,
+				"version", vr.version(properties.ApiVersion))
+			break
+		}
 
 		// ensure that the device has the required queues.
 		graphicsQIndex, transferQIndex, presentQIndex := -1, -1, -1
@@ -344,7 +365,7 @@ func (vr *vulkanRenderer) selectPhysicalDevice() error {
 		}
 
 		// check for required features
-		features := vk.GetPhysicalDeviceFeatures(d)
+		features := vk.GetPhysicalDeviceFeatures(d, &vk.PhysicalDeviceFeatures{})
 		if !features.SamplerAnisotropy {
 			slog.Warn("missing features.SamplerAnisotropy", "device", vr.physicalDevice)
 			continue // device missing samplerAnisotropy
@@ -389,7 +410,7 @@ func (vr *vulkanRenderer) selectPhysicalDevice() error {
 // createLogicalDevice
 func (vr *vulkanRenderer) createLogicalDevice() (err error) {
 
-	// create the logical device with separate queues for each queue family
+	// create the queues for each queue family
 	qIndicies := []uint32{vr.graphicsQIndex}
 	if vr.graphicsQIndex != vr.presentQIndex {
 		qIndicies = append(qIndicies, vr.presentQIndex) // separate present queue
@@ -406,11 +427,36 @@ func (vr *vulkanRenderer) createLogicalDevice() (err error) {
 		qi.PNext = nil
 		queueInfos = append(queueInfos, qi)
 	}
+
+	// chain device extensions that are not yet core features but are needed now.
+	enableAcceleration := vk.PhysicalDeviceAccelerationStructureFeaturesKHR{}
+	enableAcceleration.AccelerationStructure = true
+	enableRayQuery := vk.PhysicalDeviceRayQueryFeaturesKHR{}
+	enableRayQuery.RayQuery = true
+	enableRayQuery.PNext = unsafe.Pointer(enableAcceleration.ToVK())
+	// chain the 1.2 features
+	features12 := vk.PhysicalDeviceVulkan12Features{}
+	features12.DescriptorBindingVariableDescriptorCount = true
+	features12.ShaderSampledImageArrayNonUniformIndexing = true
+	features12.BufferDeviceAddress = true
+	features12.DescriptorIndexing = true
+	features12.PNext = unsafe.Pointer(enableRayQuery.ToVK())
+	// chain the 1.3 features
+	features13 := vk.PhysicalDeviceVulkan13Features{}
+	features13.Synchronization2 = true
+	features13.DynamicRendering = true
+	features13.PNext = unsafe.Pointer(features12.ToVK())
+	// chain the features
+	features2 := vk.PhysicalDeviceFeatures2{}
+	features2.Features.SamplerAnisotropy = true
+	features2.PNext = unsafe.Pointer(features13.ToVK())
+
+	// create the device with the desired features,
+	// fail unless all features are supported.
 	deviceCreateInfo := vk.DeviceCreateInfo{
-		PQueueCreateInfos: queueInfos,
-		PEnabledFeatures: &vk.PhysicalDeviceFeatures{
-			SamplerAnisotropy: true,
-		},
+		PNext:                   unsafe.Pointer(features2.ToVK()),
+		PQueueCreateInfos:       queueInfos,
+		PEnabledFeatures:        nil, // pNext is using VkPhysicalDeviceFeatures2
 		PpEnabledExtensionNames: vr.deviceExtensions,
 	}
 	vr.device, err = vk.CreateDevice(vr.physicalDevice, &deviceCreateInfo, nil)
@@ -703,258 +749,128 @@ func (vr *vulkanRenderer) createDepthBuffer() (err error) {
 	return nil
 }
 
-// =============================================================================
-// renderpasses - each renderpass has attachments and requires a set of
-//                framebuffers for each swapchain image.
-
-// createRenderpasses creates the 3D and 2D renderpasses.
-// The 3D world renderpass is run before the 2D overlay renderpass.
-func (vr *vulkanRenderer) createRenderpasses() (err error) {
-	renderpassInfo := vk.RenderPassCreateInfo{
-		PAttachments: []vk.AttachmentDescription{
-			{
-				Format:         vr.surfaceFormat.Format,
-				Samples:        vk.SAMPLE_COUNT_1_BIT,
-				LoadOp:         vk.ATTACHMENT_LOAD_OP_CLEAR,
-				StoreOp:        vk.ATTACHMENT_STORE_OP_STORE,
-				StencilLoadOp:  vk.ATTACHMENT_LOAD_OP_DONT_CARE,
-				StencilStoreOp: vk.ATTACHMENT_STORE_OP_DONT_CARE,
-				InitialLayout:  vk.IMAGE_LAYOUT_UNDEFINED,
-				FinalLayout:    vk.IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, // output to UI pass
-			},
-			{
-				Format:         vr.depthFormat,
-				Samples:        vk.SAMPLE_COUNT_1_BIT,
-				LoadOp:         vk.ATTACHMENT_LOAD_OP_CLEAR,
-				StoreOp:        vk.ATTACHMENT_STORE_OP_DONT_CARE,
-				StencilLoadOp:  vk.ATTACHMENT_LOAD_OP_DONT_CARE,
-				StencilStoreOp: vk.ATTACHMENT_STORE_OP_DONT_CARE,
-				InitialLayout:  vk.IMAGE_LAYOUT_UNDEFINED,
-				FinalLayout:    vk.IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-			},
-		},
-		PSubpasses: []vk.SubpassDescription{
-			{
-				PipelineBindPoint: vk.PIPELINE_BIND_POINT_GRAPHICS,
-				PColorAttachments: []vk.AttachmentReference{
-					{
-						Attachment: 0,
-						Layout:     vk.IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-					},
-				},
-				PDepthStencilAttachment: &vk.AttachmentReference{
-					Attachment: 1,
-					Layout:     vk.IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-				},
-			}},
-		PDependencies: []vk.SubpassDependency{
-			{
-				SrcSubpass:    vk.SUBPASS_EXTERNAL,
-				DstSubpass:    0,
-				SrcStageMask:  vk.PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-				SrcAccessMask: 0,
-				DstStageMask:  vk.PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-				DstAccessMask: vk.ACCESS_COLOR_ATTACHMENT_READ_BIT | vk.ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-			}},
-		Flags: 0,
-	}
-	vr.render3D, err = vk.CreateRenderPass(vr.device, &renderpassInfo, nil)
-
-	// create the 2D UI overlay renderpass
-	renderpassInfo = vk.RenderPassCreateInfo{
-		PAttachments: []vk.AttachmentDescription{
-			{
-				Format:         vr.surfaceFormat.Format,
-				Samples:        vk.SAMPLE_COUNT_1_BIT,
-				LoadOp:         vk.ATTACHMENT_LOAD_OP_LOAD,
-				StoreOp:        vk.ATTACHMENT_STORE_OP_STORE,
-				StencilLoadOp:  vk.ATTACHMENT_LOAD_OP_DONT_CARE,
-				StencilStoreOp: vk.ATTACHMENT_STORE_OP_DONT_CARE,
-				InitialLayout:  vk.IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, // FinalLayout of 3D pass
-				FinalLayout:    vk.IMAGE_LAYOUT_PRESENT_SRC_KHR,          // present to screen.
-			},
-		},
-		PSubpasses: []vk.SubpassDescription{
-			{
-				PipelineBindPoint: vk.PIPELINE_BIND_POINT_GRAPHICS,
-				PColorAttachments: []vk.AttachmentReference{
-					{
-						Attachment: 0,
-						Layout:     vk.IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-					},
-				},
-			}},
-		PDependencies: []vk.SubpassDependency{
-			{
-				SrcSubpass:    vk.SUBPASS_EXTERNAL,
-				DstSubpass:    0,
-				SrcStageMask:  vk.PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-				SrcAccessMask: 0,
-				DstStageMask:  vk.PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-				DstAccessMask: vk.ACCESS_COLOR_ATTACHMENT_READ_BIT | vk.ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-			}},
-		Flags: 0,
-	}
-	vr.render2D, err = vk.CreateRenderPass(vr.device, &renderpassInfo, nil)
-	return nil
-}
-
-// createFramebuffers for each renderpass where each renderpass
-// has a framebuffer for each swapchain image.
-//
-// Framebuffers are recreated on resizes.
-func (vr *vulkanRenderer) createFramebuffers() (err error) {
-	vr.render3DFramebuffers = make([]vk.Framebuffer, len(vr.images))
-	for i := range vr.images {
-		frameInfo := vk.FramebufferCreateInfo{
-			RenderPass: vr.render3D,
-			PAttachments: []vk.ImageView{
-				vr.views[i],
-				vr.depthImage.view,
-			},
-			Width:  vr.frameWidth,
-			Height: vr.frameHeight,
-			Layers: 1,
-		}
-		vr.render3DFramebuffers[i], err = vk.CreateFramebuffer(vr.device, &frameInfo, nil)
-		if err != nil {
-			return fmt.Errorf("vk.CreateFramebuffer: %w", err)
-		}
-	}
-	vr.render2DFramebuffers = make([]vk.Framebuffer, len(vr.images))
-	for i := range vr.images {
-		frameInfo := vk.FramebufferCreateInfo{
-			RenderPass: vr.render2D,
-			PAttachments: []vk.ImageView{
-				vr.views[i],
-			},
-			Width:  vr.frameWidth,
-			Height: vr.frameHeight,
-			Layers: 1,
-		}
-		vr.render2DFramebuffers[i], err = vk.CreateFramebuffer(vr.device, &frameInfo, nil)
-		if err != nil {
-			return fmt.Errorf("vk.CreateFramebuffer: %w", err)
-		}
-	}
-	return nil
-}
-
-// disposeFramebuffers is needed for window resizes.
-func (vr *vulkanRenderer) disposeFramebuffers() {
-	for i := range vr.render2DFramebuffers {
-		if vr.render2DFramebuffers[i] != 0 {
-			vk.DestroyFramebuffer(vr.device, vr.render2DFramebuffers[i], nil)
-			vr.render2DFramebuffers[i] = 0
-		}
-	}
-	for i := range vr.render3DFramebuffers {
-		if vr.render3DFramebuffers[i] != 0 {
-			vk.DestroyFramebuffer(vr.device, vr.render3DFramebuffers[i], nil)
-			vr.render3DFramebuffers[i] = 0
-		}
-	}
-}
-
-// createVertexBuffers creates separate buffers for the different possible
-// mesh vertex data and triangle index data.
+// createVertexBuffers creates one buffer for all
+// mesh vertex data (instanced and non-instanced)
+// and a separate buffer for triangle index data.
 func (vr *vulkanRenderer) createVertexBuffers() (err error) {
-	vr.vertexBuffers = make([]vulkanBuffer, load.VertexTypes)
-	vr.maxVertexBuff = make([]uint64, load.VertexTypes)
-	flags := vk.BUFFER_USAGE_VERTEX_BUFFER_BIT | vk.BUFFER_USAGE_TRANSFER_DST_BIT | vk.BUFFER_USAGE_TRANSFER_SRC_BIT
-	props := vk.MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-	var size vk.DeviceSize
-	var space vk.DeviceSize = vk.DeviceSize(GPUVertexBytes)
+	vr.vertexMem = make([]vulkanBuffer, 2)
+	vr.vertexPtr = []uint32{0, 0}
+	memProps := vk.MEMORY_PROPERTY_DEVICE_LOCAL_BIT
 
-	// vertex positions.
-	var buff *vulkanBuffer
-	buff = &vr.vertexBuffers[load.Vertexes] // V3 or V2 float32
-	size = 3 * 4 * space                    // 3-float32 * 4-bytes * lots of space.
-	if err = vr.createBuffer(buff, size, flags, props); err != nil {
-		return fmt.Errorf("createBuffers:position %w", err)
+	// vertex data.
+	size := vk.DeviceSize(GPUMaxVertexBytes)
+	usage := vk.BUFFER_USAGE_VERTEX_BUFFER_BIT |
+		vk.BUFFER_USAGE_TRANSFER_DST_BIT |
+		vk.BUFFER_USAGE_STORAGE_BUFFER_BIT |
+		vk.BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+		vk.BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR
+	if err = vr.createBuffer(&vr.vertexMem[vData], size, usage, memProps); err != nil {
+		return fmt.Errorf("createVertexBuffers:data %w", err)
 	}
-	vr.maxVertexBuff[load.Vertexes] = uint64(size)
 
-	// vertex texcoords
-	buff = &vr.vertexBuffers[load.Texcoords] // V2 float32
-	size = 2 * 4 * space                     // 2-float32 * 4-bytes * lots of space.
-	if err = vr.createBuffer(buff, size, flags, props); err != nil {
-		return fmt.Errorf("createBuffers:texcoord %w", err)
-	}
-	vr.maxVertexBuff[load.Texcoords] = uint64(size)
-
-	// vertex normals
-	buff = &vr.vertexBuffers[load.Normals] // V3 float32
-	size = 3 * 4 * space                   // 3-float32 * 4-bytes * lots of space.
-	if err = vr.createBuffer(buff, size, flags, props); err != nil {
-		return fmt.Errorf("createBuffers:normal %w", err)
-	}
-	vr.maxVertexBuff[load.Normals] = uint64(size)
-
-	// FUTURE:
-	// vertex load.Tangents V4 float32
-	// vertex load.Weights  V4 uint8    animations
-	// vertex load.Joints   V4 uint8    animations
+	// need vertex data pointer when building acceleration structs
+	i0 := vk.BufferDeviceAddressInfo{Buffer: vr.vertexMem[vData].handle}
+	vr.vertexMem[vData].address = vk.GetBufferDeviceAddress(vr.device, &i0)
 
 	// triangle indexes
-	buff = &vr.vertexBuffers[load.Indexes] // uint16
-	size = 4 * space                       // 1-float32 * 4-bytes * lots of space.
-	iflags := vk.BUFFER_USAGE_INDEX_BUFFER_BIT | vk.BUFFER_USAGE_TRANSFER_DST_BIT | vk.BUFFER_USAGE_TRANSFER_SRC_BIT
-	if err = vr.createBuffer(buff, size, iflags, props); err != nil {
-		return fmt.Errorf("createBuffers:index %w", err)
+	isize := vk.DeviceSize(GPUMaxVIndexBytes)
+	iusage := vk.BUFFER_USAGE_INDEX_BUFFER_BIT | vk.BUFFER_USAGE_STORAGE_BUFFER_BIT |
+		vk.BUFFER_USAGE_TRANSFER_DST_BIT |
+		vk.BUFFER_USAGE_STORAGE_BUFFER_BIT |
+		vk.BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+		vk.BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR
+	if err = vr.createBuffer(&vr.vertexMem[vIndex], isize, iusage, memProps); err != nil {
+		return fmt.Errorf("createVertexBuffers:indexes %w", err)
 	}
-	vr.maxVertexBuff[load.Indexes] = uint64(size)
+
+	// need vertex triangle index pointer when building acceleration structs
+	i1 := vk.BufferDeviceAddressInfo{Buffer: vr.vertexMem[vIndex].handle}
+	vr.vertexMem[vIndex].address = vk.GetBufferDeviceAddress(vr.device, &i1)
 	return nil
 }
-
-// disposeVertexbuffers
 func (vr *vulkanRenderer) disposeVertexBuffers() {
-	for i := range vr.vertexBuffers {
-		vr.disposeBuffer(&vr.vertexBuffers[i])
+	if len(vr.vertexMem) == 2 {
+		vr.disposeBuffer(&vr.vertexMem[vIndex])
+		vr.disposeBuffer(&vr.vertexMem[vData])
+		vr.vertexMem = nil // trigger garbage collect
 	}
 }
 
-// createInstanceBuffers creates separate buffers for the different possible
-// instance data buffers.
-func (vr *vulkanRenderer) createInstanceBuffers() (err error) {
-	vr.instanceBuffers = make([]vulkanBuffer, load.InstanceTypes)
-	vr.maxInstanceBuff = make([]uint64, load.InstanceTypes)
-	flags := vk.BUFFER_USAGE_VERTEX_BUFFER_BIT | vk.BUFFER_USAGE_TRANSFER_DST_BIT | vk.BUFFER_USAGE_TRANSFER_SRC_BIT
-	props := vk.MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-	var size vk.DeviceSize
-	var space vk.DeviceSize = vk.DeviceSize(GPUInstanceBytes)
+// createAccelerationBuffers reserves device storage space for
+// the acceleration structures needed for ray query and ray trace.
+//
+// FUTURE: optimizations recommended by:
+// https://nvpro-samples.github.io/vk_raytracing_tutorial_KHR/concepts/acceleration-structures/
+//   - Optimization Strategy: While you can allocate a separate scratch buffer
+//     for each build, a more efficient approach is to determine the size of the
+//     largest scratch buffer needed and reuse a single buffer of that size,
+//     provided you handle the synchronization correctly between build calls.
+//   - TLAS Updates: For TLAS updates (e.g., for animations), you can often keep
+//     reusing the same scratch buffer as long as you ensure the previous frame's
+//     acceleration structure writes are complete before starting the new build.
+func (vr *vulkanRenderer) createAccelerationBuffers() (err error) {
+	vr.accelMem = make([]vulkanBuffer, aSCRATCH+1)
+	vr.accelPtr = make([]vk.DeviceSize, aSCRATCH+1)
+	memProps := vk.MEMORY_PROPERTY_DEVICE_LOCAL_BIT
 
-	// instance positions.
-	var buff *vulkanBuffer
-	buff = &vr.instanceBuffers[load.InstancePosition] // V3 or V2 float32
-	size = 3 * 4 * space                              // 3-float32 * 4-bytes * lots of space.
-	if err = vr.createBuffer(buff, size, flags, props); err != nil {
-		return fmt.Errorf("createBuffers:position %w", err)
+	// BLAS buffers
+	size := vk.DeviceSize(GPUMaxAccelerationBLASBytes)
+	usage := vk.BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR |
+		vk.BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+		vk.BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR
+	if err = vr.createBuffer(&vr.accelMem[aBLAS], size, usage, memProps); err != nil {
+		return fmt.Errorf("createAccelerationBuffers:BLAS %w", err)
 	}
-	vr.maxInstanceBuff[load.InstancePosition] = uint64(size)
 
-	// instance colors
-	buff = &vr.instanceBuffers[load.InstanceColors] // V3 uint8
-	size = 3 * 1 * space                            // 3-uint8 * 1-bytes * lots of space.
-	if err = vr.createBuffer(buff, size, flags, props); err != nil {
-		return fmt.Errorf("createBuffers:color %w", err)
+	// TLAS instance buffer for frame0
+	size = vk.DeviceSize(GPUMaxAccelerationINSTBytes)
+	usage = vk.BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+		vk.BUFFER_USAGE_TRANSFER_DST_BIT |
+		vk.BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR
+	if err = vr.createBuffer(&vr.accelMem[aINST0], size, usage, memProps); err != nil {
+		return fmt.Errorf("createAccelerationBuffers:INST0 %w", err)
 	}
-	vr.maxInstanceBuff[load.InstanceColors] = uint64(size)
+	info := vk.BufferDeviceAddressInfo{Buffer: vr.accelMem[aINST0].handle}
+	vr.accelMem[aINST0].address = vk.GetBufferDeviceAddress(vr.device, &info)
+	// TLAS instance buffer for frame1
+	size = vk.DeviceSize(GPUMaxAccelerationINSTBytes)
+	usage = vk.BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+		vk.BUFFER_USAGE_TRANSFER_DST_BIT |
+		vk.BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR
+	if err = vr.createBuffer(&vr.accelMem[aINST1], size, usage, memProps); err != nil {
+		return fmt.Errorf("createAccelerationBuffers:INST1 %w", err)
+	}
+	info = vk.BufferDeviceAddressInfo{Buffer: vr.accelMem[aINST1].handle}
+	vr.accelMem[aINST1].address = vk.GetBufferDeviceAddress(vr.device, &info)
 
-	// instance scale
-	buff = &vr.instanceBuffers[load.InstanceScales] // float32
-	size = 4 * space                                // float32 * 4-bytes * lots of space.
-	if err = vr.createBuffer(buff, size, flags, props); err != nil {
-		return fmt.Errorf("createBuffers:normal %w", err)
+	// TLAS buffer
+	size = vk.DeviceSize(GPUMaxAccelerationTLASBytes)
+	usage = vk.BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR |
+		vk.BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT
+	if err = vr.createBuffer(&vr.accelMem[aTLAS], size, usage, memProps); err != nil {
+		return fmt.Errorf("createAccelerationBuffers:TLAS %w", err)
 	}
-	vr.maxInstanceBuff[load.InstanceScales] = uint64(size)
+
+	// Scratch buffer
+	size = vk.DeviceSize(GPUMaxAccelerationScratchBytes)
+	usage = vk.BUFFER_USAGE_STORAGE_BUFFER_BIT |
+		vk.BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT
+	if err = vr.createBuffer(&vr.accelMem[aSCRATCH], size, usage, memProps); err != nil {
+		return fmt.Errorf("createAccelerationBuffers:SCRATCH %w", err)
+	}
+	info = vk.BufferDeviceAddressInfo{Buffer: vr.accelMem[aSCRATCH].handle}
+	vr.accelMem[aSCRATCH].address = vk.GetBufferDeviceAddress(vr.device, &info)
 	return nil
 }
-
-// disposeInstancebuffers
-func (vr *vulkanRenderer) disposeInstanceBuffers() {
-	for i := range vr.instanceBuffers {
-		vr.disposeBuffer(&vr.instanceBuffers[i])
+func (vr *vulkanRenderer) disposeAccelerationBuffers() {
+	if len(vr.accelMem) == aSCRATCH+1 {
+		vr.disposeBuffer(&vr.accelMem[aBLAS])
+		vr.disposeBuffer(&vr.accelMem[aINST0])
+		vr.disposeBuffer(&vr.accelMem[aINST1])
+		vr.disposeBuffer(&vr.accelMem[aTLAS])
+		vr.disposeBuffer(&vr.accelMem[aSCRATCH])
+		vr.accelMem = nil // trigger garbage collect
+		vr.accelPtr = nil //   ""
 	}
 }
 
@@ -988,7 +904,6 @@ func (vr *vulkanRenderer) resizeSwapchain() (err error) {
 	vr.recreatingSwapchain = true // stops rendering while recreating swapchain
 	// ---
 	vk.DeviceWaitIdle(vr.device)   // wait for idle before destroying swapchain
-	vr.disposeFramebuffers()       // delete the renderpass framebuffers.
 	vr.disposeSwapchainResources() // delete the swapchain.
 	surface := surfaceProperties{} // requery swapchain support
 	if err = vr.getSurfaceProperties(&surface, vr.physicalDevice); err != nil {
@@ -1001,8 +916,6 @@ func (vr *vulkanRenderer) resizeSwapchain() (err error) {
 	if err = vr.createSwapchainResources(); err != nil { // recreate swapchain.
 		return err
 	}
-	vr.createFramebuffers() // recreate the renderpass framebuffers.
-	// ---
 	vr.recreatingSwapchain = false // ok to render
 	vr.resizesCompleted = vr.resizesRequested
 	slog.Info("vulkan resize complete", "size", fmt.Sprintf("%d:%d", vr.frameWidth, vr.frameHeight))
@@ -1014,13 +927,14 @@ func (vr *vulkanRenderer) resizeSwapchain() (err error) {
 // lock, load, unlock a buffer generally in that order.
 
 type vulkanBuffer struct {
-	handle vk.Buffer
-	memory vk.DeviceMemory
+	handle  vk.Buffer
+	memory  vk.DeviceMemory
+	address vk.DeviceAddress
 }
 
 // createBuffer allocates a buffer, memory, and binds the buffer to the memory
 func (vr *vulkanRenderer) createBuffer(buff *vulkanBuffer, size vk.DeviceSize,
-	usage vk.BufferUsageFlagBits, flags vk.MemoryPropertyFlags) (err error) {
+	usage vk.BufferUsageFlagBits, properties vk.MemoryPropertyFlags) (err error) {
 
 	// create the buffer structure
 	buffInfo := vk.BufferCreateInfo{
@@ -1031,14 +945,10 @@ func (vr *vulkanRenderer) createBuffer(buff *vulkanBuffer, size vk.DeviceSize,
 	if buff.handle, err = vk.CreateBuffer(vr.device, &buffInfo, nil); err != nil {
 		return fmt.Errorf("vk.CreateBuffer: %w", err)
 	}
-	if buff.handle == 0 {
-		// Check is here because there was a bug in the original vulkan bindings.
-		return fmt.Errorf("vk.CreateBuffer: 0 handle: %+v", buffInfo)
-	}
 
 	// allocate the memory needed by the buffer.
 	memRequirements := vk.GetBufferMemoryRequirements(vr.device, buff.handle)
-	memType, err := vr.findMemoryType(memRequirements.MemoryTypeBits, flags)
+	memType, err := vr.findMemoryType(memRequirements.MemoryTypeBits, properties)
 	if err != nil {
 		return err
 	}
@@ -1046,8 +956,12 @@ func (vr *vulkanRenderer) createBuffer(buff *vulkanBuffer, size vk.DeviceSize,
 		AllocationSize:  memRequirements.Size,
 		MemoryTypeIndex: memType,
 	}
+	if (usage & vk.BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT) != 0 {
+		allocFlagsInfo := vk.MemoryAllocateFlagsInfo{Flags: vk.MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT}
+		allocateInfo.PNext = unsafe.Pointer(allocFlagsInfo.ToVK())
+	}
 	if buff.memory, err = vk.AllocateMemory(vr.device, &allocateInfo, nil); err != nil {
-		return fmt.Errorf("createBuff:vk.AllocateMemory: %w", err)
+		return fmt.Errorf("createBuffer:vk.AllocateMemory: %w", err)
 	}
 
 	// bind the buffer to the memory
@@ -1070,16 +984,16 @@ func (vr *vulkanRenderer) disposeBuffer(buff *vulkanBuffer) {
 }
 
 // Device local memory is faster than host coherent memory.
-// Copying to device local memory is done through the host coherent staging buffer and
-// this uses the transfer queue.
-func (vr *vulkanRenderer) uploadData(pool vk.CommandPool, queue vk.Queue, buff *vulkanBuffer, offset uint64, data []byte) {
+// Copying to device local memory is done through the host coherent
+// staging buffer and this uses the transfer queue.
+func (vr *vulkanRenderer) uploadData(pool vk.CommandPool, queue vk.Queue, handle vk.Buffer, offset uint64, data []byte) {
 
 	// create a staging buffer and load data into the staging buffer.
 	var staging vulkanBuffer
 	usage := vk.BUFFER_USAGE_TRANSFER_SRC_BIT
-	flags := vk.MEMORY_PROPERTY_HOST_VISIBLE_BIT | vk.MEMORY_PROPERTY_HOST_COHERENT_BIT
+	props := vk.MEMORY_PROPERTY_HOST_VISIBLE_BIT | vk.MEMORY_PROPERTY_HOST_COHERENT_BIT
 	size := vk.DeviceSize(len(data))
-	err := vr.createBuffer(&staging, size, usage, flags)
+	err := vr.createBuffer(&staging, size, usage, props)
 	if err != nil {
 		slog.Debug("uploadData:createBuffer", "error", err)
 		return
@@ -1091,7 +1005,7 @@ func (vr *vulkanRenderer) uploadData(pool vk.CommandPool, queue vk.Queue, buff *
 	}
 
 	// copy the data from staging into the given GPU buffer
-	vr.copyGPUBuffer(pool, queue, staging.handle, 0, buff.handle, offset, size)
+	vr.copyGPUBuffer(pool, queue, staging.handle, 0, handle, offset, size)
 	vr.disposeBuffer(&staging) // clean up staging.
 }
 
@@ -1114,17 +1028,12 @@ func (vr *vulkanRenderer) copyGPUBuffer(pool vk.CommandPool, queue vk.Queue,
 	dst vk.Buffer, dstOffset uint64, size vk.DeviceSize) error {
 
 	// create a one-time copy command.
-	cmd, err := vr.beginSingleUseCommand(pool)
-	if err != nil {
-		return fmt.Errorf("copyBuffer: get command: %w", err)
-	}
+	cmd := vr.beginSingleCommand("copyGPUBuffer", pool)
 	region := vk.BufferCopy{SrcOffset: 0, DstOffset: vk.DeviceSize(dstOffset), Size: size}
 	vk.CmdCopyBuffer(cmd, src, dst, []vk.BufferCopy{region})
 
 	// submit one-time command for execution and wait for it to complete.
-	if err := vr.endSingleUseCommand(cmd, pool, vr.graphicsQ); err != nil {
-		return fmt.Errorf("copyBuffer: end command: %w", err)
-	}
+	vr.endSingleCommand("copyGPUBuffer", cmd, pool, vr.graphicsQ)
 	return nil
 }
 
@@ -1134,10 +1043,12 @@ func (vr *vulkanRenderer) copyGPUBuffer(pool vk.CommandPool, queue vk.Queue,
 //   mesh vertices are held in each frames vertex buffer
 //   mesh indices are held in each frames index buffer
 
-// vulkanMesh tracks where the mesh data is stored in the vertex buffers.
+// vulkanMesh tracks mesh data vertex buffer locations.
 // Indexed by the load.MeshData types.
-type vulkanMesh []vulkanBuffData
-type vulkanBuffData struct {
+// - vertex data is stored in the vr.vertexMem[vData] buffer
+// - vertex index data is stored in the vr.vertexMem[vIndex] buffer
+type vulkanMesh map[int]vulkanAttrData
+type vulkanAttrData struct {
 	count  uint32 // number of elements, ie: vertexes, instances
 	stride uint32 // number of bytes per element.
 	offset uint32 // start location of data in the buffer.
@@ -1152,52 +1063,37 @@ type vulkanBuffData struct {
 // FUTURE: handle buffer (de/re)allocates using linked lists.
 func (vr *vulkanRenderer) loadMeshes(meshes []load.MeshData) (mids []uint32, err error) {
 
-	// Add the vertex data at the end of the current mesh data.
-	// Get the current offsets for each vertex data type
-	startingOffsets := make([]uint32, load.VertexTypes) // tracks first offset.
-	if len(vr.meshes) > 0 {
-		prev := vr.meshes[len(vr.meshes)-1]
-		for i := range load.VertexTypes {
-			startingOffsets[i] = prev[i].offset + prev[i].stride*prev[i].count
-		}
-	}
-
 	// cosolidate the upload data into a buffer for each vertex data type.
-	data := make([][]byte, load.VertexTypes)
+	data := [][]byte{[]byte{}, []byte{}} // vData, vIndex temp upload buffers.
+	maxData := []uint32{GPUMaxVertexBytes, GPUMaxVIndexBytes}
+	dataOffsets := []uint32{vr.vertexPtr[vData], vr.vertexPtr[vIndex]}
 	for _, msh := range meshes {
 
-		// add the mesh data after the last mesh.
-		meshOffsets := make([]uint32, load.VertexTypes)
-		if len(vr.meshes) > 0 {
-			prev := vr.meshes[len(vr.meshes)-1]
-			for i := range load.VertexTypes {
-				meshOffsets[i] = prev[i].offset + prev[i].stride*prev[i].count
-			}
-		}
-
-		// track each mesh with a vulkan-mesh
-		vmsh := make(vulkanMesh, load.VertexTypes)
+		// track each mesh with a corresponding vulkan-mesh
+		vmsh := map[int]vulkanAttrData{}
 		for i := range load.VertexTypes {
+			dataType := vData
+			if i == load.Indexes {
+				dataType = vIndex
+			}
 			if msh[i].Count > 0 {
-				vmsh[i].count = msh[i].Count
-				vmsh[i].stride = msh[i].Stride
-				vmsh[i].offset = meshOffsets[i]
+				v := vulkanAttrData{
+					count:  msh[i].Count,
+					stride: msh[i].Stride,
+					offset: dataOffsets[dataType],
+				}
+				vmsh[i] = v
 
 				// check if the data exceeds what was allocated.
-				total := uint64(vmsh[i].offset + msh[i].Count*msh[i].Stride)
-				if total > vr.maxVertexBuff[i] {
-					return mids, fmt.Errorf("loadMeshes:insufficient memory %d", i)
+				if uint32(v.offset+v.count*v.stride) > maxData[dataType] {
+					return mids, fmt.Errorf("loadMeshes:insufficient memory %d", dataType)
 				}
 
 				// consolidate the upload data into temp buffers.
-				data[i] = append(data[i], msh[i].Data...)
+				data[dataType] = append(data[dataType], msh[i].Data...)
 
-				// track the total amount of uploaded bytes
-				GPUTotalMeshBytes += msh[i].Count * msh[i].Stride
-			} else {
-				// push forward the previous offset for the vertex data
-				// types that were not used by this mesh.
-				vmsh[i].offset = meshOffsets[i]
+				// update the last mesh data offset.
+				dataOffsets[dataType] += v.stride * v.count
 			}
 		}
 		mids = append(mids, uint32(len(vr.meshes))) // mesh ID for the new mesh.
@@ -1205,102 +1101,116 @@ func (vr *vulkanRenderer) loadMeshes(meshes []load.MeshData) (mids []uint32, err
 	}
 
 	// upload the consolidated data once for each data type.
-	for i := range load.VertexTypes {
-		uploadData := data[i]
-		if len(uploadData) > 0 {
-			buff := &vr.vertexBuffers[i]
-			offset := uint64(startingOffsets[i])
-			vr.uploadData(vr.graphicsQCmdPool, vr.graphicsQ, buff, offset, uploadData)
+	for dataType := range []int{vData, vIndex} {
+		uploadData := data[dataType]
+		if len(uploadData) <= 0 {
+			return mids, fmt.Errorf("loadMeshes:missing position and/or index data %d", dataType)
+		}
+		buff := &vr.vertexMem[dataType]
+		offset := uint64(vr.vertexPtr[dataType])
+		vr.uploadData(vr.graphicsQCmdPool, vr.graphicsQ, buff.handle, offset, uploadData)
+		vr.vertexPtr[dataType] += uint32(len(uploadData))
+
+		// track the total amount of uploaded bytes
+		// to a global that the app can access.
+		GPUTotalMeshBytes += uint32(len(uploadData))
+	}
+	if RaytraceEnabled {
+		// create the per mesh BLAS acceleration data
+		// so the mesh can be used in a ray trace/query shader.
+		for _, mid := range mids {
+			vr.createBLAS(mid)
 		}
 	}
 	return mids, nil
+}
+
+// loadInstances adds instance data to an existing mesh.
+// Immutable once uploaded.
+func (vr *vulkanRenderer) loadInstances(mid uint32, idata []load.Buffer) (err error) {
+	if int(mid) >= len(vr.meshes) {
+		return fmt.Errorf("loadInstances invalid mesh ID: %d", mid)
+	}
+
+	// use the existing vulkan mesh for this model
+	uploadData := []byte{} // temp upload buffers.
+	vmsh := vr.meshes[mid]
+	newDataIndex := vr.vertexPtr[vData]
+	for i := range load.VertexTypes {
+		if i == load.Indexes || idata[i].Count <= 0 {
+			continue
+		}
+		v := vulkanAttrData{
+			count:  idata[i].Count,
+			stride: idata[i].Stride,
+			offset: newDataIndex,
+		}
+		vmsh[i] = v
+
+		// check if the data exceeds what was allocated.
+		if uint32(v.offset+v.count*v.stride) > GPUMaxVertexBytes {
+			return fmt.Errorf("loadInstances:insufficient memory %d", vData)
+		}
+
+		// consolidate the upload data into temp buffers.
+		uploadData = append(uploadData, idata[i].Data...)
+
+		// update the last mesh data offset.
+		newDataIndex += v.stride * v.count
+	}
+
+	// upload the index data once
+	buff := &vr.vertexMem[vData]
+	offset := uint64(vr.vertexPtr[vData])
+	vr.uploadData(vr.graphicsQCmdPool, vr.graphicsQ, buff.handle, offset, uploadData)
+	vr.vertexPtr[vData] += uint32(len(uploadData))
+
+	// track the total amount of uploaded bytes
+	// to a global that the app can access.
+	GPUTotalMeshBytes += uint32(len(uploadData))
+	return nil
 }
 
 // FUTURE: handle deallocates using linked lists.
 // For now never deallocate so that the lastMesh is always valid.
 func (vr *vulkanRenderer) dropMesh(mid uint32) {}
 
-// track instanced data as a number of buffers.
-type vulkanInstance []vulkanBuffData
-
-// loadInstanceData stores instance data in GPU buffers.
-// Immutable once uploaded. There is only one instance buffer for
-// all frames. Updating instance data means adding a new data and
-// refering to it in future draw calls.
-//
-// FUTURE: handle instance data (de/re)allocates using linked lists.
-func (vr *vulkanRenderer) loadInstanceData(data []load.Buffer) (iid uint32, err error) {
-	inst := make(vulkanInstance, load.InstanceTypes)
-
-	// add the instance data at the end of the buffer
-	offsets := make([]uint32, load.InstanceTypes)
-	if len(vr.instances) > 0 {
-		prev := vr.instances[len(vr.instances)-1]
-		for i := range load.InstanceTypes {
-			offsets[i] = prev[i].offset + prev[i].stride*prev[i].count
-		}
+// updateMesh : see docs on render:UpdateMesh
+func (vr *vulkanRenderer) updateMesh(mid uint32, data []load.Buffer) (err error) {
+	if int(mid) >= len(vr.meshes) {
+		return fmt.Errorf("updateMesh invalid ID: %d", mid)
 	}
-	for i := range load.InstanceTypes {
-		if data[i].Count > 0 {
-			inst[i].count = data[i].Count
-			inst[i].stride = data[i].Stride
-			inst[i].offset = offsets[i]
-
-			// check if the data exceeds what was allocated.
-			total := uint64(inst[i].offset + inst[i].count*inst[i].stride)
-			if total > vr.maxInstanceBuff[i] {
-				return iid, fmt.Errorf("loadInstanceData:insufficient memory %d", i)
-			}
-
-			// upload data
-			buff := &vr.instanceBuffers[i]
-			offset := uint64(inst[i].offset)
-			vr.uploadData(vr.graphicsQCmdPool, vr.graphicsQ, buff, offset, data[i].Data)
-
-			// track the total amount of uploaded bytes
-			GPUTotalInstanceBytes += data[i].Count * data[i].Stride
-		}
-	}
-	iid = uint32(len(vr.instances)) // instance ID for the new instance data.
-	vr.instances = append(vr.instances, inst)
-	return iid, nil
-}
-
-// updateInstanceData : see docs on render:UpdateInstanceData
-func (vr *vulkanRenderer) updateInstanceData(iid uint32, data []load.Buffer) (err error) {
-	if int(iid) >= len(vr.instances) {
-		return fmt.Errorf("updateInstanceData invalid ID: %d", iid)
-	}
-	inst := vr.instances[iid]
+	msh := vr.meshes[mid]
 
 	// check that the buffer data matches.
-	for i := range load.InstanceTypes {
-		if inst[i].count != data[i].Count {
-			return fmt.Errorf("updateInstanceData count mismatch %d %d", inst[i].count, data[i].Count)
+	for i := range load.VertexTypes {
+		if msh[i].count != data[i].Count {
+			return fmt.Errorf("updateMesh count mismatch %d %d", msh[i].count, data[i].Count)
 		}
-		if inst[i].stride != data[i].Stride {
-			return fmt.Errorf("updateInstanceData stride mismatch %d %d", inst[i].stride, data[i].Stride)
+		if msh[i].stride != data[i].Stride {
+			return fmt.Errorf("updateMesh stride mismatch %d %d", msh[i].stride, data[i].Stride)
 		}
 	}
 
 	// everything matches, so re-upload data.
-	for i := range load.InstanceTypes {
+	for i := range load.VertexTypes {
 		if data[i].Count > 0 {
-			// upload data - existing instance data remains the same: count, stride, offset
-			buff := &vr.instanceBuffers[i]
-			offset := uint64(inst[i].offset)
-			vr.uploadData(vr.graphicsQCmdPool, vr.graphicsQ, buff, offset, data[i].Data)
+			dataType := vData
+			if i == load.Indexes {
+				dataType = vIndex
+			}
+
+			// upload data - existing data size is the same: count, stride, offset
+			buff := &vr.vertexMem[dataType]
+			offset := uint64(msh[i].offset)
+			vr.uploadData(vr.graphicsQCmdPool, vr.graphicsQ, buff.handle, offset, data[i].Data)
 		}
 	}
 	return nil // everything ok.
 }
 
-// FUTURE: handle deallocates using linked lists.
-// For now never deallocate so that the lastMesh is always valid.
-func (vr *vulkanRenderer) dropInstanceData(iid uint32) {}
-
 // drawMesh
-func (vr *vulkanRenderer) drawMesh(frame *vulkanFrame, mid uint32, attrs []load.ShaderAttribute) {
+func (vr *vulkanRenderer) drawMesh(frame *vulkanFrame, mid uint32, attrs []load.ShaderAttribute, isInstance bool, instanceCount uint32) {
 	if mid < 0 || mid >= uint32(len(vr.meshes)) {
 		slog.Error("invalid mesh ID", "mid", mid)
 		return
@@ -1312,74 +1222,31 @@ func (vr *vulkanRenderer) drawMesh(frame *vulkanFrame, mid uint32, attrs []load.
 	buffs := []vk.Buffer{}
 	offsets := []vk.DeviceSize{}
 	for _, attr := range attrs {
-		switch attr.Scope {
-		case load.VertexAttribute:
-			i := attr.AType
-			if i < 0 || i >= load.Indexes {
-				slog.Error("unsupported vertex attribute", "attribute_type", attr.AType)
-				continue
-			}
-			buffs = append(buffs, vr.vertexBuffers[i].handle)
-			offsets = append(offsets, vk.DeviceSize(vmsh[i].offset))
+		i := attr.AType
+		if i < 0 || i >= load.Indexes {
+			slog.Error("unsupported vertex attribute", "attribute_type", attr.AType)
+			continue
 		}
+		if _, ok := vmsh[i]; !ok {
+			slog.Error("vertex attribute mismatch", "attribute_type", attr.AType)
+			continue
+		}
+		buffs = append(buffs, vr.vertexMem[vData].handle)
+		offsets = append(offsets, vk.DeviceSize(vmsh[i].offset))
 	}
 	vk.CmdBindVertexBuffers(frame.cmds, 0, buffs, offsets)
 
 	// bind the vertex index data.
-	ibuff := vr.vertexBuffers[load.Indexes].handle
+	ibuff := vr.vertexMem[vIndex].handle
 	ioffset := vk.DeviceSize(vmsh[load.Indexes].offset)
 	vk.CmdBindIndexBuffer(frame.cmds, ibuff, ioffset, vk.INDEX_TYPE_UINT16)
 
 	// draw the mesh
-	vk.CmdDrawIndexed(frame.cmds, vmsh[load.Indexes].count, 1, 0, 0, 0)
-}
-
-// drawInstancedMesh
-func (vr *vulkanRenderer) drawInstancedMesh(frame *vulkanFrame, mid, instID, instCount uint32, attrs []load.ShaderAttribute) {
-	if mid < 0 || mid >= uint32(len(vr.meshes)) {
-		slog.Error("invalid mesh ID", "mid", mid)
-		return
+	if isInstance {
+		vk.CmdDrawIndexed(frame.cmds, vmsh[load.Indexes].count, instanceCount, 0, 0, 0)
+	} else {
+		vk.CmdDrawIndexed(frame.cmds, vmsh[load.Indexes].count, 1, 0, 0, 0)
 	}
-	vmsh := vr.meshes[mid]
-	if instID >= uint32(len(vr.instances)) {
-		slog.Error("invalid instance ID", "inst_ID", instID)
-		return
-	}
-	instData := vr.instances[instID]
-
-	// bind the mesh vertex attribute data expected by the shader.
-	// The attribute must match one of the supported vertex types.
-	buffs := []vk.Buffer{}
-	offsets := []vk.DeviceSize{}
-	for _, attr := range attrs {
-		switch attr.Scope {
-		case load.VertexAttribute:
-			i := attr.AType
-			if i < 0 || i >= load.Indexes {
-				slog.Error("unsupported vertex attribute", "attribute_type", attr.AType)
-				continue
-			}
-			buffs = append(buffs, vr.vertexBuffers[i].handle)
-			offsets = append(offsets, vk.DeviceSize(vmsh[i].offset))
-		case load.InstanceAttribute:
-			i := attr.AType
-			if i < 0 || i >= load.InstanceTypes {
-				slog.Error("unsupported instance attribute", "attribute_type", attr.AType)
-				continue
-			}
-			buffs = append(buffs, vr.instanceBuffers[i].handle)
-			offsets = append(offsets, vk.DeviceSize(instData[i].offset))
-		}
-	}
-	vk.CmdBindVertexBuffers(frame.cmds, 0, buffs, offsets)
-
-	// bind the triangle index data.
-	ibuff := vr.vertexBuffers[load.Indexes].handle
-	ioffset := vk.DeviceSize(vmsh[load.Indexes].offset)
-	vk.CmdBindIndexBuffer(frame.cmds, ibuff, ioffset, vk.INDEX_TYPE_UINT16)
-
-	// draw the instanced mesh
-	vk.CmdDrawIndexed(frame.cmds, vmsh[load.Indexes].count, instCount, 0, 0, 0)
 }
 
 // =============================================================================
@@ -1466,11 +1333,7 @@ func (vr *vulkanRenderer) createImageView(img vk.Image, format vk.Format, aspect
 // transitionImageLayout switches image layout,
 // see use in loadTexture.
 func (vr *vulkanRenderer) transitionImageLayout(img *vulkanImage, format vk.Format, oldLayout vk.ImageLayout, newLayout vk.ImageLayout) {
-	cmd, err := vr.beginSingleUseCommand(vr.graphicsQCmdPool)
-	if err != nil {
-		slog.Error("beginSingleUseCommand", "error", err)
-		return
-	}
+	cmd := vr.beginSingleCommand("transitionImageLayout", vr.graphicsQCmdPool)
 	barrier := vk.ImageMemoryBarrier{
 		SrcAccessMask:       0,
 		DstAccessMask:       0,
@@ -1504,15 +1367,11 @@ func (vr *vulkanRenderer) transitionImageLayout(img *vulkanImage, format vk.Form
 		slog.Error("unsupported layout transition!")
 	}
 	vk.CmdPipelineBarrier(cmd, sourceStage, destinationStage, 0, nil, nil, []vk.ImageMemoryBarrier{barrier})
-	vr.endSingleUseCommand(cmd, vr.graphicsQCmdPool, vr.graphicsQ)
+	vr.endSingleCommand("transitionImageLayout", cmd, vr.graphicsQCmdPool, vr.graphicsQ)
 }
 
 func (vr *vulkanRenderer) copyBufferToImage(buffer *vulkanBuffer, img *vulkanImage) {
-	cmd, err := vr.beginSingleUseCommand(vr.graphicsQCmdPool)
-	if err != nil {
-		slog.Error("beginSingleUseCommand", "error", err)
-		return
-	}
+	cmd := vr.beginSingleCommand("copyBufferToImage", vr.graphicsQCmdPool)
 	region := vk.BufferImageCopy{
 		BufferOffset:      0,
 		BufferRowLength:   0,
@@ -1527,7 +1386,7 @@ func (vr *vulkanRenderer) copyBufferToImage(buffer *vulkanBuffer, img *vulkanIma
 		ImageExtent: vk.Extent3D{Width: img.width, Height: img.height, Depth: 1},
 	}
 	vk.CmdCopyBufferToImage(cmd, buffer.handle, img.handle, vk.IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, []vk.BufferImageCopy{region})
-	vr.endSingleUseCommand(cmd, vr.graphicsQCmdPool, vr.graphicsQ)
+	vr.endSingleCommand("copyBufferToImage", cmd, vr.graphicsQCmdPool, vr.graphicsQ)
 }
 
 func (vr *vulkanRenderer) disposeImage(img *vulkanImage) {
@@ -1682,6 +1541,353 @@ func (vr *vulkanRenderer) updateTexture(tid, width, height uint32, pixels []byte
 }
 
 // =============================================================================
+// acceleration structures for ray query and ray trace.
+
+// accelStruct used for both BLAS and TLAS.
+type accelStruct struct {
+	handle  vk.AccelerationStructureKHR // handle for the structure.
+	address vk.DeviceAddress            // address to the storage buffer.
+}
+
+// createAccelerationStruct creates the struct and stores it in the
+// appropriate pre-allocated storage buffer.
+func (vr *vulkanRenderer) createAccelerationStruct(accel *accelStruct,
+	accelType int, structSize vk.DeviceSize) (err error) {
+
+	// map to the vulkan accel struct type.
+	var structType vk.AccelerationStructureTypeKHR
+	switch accelType {
+	case aBLAS:
+		structType = vk.ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR
+	case aTLAS:
+		structType = vk.ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR
+	default:
+		slog.Error("createAccelerationStruct: invalid type", "type", accelType)
+		return // developer error - should have been caught during testing.
+	}
+
+	// create and store the acceleration struct.
+	createInfo := vk.AccelerationStructureCreateInfoKHR{
+		Buffer: vr.accelMem[accelType].handle, // one buffer for BLAS, one for TLAS
+		Offset: vr.accelPtr[accelType],        // append at end of storage buffer.
+		Size:   structSize,
+		Typ:    structType,
+	}
+	accel.handle, err = vk.CreateAccelerationStructureKHR(vr.device, &createInfo, nil)
+	if err != nil {
+		return fmt.Errorf("createAccelerationStruct: %w", err)
+	}
+	addressInfo := vk.AccelerationStructureDeviceAddressInfoKHR{AccelerationStructure: accel.handle}
+	accel.address = vk.GetAccelerationStructureDeviceAddressKHR(vr.device, &addressInfo)
+
+	// track where the next acceleration structure needs to be placed.
+	// vulkan requires the struct offset to be on a 256 byte boundary.
+	alignment := uint64(256)                                 // offset boundary requirement
+	endOffset := uint64(vr.accelPtr[accelType] + structSize) // offset to end of data...
+	offset := (endOffset + alignment - 1) & ^(alignment - 1) // ...plus alignment padding...
+	vr.accelPtr[accelType] = vk.DeviceSize(offset)           // ...to get required offset.
+	return nil
+}
+
+// disposeAccelerationStructs destroys all the acceleration structs
+// create by the above createAccelerationStruct. Expected to be
+// called once on shutdown.
+func (vr *vulkanRenderer) disposeAccelerationStructs() {
+	for _, tlas := range vr.accelScenes {
+		vk.DestroyAccelerationStructureKHR(vr.device, tlas.handle, nil)
+	}
+	for _, blas := range vr.accelMeshes {
+		vk.DestroyAccelerationStructureKHR(vr.device, blas.handle, nil)
+	}
+	clear(vr.accelScenes)
+	clear(vr.accelMeshes)
+}
+
+// createBottomLevelAccelerationStruct for each mesh.
+// FUTURE: build for all vr.meshes, ie: wait until all meshes are ready.
+func (vr *vulkanRenderer) createBLAS(mid uint32) (err error) {
+	mesh := vr.meshes[mid]
+	vpos := mesh[load.Vertexes] // vertex buffer position
+	ipos := mesh[load.Indexes]  // index buffer position
+	numTriangles := ipos.count / 3
+	if vpos.stride != 12 {
+		return // ignore 2D meshes (vertexes are either 2D or 3D)
+	}
+
+	// create the triangle data for the acceleration structure
+	vertexBufferDeviceAddress := vk.DeviceOrHostAddressConstKHR{}
+	vertexBufferDeviceAddress.AsDeviceAddress(vr.vertexMem[vData].address + vk.DeviceAddress(vpos.offset))
+	indexBufferDeviceAddress := vk.DeviceOrHostAddressConstKHR{}
+	indexBufferDeviceAddress.AsDeviceAddress(vr.vertexMem[vIndex].address + vk.DeviceAddress(ipos.offset))
+	triangles := vk.AccelerationStructureGeometryTrianglesDataKHR{
+		VertexFormat: vk.FORMAT_R32G32B32_SFLOAT,
+		VertexData:   vertexBufferDeviceAddress,
+		MaxVertex:    vpos.count - 1,
+		VertexStride: vk.DeviceSize(vpos.stride),
+		IndexType:    vk.INDEX_TYPE_UINT16,
+		IndexData:    indexBufferDeviceAddress,
+	}
+	geometry := vk.AccelerationStructureGeometryDataKHR{}
+	geometry.AsTriangles(triangles)
+	accelerationGeometry := vk.AccelerationStructureGeometryKHR{
+		Flags:        vk.GEOMETRY_OPAQUE_BIT_KHR,
+		GeometryType: vk.GEOMETRY_TYPE_TRIANGLES_KHR,
+		Geometry:     geometry,
+	}
+	geomInfo := vk.AccelerationStructureBuildGeometryInfoKHR{
+		Typ:         vk.ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR,
+		Mode:        vk.BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR,
+		Flags:       vk.BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR,
+		PGeometries: []vk.AccelerationStructureGeometryKHR{accelerationGeometry},
+	}
+
+	// Get sizes needed for building the acceleration structure.
+	buildSizes := vk.GetAccelerationStructureBuildSizesKHR(
+		vr.device,
+		vk.ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
+		&geomInfo,
+		[]uint32{numTriangles},
+	)
+	if uint32(buildSizes.BuildScratchSize) > GPUMaxAccelerationScratchBytes {
+		slog.Error("Need bigger BLAS scratch", "scratch_size", buildSizes.BuildScratchSize)
+	}
+
+	// create the BLAS acceleration structure
+	blas := accelStruct{}
+	structSize := buildSizes.AccelerationStructureSize
+	err = vr.createAccelerationStruct(&blas, aBLAS, structSize)
+	if err != nil {
+		return fmt.Errorf("create BLAS struct: %w", err)
+	}
+	vr.accelMeshes[mid] = blas // keep reference for TLAS and shutdown.
+
+	// add the information needed to build the acceleration struct
+	scratchDeviceAddress := vk.DeviceOrHostAddressKHR{}
+	scratchDeviceAddress.AsDeviceAddress(vr.accelMem[aSCRATCH].address)
+	geomInfo.DstAccelerationStructure = blas.handle
+	geomInfo.ScratchData = scratchDeviceAddress
+
+	// add number of triangles to the build range.
+	rangeInfo := vk.AccelerationStructureBuildRangeInfoKHR{
+		PrimitiveCount:  numTriangles,
+		PrimitiveOffset: 0, // 0 offset from triangles.IndexData defined above.
+		FirstVertex:     0, // ignored as indicies are used in triangles above.
+		TransformOffset: 0, // not used for BLAS.
+	}
+
+	// build the acceleration structure on the device via a one-time command buffer submission
+	// The structure is built into the allocate memory.
+	cmd := vr.beginSingleCommand("createBLAS", vr.graphicsQCmdPool)
+	vk.CmdBuildAccelerationStructuresKHR(
+		cmd,
+		[]vk.AccelerationStructureBuildGeometryInfoKHR{geomInfo},
+		[]*vk.AccelerationStructureBuildRangeInfoKHR{&rangeInfo},
+	)
+	vr.endSingleCommand("createBLAS", cmd, vr.graphicsQCmdPool, vr.graphicsQ)
+	return nil
+}
+
+// (acceleration) ainstances are lazy created and reused each frame.
+var ainstances = []vk.AccelerationStructureInstanceKHR{}
+
+// check each frame-in-flight for any TLAS changes.
+// Compare using the EID's of what was rendered this frame vs last frame.
+var instanceEIDs = [][]uint32{[]uint32{}, []uint32{}}
+
+// getAccelInstance returns an acceleration instances data structure,
+// creating a new one if necessary, otherwise reusing an existing.
+func (vr *vulkanRenderer) getAccelInst() (ai *vk.AccelerationStructureInstanceKHR) {
+	size := len(ainstances)
+	switch {
+	case size == cap(ainstances):
+		ainstances = append(ainstances, vk.AccelerationStructureInstanceKHR{})
+	case size < cap(ainstances):
+		ainstances = ainstances[:size+1] // reuse previously allocated.
+	}
+	return &ainstances[size]
+}
+
+// updateTopLevelAccelerationStruct
+func (vr *vulkanRenderer) updateTLAS(pass Pass) (err error) {
+	ainstances = ainstances[:0] // reset keeping memory
+	previousEIDs := append([]uint32{}, instanceEIDs[vr.frameIndex]...)
+	instanceEIDs[vr.frameIndex] = instanceEIDs[vr.frameIndex][:0]
+	for _, packet := range pass.Packets {
+		if packet.IsInstanced {
+			continue // ignore instanced meshes.
+		}
+		eid := packet.EID    // identifies a mesh instance.
+		mid := packet.MeshID // identifies a BLAS
+		blas, ok := vr.accelMeshes[mid]
+		if !ok {
+			// should be a BLAS since the BLAS is created with the mesh.
+			slog.Error("updateTLAS missing BLAS", "mid", mid, "eid", eid)
+			return
+		}
+		instance := vr.getAccelInst() // get the next accel instance.
+		instanceEIDs[vr.frameIndex] = append(instanceEIDs[vr.frameIndex], eid)
+
+		// get the model transform data and...
+		mat4x4Bytes := packet.Uniforms[load.MODEL]
+		m := (*m4)(unsafe.Pointer(&mat4x4Bytes[0]))
+		// ...set the acceleration instance transform.
+		tm := &instance.Transform.Matrix
+		tm[0][0], tm[0][1], tm[0][2], tm[0][3] = m.xx, m.yx, m.zx, m.wx
+		tm[1][0], tm[1][1], tm[1][2], tm[1][3] = m.xy, m.yy, m.zy, m.wy
+		tm[2][0], tm[2][1], tm[2][2], tm[2][3] = m.xz, m.yz, m.zz, m.wz
+
+		// create the instance acceleration struct
+		// manually handle the bitfield masking (not part of vulkan bindings yet)
+		maskBitfield := uint32(0xFF << 24)                                                      // | InstanceCustomIndex
+		flagBitfield := uint32(vk.GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR << 24) // | InstanceShaderBindingTableRecordOffset
+		instance.Mask_InstanceCustomIndex = maskBitfield
+		instance.Flags_InstanceShaderBindingTableRecordOffset = flagBitfield
+		instance.AccelerationStructureReference = uint64(blas.address)
+	}
+	if len(ainstances) <= 0 {
+		return // no model instances, nothing to do.
+	}
+
+	// update TLAS if there are no changes from last time.
+	// Any instance changes require a rebuild.
+	updateTLAS := slices.Equal(instanceEIDs[vr.frameIndex], previousEIDs)
+
+	// upload all the instance structs to the TLAS Instance storage buffer.
+	// overwriting the contents of the previous instance data buffer.
+	// Use per frame buffers for instance data so that it is safe to update.
+	// NOTE: instance is byte compatible with instance.ToVK()
+	size := len(ainstances) * int(unsafe.Sizeof(ainstances[0]))
+	data := unsafe.Slice((*byte)(unsafe.Pointer(&ainstances[0])), size)
+	var buff vulkanBuffer
+	switch vr.frameIndex {
+	case 0:
+		buff = vr.accelMem[aINST0]                // acceleration instance buffer.
+		vr.accelPtr[aINST0] = vk.DeviceSize(size) // end of data
+	default:
+		buff = vr.accelMem[aINST1]
+		vr.accelPtr[aINST1] = vk.DeviceSize(size) // end of data
+	}
+	vr.uploadData(vr.graphicsQCmdPool, vr.graphicsQ, buff.handle, 0, data)
+
+	// reference the current accleration instance buffer.
+	instanceDataAddress := vk.DeviceOrHostAddressConstKHR{}
+	instanceDataAddress.AsDeviceAddress(buff.address)
+	instanceData := vk.AccelerationStructureGeometryInstancesDataKHR{
+		ArrayOfPointers: false,               // device address to array of instance structs.
+		Data:            instanceDataAddress, // device address of instance buffer
+	}
+
+	// create geometry referencing the acceleration instance data.
+	geometry := vk.AccelerationStructureGeometryDataKHR{}
+	geometry.AsInstances(instanceData)
+	accelerationGeometry := vk.AccelerationStructureGeometryKHR{
+		Flags:        vk.GEOMETRY_OPAQUE_BIT_KHR,
+		GeometryType: vk.GEOMETRY_TYPE_INSTANCES_KHR,
+		Geometry:     geometry,
+	}
+	buildInfo := vk.AccelerationStructureBuildGeometryInfoKHR{
+		Typ: vk.ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR,
+		Flags: vk.BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_BUILD_BIT_KHR |
+			vk.BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR,
+		Mode:        vk.BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR,
+		PGeometries: []vk.AccelerationStructureGeometryKHR{accelerationGeometry},
+	}
+
+	// check if this the first time or an update.
+	tlas, tlasExists := vr.accelScenes[0]
+	if tlasExists && updateTLAS {
+		buildInfo.Mode = vk.BUILD_ACCELERATION_STRUCTURE_MODE_UPDATE_KHR
+	}
+
+	// get the TLAS build sizes.
+	buildSizes := vk.GetAccelerationStructureBuildSizesKHR(
+		vr.device,
+		vk.ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
+		&buildInfo,
+		[]uint32{1})
+	if uint32(buildSizes.BuildScratchSize) > GPUMaxAccelerationScratchBytes {
+		slog.Error("Need bigger TLAS scratch", "scratch_size", buildSizes.BuildScratchSize)
+	}
+	if uint32(buildSizes.AccelerationStructureSize) > GPUMaxAccelerationTLASBytes {
+		slog.Error("Need bigger TLAS buffer", "buffer_size", buildSizes.AccelerationStructureSize)
+	}
+
+	// if this is a first time build then create the first TLAS structure
+	// with extra space for updates.
+	if !tlasExists {
+		tlas = accelStruct{}
+		vr.createAccelerationStruct(&tlas, aTLAS, vk.DeviceSize(GPUMaxAccelerationTLASBytes))
+		vr.accelScenes[0] = tlas // save tlas reference to destroy it on shutdown.
+	}
+
+	// create the TLAS build information.
+	scratchDeviceAddress := vk.DeviceOrHostAddressKHR{}
+	scratchDeviceAddress.AsDeviceAddress(vr.accelMem[aSCRATCH].address)
+	if tlasExists && updateTLAS {
+		buildInfo.SrcAccelerationStructure = tlas.handle
+	}
+	buildInfo.DstAccelerationStructure = tlas.handle
+	buildInfo.ScratchData = scratchDeviceAddress
+	rangeInfo := vk.AccelerationStructureBuildRangeInfoKHR{
+		PrimitiveCount:  uint32(len(ainstances)), // number of instance structs.
+		PrimitiveOffset: 0,
+		FirstVertex:     0,
+		TransformOffset: 0,
+	}
+
+	// Build the acceleration structure on the device via a one-time command buffer submission
+	cmd := vr.beginSingleCommand("updateTLAS", vr.graphicsQCmdPool)
+	if tlasExists {
+		preBarrier := vk.MemoryBarrier{
+			SrcAccessMask: vk.ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR |
+				vk.ACCESS_TRANSFER_WRITE_BIT | vk.ACCESS_SHADER_READ_BIT,
+			DstAccessMask: vk.ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR |
+				vk.ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR,
+		}
+		vk.CmdPipelineBarrier(cmd,
+			vk.PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR|
+				vk.PIPELINE_STAGE_TRANSFER_BIT|
+				vk.PIPELINE_STAGE_FRAGMENT_SHADER_BIT, // srcStageMask
+			vk.PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR, // dstStageMask
+			0, // dependencyFlags
+			[]vk.MemoryBarrier{preBarrier},
+			nil,
+			nil,
+		)
+	}
+	// update or rebuild depending on instance changes above.
+	vk.CmdBuildAccelerationStructuresKHR(
+		cmd,
+		[]vk.AccelerationStructureBuildGeometryInfoKHR{buildInfo},
+		[]*vk.AccelerationStructureBuildRangeInfoKHR{&rangeInfo},
+	)
+	if tlasExists {
+		postBarrier := vk.MemoryBarrier{
+			SrcAccessMask: vk.ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR,
+			DstAccessMask: vk.ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR |
+				vk.ACCESS_SHADER_READ_BIT,
+		}
+		vk.CmdPipelineBarrier(cmd,
+			vk.PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR, // srcStageMask
+			vk.PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR|
+				vk.PIPELINE_STAGE_FRAGMENT_SHADER_BIT, // dstStageMask
+			0, // dependencyFlags
+			[]vk.MemoryBarrier{postBarrier},
+			nil,
+			nil,
+		)
+	}
+	vr.endSingleCommand("updateTLAS", cmd, vr.graphicsQCmdPool, vr.graphicsQ)
+	return nil
+}
+
+// getBufferDeviceAddres returns the device address for the given buffer.
+func (vr *vulkanRenderer) getBufferDeviceAddress(buff vk.Buffer) (addr vk.DeviceAddress) {
+	addrInfo := vk.BufferDeviceAddressInfo{Buffer: buff}
+	return vk.GetBufferDeviceAddress(vr.device, &addrInfo)
+}
+
+// =============================================================================
 // shaders are GPU programs.
 
 // vulkanShader groups shader related information including the
@@ -1695,7 +1901,8 @@ type vulkanShader struct {
 	attrs []load.ShaderAttribute
 
 	// uniform information to help create and update descriptor sets.
-	usets uniformSets // shader uniform information
+	usets    uniformSets // shader uniform information
+	usesTLAS bool        // true when shader uses a top level accel struct.
 
 	// scene uniform data buffers for all scene uniform descriptors
 	// indexed by vr.imageIndex
@@ -1703,23 +1910,16 @@ type vulkanShader struct {
 	sceneUniformsMap *byte        // unsafe pointer to uniform mapped memory
 
 	// track the number of unique material instances for this shader.
-	maxSamplers   uint32          // maximum materials supported by shader.
+	maxSamplers   uint32          // maximum samplers supported by shader.
 	samplers      []vulkanSampler // track unique sampler (sets) with...
 	nextSamplerID uint32          // ... a sampler ID.
 
-	// material uniform data buffer for all of this shaders material uniform data.
-	// indexed by vr.imageIndex and material ID.
-	materialUniforms    vulkanBuffer // material scope uniform data.
-	materialUniformsMap *byte        // unsafe pointer to uniform mapped memory
-
 	// descriptors for scene and material uniform data.
-	sceneLayout         vk.DescriptorSetLayout // scene uniforms per renderpass
-	materialLayout      vk.DescriptorSetLayout // material uniforms per model
-	modelLayout         vk.DescriptorSetLayout // model uniforms per model
-	descriptorPool      vk.DescriptorPool      // uniforms and samplers
-	sceneDescriptorSets []vk.DescriptorSet     // one per image.
-	modelDescriptorSets []vk.DescriptorSet     // one per image.
-	sceneUpdated        []bool                 // true if descriptor set updated.
+	sceneLayout    vk.DescriptorSetLayout // scene uniforms per renderpass
+	samplLayout    vk.DescriptorSetLayout // sample uniforms per shader.
+	descriptorPool vk.DescriptorPool      // uniforms and samplers
+	sceneDescSets  []vk.DescriptorSet     // one per image.
+	sceneUpdated   []bool                 // true if descriptor set updated.
 }
 
 // vulkanSampler tracks existing resources to help reuse descriptor sets.
@@ -1772,28 +1972,29 @@ func (vr *vulkanRenderer) loadShader(config *load.Shader) (sid uint16, err error
 		vr.disposeShader(&shader)
 		return 0, err
 	}
-	// no longer need the modules once the shader has been created.
+	// release the modules now that the shader has been created.
 	for i := range stages {
 		defer vk.DestroyShaderModule(vr.device, stages[i].Module, nil)
 	}
 
-	// non-interleaved attribute descriptions
+	// non-interleaved vertex attribute descriptions
 	vertexAttrDescriptions := make([]vk.VertexInputAttributeDescription, len(config.Attrs))
 	vertexBindingDescriptions := make([]vk.VertexInputBindingDescription, len(config.Attrs))
 	if len(config.Attrs) > 0 {
 		for i, attr := range config.Attrs {
+			// attribute descriptions
 			vertexAttrDescriptions[i].Location = uint32(i)
 			vertexAttrDescriptions[i].Binding = uint32(i)
 			vertexAttrDescriptions[i].Format = vulkanDataFormats[attr.DType]
 			vertexAttrDescriptions[i].Offset = 0
 
+			// binding descriptions
 			vertexBindingDescriptions[i].Binding = uint32(i)
 			vertexBindingDescriptions[i].Stride = attr.Stride
-			switch attr.Scope {
-			case load.VertexAttribute:
-				vertexBindingDescriptions[i].InputRate = vk.VERTEX_INPUT_RATE_VERTEX
-			case load.InstanceAttribute:
+			if attr.IsInstanced {
 				vertexBindingDescriptions[i].InputRate = vk.VERTEX_INPUT_RATE_INSTANCE
+			} else {
+				vertexBindingDescriptions[i].InputRate = vk.VERTEX_INPUT_RATE_VERTEX
 			}
 		}
 	}
@@ -1802,60 +2003,73 @@ func (vr *vulkanRenderer) loadShader(config *load.Shader) (sid uint16, err error
 		PVertexAttributeDescriptions: vertexAttrDescriptions,
 	}
 
-	// allocate the scene descriptor set layout if applicable.
+	// every shader expects scene uniforms.
 	scenes := config.GetSceneUniforms()
-	if len(scenes) > 0 {
-		bindings := []vk.DescriptorSetLayoutBinding{
-			vk.DescriptorSetLayoutBinding{
-				Binding:         0,
-				DescriptorType:  vk.DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-				DescriptorCount: 1,
-				StageFlags:      vk.SHADER_STAGE_VERTEX_BIT | vk.SHADER_STAGE_FRAGMENT_BIT,
-			},
-		}
-		shader.sceneLayout, err = vk.CreateDescriptorSetLayout(
-			vr.device, &vk.DescriptorSetLayoutCreateInfo{PBindings: bindings}, nil)
+	if len(scenes) <= 0 {
+		vr.disposeShader(&shader)
+		return 0, fmt.Errorf("expecting scene uniforms")
 	}
 
-	// allocate the material scope descriptor set layout if applicable.
-	// Also allocate the material scope layout (set:1) if there is
-	// a model layout (set:2).
+	// create the scene descriptor layout.
+	accelUniforms := config.GetAccelerationUniforms()
+	accelCount := uint32(len(accelUniforms)) // expecting 0 or 1
+	shader.usesTLAS = accelCount > 0         // shader requires TLAS
+	if accelCount > 1 {
+		// developer to check why more than one would be needed.
+		slog.Error("support for one TLAS per scene", "count", accelCount)
+	}
+	bindings := []vk.DescriptorSetLayoutBinding{
+		vk.DescriptorSetLayoutBinding{
+			Binding:         0,
+			DescriptorType:  vk.DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+			DescriptorCount: 1,
+			StageFlags:      vk.SHADER_STAGE_VERTEX_BIT | vk.SHADER_STAGE_FRAGMENT_BIT,
+		},
+		vk.DescriptorSetLayoutBinding{
+			Binding:         1,
+			DescriptorType:  vk.DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR,
+			DescriptorCount: accelCount,
+			StageFlags:      vk.SHADER_STAGE_FRAGMENT_BIT,
+		},
+	}
+	setLayout := vk.DescriptorSetLayoutCreateInfo{PBindings: bindings}
+	shader.sceneLayout, err = vk.CreateDescriptorSetLayout(vr.device, &setLayout, nil)
+	if err != nil {
+		slog.Error("invalid scene layout", "err", err)
+	}
+
+	// allocate the sampler descriptor set layout if applicable.
 	samplers := config.GetSamplerUniforms()
-	models := config.GetModelUniforms()
-	if len(samplers) > 0 || len(models) > 0 {
+	if len(samplers) > 0 {
 		bindings := []vk.DescriptorSetLayoutBinding{}
-		for range samplers {
-			binding := vk.DescriptorSetLayoutBinding{
-				Binding:         uint32(len(bindings)),
-				DescriptorType:  vk.DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-				DescriptorCount: 1,
-				StageFlags:      vk.SHADER_STAGE_FRAGMENT_BIT,
-			}
-			bindings = append(bindings, binding)
+		binding := vk.DescriptorSetLayoutBinding{
+			Binding:         0,
+			DescriptorType:  vk.DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+			DescriptorCount: uint32(len(samplers)),
+			StageFlags:      vk.SHADER_STAGE_FRAGMENT_BIT,
 		}
-		shader.materialLayout, err = vk.CreateDescriptorSetLayout(
+		bindings = append(bindings, binding)
+		shader.samplLayout, err = vk.CreateDescriptorSetLayout(
 			vr.device, &vk.DescriptorSetLayoutCreateInfo{PBindings: bindings}, nil)
 		if err != nil {
-			slog.Error("invalid material layout", "err", err)
+			slog.Error("invalid sampler layout", "err", err)
 		}
 	}
 
-	// create descriptor pools. Each shader has its own pool that can allocate
-	// a descriptor set for each render image, normally 3.
+	// create one descriptor pool for descriptor sets in this shader.
+	// FUTURE: create descriptor pools for groups of similar shaders,
+	//         or one large pool for all shaders.
+	// FUTURE: rationalize the descriptorCount sizes.
 	shader.descriptorPool, err = vk.CreateDescriptorPool(vr.device,
 		&vk.DescriptorPoolCreateInfo{
-			MaxSets: 3 + 3*shader.maxSamplers + 3, // 3 scene sets + 3 per material.
+			MaxSets: 3 + 3*shader.maxSamplers + 3,
 			PPoolSizes: []vk.DescriptorPoolSize{
-				{
-					Typ:             vk.DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-					DescriptorCount: 1024,
-				},
-				{
-					Typ:             vk.DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-					DescriptorCount: 4096,
-				},
+				{Typ: vk.DESCRIPTOR_TYPE_UNIFORM_BUFFER, DescriptorCount: 1024},
+				{Typ: vk.DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, DescriptorCount: 1024},
+				{Typ: vk.DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, DescriptorCount: 4096},
 			},
-			Flags: vk.DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT, // | vk.DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
+			Flags: vk.DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
+			// FUTURE: | vk.DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
 		}, nil)
 	if err != nil {
 		vr.disposeShader(&shader)
@@ -1868,7 +2082,7 @@ func (vr *vulkanRenderer) loadShader(config *load.Shader) (sid uint16, err error
 		for i := 0; i < int(vr.imageCount); i++ {
 			allocLayouts = append(allocLayouts, shader.sceneLayout)
 		}
-		shader.sceneDescriptorSets, err = vk.AllocateDescriptorSets(vr.device,
+		shader.sceneDescSets, err = vk.AllocateDescriptorSets(vr.device,
 			&vk.DescriptorSetAllocateInfo{
 				DescriptorPool: shader.descriptorPool,
 				PSetLayouts:    allocLayouts,
@@ -1877,18 +2091,18 @@ func (vr *vulkanRenderer) loadShader(config *load.Shader) (sid uint16, err error
 			vr.disposeShader(&shader)
 			return 0, err
 		}
-		shader.sceneUpdated = make([]bool, len(shader.sceneDescriptorSets))
+		shader.sceneUpdated = make([]bool, len(shader.sceneDescSets))
 	}
 
-	// allocate material descriptor sets.
-	if shader.materialLayout != 0 && len(samplers) > 0 {
+	// allocate sampler descriptor sets.
+	if shader.samplLayout != 0 && len(samplers) > 0 {
 
 		// allocate three descriptor sets (one per surface image)...
 		allocLayouts := []vk.DescriptorSetLayout{}
 		for i := 0; i < int(vr.imageCount); i++ {
-			allocLayouts = append(allocLayouts, shader.materialLayout)
+			allocLayouts = append(allocLayouts, shader.samplLayout)
 		}
-		// ...for each material.
+		// ...for each sampler.
 		shader.samplers = make([]vulkanSampler, shader.maxSamplers)
 		for i := uint32(0); i < shader.maxSamplers; i++ {
 			shader.samplers[i].updated = make([]bool, vr.imageCount)
@@ -1909,11 +2123,8 @@ func (vr *vulkanRenderer) loadShader(config *load.Shader) (sid uint16, err error
 	if shader.sceneLayout != 0 {
 		pipelineLayouts = append(pipelineLayouts, shader.sceneLayout)
 	}
-	if shader.materialLayout != 0 {
-		pipelineLayouts = append(pipelineLayouts, shader.materialLayout)
-	}
-	if shader.modelLayout != 0 {
-		pipelineLayouts = append(pipelineLayouts, shader.modelLayout)
+	if shader.samplLayout != 0 {
+		pipelineLayouts = append(pipelineLayouts, shader.samplLayout)
 	}
 	layoutInfo := vk.PipelineLayoutCreateInfo{
 		PSetLayouts: pipelineLayouts,
@@ -1975,7 +2186,7 @@ func (vr *vulkanRenderer) loadShader(config *load.Shader) (sid uint16, err error
 	depthStencil := vk.PipelineDepthStencilStateCreateInfo{
 		DepthTestEnable:       true,
 		DepthWriteEnable:      true,
-		DepthCompareOp:        vk.COMPARE_OP_LESS,
+		DepthCompareOp:        vk.COMPARE_OP_LESS_OR_EQUAL,
 		DepthBoundsTestEnable: false,
 		StencilTestEnable:     false,
 		Front:                 vk.StencilOpState{},
@@ -2019,8 +2230,15 @@ func (vr *vulkanRenderer) loadShader(config *load.Shader) (sid uint16, err error
 		},
 	}
 
+	// use dynamic rendering (replaces render passes and frame buffers)
+	pipelineRenderingInfo := vk.PipelineRenderingCreateInfo{
+		PColorAttachmentFormats: []vk.Format{vr.surfaceFormat.Format},
+		DepthAttachmentFormat:   vr.depthFormat,
+	}
+
 	// create the pipeline.
 	pipelineInfo := vk.GraphicsPipelineCreateInfo{
+		PNext:               unsafe.Pointer(pipelineRenderingInfo.ToVK()),
 		PStages:             stages,
 		PVertexInputState:   vertexInputInfo,
 		PInputAssemblyState: &inputAssembly,
@@ -2032,13 +2250,9 @@ func (vr *vulkanRenderer) loadShader(config *load.Shader) (sid uint16, err error
 		PDynamicState:       &dynamicStateInfo,
 		PTessellationState:  nil,
 		Layout:              shader.pipeLayout,
-		RenderPass:          vr.render3D,
 		Subpass:             0,
 		BasePipelineHandle:  0,
 		BasePipelineIndex:   -1,
-	}
-	if config.Pass == "2D" {
-		pipelineInfo.RenderPass = vr.render2D
 	}
 	pipelines, err := vk.CreateGraphicsPipelines(vr.device, 0, []vk.GraphicsPipelineCreateInfo{pipelineInfo}, nil)
 	if err != nil {
@@ -2103,13 +2317,9 @@ func (vr *vulkanRenderer) disposeShader(s *vulkanShader) {
 		s.descriptorPool = 0
 	}
 	vr.disposeShaderUniformBuffers(s)
-	if s.modelLayout != 0 {
-		vk.DestroyDescriptorSetLayout(vr.device, s.modelLayout, nil)
-		s.modelLayout = 0
-	}
-	if s.materialLayout != 0 {
-		vk.DestroyDescriptorSetLayout(vr.device, s.materialLayout, nil)
-		s.materialLayout = 0
+	if s.samplLayout != 0 {
+		vk.DestroyDescriptorSetLayout(vr.device, s.samplLayout, nil)
+		s.samplLayout = 0
 	}
 	if s.sceneLayout != 0 {
 		vk.DestroyDescriptorSetLayout(vr.device, s.sceneLayout, nil)
@@ -2134,13 +2344,14 @@ func (vr *vulkanRenderer) createShaderUniformBuffers(s *vulkanShader) (err error
 		// add device local if supported by the physical device.
 		deviceLocalBits = vk.MEMORY_PROPERTY_DEVICE_LOCAL_BIT
 	}
-	flags := vk.MEMORY_PROPERTY_HOST_VISIBLE_BIT | vk.MEMORY_PROPERTY_HOST_COHERENT_BIT | deviceLocalBits
+	props := vk.MEMORY_PROPERTY_HOST_VISIBLE_BIT | vk.MEMORY_PROPERTY_HOST_COHERENT_BIT | deviceLocalBits
 	numImages := uint32(len(vr.images))
 
 	// create enough scene uniform data buffer space for each surface image
 	// map the uniform memory once for the lifetime of the app.
 	bufferSize := vk.DeviceSize(maxSceneUniformBytes * numImages)
-	err = vr.createBuffer(&s.sceneUniforms, bufferSize, vk.BUFFER_USAGE_UNIFORM_BUFFER_BIT, flags)
+	usage := vk.BUFFER_USAGE_UNIFORM_BUFFER_BIT
+	err = vr.createBuffer(&s.sceneUniforms, bufferSize, usage, props)
 	if err != nil {
 		return fmt.Errorf("sceneUniforms:vk.createBuffer: %w", err)
 	}
@@ -2148,27 +2359,13 @@ func (vr *vulkanRenderer) createShaderUniformBuffers(s *vulkanShader) (err error
 	if err != nil {
 		return fmt.Errorf("sceneUniformsMap:vk.MapMemory: %w", err)
 	}
-
-	// create the material scope uniform buffer for this frame.
-	// map the uniform memory once for the lifetime of the app.
-	bufferSize = vk.DeviceSize(maxMaterialUniformBytes * s.maxSamplers * numImages)
-	err = vr.createBuffer(&s.materialUniforms, bufferSize, vk.BUFFER_USAGE_UNIFORM_BUFFER_BIT, flags)
-	if err != nil {
-		return fmt.Errorf("materialUniformsMap:vk.createBuffer: %w", err)
-	}
-	s.materialUniformsMap, err = vk.MapMemory(vr.device, s.materialUniforms.memory, 0, bufferSize, 0)
-	if err != nil {
-		return fmt.Errorf("materialUniformsMap:vk.MapMemory: %w", err)
-	}
 	return nil
 }
 
 // disposeShaderUniformBuffers diposes resources allocated in createShaderUniformBuffers.
 func (vr *vulkanRenderer) disposeShaderUniformBuffers(s *vulkanShader) {
 	if s != nil {
-		vr.disposeBuffer(&s.materialUniforms)
 		vr.disposeBuffer(&s.sceneUniforms)
-		s.materialUniformsMap = nil
 		s.sceneUniformsMap = nil
 	}
 }
@@ -2180,12 +2377,12 @@ func (vr *vulkanRenderer) applySceneUniforms(shader *vulkanShader) {
 		slog.Error("applySceneUniforms: no scene uniforms", "shader", shader.name)
 		return
 	}
-	descriptorSet := shader.sceneDescriptorSets[vr.imageIndex]
+	sceneSet := shader.sceneDescSets[vr.imageIndex]
 	if !shader.sceneUpdated[vr.imageIndex] {
 		offset := vk.DeviceSize(vr.imageIndex * maxSceneUniformBytes)
-		descriptorSetWrites := []vk.WriteDescriptorSet{
+		descWrites := []vk.WriteDescriptorSet{
 			{
-				DstSet:          descriptorSet,
+				DstSet:          sceneSet,
 				DstBinding:      0,
 				DstArrayElement: 0,
 				DescriptorType:  vk.DESCRIPTOR_TYPE_UNIFORM_BUFFER,
@@ -2198,26 +2395,44 @@ func (vr *vulkanRenderer) applySceneUniforms(shader *vulkanShader) {
 				},
 			},
 		}
-		vk.UpdateDescriptorSets(vr.device, descriptorSetWrites, nil)
+
+		// update the TLAS when the shader expects an acceleration structure
+		if shader.usesTLAS {
+			tlas, tlasExists := vr.accelScenes[0]
+			if tlasExists {
+
+				// As this isn't part of Vulkan's core, information is passed via pNext chaining
+				accelWriteSet := vk.WriteDescriptorSetAccelerationStructureKHR{}
+				accelWriteSet.PAccelerationStructures = []vk.AccelerationStructureKHR{tlas.handle}
+				descWrites = append(descWrites, vk.WriteDescriptorSet{
+					PNext:           unsafe.Pointer(accelWriteSet.ToVK()),
+					DstSet:          sceneSet,
+					DstBinding:      1,
+					DstArrayElement: 0,
+					DescriptorType:  vk.DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR,
+				})
+			}
+		}
+		vk.UpdateDescriptorSets(vr.device, descWrites, nil)
 		shader.sceneUpdated[vr.imageIndex] = true
 	}
-	setNum := uint32(0) // scene is always set=0
-	dsets := []vk.DescriptorSet{descriptorSet}
+	firstSet := uint32(0) // scene is always set=0
+	dsets := []vk.DescriptorSet{sceneSet}
 	frame := vr.frames[vr.frameIndex]
-	vk.CmdBindDescriptorSets(frame.cmds, vk.PIPELINE_BIND_POINT_GRAPHICS, shader.pipeLayout, setNum, dsets, nil)
+	vk.CmdBindDescriptorSets(frame.cmds, vk.PIPELINE_BIND_POINT_GRAPHICS, shader.pipeLayout, firstSet, dsets, nil)
 }
 
 // setSamplers sets all the samplers expected by this shader.
 // The samplers are in the order expected by the shader config.
 func (vr *vulkanRenderer) setSamplers(shader *vulkanShader, tids []uint32) (matID uint32, err error) {
-	// compare to the existing material samplers to see if there is a match
+	// compare texture IDs to the existing samplers
 	for i := uint32(0); i < shader.nextSamplerID; i++ {
 		if slices.Compare(tids, shader.samplers[i].samplerSet) == 0 {
-			return i, nil // reuse existing material.
+			return i, nil // match: reuse existing sampler.
 		}
 	}
 
-	// create a new material for these textures on this shader.
+	// create a new sampler for these textures on this shader.
 	matID = shader.nextSamplerID
 	if matID >= shader.maxSamplers {
 		return 0, fmt.Errorf("setSamplers:max samplers exceeded:%d", matID)
@@ -2227,43 +2442,25 @@ func (vr *vulkanRenderer) setSamplers(shader *vulkanShader, tids []uint32) (matI
 	return matID, nil
 }
 
-// applyMaterialUniforms updates the material scope descriptor sets
+// applySamplerUniforms updates the material scope descriptor sets
 // to point to the proper material uniform data buffer
-func (vr *vulkanRenderer) applyMaterialUniforms(shader *vulkanShader, sampID uint32) {
-	if shader.materialLayout == 0 {
-		slog.Error("applyMaterialUniforms: no material uniforms", "shader", shader.name)
+func (vr *vulkanRenderer) applySamplerUniforms(shader *vulkanShader, sampID uint32) {
+	if shader.samplLayout == 0 {
+		slog.Error("applySamplersUniforms: no sampler uniforms", "shader", shader.name)
 		return
 	}
 	if sampID >= uint32(len(shader.samplers)) {
-		slog.Error("applyMaterialUniforms:invalid material ID", "material_id", sampID)
+		slog.Error("applySamplersUniforms:invalid sampler ID", "ID", sampID)
 		return
 	}
 	sampler := &shader.samplers[sampID]
 	descriptorSet := sampler.descriptorSets[vr.imageIndex]
-	setNum := uint32(1) // material uniforms are set=1 (scene uniforms at set=0)
+	setNum := uint32(1) // sampler uniforms are set=1
 
-	// check if the material descriptor set needs updating.
+	// check if the sampler descriptor set needs updating.
 	if !sampler.updated[vr.imageIndex] {
 		descriptorSetWrites := []vk.WriteDescriptorSet{}
 		descriptorIndex := uint32(0)
-
-		// FUTURE: add adding support for material uniforms if needed
-		// if shader.usets.materialSize > 0 {
-		// 	offset := vk.DeviceSize(vr.imageIndex*shader.maxMaterials*maxMaterialUniformBytes + matID*maxMaterialUniformBytes)
-		// 	descriptorSetWrites = append(descriptorSetWrites, vk.WriteDescriptorSet{
-		// 		DstSet:         descriptorSet,
-		// 		DstBinding:     descriptorIndex,
-		// 		DescriptorType: vk.DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-		// 		PBufferInfo: []vk.DescriptorBufferInfo{
-		// 			{
-		// 				Buffer: shader.materialUniforms.handle,
-		// 				Offset: offset,
-		// 				Rang:   vk.DeviceSize(maxMaterialUniformBytes),
-		// 			},
-		// 		},
-		// 	})
-		// 	descriptorIndex += 1
-		// }
 
 		// check for samplers
 		if len(sampler.samplerSet) > 0 {
@@ -2295,7 +2492,7 @@ func (vr *vulkanRenderer) applyMaterialUniforms(shader *vulkanShader, sampID uin
 // command utilities
 
 // convenience create for command buffer that is used once.
-func (vr *vulkanRenderer) beginSingleUseCommand(pool vk.CommandPool) (cmd vk.CommandBuffer, err error) {
+func (vr *vulkanRenderer) beginSingleCommand(fn string, pool vk.CommandPool) (cmd vk.CommandBuffer) {
 	commands, err := vk.AllocateCommandBuffers(vr.device,
 		&vk.CommandBufferAllocateInfo{
 			CommandPool:        pool,
@@ -2303,33 +2500,39 @@ func (vr *vulkanRenderer) beginSingleUseCommand(pool vk.CommandPool) (cmd vk.Com
 			CommandBufferCount: 1,
 		})
 	if err != nil {
-		return cmd, err
+		slog.Error("beginSingleCommand:vk.AllocateCommandBuffers", "fn", fn, "error", err)
+		return cmd
 	}
-
 	cmd = commands[0]
-	err = vk.BeginCommandBuffer(cmd, &vk.CommandBufferBeginInfo{Flags: vk.COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT})
-	return cmd, err
+	info := vk.CommandBufferBeginInfo{Flags: vk.COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT}
+	err = vk.BeginCommandBuffer(cmd, &info)
+	if err != nil {
+		slog.Error("beginSingleCommand:vk.CommandBufferBeginInfo", "fn", fn, "error", err)
+	}
+	return cmd
 }
 
 // convenience end for command buffer that is used once.
-func (vr *vulkanRenderer) endSingleUseCommand(cmd vk.CommandBuffer, pool vk.CommandPool, queue vk.Queue) error {
+func (vr *vulkanRenderer) endSingleCommand(fn string, cmd vk.CommandBuffer, pool vk.CommandPool, queue vk.Queue) {
 	if cmd == 0 {
-		return fmt.Errorf("endSingleUseCommand: invalid command buffer")
+		slog.Error("endSingleCommand: invalid command buffer", "fn", fn)
+		return
 	}
 	vk.EndCommandBuffer(cmd)
 
 	// submit the command buffer
 	submitInfo := vk.SubmitInfo{PCommandBuffers: []vk.CommandBuffer{cmd}}
 	if err := vk.QueueSubmit(queue, []vk.SubmitInfo{submitInfo}, 0); err != nil {
-		return fmt.Errorf("vk.QueueSubmit: %w", err)
+		slog.Error("endSingleCommand:vk.QueueSubmit", "fn", fn, "error", err)
+		return
 	}
 
 	// wait for submit to finish....and then free the command buffer
 	if err := vk.QueueWaitIdle(queue); err != nil {
-		return fmt.Errorf("vk.QueueWaitIdle: %w", err)
+		slog.Error("endSingleCommand:vk.QueueWaitIdle", "fn", fn, "error", err)
+		return
 	}
 	vk.FreeCommandBuffers(vr.device, pool, []vk.CommandBuffer{cmd})
-	return nil
 }
 
 // =============================================================================
@@ -2349,7 +2552,7 @@ type vulkanFrame struct {
 
 	// frame render synchonization.
 	imageAvailable vk.Semaphore // done presenting, ready for rendering.
-	inFlightFence  vk.Fence     // render to frames not in use by GPU.
+	fence          vk.Fence     // render to frames not in use by GPU.
 }
 
 func (vr *vulkanRenderer) createRenderFrames() (err error) {
@@ -2371,9 +2574,9 @@ func (vr *vulkanRenderer) disposeRenderFrames() {
 			vk.DestroySemaphore(vr.device, vr.frames[i].imageAvailable, nil)
 			vr.frames[i].imageAvailable = 0
 		}
-		if vr.frames[i].inFlightFence != 0 {
-			vk.DestroyFence(vr.device, vr.frames[i].inFlightFence, nil)
-			vr.frames[i].inFlightFence = 0
+		if vr.frames[i].fence != 0 {
+			vk.DestroyFence(vr.device, vr.frames[i].fence, nil)
+			vr.frames[i].fence = 0
 		}
 		if vr.frames[i].cmds != 0 {
 			vk.FreeCommandBuffers(vr.device, vr.graphicsQCmdPool, []vk.CommandBuffer{vr.frames[i].cmds})
@@ -2410,7 +2613,7 @@ func (vr *vulkanRenderer) createFrameSyncronization(fr *vulkanFrame) (err error)
 	// indefinitely for the first frame to render since it cannot be rendered
 	// until a frame is "rendered" before it.
 	fenceInfo := vk.FenceCreateInfo{Flags: vk.FENCE_CREATE_SIGNALED_BIT}
-	fr.inFlightFence, err = vk.CreateFence(vr.device, &fenceInfo, nil)
+	fr.fence, err = vk.CreateFence(vr.device, &fenceInfo, nil)
 	if err != nil {
 		return fmt.Errorf("vk.CreateFence: %w", err)
 	}
@@ -2446,9 +2649,14 @@ func (vr *vulkanRenderer) beginFrame(dt time.Duration) (err error) {
 	// wait for current frame to complete - fence starts in signalled state for first frame,
 	// and is later signalled when the frame is finished.
 	frame := &vr.frames[vr.frameIndex]
-	err = vk.WaitForFences(vr.device, []vk.Fence{frame.inFlightFence}, true, waitFrame)
+	err = vk.WaitForFences(vr.device, []vk.Fence{frame.fence}, true, waitFrame)
 	if err != nil {
 		return fmt.Errorf("beginFrame aborted: vk.WaitForFences: %w", err)
+	}
+
+	// reset the frames fence to unsignalled
+	if err := vk.ResetFences(vr.device, []vk.Fence{frame.fence}); err != nil {
+		return fmt.Errorf("vk.ResetFences: %w", err)
 	}
 
 	// acquire the next image from the swapchain.
@@ -2476,6 +2684,36 @@ func (vr *vulkanRenderer) drawFrame(passes []Pass) (err error) {
 		return fmt.Errorf("vk.BeginCommandBuffer %w", err)
 	}
 
+	// transition the image layouts to what is needed for drawing a frame.
+	drawBarriers := []vk.ImageMemoryBarrier2{
+		vk.ImageMemoryBarrier2{
+			SrcStageMask:  vk.PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+			SrcAccessMask: 0,
+			DstStageMask:  vk.PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+			DstAccessMask: vk.ACCESS_2_COLOR_ATTACHMENT_READ_BIT | vk.ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+			OldLayout:     vk.IMAGE_LAYOUT_UNDEFINED,
+			NewLayout:     vk.IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,
+			Image:         vr.images[vr.imageIndex],
+			SubresourceRange: vk.ImageSubresourceRange{
+				AspectMask: vk.IMAGE_ASPECT_COLOR_BIT,
+				LevelCount: 1, LayerCount: 1},
+		},
+		vk.ImageMemoryBarrier2{
+			SrcStageMask:  vk.PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT,
+			SrcAccessMask: vk.ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+			DstStageMask:  vk.PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT,
+			DstAccessMask: vk.ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+			OldLayout:     vk.IMAGE_LAYOUT_UNDEFINED,
+			NewLayout:     vk.IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,
+			Image:         vr.depthImage.handle,
+			SubresourceRange: vk.ImageSubresourceRange{
+				AspectMask: vk.IMAGE_ASPECT_DEPTH_BIT,
+				LevelCount: 1, LayerCount: 1},
+		},
+	}
+	drawBarrierInfo := vk.DependencyInfo{PImageMemoryBarriers: drawBarriers}
+	vk.CmdPipelineBarrier2(frame.cmds, &drawBarrierInfo)
+
 	// set pipeline dynamic state
 	vr.setViewportAndScissor()
 	vk.CmdSetViewport(frame.cmds, 0, []vk.Viewport{vr.viewport})
@@ -2502,27 +2740,46 @@ func (vr *vulkanRenderer) drawFrame(passes []Pass) (err error) {
 		}
 	}
 
-	// first pass always 3D (can be empty if only 2D).
-	// start the 3D world render pass
-	render3DInfo := vk.RenderPassBeginInfo{
-		RenderPass:  vr.render3D,
-		Framebuffer: vr.render3DFramebuffers[vr.imageIndex],
+	// define how the rendering attachment will be used.
+	colorInfo := vk.RenderingAttachmentInfo{
+		ImageView:   vr.views[vr.imageIndex],
+		ImageLayout: vk.IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,
+		LoadOp:      vk.ATTACHMENT_LOAD_OP_CLEAR,
+		StoreOp:     vk.ATTACHMENT_STORE_OP_STORE,
+		ClearValue:  colorClear,
+	}
+	depthInfo := vk.RenderingAttachmentInfo{
+		ImageView:   vr.depthImage.view,
+		ImageLayout: vk.IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,
+		LoadOp:      vk.ATTACHMENT_LOAD_OP_CLEAR,
+		StoreOp:     vk.ATTACHMENT_STORE_OP_DONT_CARE,
+		ClearValue:  depthClear,
+	}
+	renderInfo := vk.RenderingInfo{
 		RenderArea: vk.Rect2D{
 			Offset: vk.Offset2D{X: 0, Y: 0},
 			Extent: vk.Extent2D{Width: vr.frameWidth, Height: vr.frameHeight},
 		},
-		PClearValues: []vk.ClearValue{colorClear, depthClear},
+		LayerCount:        1,
+		PColorAttachments: []vk.RenderingAttachmentInfo{colorInfo},
+		PDepthAttachment:  &depthInfo,
 	}
-	vk.CmdBeginRenderPass(frame.cmds, &render3DInfo, vk.SUBPASS_CONTENTS_INLINE)
 
+	// render a frame.
+	vk.CmdBeginRendering(frame.cmds, &renderInfo)
 	var shader *vulkanShader
 	shaderID := uint16(math.MaxUint16) - 1
-	if len(passes) > 0 && len(passes[Pass3D].Packets) > 0 {
-		pass := passes[Pass3D]
+	for passID, pass := range passes {
+		if RaytraceEnabled {
+			// update/rebuild the TLAS acceleration structure
+			// based on the passed in objects.
+			if passID == 0 { // only for the 3D pass
+				vr.updateTLAS(pass)
+			}
+		}
 
-		// draw 3D packets
+		// render each object, swapping shaders as needed.
 		for _, packet := range pass.Packets {
-			// FUTURE: complain about packets without meshes.
 
 			// change shader when necessary.
 			if shaderID != packet.ShaderID {
@@ -2534,77 +2791,41 @@ func (vr *vulkanRenderer) drawFrame(passes []Pass) (err error) {
 				shader = &vr.shaders[shaderID] //   ""
 				vk.CmdBindPipeline(frame.cmds, vk.PIPELINE_BIND_POINT_GRAPHICS, shader.pipe)
 
-				// setting scene uniforms for this shader
+				// set the scene uniforms for this shader
 				vr.setSceneUniforms(shader, pass)
 				vr.applySceneUniforms(shader)
 			}
 
-			// update material samplers
+			// update texture samplers as needed.
 			if len(packet.TextureIDs) > 0 {
 				samplerID, _ := vr.setSamplers(shader, packet.TextureIDs)
-				vr.applyMaterialUniforms(shader, samplerID)
+				vr.applySamplerUniforms(shader, samplerID)
 			}
 
 			// bind model scope uniforms for this shader.
 			vr.setModelUniforms(shader, packet)
-			if packet.IsInstanced && packet.InstanceCount > 0 {
-				// draw multiple models.
-				vr.drawInstancedMesh(frame, packet.MeshID, packet.InstanceID, packet.InstanceCount, shader.attrs)
-			} else {
-				// draw one model.
-				vr.drawMesh(frame, packet.MeshID, shader.attrs)
-			}
+			vr.drawMesh(frame, packet.MeshID, shader.attrs, packet.IsInstanced, packet.InstanceCount)
 		}
 	}
-	vk.CmdEndRenderPass(frame.cmds)
+	vk.CmdEndRendering(frame.cmds)
 
-	// second pass always 2D if present.
-	// then the 2D UI overlay render pass
-	render2DInfo := vk.RenderPassBeginInfo{
-		RenderPass:  vr.render2D,
-		Framebuffer: vr.render2DFramebuffers[vr.imageIndex],
-		RenderArea: vk.Rect2D{
-			Offset: vk.Offset2D{X: 0, Y: 0},
-			Extent: vk.Extent2D{Width: vr.frameWidth, Height: vr.frameHeight},
+	// transition the image layout to what is needed for presenting a frame.
+	presentBarriers := []vk.ImageMemoryBarrier2{
+		vk.ImageMemoryBarrier2{
+			SrcStageMask:  vk.PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+			SrcAccessMask: vk.ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+			DstStageMask:  vk.PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+			DstAccessMask: 0,
+			OldLayout:     vk.IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,
+			NewLayout:     vk.IMAGE_LAYOUT_PRESENT_SRC_KHR,
+			Image:         vr.images[vr.imageIndex],
+			SubresourceRange: vk.ImageSubresourceRange{
+				AspectMask: vk.IMAGE_ASPECT_COLOR_BIT,
+				LevelCount: 1, LayerCount: 1},
 		},
 	}
-	vk.CmdBeginRenderPass(frame.cmds, &render2DInfo, vk.SUBPASS_CONTENTS_INLINE)
-	if len(passes) > 1 && len(passes[Pass2D].Packets) > 0 {
-		pass := passes[Pass2D]
-
-		// draw 2D packets
-		for _, packet := range pass.Packets {
-
-			// change shader when necessary.
-			if shaderID != packet.ShaderID {
-				if packet.ShaderID >= uint16(len(vr.shaders)) {
-					slog.Error("invalid shaderID", "shader_id", packet.ShaderID)
-					continue
-				}
-				shaderID = packet.ShaderID // changing shaders.
-				shader = &vr.shaders[shaderID]
-				vk.CmdBindPipeline(frame.cmds, vk.PIPELINE_BIND_POINT_GRAPHICS, shader.pipe)
-
-				// setting scene uniforms for this shader
-				vr.setSceneUniforms(shader, pass)
-				vr.applySceneUniforms(shader)
-			}
-
-			// update material samplers
-			if len(packet.TextureIDs) > 0 {
-				matID, _ := vr.setSamplers(shader, packet.TextureIDs)
-				if lastMatID != matID {
-					lastMatID = matID
-				}
-				vr.applyMaterialUniforms(shader, matID)
-			}
-
-			// bind model scope uniforms and draw the model.
-			vr.setModelUniforms(shader, packet)
-			vr.drawMesh(frame, packet.MeshID, shader.attrs)
-		}
-	}
-	vk.CmdEndRenderPass(frame.cmds)
+	presentBarrierInfo := vk.DependencyInfo{PImageMemoryBarriers: presentBarriers}
+	vk.CmdPipelineBarrier2(frame.cmds, &presentBarrierInfo)
 
 	// end command recording
 	if err = vk.EndCommandBuffer(frame.cmds); err != nil {
@@ -2613,16 +2834,8 @@ func (vr *vulkanRenderer) drawFrame(passes []Pass) (err error) {
 	return nil
 }
 
-// upper limit on the number of materials.
-var lastMatID uint32 = 345234545
-
 func (vr *vulkanRenderer) endFrame(dt time.Duration) (err error) {
 	frame := &vr.frames[vr.frameIndex]
-
-	// reset the frames fence to unsignalled
-	if err := vk.ResetFences(vr.device, []vk.Fence{frame.inFlightFence}); err != nil {
-		return fmt.Errorf("vk.ResetFences: %w", err)
-	}
 
 	// submit the frame for render, waits for imageAvailable, signals renderComplete.
 	submitInfo := vk.SubmitInfo{
@@ -2631,7 +2844,7 @@ func (vr *vulkanRenderer) endFrame(dt time.Duration) (err error) {
 		PSignalSemaphores: []vk.Semaphore{vr.imageRendered[vr.imageIndex]},
 		PCommandBuffers:   []vk.CommandBuffer{frame.cmds},
 	}
-	if err = vk.QueueSubmit(vr.graphicsQ, []vk.SubmitInfo{submitInfo}, frame.inFlightFence); err != nil {
+	if err = vk.QueueSubmit(vr.graphicsQ, []vk.SubmitInfo{submitInfo}, frame.fence); err != nil {
 		return fmt.Errorf("vk.QueueSubmit %w", err)
 	}
 
@@ -2688,7 +2901,7 @@ func (vr *vulkanRenderer) setSceneUniforms(shader *vulkanShader, pass Pass) {
 // setModelUniforms copies the render packet data to model scope uniforms.
 func (vr *vulkanRenderer) setModelUniforms(shader *vulkanShader, packet Packet) {
 	for _, u := range shader.usets.index {
-		if u.scope == load.ModelScope || u.scope == load.PushScope {
+		if u.scope == load.PushScope {
 			vr.setUniform(shader, u, packet.Uniforms[u.modelUID])
 		}
 	}
@@ -2702,12 +2915,6 @@ func (vr *vulkanRenderer) setUniform(shader *vulkanShader, u *uniform, data []by
 		offset := uintptr(vr.imageIndex*maxSceneUniformBytes + u.offset)
 		dst := (*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(shader.sceneUniformsMap)) + offset))
 		copy(unsafe.Slice(dst, len(data)), data)
-	case load.MaterialScope:
-		// FUTURE: add material scope uniforms to change
-		//         model materials separately from model transforms.
-	case load.ModelScope:
-		// FUTURE: add model scope uniforms for model data larger
-		//         than the 128byte push constant limit.
 	case load.PushScope:
 		frame := vr.frames[vr.frameIndex]
 		vk.CmdPushConstants(frame.cmds, shader.pipeLayout, vk.SHADER_STAGE_VERTEX_BIT|vk.SHADER_STAGE_FRAGMENT_BIT, u.offset, data)

@@ -29,7 +29,7 @@ type Shader struct {
 	//   [shader("vertex")] [Line(true)]
 	DrawLines bool // true to render lines instead of triangles.
 
-	// TODO user defined shader attribute
+	// another user defined shader attribute
 	CullModeNone bool // true disables backface culling.
 
 	// Attrs layout location match the order of declaration in the shader.
@@ -42,22 +42,21 @@ type Shader struct {
 
 // ShaderAttribute identifies the data layouts for attributes.
 type ShaderAttribute struct {
-	Name   string         // unique name matching shader source code.
-	Scope  AttributeScope // vertex or instanced
-	AType  int            // attribute type
-	DType  ShaderDataType // attribute data type.
-	Stride uint32         // size in bytes
+	Name        string         // unique name matching shader source code.
+	AType       int            // attribute type
+	DType       ShaderDataType // attribute data type.
+	Stride      uint32         // size in bytes
+	IsInstanced bool           // true for instanced attributes.
 }
 
 // ShaderUniform identifies the data layouts for uniforms.
 type ShaderUniform struct {
-	Name      string         // unique name matching shader source code.
-	Scope     UniformScope   //
-	UType     ShaderDataType //
-	SceneUID  SceneUniform   // index to scene uniform data
-	ModelUID  ModelUniform   // index to model uniform data
-	Size      int            // size in bytes
-	IsSampler bool           // true for sampler uniforms.
+	Name     string         // unique name matching shader source code.
+	Scope    UniformScope   //
+	UType    ShaderDataType //
+	SceneUID SceneUniform   // index to scene uniform data
+	ModelUID ModelUniform   // index to model uniform data
+	Size     int            // size in bytes
 }
 
 // GetSceneUniforms returns all the scene scoped uniforms from the
@@ -75,31 +74,32 @@ func (s *Shader) GetSceneUniforms() (uniforms []*ShaderUniform) {
 // Shader data.
 func (s *Shader) GetModelUniforms() (uniforms []*ShaderUniform) {
 	for i, uni := range s.Uniforms {
-		if uni.UType != Type_SAMPLER && uni.Scope == ModelScope {
+		if uni.Scope == PushScope {
 			uniforms = append(uniforms, &s.Uniforms[i])
 		}
 	}
 	return uniforms
 }
 
-// GetSceneUniforms returns the sampler uniforms from the Shader data.
+// GetSamplerUniforms returns the sampler uniforms from the Shader data.
 func (s *Shader) GetSamplerUniforms() (uniforms []*ShaderUniform) {
 	for i, uni := range s.Uniforms {
-		if uni.UType == Type_SAMPLER && uni.Scope == MaterialScope {
+		if uni.Scope == SamplerScope {
 			uniforms = append(uniforms, &s.Uniforms[i])
 		}
 	}
 	return uniforms
 }
 
-// =============================================================================
-// AttributeScope identifies the supported shader attribute types.
-type AttributeScope uint8
-
-const (
-	VertexAttribute   AttributeScope = iota // per vertex data
-	InstanceAttribute                       // per instance data.
-)
+// GetAccelerationUniforms returns the ray acceleration uniforms.
+func (s *Shader) GetAccelerationUniforms() (uniforms []*ShaderUniform) {
+	for i, uni := range s.Uniforms {
+		if uni.Scope == AccelScope {
+			uniforms = append(uniforms, &s.Uniforms[i])
+		}
+	}
+	return uniforms
+}
 
 // =============================================================================
 // ShaderPass identifies a shader render pass.
@@ -126,11 +126,13 @@ const (
 // The scope is directly related to the layout(set=x) value in the shader code.
 type UniformScope uint8
 
+// NOTE: currently requiring vulkan 1.3 (2022)
+// vulkan 1.4 (2024) updates push constant byte limit to 256 bytes.
 const (
-	SceneScope    UniformScope = iota // descriptor set=0
-	MaterialScope                     // descriptor set=1  texture samplers
-	ModelScope                        // descriptor set=2  FUTURE: model > 128b
-	PushScope                         // push constants    model: 128 byte limit
+	SceneScope   UniformScope = iota // descriptor set=0
+	SamplerScope                     // descriptor set=1 texture samplers
+	AccelScope                       // descriptor set=2 ray accel structs
+	PushScope                        // push constants   model: 128 byte limit
 )
 
 // =============================================================================
@@ -143,7 +145,6 @@ const (
 	NMAT                              // scene
 	CAM                               // scene
 	LIGHTS                            // scene
-	LIGHTCNT                          // scene
 	TIME                              // scene
 	SceneUniforms                     // must be last
 )
@@ -191,24 +192,15 @@ var ShaderAttributes = map[string]int{
 	"i_scale":    InstanceScales,
 }
 
-// ShaderAttributeScope categorizes vertex attributes into
-// per-vertex data or per-model-instance data.
-// Expected use is for passing data from the engine to the render system.
-var ShaderAttributeScope = map[string]AttributeScope{
-	"vertex":   VertexAttribute,
-	"instance": InstanceAttribute,
-}
-
 // ShaderSceneUniforms are shader uniforms that apply to
 // a single scene (render pass).
 // Used for passing data from the engine to the render system.
 var ShaderSceneUniforms = map[string]SceneUniform{
-	"proj":     PROJ,     //
-	"view":     VIEW,     //
-	"cam":      CAM,      //
-	"lights":   LIGHTS,   //
-	"lightCnt": LIGHTCNT, //
-	"time":     TIME,     //
+	"proj":   PROJ,
+	"view":   VIEW,
+	"cam":    CAM,
+	"lights": LIGHTS,
+	"time":   TIME,
 }
 
 // ShaderModelUniforms are shader uniforms that apply to one model.
@@ -233,7 +225,8 @@ const (
 	Type_MAT3
 	Type_MAT4
 	Type_MAT34
-	Type_SAMPLER
+	Type_SAMPLER // image sampler
+	Type_ACCEL   // ray acceleration struct
 	Type_VEC2
 	Type_VEC3
 	Type_VEC4
@@ -243,9 +236,8 @@ const (
 // ShaderUniformData are the supported uniform data types.
 // Expected use is for passing data from the engine to the render system.
 var ShaderUniformData = map[string]ShaderDataType{
-	"int":     Type_INT,
-	"lights":  Type_LIGHTARRAY,
-	"sampler": Type_SAMPLER,
+	"int":    Type_INT,
+	"lights": Type_LIGHTARRAY,
 
 	// slang data types
 	"float32":  Type_FLOAT,
@@ -294,12 +286,6 @@ func Shd(name string, data []byte) (shader *Shader, err error) {
 					return shader, fmt.Errorf("Shd:unsupported shader attribute %s", f.Name)
 				}
 
-				// instance data attributes names start with "i_"
-				ascope := VertexAttribute
-				if strings.HasPrefix(f.Name, "i_") {
-					ascope = InstanceAttribute
-				}
-
 				// get the type of data for this field.
 				dtype, stride := ShaderDataType(0), uint32(0)
 				switch {
@@ -319,9 +305,12 @@ func Shd(name string, data []byte) (shader *Shader, err error) {
 				attrs = append(attrs, ShaderAttribute{
 					Name:   f.Name,
 					AType:  atype,
-					Scope:  ascope,
 					DType:  dtype,
 					Stride: stride,
+
+					// by (completely arbitrary) convention instanced mesh
+					// attributes start with "i_"
+					IsInstanced: strings.HasPrefix(f.Name, "i_"),
 				})
 
 				// use the number of vertex elements to determine the shader pass.
@@ -336,17 +325,28 @@ func Shd(name string, data []byte) (shader *Shader, err error) {
 	uniforms := []ShaderUniform{}
 	for _, parm := range shd.Parameters {
 		switch {
+		case parm.Name == "tlas":
+			if !RaytraceEnabled {
+				return shader, fmt.Errorf("Shd %s requires vu.Raytrace(true)", name)
+			}
+			u := ShaderUniform{
+				Name:     "tlas",
+				Scope:    AccelScope,
+				UType:    Type_ACCEL,
+				SceneUID: 0,
+				ModelUID: 0,
+			}
+			uniforms = append(uniforms, u)
 		case parm.Name == "samplers":
 			// samplers are a material scope uniform. Color is the only
 			// supported texture type right now, ie:
 			// AddModel("shd:tint", "msh:icon", "tex:color:undo") <-- "color"
 			u := ShaderUniform{
-				Name:      "color",
-				Scope:     MaterialScope,
-				UType:     Type_SAMPLER,
-				SceneUID:  PROJ,
-				ModelUID:  COLOR,
-				IsSampler: true,
+				Name:     "color",
+				Scope:    SamplerScope,
+				UType:    Type_SAMPLER,
+				SceneUID: PROJ,
+				ModelUID: COLOR,
 			}
 			uniforms = append(uniforms, u)
 		default:
@@ -362,7 +362,6 @@ func Shd(name string, data []byte) (shader *Shader, err error) {
 				default:
 					return shader, fmt.Errorf("Shd:unsupported uniform scope %s", f.Name)
 				}
-
 				dstr := f.Type.Element.ScalarType
 				kind := f.Type.Kind
 				switch {

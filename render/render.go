@@ -30,38 +30,33 @@ const (
 )
 
 // Public data accessible to the application.
+// Byte size defaults can be overridden by apps before engine startup.
 var (
 	// GPU exposes whether the selected GPU is integrated or discrete.
 	// Generally discrete GPU's are more powerful.
 	GPU GPUType // set on startup by the render layer.
 
-	// GPUVertexBytes is exposed for applications to override before engine startup.
-	// Default is 2048 * 2048 == 4,194,304 bytes
-	//
-	// Default allocation for vertex data is 161MB
-	//   - 12*GPUVertexBytes for vertex position   :50MB
-	//   - 8*GPUVertexBytes  for vertex texcoords  :33MB
-	//   - 3*GPUVertexBytes  for vertex colors     :12MB
-	//   - 12*GPUVertexBytes for vertex normals    :50MB
-	//   - 4*GPUVertexBytes  for indexes           :16MB
-	//   - Total 161Mb
-	GPUVertexBytes uint32 = 2048 * 2048
+	// RaytraceEnabled is expected to be enabled using vu.Raytrace(true)
+	// on engine startup. GPU acceleration structures will only be generated
+	// if this is true
+	RaytraceEnabled = false
+	// Max storage for mesh vertex data.
+	GPUMaxVertexBytes uint32 = 2048 * 2048 * 45 // 180MiB default
+	// Max storage for mesh index data.
+	GPUMaxVIndexBytes uint32 = 2048 * 2048 * 5 //  20MiB default
+	// Max storage for ray acceleration BLAS data.
+	GPUMaxAccelerationBLASBytes uint32 = 2048 * 2048 * 2 // 8MiB default
+	// Max storage for ray acceleration TLAS instance data.
+	GPUMaxAccelerationINSTBytes uint32 = 2048 * 2048 * 2 // 8MiB default
+	// Max storage for ray acceleration TLAS data.
+	GPUMaxAccelerationTLASBytes uint32 = 2048 * 2048 // 4MiB default
+	// Max storage for ray acceleration scratch data.
+	GPUMaxAccelerationScratchBytes uint32 = 2048 * 2048 // 4MiB default
 
-	// GPUInstanceBytes is exposed for applications to override before engine startup.
-	// Default is 2048 * 2048 == 4,194,304 bytes
-	//
-	// Default allocation for instance data is 78MB
-	//   - 12*GPUInstanceBytes for vertex positions :50MB
-	//   - 3*GPUInstanceBytes for vertex colors     :12MB
-	//   - 4*GPUInstanceBytes for vertex scaling    :16MB
-	GPUInstanceBytes uint32 = 2048 * 2048
-
-	// GPUTotalMeshBytes are the total bytes for all GPU mesh buffers.
+	// GPUTotalMeshBytes tracks the total bytes loaded for all GPU meshes.
 	GPUTotalMeshBytes uint32
-	// GPUTotalTextureBytes are the total bytes for all GPU texture data.
+	// GPUTotalTextureBytes tracks the total bytes loaded for all GPU textures.
 	GPUTotalTextureBytes uint32
-	// GPUTotalInstanceBytes are the total bytes for all GPU instance data buffers.
-	GPUTotalInstanceBytes uint32
 )
 
 // GPUType is a const for the two types of GPU.
@@ -166,24 +161,21 @@ func (c *Context) LoadMesh(msh load.MeshData) (mid uint32, err error) {
 	return mids[0], nil
 }
 
+// LoadInstanceData allocates GPU resources for the instanced mesh data.
+func (c *Context) LoadInstanceData(mid uint32, data []load.Buffer) (err error) {
+	return c.renderer.loadInstances(mid, data)
+}
+
 // DropMesh discards the mesh resources.
 func (c *Context) DropMesh(mid uint32) { c.renderer.dropMesh(mid) }
 
-// LoadInstanceData allocates GPU resources for the instanced mesh data.
-func (c *Context) LoadInstanceData(data []load.Buffer) (iid uint32, err error) {
-	return c.renderer.loadInstanceData(data)
-}
-
-// UpdateInstanceData updates the GPU instance data for the given instance data ID.
-// Do not update instance data that is being rendered. Double buffer the instance
-// data and then swap with the rendered instance data. UpdateInstanceData ignores data
+// UpdateMesh updates the GPU mesh data for the given mesh ID.
+// Do not update mesh data that is being rendered. Double buffer the mesh
+// data and then swap with the rendered instance data. UpdateMeshData ignores data
 // buffers that are not exactly the same sizes and types as the existing data buffers.
-func (c *Context) UpdateInstanceData(iid uint32, data []load.Buffer) (err error) {
-	return c.renderer.updateInstanceData(iid, data)
+func (c *Context) UpdateMesh(mid uint32, data []load.Buffer) (err error) {
+	return c.renderer.updateMesh(mid, data)
 }
-
-// DropInstanced discards the instanced resources.
-func (c *Context) DropInstanceData(iid uint32) { c.renderer.dropInstanceData(iid) }
 
 // LoadShader prepare the GPU indicated GPU shader for rendering.
 func (c *Context) LoadShader(config *load.Shader) (sid uint16, err error) {
@@ -239,14 +231,9 @@ type renderAPI interface {
 	// create GPU meshes by uploading the mesh vertex data.
 	// return an identifier for each mesh.
 	loadMeshes(msh []load.MeshData) (mid []uint32, err error)
-	// FUTURE: updateMesh() replace mesh with new mesh data.
+	updateMesh(mid uint32, data []load.Buffer) (err error)
+	loadInstances(mid uint32, data []load.Buffer) (err error)
 	dropMesh(mid uint32)
-
-	// load instance data for an instanced mesh.
-	// return an identifier for the instance data.
-	loadInstanceData(data []load.Buffer) (iid uint32, err error)
-	updateInstanceData(iid uint32, data []load.Buffer) (err error)
-	dropInstanceData(iid uint32)
 }
 
 // =============================================================================
@@ -256,7 +243,7 @@ type renderAPI interface {
 type uniformSets struct {
 	sceneSize    uint32    // set0: total scene uniforms byte size.
 	materialSize uint32    // set1: total material uniforms byte size.
-	modelSize    uint32    // set2: total model uniforms byte size.
+	accelSize    uint32    // set2: total ray acceleration uniforms byte size.
 	pushSize     uint32    // push: total model push constant byte size.
 	numSamplers  uint32    // number of uniform samplers.
 	uniforms     []uniform // per-uniform data.
@@ -291,10 +278,8 @@ func (us uniformSets) hasUniform(name string) bool {
 // so create each uniform buffer in multiples of 256 bytes and
 // complain if the uniform data exceeds the max size.
 const (
-	maxSceneUniformBytes    = 512 // scene uniform data fits in 512 bytes
-	maxMaterialUniformBytes = 256 // material uniform data fits in 256 bytes
-	maxModelUniformBytes    = 256 // model uniform data fits in 256 bytes
-	maxPushConstantBytes    = 128 // push constant data must fit in 128 bytes
+	maxSceneUniformBytes = 512 // scene uniform data fits in 512 bytes
+	maxPushConstantBytes = 128 // push constant data must fit in 128 bytes
 )
 
 // genUniforms creates shaderUniforms from the shader configuration.
@@ -313,18 +298,16 @@ func getUniformSets(configUniforms []load.ShaderUniform) (sets uniformSets) {
 			case load.SceneScope:
 				u.offset = sets.sceneSize
 				sets.sceneSize += u.size
-			case load.MaterialScope:
-				u.offset = sets.materialSize
-				sets.materialSize += u.size
-			case load.ModelScope:
-				u.offset = sets.modelSize
-				sets.modelSize += u.size
 			case load.PushScope:
 				u.offset = sets.pushSize
 				sets.pushSize += u.size
+			case load.SamplerScope:
+				// reference to image sampler.
+			case load.AccelScope:
+				// reference to acceleration struct
 			}
 			u.sceneUID = cu.SceneUID // one of these two...
-			u.modelUID = cu.ModelUID // ...will be valid.
+			u.modelUID = cu.ModelUID // ...will be valid for data uniforms.
 			sets.index[cu.Name] = u
 		}
 	}
@@ -333,12 +316,6 @@ func getUniformSets(configUniforms []load.ShaderUniform) (sets uniformSets) {
 	// Either increase available space or rework the shader.
 	if sets.sceneSize > maxSceneUniformBytes {
 		slog.Error("need to increase uniformBufferSize", "set0_scene", sets.sceneSize)
-	}
-	if sets.materialSize > maxMaterialUniformBytes {
-		slog.Error("need to increase uniformBufferSize", "set1_material", sets.materialSize)
-	}
-	if sets.modelSize > maxModelUniformBytes {
-		slog.Error("need to increase uniformBufferSize", "set2_model", sets.modelSize)
 	}
 	if sets.pushSize > maxPushConstantBytes {
 		slog.Error("exceeded push constant max size", "push_model", sets.pushSize)
@@ -462,33 +439,40 @@ func V16ToBytes(args []float64, bytes []byte) []byte {
 
 // Light holds the location and color for a directional light.
 // It aligns with the data struct expected by the shader.
-// - vec4 color; // XYZ are rgb 0-1, W is light intensity
-// - vec4 pos;   // XYZ is the world space light position, W is attenuation.
-// - vec4 dir;   // XYZ is world space light direction, W is the cos(cutoff) angle in radians.
+// - vec4 color; // XYZ are rgb 0-1, W unused
+// - vec4 pos;   // XYZ is the world space light position, W unused
+// - vec4 dir;   // XYZ is world space light direction, W unused
 type Light struct {
-	R, G, B, Intensity      float32 // light color and intensity.
-	Px, Py, Pz, Attenuation float32 // position and attenuation.
-	Dx, Dy, Dz, Cutoff      float32 // direction and cutoff angle.
+	R, G, B, pad0    float32 // light color (vec4)
+	Px, Py, Pz, pad1 float32 // world position (vec4)
+	Dx, Dy, Dz, pad2 float32 // direction (vec4)
+	Intensity        float32 // any light
+	Attenuation      float32 // point and spot lights.
+	Cutoff           float32 // cutoff angle in radians for spot lights.
+	Type             int32   // Directional, Point, Spot
 }
 
 // reset is used to clear light data before reusing the light struct.
 // Called internally from pass.Reset()
 func (l *Light) reset() {
-	l.R, l.G, l.B, l.Intensity = 0.0, 0.0, 0.0, 0.0
-	l.Px, l.Py, l.Pz, l.Attenuation = 0.0, 0.0, 0.0, 0.0
-	l.Dx, l.Dy, l.Dz, l.Cutoff = 0.0, 0.0, 0.0, 0.0
+	l.R, l.G, l.B = 0.0, 0.0, 0.0
+	l.Px, l.Py, l.Pz = 0.0, 0.0, 0.0
+	l.Dx, l.Dy, l.Dz = 0.0, 0.0, 0.0
+	l.Intensity = 0.0
+	l.Attenuation = 0.0
+	l.Cutoff = 0.0
+	l.Type = 0
 }
 
 // LightsToBytes converts a slice of lights to bytes.
 // The given byte slice is zeroed and returned filled with the given light data.
 func LightsToBytes(lights []Light, bytes []byte) []byte {
-	const maxLights = 5
+	const maxLights = 4
 	if len(lights) > maxLights {
 		slog.Error("LightsToBytes to many lights", "max_lights", maxLights)
 	}
-	bytes = bytes[:0]
 	lbytes := (*[int(unsafe.Sizeof(Light{})) * maxLights]byte)(unsafe.Pointer(&lights[0]))[:]
-	return append(bytes, lbytes...)
+	return append(bytes[:0], lbytes...)
 }
 
 // =============================================================================

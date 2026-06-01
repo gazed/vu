@@ -10,12 +10,14 @@ import (
 	"log/slog"
 	"math"
 
+	"github.com/gazed/vu/math/lin"
 	"github.com/gazed/vu/render"
 )
 
 // Types of lights
 const (
-	SunLight   = iota // sun rays   : position implies direction.
+	NoLight    = iota //
+	SunLight          // sun rays   : position implies direction.
 	PointLight        // light bulb : position and direction.
 	SpotLight         // flash light: position and direction and cone cutoff angle.
 )
@@ -97,6 +99,30 @@ func newLight(lightType int) (l *light) {
 	}
 }
 
+// fillLight populates the render.Pass data with the light information
+// at the given pov.
+func (l *light) fillLight(light *render.Light, pov *pov) {
+	light.Type = int32(l.kind)
+
+	// light color.
+	light.R, light.G, light.B = l.r, l.g, l.b
+
+	// light position.
+	px, py, pz := pov.at()
+	light.Px, light.Py, light.Pz = float32(px), float32(py), float32(pz)
+
+	// get the light direction by applying the light rotation
+	// to the original look direction (down the -Z axis).
+	dir := &lin.V3{0, 0, -1}          // original look direction
+	dir.MultQ(dir, pov.tn.Rot).Unit() // normalized
+	light.Dx, light.Dy, light.Dz = float32(dir.X), float32(dir.Y), float32(dir.Z)
+
+	// light attributes.
+	light.Intensity = l.intensity
+	light.Attenuation = l.attenuation
+	light.Cutoff = l.cutoff
+}
+
 // =============================================================================
 // light component manager.
 
@@ -128,30 +154,6 @@ func (ls *lights) create(light, scene *Entity, lightType int) (l *light) {
 	l = newLight(lightType)
 	ls.data[light.eid] = l // All lights.
 	return l
-}
-
-// fillPass populates the render.Pass data with the light information
-// at the given pov.
-func (ls *lights) fillLight(light *render.Light, lid eID, pov *pov) {
-	l := ls.data[lid]
-	light.R = l.r
-	light.G = l.g
-	light.B = l.b
-	light.Intensity = l.intensity
-
-	// position for all lights.
-	px, py, pz := pov.at()
-	light.Px = float32(px)
-	light.Py = float32(py)
-	light.Pz = float32(pz)
-	light.Attenuation = l.attenuation
-
-	// direction for spotlight.
-	dx, dy, dz, _ := pov.tn.Rot.Aa()
-	light.Dx = float32(dx)
-	light.Dy = float32(dy)
-	light.Dz = float32(dz)
-	light.Cutoff = l.cutoff
 }
 
 // dispose the light associated for the given entity. Do nothing

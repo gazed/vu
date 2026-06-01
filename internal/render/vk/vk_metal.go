@@ -31,7 +31,7 @@ const (
 
 // bitmask ===============================================================
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/ExportMetalObjectTypeFlagBitsEXT.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkExportMetalObjectTypeFlagBitsEXT.html
 type ExportMetalObjectTypeFlagBitsEXT = ExportMetalObjectTypeFlagsEXT
 
 const (
@@ -58,6 +58,12 @@ type ImportMemoryMetalHandleInfoEXT struct {
 	Handle     unsafe.Pointer
 }
 
+// eg: gostruct := (&vk.ImportMemoryMetalHandleInfoEXT{}).FromVK(goStruct2.PNext)
+func (s *ImportMemoryMetalHandleInfoEXT) FromVK(pn unsafe.Pointer) *ImportMemoryMetalHandleInfoEXT {
+	vks := (*vkImportMemoryMetalHandleInfoEXT)(pn)
+	return vks.ToGo()
+}
+
 type vkImportMemoryMetalHandleInfoEXT struct {
 	sType      StructureType
 	pNext      unsafe.Pointer
@@ -65,7 +71,7 @@ type vkImportMemoryMetalHandleInfoEXT struct {
 	handle     unsafe.Pointer
 }
 
-func (s *vkImportMemoryMetalHandleInfoEXT) goStruct() *ImportMemoryMetalHandleInfoEXT {
+func (s *vkImportMemoryMetalHandleInfoEXT) ToGo() *ImportMemoryMetalHandleInfoEXT {
 	rval := &ImportMemoryMetalHandleInfoEXT{
 		PNext:      (unsafe.Pointer)(s.pNext),
 		HandleType: (ExternalMemoryHandleTypeFlagBits)(s.handleType),
@@ -74,7 +80,7 @@ func (s *vkImportMemoryMetalHandleInfoEXT) goStruct() *ImportMemoryMetalHandleIn
 	return rval
 }
 
-func (s *ImportMemoryMetalHandleInfoEXT) vkStruct() *vkImportMemoryMetalHandleInfoEXT {
+func (s *ImportMemoryMetalHandleInfoEXT) ToVK() *vkImportMemoryMetalHandleInfoEXT {
 	if s == nil {
 		return nil
 	}
@@ -93,13 +99,19 @@ type MemoryMetalHandlePropertiesEXT struct {
 	MemoryTypeBits uint32
 }
 
+// eg: gostruct := (&vk.MemoryMetalHandlePropertiesEXT{}).FromVK(goStruct2.PNext)
+func (s *MemoryMetalHandlePropertiesEXT) FromVK(pn unsafe.Pointer) *MemoryMetalHandlePropertiesEXT {
+	vks := (*vkMemoryMetalHandlePropertiesEXT)(pn)
+	return vks.ToGo()
+}
+
 type vkMemoryMetalHandlePropertiesEXT struct {
 	sType          StructureType
 	pNext          unsafe.Pointer
 	memoryTypeBits uint32
 }
 
-func (s *vkMemoryMetalHandlePropertiesEXT) goStruct() *MemoryMetalHandlePropertiesEXT {
+func (s *vkMemoryMetalHandlePropertiesEXT) ToGo() *MemoryMetalHandlePropertiesEXT {
 	rval := &MemoryMetalHandlePropertiesEXT{
 		PNext:          (unsafe.Pointer)(s.pNext),
 		MemoryTypeBits: (uint32)(s.memoryTypeBits),
@@ -107,7 +119,7 @@ func (s *vkMemoryMetalHandlePropertiesEXT) goStruct() *MemoryMetalHandleProperti
 	return rval
 }
 
-func (s *MemoryMetalHandlePropertiesEXT) vkStruct() *vkMemoryMetalHandlePropertiesEXT {
+func (s *MemoryMetalHandlePropertiesEXT) ToVK() *vkMemoryMetalHandlePropertiesEXT {
 	if s == nil {
 		return nil
 	}
@@ -126,6 +138,12 @@ type MemoryGetMetalHandleInfoEXT struct {
 	HandleType ExternalMemoryHandleTypeFlagBits
 }
 
+// eg: gostruct := (&vk.MemoryGetMetalHandleInfoEXT{}).FromVK(goStruct2.PNext)
+func (s *MemoryGetMetalHandleInfoEXT) FromVK(pn unsafe.Pointer) *MemoryGetMetalHandleInfoEXT {
+	vks := (*vkMemoryGetMetalHandleInfoEXT)(pn)
+	return vks.ToGo()
+}
+
 type vkMemoryGetMetalHandleInfoEXT struct {
 	sType      StructureType
 	pNext      unsafe.Pointer
@@ -133,7 +151,7 @@ type vkMemoryGetMetalHandleInfoEXT struct {
 	handleType ExternalMemoryHandleTypeFlagBits
 }
 
-func (s *vkMemoryGetMetalHandleInfoEXT) goStruct() *MemoryGetMetalHandleInfoEXT {
+func (s *vkMemoryGetMetalHandleInfoEXT) ToGo() *MemoryGetMetalHandleInfoEXT {
 	rval := &MemoryGetMetalHandleInfoEXT{
 		PNext:      (unsafe.Pointer)(s.pNext),
 		Memory:     (DeviceMemory)(s.memory),
@@ -142,7 +160,7 @@ func (s *vkMemoryGetMetalHandleInfoEXT) goStruct() *MemoryGetMetalHandleInfoEXT 
 	return rval
 }
 
-func (s *MemoryGetMetalHandleInfoEXT) vkStruct() *vkMemoryGetMetalHandleInfoEXT {
+func (s *MemoryGetMetalHandleInfoEXT) ToVK() *vkMemoryGetMetalHandleInfoEXT {
 	if s == nil {
 		return nil
 	}
@@ -161,13 +179,19 @@ type ExportMetalObjectCreateInfoEXT struct {
 	ExportObjectType ExportMetalObjectTypeFlagBitsEXT
 }
 
+// eg: gostruct := (&vk.ExportMetalObjectCreateInfoEXT{}).FromVK(goStruct2.PNext)
+func (s *ExportMetalObjectCreateInfoEXT) FromVK(pn unsafe.Pointer) *ExportMetalObjectCreateInfoEXT {
+	vks := (*vkExportMetalObjectCreateInfoEXT)(pn)
+	return vks.ToGo()
+}
+
 type vkExportMetalObjectCreateInfoEXT struct {
 	sType            StructureType
 	pNext            unsafe.Pointer
 	exportObjectType ExportMetalObjectTypeFlagBitsEXT
 }
 
-func (s *vkExportMetalObjectCreateInfoEXT) goStruct() *ExportMetalObjectCreateInfoEXT {
+func (s *vkExportMetalObjectCreateInfoEXT) ToGo() *ExportMetalObjectCreateInfoEXT {
 	rval := &ExportMetalObjectCreateInfoEXT{
 		PNext:            (unsafe.Pointer)(s.pNext),
 		ExportObjectType: (ExportMetalObjectTypeFlagBitsEXT)(s.exportObjectType),
@@ -175,7 +199,7 @@ func (s *vkExportMetalObjectCreateInfoEXT) goStruct() *ExportMetalObjectCreateIn
 	return rval
 }
 
-func (s *ExportMetalObjectCreateInfoEXT) vkStruct() *vkExportMetalObjectCreateInfoEXT {
+func (s *ExportMetalObjectCreateInfoEXT) ToVK() *vkExportMetalObjectCreateInfoEXT {
 	if s == nil {
 		return nil
 	}
@@ -192,19 +216,25 @@ type ExportMetalObjectsInfoEXT struct {
 	PNext unsafe.Pointer
 }
 
+// eg: gostruct := (&vk.ExportMetalObjectsInfoEXT{}).FromVK(goStruct2.PNext)
+func (s *ExportMetalObjectsInfoEXT) FromVK(pn unsafe.Pointer) *ExportMetalObjectsInfoEXT {
+	vks := (*vkExportMetalObjectsInfoEXT)(pn)
+	return vks.ToGo()
+}
+
 type vkExportMetalObjectsInfoEXT struct {
 	sType StructureType
 	pNext unsafe.Pointer
 }
 
-func (s *vkExportMetalObjectsInfoEXT) goStruct() *ExportMetalObjectsInfoEXT {
+func (s *vkExportMetalObjectsInfoEXT) ToGo() *ExportMetalObjectsInfoEXT {
 	rval := &ExportMetalObjectsInfoEXT{
 		PNext: (unsafe.Pointer)(s.pNext),
 	}
 	return rval
 }
 
-func (s *ExportMetalObjectsInfoEXT) vkStruct() *vkExportMetalObjectsInfoEXT {
+func (s *ExportMetalObjectsInfoEXT) ToVK() *vkExportMetalObjectsInfoEXT {
 	if s == nil {
 		return nil
 	}
@@ -221,13 +251,19 @@ type ExportMetalDeviceInfoEXT struct {
 	MtlDevice MTLDevice_id
 }
 
+// eg: gostruct := (&vk.ExportMetalDeviceInfoEXT{}).FromVK(goStruct2.PNext)
+func (s *ExportMetalDeviceInfoEXT) FromVK(pn unsafe.Pointer) *ExportMetalDeviceInfoEXT {
+	vks := (*vkExportMetalDeviceInfoEXT)(pn)
+	return vks.ToGo()
+}
+
 type vkExportMetalDeviceInfoEXT struct {
 	sType     StructureType
 	pNext     unsafe.Pointer
 	mtlDevice MTLDevice_id
 }
 
-func (s *vkExportMetalDeviceInfoEXT) goStruct() *ExportMetalDeviceInfoEXT {
+func (s *vkExportMetalDeviceInfoEXT) ToGo() *ExportMetalDeviceInfoEXT {
 	rval := &ExportMetalDeviceInfoEXT{
 		PNext:     (unsafe.Pointer)(s.pNext),
 		MtlDevice: (MTLDevice_id)(s.mtlDevice),
@@ -235,7 +271,7 @@ func (s *vkExportMetalDeviceInfoEXT) goStruct() *ExportMetalDeviceInfoEXT {
 	return rval
 }
 
-func (s *ExportMetalDeviceInfoEXT) vkStruct() *vkExportMetalDeviceInfoEXT {
+func (s *ExportMetalDeviceInfoEXT) ToVK() *vkExportMetalDeviceInfoEXT {
 	if s == nil {
 		return nil
 	}
@@ -254,6 +290,12 @@ type ExportMetalCommandQueueInfoEXT struct {
 	MtlCommandQueue MTLCommandQueue_id
 }
 
+// eg: gostruct := (&vk.ExportMetalCommandQueueInfoEXT{}).FromVK(goStruct2.PNext)
+func (s *ExportMetalCommandQueueInfoEXT) FromVK(pn unsafe.Pointer) *ExportMetalCommandQueueInfoEXT {
+	vks := (*vkExportMetalCommandQueueInfoEXT)(pn)
+	return vks.ToGo()
+}
+
 type vkExportMetalCommandQueueInfoEXT struct {
 	sType           StructureType
 	pNext           unsafe.Pointer
@@ -261,7 +303,7 @@ type vkExportMetalCommandQueueInfoEXT struct {
 	mtlCommandQueue MTLCommandQueue_id
 }
 
-func (s *vkExportMetalCommandQueueInfoEXT) goStruct() *ExportMetalCommandQueueInfoEXT {
+func (s *vkExportMetalCommandQueueInfoEXT) ToGo() *ExportMetalCommandQueueInfoEXT {
 	rval := &ExportMetalCommandQueueInfoEXT{
 		PNext:           (unsafe.Pointer)(s.pNext),
 		Queue:           (Queue)(s.queue),
@@ -270,7 +312,7 @@ func (s *vkExportMetalCommandQueueInfoEXT) goStruct() *ExportMetalCommandQueueIn
 	return rval
 }
 
-func (s *ExportMetalCommandQueueInfoEXT) vkStruct() *vkExportMetalCommandQueueInfoEXT {
+func (s *ExportMetalCommandQueueInfoEXT) ToVK() *vkExportMetalCommandQueueInfoEXT {
 	if s == nil {
 		return nil
 	}
@@ -290,6 +332,12 @@ type ExportMetalBufferInfoEXT struct {
 	MtlBuffer MTLBuffer_id
 }
 
+// eg: gostruct := (&vk.ExportMetalBufferInfoEXT{}).FromVK(goStruct2.PNext)
+func (s *ExportMetalBufferInfoEXT) FromVK(pn unsafe.Pointer) *ExportMetalBufferInfoEXT {
+	vks := (*vkExportMetalBufferInfoEXT)(pn)
+	return vks.ToGo()
+}
+
 type vkExportMetalBufferInfoEXT struct {
 	sType     StructureType
 	pNext     unsafe.Pointer
@@ -297,7 +345,7 @@ type vkExportMetalBufferInfoEXT struct {
 	mtlBuffer MTLBuffer_id
 }
 
-func (s *vkExportMetalBufferInfoEXT) goStruct() *ExportMetalBufferInfoEXT {
+func (s *vkExportMetalBufferInfoEXT) ToGo() *ExportMetalBufferInfoEXT {
 	rval := &ExportMetalBufferInfoEXT{
 		PNext:     (unsafe.Pointer)(s.pNext),
 		Memory:    (DeviceMemory)(s.memory),
@@ -306,7 +354,7 @@ func (s *vkExportMetalBufferInfoEXT) goStruct() *ExportMetalBufferInfoEXT {
 	return rval
 }
 
-func (s *ExportMetalBufferInfoEXT) vkStruct() *vkExportMetalBufferInfoEXT {
+func (s *ExportMetalBufferInfoEXT) ToVK() *vkExportMetalBufferInfoEXT {
 	if s == nil {
 		return nil
 	}
@@ -325,13 +373,19 @@ type ImportMetalBufferInfoEXT struct {
 	MtlBuffer MTLBuffer_id
 }
 
+// eg: gostruct := (&vk.ImportMetalBufferInfoEXT{}).FromVK(goStruct2.PNext)
+func (s *ImportMetalBufferInfoEXT) FromVK(pn unsafe.Pointer) *ImportMetalBufferInfoEXT {
+	vks := (*vkImportMetalBufferInfoEXT)(pn)
+	return vks.ToGo()
+}
+
 type vkImportMetalBufferInfoEXT struct {
 	sType     StructureType
 	pNext     unsafe.Pointer
 	mtlBuffer MTLBuffer_id
 }
 
-func (s *vkImportMetalBufferInfoEXT) goStruct() *ImportMetalBufferInfoEXT {
+func (s *vkImportMetalBufferInfoEXT) ToGo() *ImportMetalBufferInfoEXT {
 	rval := &ImportMetalBufferInfoEXT{
 		PNext:     (unsafe.Pointer)(s.pNext),
 		MtlBuffer: (MTLBuffer_id)(s.mtlBuffer),
@@ -339,7 +393,7 @@ func (s *vkImportMetalBufferInfoEXT) goStruct() *ImportMetalBufferInfoEXT {
 	return rval
 }
 
-func (s *ImportMetalBufferInfoEXT) vkStruct() *vkImportMetalBufferInfoEXT {
+func (s *ImportMetalBufferInfoEXT) ToVK() *vkImportMetalBufferInfoEXT {
 	if s == nil {
 		return nil
 	}
@@ -361,6 +415,12 @@ type ExportMetalTextureInfoEXT struct {
 	MtlTexture MTLTexture_id
 }
 
+// eg: gostruct := (&vk.ExportMetalTextureInfoEXT{}).FromVK(goStruct2.PNext)
+func (s *ExportMetalTextureInfoEXT) FromVK(pn unsafe.Pointer) *ExportMetalTextureInfoEXT {
+	vks := (*vkExportMetalTextureInfoEXT)(pn)
+	return vks.ToGo()
+}
+
 type vkExportMetalTextureInfoEXT struct {
 	sType      StructureType
 	pNext      unsafe.Pointer
@@ -371,7 +431,7 @@ type vkExportMetalTextureInfoEXT struct {
 	mtlTexture MTLTexture_id
 }
 
-func (s *vkExportMetalTextureInfoEXT) goStruct() *ExportMetalTextureInfoEXT {
+func (s *vkExportMetalTextureInfoEXT) ToGo() *ExportMetalTextureInfoEXT {
 	rval := &ExportMetalTextureInfoEXT{
 		PNext:      (unsafe.Pointer)(s.pNext),
 		Image:      (Image)(s.image),
@@ -383,7 +443,7 @@ func (s *vkExportMetalTextureInfoEXT) goStruct() *ExportMetalTextureInfoEXT {
 	return rval
 }
 
-func (s *ExportMetalTextureInfoEXT) vkStruct() *vkExportMetalTextureInfoEXT {
+func (s *ExportMetalTextureInfoEXT) ToVK() *vkExportMetalTextureInfoEXT {
 	if s == nil {
 		return nil
 	}
@@ -406,6 +466,12 @@ type ImportMetalTextureInfoEXT struct {
 	MtlTexture MTLTexture_id
 }
 
+// eg: gostruct := (&vk.ImportMetalTextureInfoEXT{}).FromVK(goStruct2.PNext)
+func (s *ImportMetalTextureInfoEXT) FromVK(pn unsafe.Pointer) *ImportMetalTextureInfoEXT {
+	vks := (*vkImportMetalTextureInfoEXT)(pn)
+	return vks.ToGo()
+}
+
 type vkImportMetalTextureInfoEXT struct {
 	sType      StructureType
 	pNext      unsafe.Pointer
@@ -413,7 +479,7 @@ type vkImportMetalTextureInfoEXT struct {
 	mtlTexture MTLTexture_id
 }
 
-func (s *vkImportMetalTextureInfoEXT) goStruct() *ImportMetalTextureInfoEXT {
+func (s *vkImportMetalTextureInfoEXT) ToGo() *ImportMetalTextureInfoEXT {
 	rval := &ImportMetalTextureInfoEXT{
 		PNext:      (unsafe.Pointer)(s.pNext),
 		Plane:      (ImageAspectFlagBits)(s.plane),
@@ -422,7 +488,7 @@ func (s *vkImportMetalTextureInfoEXT) goStruct() *ImportMetalTextureInfoEXT {
 	return rval
 }
 
-func (s *ImportMetalTextureInfoEXT) vkStruct() *vkImportMetalTextureInfoEXT {
+func (s *ImportMetalTextureInfoEXT) ToVK() *vkImportMetalTextureInfoEXT {
 	if s == nil {
 		return nil
 	}
@@ -442,6 +508,12 @@ type ExportMetalIOSurfaceInfoEXT struct {
 	IoSurface IOSurfaceRef
 }
 
+// eg: gostruct := (&vk.ExportMetalIOSurfaceInfoEXT{}).FromVK(goStruct2.PNext)
+func (s *ExportMetalIOSurfaceInfoEXT) FromVK(pn unsafe.Pointer) *ExportMetalIOSurfaceInfoEXT {
+	vks := (*vkExportMetalIOSurfaceInfoEXT)(pn)
+	return vks.ToGo()
+}
+
 type vkExportMetalIOSurfaceInfoEXT struct {
 	sType     StructureType
 	pNext     unsafe.Pointer
@@ -449,7 +521,7 @@ type vkExportMetalIOSurfaceInfoEXT struct {
 	ioSurface IOSurfaceRef
 }
 
-func (s *vkExportMetalIOSurfaceInfoEXT) goStruct() *ExportMetalIOSurfaceInfoEXT {
+func (s *vkExportMetalIOSurfaceInfoEXT) ToGo() *ExportMetalIOSurfaceInfoEXT {
 	rval := &ExportMetalIOSurfaceInfoEXT{
 		PNext:     (unsafe.Pointer)(s.pNext),
 		Image:     (Image)(s.image),
@@ -458,7 +530,7 @@ func (s *vkExportMetalIOSurfaceInfoEXT) goStruct() *ExportMetalIOSurfaceInfoEXT 
 	return rval
 }
 
-func (s *ExportMetalIOSurfaceInfoEXT) vkStruct() *vkExportMetalIOSurfaceInfoEXT {
+func (s *ExportMetalIOSurfaceInfoEXT) ToVK() *vkExportMetalIOSurfaceInfoEXT {
 	if s == nil {
 		return nil
 	}
@@ -477,13 +549,19 @@ type ImportMetalIOSurfaceInfoEXT struct {
 	IoSurface IOSurfaceRef
 }
 
+// eg: gostruct := (&vk.ImportMetalIOSurfaceInfoEXT{}).FromVK(goStruct2.PNext)
+func (s *ImportMetalIOSurfaceInfoEXT) FromVK(pn unsafe.Pointer) *ImportMetalIOSurfaceInfoEXT {
+	vks := (*vkImportMetalIOSurfaceInfoEXT)(pn)
+	return vks.ToGo()
+}
+
 type vkImportMetalIOSurfaceInfoEXT struct {
 	sType     StructureType
 	pNext     unsafe.Pointer
 	ioSurface IOSurfaceRef
 }
 
-func (s *vkImportMetalIOSurfaceInfoEXT) goStruct() *ImportMetalIOSurfaceInfoEXT {
+func (s *vkImportMetalIOSurfaceInfoEXT) ToGo() *ImportMetalIOSurfaceInfoEXT {
 	rval := &ImportMetalIOSurfaceInfoEXT{
 		PNext:     (unsafe.Pointer)(s.pNext),
 		IoSurface: (IOSurfaceRef)(s.ioSurface),
@@ -491,7 +569,7 @@ func (s *vkImportMetalIOSurfaceInfoEXT) goStruct() *ImportMetalIOSurfaceInfoEXT 
 	return rval
 }
 
-func (s *ImportMetalIOSurfaceInfoEXT) vkStruct() *vkImportMetalIOSurfaceInfoEXT {
+func (s *ImportMetalIOSurfaceInfoEXT) ToVK() *vkImportMetalIOSurfaceInfoEXT {
 	if s == nil {
 		return nil
 	}
@@ -511,6 +589,12 @@ type ExportMetalSharedEventInfoEXT struct {
 	MtlSharedEvent MTLSharedEvent_id
 }
 
+// eg: gostruct := (&vk.ExportMetalSharedEventInfoEXT{}).FromVK(goStruct2.PNext)
+func (s *ExportMetalSharedEventInfoEXT) FromVK(pn unsafe.Pointer) *ExportMetalSharedEventInfoEXT {
+	vks := (*vkExportMetalSharedEventInfoEXT)(pn)
+	return vks.ToGo()
+}
+
 type vkExportMetalSharedEventInfoEXT struct {
 	sType          StructureType
 	pNext          unsafe.Pointer
@@ -519,7 +603,7 @@ type vkExportMetalSharedEventInfoEXT struct {
 	mtlSharedEvent MTLSharedEvent_id
 }
 
-func (s *vkExportMetalSharedEventInfoEXT) goStruct() *ExportMetalSharedEventInfoEXT {
+func (s *vkExportMetalSharedEventInfoEXT) ToGo() *ExportMetalSharedEventInfoEXT {
 	rval := &ExportMetalSharedEventInfoEXT{
 		PNext:          (unsafe.Pointer)(s.pNext),
 		Semaphore:      (Semaphore)(s.semaphore),
@@ -529,7 +613,7 @@ func (s *vkExportMetalSharedEventInfoEXT) goStruct() *ExportMetalSharedEventInfo
 	return rval
 }
 
-func (s *ExportMetalSharedEventInfoEXT) vkStruct() *vkExportMetalSharedEventInfoEXT {
+func (s *ExportMetalSharedEventInfoEXT) ToVK() *vkExportMetalSharedEventInfoEXT {
 	if s == nil {
 		return nil
 	}
@@ -549,13 +633,19 @@ type ImportMetalSharedEventInfoEXT struct {
 	MtlSharedEvent MTLSharedEvent_id
 }
 
+// eg: gostruct := (&vk.ImportMetalSharedEventInfoEXT{}).FromVK(goStruct2.PNext)
+func (s *ImportMetalSharedEventInfoEXT) FromVK(pn unsafe.Pointer) *ImportMetalSharedEventInfoEXT {
+	vks := (*vkImportMetalSharedEventInfoEXT)(pn)
+	return vks.ToGo()
+}
+
 type vkImportMetalSharedEventInfoEXT struct {
 	sType          StructureType
 	pNext          unsafe.Pointer
 	mtlSharedEvent MTLSharedEvent_id
 }
 
-func (s *vkImportMetalSharedEventInfoEXT) goStruct() *ImportMetalSharedEventInfoEXT {
+func (s *vkImportMetalSharedEventInfoEXT) ToGo() *ImportMetalSharedEventInfoEXT {
 	rval := &ImportMetalSharedEventInfoEXT{
 		PNext:          (unsafe.Pointer)(s.pNext),
 		MtlSharedEvent: (MTLSharedEvent_id)(s.mtlSharedEvent),
@@ -563,7 +653,7 @@ func (s *vkImportMetalSharedEventInfoEXT) goStruct() *ImportMetalSharedEventInfo
 	return rval
 }
 
-func (s *ImportMetalSharedEventInfoEXT) vkStruct() *vkImportMetalSharedEventInfoEXT {
+func (s *ImportMetalSharedEventInfoEXT) ToVK() *vkImportMetalSharedEventInfoEXT {
 	if s == nil {
 		return nil
 	}
@@ -582,6 +672,12 @@ type MetalSurfaceCreateInfoEXT struct {
 	PLayer *CAMetalLayer
 }
 
+// eg: gostruct := (&vk.MetalSurfaceCreateInfoEXT{}).FromVK(goStruct2.PNext)
+func (s *MetalSurfaceCreateInfoEXT) FromVK(pn unsafe.Pointer) *MetalSurfaceCreateInfoEXT {
+	vks := (*vkMetalSurfaceCreateInfoEXT)(pn)
+	return vks.ToGo()
+}
+
 type vkMetalSurfaceCreateInfoEXT struct {
 	sType  StructureType
 	pNext  unsafe.Pointer
@@ -589,7 +685,7 @@ type vkMetalSurfaceCreateInfoEXT struct {
 	pLayer *CAMetalLayer
 }
 
-func (s *vkMetalSurfaceCreateInfoEXT) goStruct() *MetalSurfaceCreateInfoEXT {
+func (s *vkMetalSurfaceCreateInfoEXT) ToGo() *MetalSurfaceCreateInfoEXT {
 	rval := &MetalSurfaceCreateInfoEXT{
 		PNext: (unsafe.Pointer)(s.pNext),
 		Flags: (MetalSurfaceCreateFlagsEXT)(s.flags),
@@ -598,7 +694,7 @@ func (s *vkMetalSurfaceCreateInfoEXT) goStruct() *MetalSurfaceCreateInfoEXT {
 	return rval
 }
 
-func (s *MetalSurfaceCreateInfoEXT) vkStruct() *vkMetalSurfaceCreateInfoEXT {
+func (s *MetalSurfaceCreateInfoEXT) ToVK() *vkMetalSurfaceCreateInfoEXT {
 	if s == nil {
 		return nil
 	}
@@ -622,21 +718,21 @@ func GetMemoryMetalHandleEXT(device Device,
 	// struct requiring translation
 	var pGetMetalHandleInfo *vkMemoryGetMetalHandleInfoEXT
 	if getMetalHandleInfo != nil {
-		pGetMetalHandleInfo = getMetalHandleInfo.vkStruct()
+		pGetMetalHandleInfo = getMetalHandleInfo.ToVK()
 	}
 
 	// binding-allocated single return value populated by Vulkan
 	pHandle := &pHandle
 	if vkGetMemoryMetalHandleEXT == nil {
-		vkGetMemoryMetalHandleEXT = dlHandle.NewProc("vkGetMemoryMetalHandleEXT")
+		vkGetMemoryMetalHandleEXT = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetMemoryMetalHandleEXT")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkGetMemoryMetalHandleEXT.Addr(),
-		uintptr(device),
-		uintptr(unsafe.Pointer(pGetMetalHandleInfo)),
-		uintptr(unsafe.Pointer(pHandle)),
+	rsys = C.Trampoline3(vkGetMemoryMetalHandleEXT,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pGetMetalHandleInfo))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pHandle))),
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -657,19 +753,21 @@ func GetMemoryMetalHandlePropertiesEXT(device Device,
 	}
 
 	// binding-allocated single return value populated by Vulkan, requires translation
-	var pMemoryMetalHandleProperties *vkMemoryMetalHandlePropertiesEXT = memoryMetalHandleProperties.vkStruct()
+	var pMemoryMetalHandleProperties *vkMemoryMetalHandlePropertiesEXT = memoryMetalHandleProperties.ToVK()
 	if vkGetMemoryMetalHandlePropertiesEXT == nil {
-		vkGetMemoryMetalHandlePropertiesEXT = dlHandle.NewProc("vkGetMemoryMetalHandlePropertiesEXT")
+		vkGetMemoryMetalHandlePropertiesEXT = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetMemoryMetalHandlePropertiesEXT")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkGetMemoryMetalHandlePropertiesEXT.Addr(),
-		uintptr(device),
-		uintptr(handleType),
-		uintptr(pHandle),
-		uintptr(unsafe.Pointer(pMemoryMetalHandleProperties)),
+	rsys = C.Trampoline6(vkGetMemoryMetalHandlePropertiesEXT,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(handleType)),
+		C.uintptr(uintptr(pHandle)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pMemoryMetalHandleProperties))),
+		0,
+		0,
 	)
-	r = Result(uintptr(rsys))
-	memoryMetalHandleProperties = *(pMemoryMetalHandleProperties.goStruct())
+	r = Result(rsys)
+	memoryMetalHandleProperties = *(pMemoryMetalHandleProperties.ToGo())
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -682,15 +780,16 @@ var vkExportMetalObjectsEXT vkCommand
 func ExportMetalObjectsEXT(device Device) (metalObjectsInfo ExportMetalObjectsInfoEXT) {
 
 	// binding-allocated single return value populated by Vulkan, requires translation
-	var pMetalObjectsInfo *vkExportMetalObjectsInfoEXT = metalObjectsInfo.vkStruct()
+	var pMetalObjectsInfo *vkExportMetalObjectsInfoEXT = metalObjectsInfo.ToVK()
 	if vkExportMetalObjectsEXT == nil {
-		vkExportMetalObjectsEXT = dlHandle.NewProc("vkExportMetalObjectsEXT")
+		vkExportMetalObjectsEXT = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkExportMetalObjectsEXT")))
 	}
-	syscall.SyscallN(vkExportMetalObjectsEXT.Addr(),
-		uintptr(device),
-		uintptr(unsafe.Pointer(pMetalObjectsInfo)),
+	C.Trampoline3(vkExportMetalObjectsEXT,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pMetalObjectsInfo))),
+		0,
 	)
-	metalObjectsInfo = *(pMetalObjectsInfo.goStruct())
+	metalObjectsInfo = *(pMetalObjectsInfo.ToGo())
 	return
 }
 
@@ -704,7 +803,7 @@ func CreateMetalSurfaceEXT(instance Instance,
 	// struct requiring translation
 	var pCreateInfo *vkMetalSurfaceCreateInfoEXT
 	if createInfo != nil {
-		pCreateInfo = createInfo.vkStruct()
+		pCreateInfo = createInfo.ToVK()
 	}
 
 	// singular input, pass direct
@@ -716,16 +815,18 @@ func CreateMetalSurfaceEXT(instance Instance,
 	// binding-allocated single return value populated by Vulkan
 	pSurface := &surface
 	if vkCreateMetalSurfaceEXT == nil {
-		vkCreateMetalSurfaceEXT = dlHandle.NewProc("vkCreateMetalSurfaceEXT")
+		vkCreateMetalSurfaceEXT = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCreateMetalSurfaceEXT")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkCreateMetalSurfaceEXT.Addr(),
-		uintptr(instance),
-		uintptr(unsafe.Pointer(pCreateInfo)),
-		uintptr(unsafe.Pointer(pAllocator)),
-		uintptr(unsafe.Pointer(pSurface)),
+	rsys = C.Trampoline6(vkCreateMetalSurfaceEXT,
+		C.uintptr(uintptr(instance)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pCreateInfo))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pSurface))),
+		0,
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}

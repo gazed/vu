@@ -14,16 +14,17 @@ import (
 type PassID uint8 // upto 256 passes should be sufficient.
 
 const (
-	Pass3D PassID = iota // 3D renderpass rendered first
-	Pass2D               // 2D renderpass rendered next
+	// Main render pass that handles both 3D and 2D models.
+	MainRenderPass PassID = iota // currently the only pass.
+	// FUTURE: add more render passes as needed.
 )
 
 // NewPass initializes a render pass.
 // The returned Pass is expected to be reused in render loops.
 func NewPass() Pass {
 	return Pass{
-		Uniforms: map[load.SceneUniform][]byte{},                       // map of data
-		Lights:   []Light{Light{}, Light{}, Light{}, Light{}, Light{}}, // max 5 lights
+		Uniforms: map[load.SceneUniform][]byte{},              // map of data
+		Lights:   []Light{Light{}, Light{}, Light{}, Light{}}, // max 4 lights
 	}
 }
 
@@ -35,8 +36,7 @@ type Pass struct {
 	Uniforms map[load.SceneUniform][]byte // Scene uniform data
 
 	// Light position and color information.
-	// Lights are reused to generate scene light uniform data.
-	Lights []Light // max 3 scene lights.
+	Lights []Light // Lights are reused.
 }
 
 // Reset the pass data.

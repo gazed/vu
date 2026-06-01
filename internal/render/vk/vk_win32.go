@@ -44,7 +44,7 @@ const (
 
 // bitmask ===============================================================
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/DeviceGroupPresentModeFlagBitsKHR.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkDeviceGroupPresentModeFlagBitsKHR.html
 type DeviceGroupPresentModeFlagBitsKHR = DeviceGroupPresentModeFlagsKHR
 
 const (
@@ -62,7 +62,7 @@ type Win32SurfaceCreateFlagsKHR Flags
 
 // group =================================================================
 
-// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/FullScreenExclusiveEXT.html
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkFullScreenExclusiveEXT.html
 type FullScreenExclusiveEXT int32
 
 const (
@@ -72,7 +72,7 @@ const (
 	FULL_SCREEN_EXCLUSIVE_APPLICATION_CONTROLLED_EXT FullScreenExclusiveEXT = 3
 )
 
-// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/PresentModeKHR.html
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkPresentModeKHR.html
 type PresentModeKHR int32
 
 const (
@@ -90,13 +90,19 @@ type SurfaceFullScreenExclusiveInfoEXT struct {
 	FullScreenExclusive FullScreenExclusiveEXT
 }
 
+// eg: gostruct := (&vk.SurfaceFullScreenExclusiveInfoEXT{}).FromVK(goStruct2.PNext)
+func (s *SurfaceFullScreenExclusiveInfoEXT) FromVK(pn unsafe.Pointer) *SurfaceFullScreenExclusiveInfoEXT {
+	vks := (*vkSurfaceFullScreenExclusiveInfoEXT)(pn)
+	return vks.ToGo()
+}
+
 type vkSurfaceFullScreenExclusiveInfoEXT struct {
 	sType               StructureType
 	pNext               unsafe.Pointer
 	fullScreenExclusive FullScreenExclusiveEXT
 }
 
-func (s *vkSurfaceFullScreenExclusiveInfoEXT) goStruct() *SurfaceFullScreenExclusiveInfoEXT {
+func (s *vkSurfaceFullScreenExclusiveInfoEXT) ToGo() *SurfaceFullScreenExclusiveInfoEXT {
 	rval := &SurfaceFullScreenExclusiveInfoEXT{
 		PNext:               (unsafe.Pointer)(s.pNext),
 		FullScreenExclusive: (FullScreenExclusiveEXT)(s.fullScreenExclusive),
@@ -104,7 +110,7 @@ func (s *vkSurfaceFullScreenExclusiveInfoEXT) goStruct() *SurfaceFullScreenExclu
 	return rval
 }
 
-func (s *SurfaceFullScreenExclusiveInfoEXT) vkStruct() *vkSurfaceFullScreenExclusiveInfoEXT {
+func (s *SurfaceFullScreenExclusiveInfoEXT) ToVK() *vkSurfaceFullScreenExclusiveInfoEXT {
 	if s == nil {
 		return nil
 	}
@@ -122,13 +128,19 @@ type SurfaceCapabilitiesFullScreenExclusiveEXT struct {
 	FullScreenExclusiveSupported bool
 }
 
+// eg: gostruct := (&vk.SurfaceCapabilitiesFullScreenExclusiveEXT{}).FromVK(goStruct2.PNext)
+func (s *SurfaceCapabilitiesFullScreenExclusiveEXT) FromVK(pn unsafe.Pointer) *SurfaceCapabilitiesFullScreenExclusiveEXT {
+	vks := (*vkSurfaceCapabilitiesFullScreenExclusiveEXT)(pn)
+	return vks.ToGo()
+}
+
 type vkSurfaceCapabilitiesFullScreenExclusiveEXT struct {
 	sType                        StructureType
 	pNext                        unsafe.Pointer
 	fullScreenExclusiveSupported Bool32
 }
 
-func (s *vkSurfaceCapabilitiesFullScreenExclusiveEXT) goStruct() *SurfaceCapabilitiesFullScreenExclusiveEXT {
+func (s *vkSurfaceCapabilitiesFullScreenExclusiveEXT) ToGo() *SurfaceCapabilitiesFullScreenExclusiveEXT {
 	rval := &SurfaceCapabilitiesFullScreenExclusiveEXT{
 		PNext:                        (unsafe.Pointer)(s.pNext),
 		FullScreenExclusiveSupported: goBool32(s.fullScreenExclusiveSupported),
@@ -136,7 +148,7 @@ func (s *vkSurfaceCapabilitiesFullScreenExclusiveEXT) goStruct() *SurfaceCapabil
 	return rval
 }
 
-func (s *SurfaceCapabilitiesFullScreenExclusiveEXT) vkStruct() *vkSurfaceCapabilitiesFullScreenExclusiveEXT {
+func (s *SurfaceCapabilitiesFullScreenExclusiveEXT) ToVK() *vkSurfaceCapabilitiesFullScreenExclusiveEXT {
 	if s == nil {
 		return nil
 	}
@@ -154,13 +166,19 @@ type PhysicalDeviceSurfaceInfo2KHR struct {
 	Surface SurfaceKHR
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceSurfaceInfo2KHR{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceSurfaceInfo2KHR) FromVK(pn unsafe.Pointer) *PhysicalDeviceSurfaceInfo2KHR {
+	vks := (*vkPhysicalDeviceSurfaceInfo2KHR)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceSurfaceInfo2KHR struct {
 	sType   StructureType
 	pNext   unsafe.Pointer
 	surface SurfaceKHR
 }
 
-func (s *vkPhysicalDeviceSurfaceInfo2KHR) goStruct() *PhysicalDeviceSurfaceInfo2KHR {
+func (s *vkPhysicalDeviceSurfaceInfo2KHR) ToGo() *PhysicalDeviceSurfaceInfo2KHR {
 	rval := &PhysicalDeviceSurfaceInfo2KHR{
 		PNext:   (unsafe.Pointer)(s.pNext),
 		Surface: (SurfaceKHR)(s.surface),
@@ -168,7 +186,7 @@ func (s *vkPhysicalDeviceSurfaceInfo2KHR) goStruct() *PhysicalDeviceSurfaceInfo2
 	return rval
 }
 
-func (s *PhysicalDeviceSurfaceInfo2KHR) vkStruct() *vkPhysicalDeviceSurfaceInfo2KHR {
+func (s *PhysicalDeviceSurfaceInfo2KHR) ToVK() *vkPhysicalDeviceSurfaceInfo2KHR {
 	if s == nil {
 		return nil
 	}
@@ -186,13 +204,19 @@ type SurfaceFullScreenExclusiveWin32InfoEXT struct {
 	Hmonitor windows.Handle
 }
 
+// eg: gostruct := (&vk.SurfaceFullScreenExclusiveWin32InfoEXT{}).FromVK(goStruct2.PNext)
+func (s *SurfaceFullScreenExclusiveWin32InfoEXT) FromVK(pn unsafe.Pointer) *SurfaceFullScreenExclusiveWin32InfoEXT {
+	vks := (*vkSurfaceFullScreenExclusiveWin32InfoEXT)(pn)
+	return vks.ToGo()
+}
+
 type vkSurfaceFullScreenExclusiveWin32InfoEXT struct {
 	sType    StructureType
 	pNext    unsafe.Pointer
 	hmonitor windows.Handle
 }
 
-func (s *vkSurfaceFullScreenExclusiveWin32InfoEXT) goStruct() *SurfaceFullScreenExclusiveWin32InfoEXT {
+func (s *vkSurfaceFullScreenExclusiveWin32InfoEXT) ToGo() *SurfaceFullScreenExclusiveWin32InfoEXT {
 	rval := &SurfaceFullScreenExclusiveWin32InfoEXT{
 		PNext:    (unsafe.Pointer)(s.pNext),
 		Hmonitor: (windows.Handle)(s.hmonitor),
@@ -200,7 +224,7 @@ func (s *vkSurfaceFullScreenExclusiveWin32InfoEXT) goStruct() *SurfaceFullScreen
 	return rval
 }
 
-func (s *SurfaceFullScreenExclusiveWin32InfoEXT) vkStruct() *vkSurfaceFullScreenExclusiveWin32InfoEXT {
+func (s *SurfaceFullScreenExclusiveWin32InfoEXT) ToVK() *vkSurfaceFullScreenExclusiveWin32InfoEXT {
 	if s == nil {
 		return nil
 	}
@@ -222,6 +246,12 @@ type ImportFenceWin32HandleInfoKHR struct {
 	Name       unsafe.Pointer
 }
 
+// eg: gostruct := (&vk.ImportFenceWin32HandleInfoKHR{}).FromVK(goStruct2.PNext)
+func (s *ImportFenceWin32HandleInfoKHR) FromVK(pn unsafe.Pointer) *ImportFenceWin32HandleInfoKHR {
+	vks := (*vkImportFenceWin32HandleInfoKHR)(pn)
+	return vks.ToGo()
+}
+
 type vkImportFenceWin32HandleInfoKHR struct {
 	sType      StructureType
 	pNext      unsafe.Pointer
@@ -232,7 +262,7 @@ type vkImportFenceWin32HandleInfoKHR struct {
 	name       unsafe.Pointer
 }
 
-func (s *vkImportFenceWin32HandleInfoKHR) goStruct() *ImportFenceWin32HandleInfoKHR {
+func (s *vkImportFenceWin32HandleInfoKHR) ToGo() *ImportFenceWin32HandleInfoKHR {
 	rval := &ImportFenceWin32HandleInfoKHR{
 		PNext:      (unsafe.Pointer)(s.pNext),
 		Fence:      (Fence)(s.fence),
@@ -244,7 +274,7 @@ func (s *vkImportFenceWin32HandleInfoKHR) goStruct() *ImportFenceWin32HandleInfo
 	return rval
 }
 
-func (s *ImportFenceWin32HandleInfoKHR) vkStruct() *vkImportFenceWin32HandleInfoKHR {
+func (s *ImportFenceWin32HandleInfoKHR) ToVK() *vkImportFenceWin32HandleInfoKHR {
 	if s == nil {
 		return nil
 	}
@@ -268,6 +298,12 @@ type ExportFenceWin32HandleInfoKHR struct {
 	Name        unsafe.Pointer
 }
 
+// eg: gostruct := (&vk.ExportFenceWin32HandleInfoKHR{}).FromVK(goStruct2.PNext)
+func (s *ExportFenceWin32HandleInfoKHR) FromVK(pn unsafe.Pointer) *ExportFenceWin32HandleInfoKHR {
+	vks := (*vkExportFenceWin32HandleInfoKHR)(pn)
+	return vks.ToGo()
+}
+
 type vkExportFenceWin32HandleInfoKHR struct {
 	sType       StructureType
 	pNext       unsafe.Pointer
@@ -276,7 +312,7 @@ type vkExportFenceWin32HandleInfoKHR struct {
 	name        unsafe.Pointer
 }
 
-func (s *vkExportFenceWin32HandleInfoKHR) goStruct() *ExportFenceWin32HandleInfoKHR {
+func (s *vkExportFenceWin32HandleInfoKHR) ToGo() *ExportFenceWin32HandleInfoKHR {
 	rval := &ExportFenceWin32HandleInfoKHR{
 		PNext: (unsafe.Pointer)(s.pNext),
 		// ignoring returned pointer type PAttributes
@@ -286,7 +322,7 @@ func (s *vkExportFenceWin32HandleInfoKHR) goStruct() *ExportFenceWin32HandleInfo
 	return rval
 }
 
-func (s *ExportFenceWin32HandleInfoKHR) vkStruct() *vkExportFenceWin32HandleInfoKHR {
+func (s *ExportFenceWin32HandleInfoKHR) ToVK() *vkExportFenceWin32HandleInfoKHR {
 	if s == nil {
 		return nil
 	}
@@ -307,6 +343,12 @@ type FenceGetWin32HandleInfoKHR struct {
 	HandleType ExternalFenceHandleTypeFlagBits
 }
 
+// eg: gostruct := (&vk.FenceGetWin32HandleInfoKHR{}).FromVK(goStruct2.PNext)
+func (s *FenceGetWin32HandleInfoKHR) FromVK(pn unsafe.Pointer) *FenceGetWin32HandleInfoKHR {
+	vks := (*vkFenceGetWin32HandleInfoKHR)(pn)
+	return vks.ToGo()
+}
+
 type vkFenceGetWin32HandleInfoKHR struct {
 	sType      StructureType
 	pNext      unsafe.Pointer
@@ -314,7 +356,7 @@ type vkFenceGetWin32HandleInfoKHR struct {
 	handleType ExternalFenceHandleTypeFlagBits
 }
 
-func (s *vkFenceGetWin32HandleInfoKHR) goStruct() *FenceGetWin32HandleInfoKHR {
+func (s *vkFenceGetWin32HandleInfoKHR) ToGo() *FenceGetWin32HandleInfoKHR {
 	rval := &FenceGetWin32HandleInfoKHR{
 		PNext:      (unsafe.Pointer)(s.pNext),
 		Fence:      (Fence)(s.fence),
@@ -323,7 +365,7 @@ func (s *vkFenceGetWin32HandleInfoKHR) goStruct() *FenceGetWin32HandleInfoKHR {
 	return rval
 }
 
-func (s *FenceGetWin32HandleInfoKHR) vkStruct() *vkFenceGetWin32HandleInfoKHR {
+func (s *FenceGetWin32HandleInfoKHR) ToVK() *vkFenceGetWin32HandleInfoKHR {
 	if s == nil {
 		return nil
 	}
@@ -344,6 +386,12 @@ type ImportMemoryWin32HandleInfoKHR struct {
 	Name       unsafe.Pointer
 }
 
+// eg: gostruct := (&vk.ImportMemoryWin32HandleInfoKHR{}).FromVK(goStruct2.PNext)
+func (s *ImportMemoryWin32HandleInfoKHR) FromVK(pn unsafe.Pointer) *ImportMemoryWin32HandleInfoKHR {
+	vks := (*vkImportMemoryWin32HandleInfoKHR)(pn)
+	return vks.ToGo()
+}
+
 type vkImportMemoryWin32HandleInfoKHR struct {
 	sType      StructureType
 	pNext      unsafe.Pointer
@@ -352,7 +400,7 @@ type vkImportMemoryWin32HandleInfoKHR struct {
 	name       unsafe.Pointer
 }
 
-func (s *vkImportMemoryWin32HandleInfoKHR) goStruct() *ImportMemoryWin32HandleInfoKHR {
+func (s *vkImportMemoryWin32HandleInfoKHR) ToGo() *ImportMemoryWin32HandleInfoKHR {
 	rval := &ImportMemoryWin32HandleInfoKHR{
 		PNext:      (unsafe.Pointer)(s.pNext),
 		HandleType: (ExternalMemoryHandleTypeFlagBits)(s.handleType),
@@ -362,7 +410,7 @@ func (s *vkImportMemoryWin32HandleInfoKHR) goStruct() *ImportMemoryWin32HandleIn
 	return rval
 }
 
-func (s *ImportMemoryWin32HandleInfoKHR) vkStruct() *vkImportMemoryWin32HandleInfoKHR {
+func (s *ImportMemoryWin32HandleInfoKHR) ToVK() *vkImportMemoryWin32HandleInfoKHR {
 	if s == nil {
 		return nil
 	}
@@ -384,6 +432,12 @@ type ExportMemoryWin32HandleInfoKHR struct {
 	Name        unsafe.Pointer
 }
 
+// eg: gostruct := (&vk.ExportMemoryWin32HandleInfoKHR{}).FromVK(goStruct2.PNext)
+func (s *ExportMemoryWin32HandleInfoKHR) FromVK(pn unsafe.Pointer) *ExportMemoryWin32HandleInfoKHR {
+	vks := (*vkExportMemoryWin32HandleInfoKHR)(pn)
+	return vks.ToGo()
+}
+
 type vkExportMemoryWin32HandleInfoKHR struct {
 	sType       StructureType
 	pNext       unsafe.Pointer
@@ -392,7 +446,7 @@ type vkExportMemoryWin32HandleInfoKHR struct {
 	name        unsafe.Pointer
 }
 
-func (s *vkExportMemoryWin32HandleInfoKHR) goStruct() *ExportMemoryWin32HandleInfoKHR {
+func (s *vkExportMemoryWin32HandleInfoKHR) ToGo() *ExportMemoryWin32HandleInfoKHR {
 	rval := &ExportMemoryWin32HandleInfoKHR{
 		PNext: (unsafe.Pointer)(s.pNext),
 		// ignoring returned pointer type PAttributes
@@ -402,7 +456,7 @@ func (s *vkExportMemoryWin32HandleInfoKHR) goStruct() *ExportMemoryWin32HandleIn
 	return rval
 }
 
-func (s *ExportMemoryWin32HandleInfoKHR) vkStruct() *vkExportMemoryWin32HandleInfoKHR {
+func (s *ExportMemoryWin32HandleInfoKHR) ToVK() *vkExportMemoryWin32HandleInfoKHR {
 	if s == nil {
 		return nil
 	}
@@ -422,13 +476,19 @@ type MemoryWin32HandlePropertiesKHR struct {
 	MemoryTypeBits uint32
 }
 
+// eg: gostruct := (&vk.MemoryWin32HandlePropertiesKHR{}).FromVK(goStruct2.PNext)
+func (s *MemoryWin32HandlePropertiesKHR) FromVK(pn unsafe.Pointer) *MemoryWin32HandlePropertiesKHR {
+	vks := (*vkMemoryWin32HandlePropertiesKHR)(pn)
+	return vks.ToGo()
+}
+
 type vkMemoryWin32HandlePropertiesKHR struct {
 	sType          StructureType
 	pNext          unsafe.Pointer
 	memoryTypeBits uint32
 }
 
-func (s *vkMemoryWin32HandlePropertiesKHR) goStruct() *MemoryWin32HandlePropertiesKHR {
+func (s *vkMemoryWin32HandlePropertiesKHR) ToGo() *MemoryWin32HandlePropertiesKHR {
 	rval := &MemoryWin32HandlePropertiesKHR{
 		PNext:          (unsafe.Pointer)(s.pNext),
 		MemoryTypeBits: (uint32)(s.memoryTypeBits),
@@ -436,7 +496,7 @@ func (s *vkMemoryWin32HandlePropertiesKHR) goStruct() *MemoryWin32HandleProperti
 	return rval
 }
 
-func (s *MemoryWin32HandlePropertiesKHR) vkStruct() *vkMemoryWin32HandlePropertiesKHR {
+func (s *MemoryWin32HandlePropertiesKHR) ToVK() *vkMemoryWin32HandlePropertiesKHR {
 	if s == nil {
 		return nil
 	}
@@ -455,6 +515,12 @@ type MemoryGetWin32HandleInfoKHR struct {
 	HandleType ExternalMemoryHandleTypeFlagBits
 }
 
+// eg: gostruct := (&vk.MemoryGetWin32HandleInfoKHR{}).FromVK(goStruct2.PNext)
+func (s *MemoryGetWin32HandleInfoKHR) FromVK(pn unsafe.Pointer) *MemoryGetWin32HandleInfoKHR {
+	vks := (*vkMemoryGetWin32HandleInfoKHR)(pn)
+	return vks.ToGo()
+}
+
 type vkMemoryGetWin32HandleInfoKHR struct {
 	sType      StructureType
 	pNext      unsafe.Pointer
@@ -462,7 +528,7 @@ type vkMemoryGetWin32HandleInfoKHR struct {
 	handleType ExternalMemoryHandleTypeFlagBits
 }
 
-func (s *vkMemoryGetWin32HandleInfoKHR) goStruct() *MemoryGetWin32HandleInfoKHR {
+func (s *vkMemoryGetWin32HandleInfoKHR) ToGo() *MemoryGetWin32HandleInfoKHR {
 	rval := &MemoryGetWin32HandleInfoKHR{
 		PNext:      (unsafe.Pointer)(s.pNext),
 		Memory:     (DeviceMemory)(s.memory),
@@ -471,7 +537,7 @@ func (s *vkMemoryGetWin32HandleInfoKHR) goStruct() *MemoryGetWin32HandleInfoKHR 
 	return rval
 }
 
-func (s *MemoryGetWin32HandleInfoKHR) vkStruct() *vkMemoryGetWin32HandleInfoKHR {
+func (s *MemoryGetWin32HandleInfoKHR) ToVK() *vkMemoryGetWin32HandleInfoKHR {
 	if s == nil {
 		return nil
 	}
@@ -494,6 +560,12 @@ type ImportSemaphoreWin32HandleInfoKHR struct {
 	Name       unsafe.Pointer
 }
 
+// eg: gostruct := (&vk.ImportSemaphoreWin32HandleInfoKHR{}).FromVK(goStruct2.PNext)
+func (s *ImportSemaphoreWin32HandleInfoKHR) FromVK(pn unsafe.Pointer) *ImportSemaphoreWin32HandleInfoKHR {
+	vks := (*vkImportSemaphoreWin32HandleInfoKHR)(pn)
+	return vks.ToGo()
+}
+
 type vkImportSemaphoreWin32HandleInfoKHR struct {
 	sType      StructureType
 	pNext      unsafe.Pointer
@@ -504,7 +576,7 @@ type vkImportSemaphoreWin32HandleInfoKHR struct {
 	name       unsafe.Pointer
 }
 
-func (s *vkImportSemaphoreWin32HandleInfoKHR) goStruct() *ImportSemaphoreWin32HandleInfoKHR {
+func (s *vkImportSemaphoreWin32HandleInfoKHR) ToGo() *ImportSemaphoreWin32HandleInfoKHR {
 	rval := &ImportSemaphoreWin32HandleInfoKHR{
 		PNext:      (unsafe.Pointer)(s.pNext),
 		Semaphore:  (Semaphore)(s.semaphore),
@@ -516,7 +588,7 @@ func (s *vkImportSemaphoreWin32HandleInfoKHR) goStruct() *ImportSemaphoreWin32Ha
 	return rval
 }
 
-func (s *ImportSemaphoreWin32HandleInfoKHR) vkStruct() *vkImportSemaphoreWin32HandleInfoKHR {
+func (s *ImportSemaphoreWin32HandleInfoKHR) ToVK() *vkImportSemaphoreWin32HandleInfoKHR {
 	if s == nil {
 		return nil
 	}
@@ -540,6 +612,12 @@ type ExportSemaphoreWin32HandleInfoKHR struct {
 	Name        unsafe.Pointer
 }
 
+// eg: gostruct := (&vk.ExportSemaphoreWin32HandleInfoKHR{}).FromVK(goStruct2.PNext)
+func (s *ExportSemaphoreWin32HandleInfoKHR) FromVK(pn unsafe.Pointer) *ExportSemaphoreWin32HandleInfoKHR {
+	vks := (*vkExportSemaphoreWin32HandleInfoKHR)(pn)
+	return vks.ToGo()
+}
+
 type vkExportSemaphoreWin32HandleInfoKHR struct {
 	sType       StructureType
 	pNext       unsafe.Pointer
@@ -548,7 +626,7 @@ type vkExportSemaphoreWin32HandleInfoKHR struct {
 	name        unsafe.Pointer
 }
 
-func (s *vkExportSemaphoreWin32HandleInfoKHR) goStruct() *ExportSemaphoreWin32HandleInfoKHR {
+func (s *vkExportSemaphoreWin32HandleInfoKHR) ToGo() *ExportSemaphoreWin32HandleInfoKHR {
 	rval := &ExportSemaphoreWin32HandleInfoKHR{
 		PNext: (unsafe.Pointer)(s.pNext),
 		// ignoring returned pointer type PAttributes
@@ -558,7 +636,7 @@ func (s *vkExportSemaphoreWin32HandleInfoKHR) goStruct() *ExportSemaphoreWin32Ha
 	return rval
 }
 
-func (s *ExportSemaphoreWin32HandleInfoKHR) vkStruct() *vkExportSemaphoreWin32HandleInfoKHR {
+func (s *ExportSemaphoreWin32HandleInfoKHR) ToVK() *vkExportSemaphoreWin32HandleInfoKHR {
 	if s == nil {
 		return nil
 	}
@@ -579,6 +657,12 @@ type D3D12FenceSubmitInfoKHR struct {
 	PSignalSemaphoreValues []uint64
 }
 
+// eg: gostruct := (&vk.D3D12FenceSubmitInfoKHR{}).FromVK(goStruct2.PNext)
+func (s *D3D12FenceSubmitInfoKHR) FromVK(pn unsafe.Pointer) *D3D12FenceSubmitInfoKHR {
+	vks := (*vkD3D12FenceSubmitInfoKHR)(pn)
+	return vks.ToGo()
+}
+
 type vkD3D12FenceSubmitInfoKHR struct {
 	sType                      StructureType
 	pNext                      unsafe.Pointer
@@ -588,7 +672,7 @@ type vkD3D12FenceSubmitInfoKHR struct {
 	pSignalSemaphoreValues     *uint64
 }
 
-func (s *vkD3D12FenceSubmitInfoKHR) goStruct() *D3D12FenceSubmitInfoKHR {
+func (s *vkD3D12FenceSubmitInfoKHR) ToGo() *D3D12FenceSubmitInfoKHR {
 	rval := &D3D12FenceSubmitInfoKHR{
 		PNext: (unsafe.Pointer)(s.pNext),
 		// ignoring returned pointer type PWaitSemaphoreValues
@@ -597,7 +681,7 @@ func (s *vkD3D12FenceSubmitInfoKHR) goStruct() *D3D12FenceSubmitInfoKHR {
 	return rval
 }
 
-func (s *D3D12FenceSubmitInfoKHR) vkStruct() *vkD3D12FenceSubmitInfoKHR {
+func (s *D3D12FenceSubmitInfoKHR) ToVK() *vkD3D12FenceSubmitInfoKHR {
 	if s == nil {
 		return nil
 	}
@@ -627,6 +711,12 @@ type SemaphoreGetWin32HandleInfoKHR struct {
 	HandleType ExternalSemaphoreHandleTypeFlagBits
 }
 
+// eg: gostruct := (&vk.SemaphoreGetWin32HandleInfoKHR{}).FromVK(goStruct2.PNext)
+func (s *SemaphoreGetWin32HandleInfoKHR) FromVK(pn unsafe.Pointer) *SemaphoreGetWin32HandleInfoKHR {
+	vks := (*vkSemaphoreGetWin32HandleInfoKHR)(pn)
+	return vks.ToGo()
+}
+
 type vkSemaphoreGetWin32HandleInfoKHR struct {
 	sType      StructureType
 	pNext      unsafe.Pointer
@@ -634,7 +724,7 @@ type vkSemaphoreGetWin32HandleInfoKHR struct {
 	handleType ExternalSemaphoreHandleTypeFlagBits
 }
 
-func (s *vkSemaphoreGetWin32HandleInfoKHR) goStruct() *SemaphoreGetWin32HandleInfoKHR {
+func (s *vkSemaphoreGetWin32HandleInfoKHR) ToGo() *SemaphoreGetWin32HandleInfoKHR {
 	rval := &SemaphoreGetWin32HandleInfoKHR{
 		PNext:      (unsafe.Pointer)(s.pNext),
 		Semaphore:  (Semaphore)(s.semaphore),
@@ -643,7 +733,7 @@ func (s *vkSemaphoreGetWin32HandleInfoKHR) goStruct() *SemaphoreGetWin32HandleIn
 	return rval
 }
 
-func (s *SemaphoreGetWin32HandleInfoKHR) vkStruct() *vkSemaphoreGetWin32HandleInfoKHR {
+func (s *SemaphoreGetWin32HandleInfoKHR) ToVK() *vkSemaphoreGetWin32HandleInfoKHR {
 	if s == nil {
 		return nil
 	}
@@ -666,6 +756,12 @@ type Win32KeyedMutexAcquireReleaseInfoKHR struct {
 	PReleaseKeys     []uint64
 }
 
+// eg: gostruct := (&vk.Win32KeyedMutexAcquireReleaseInfoKHR{}).FromVK(goStruct2.PNext)
+func (s *Win32KeyedMutexAcquireReleaseInfoKHR) FromVK(pn unsafe.Pointer) *Win32KeyedMutexAcquireReleaseInfoKHR {
+	vks := (*vkWin32KeyedMutexAcquireReleaseInfoKHR)(pn)
+	return vks.ToGo()
+}
+
 type vkWin32KeyedMutexAcquireReleaseInfoKHR struct {
 	sType            StructureType
 	pNext            unsafe.Pointer
@@ -678,7 +774,7 @@ type vkWin32KeyedMutexAcquireReleaseInfoKHR struct {
 	pReleaseKeys     *uint64
 }
 
-func (s *vkWin32KeyedMutexAcquireReleaseInfoKHR) goStruct() *Win32KeyedMutexAcquireReleaseInfoKHR {
+func (s *vkWin32KeyedMutexAcquireReleaseInfoKHR) ToGo() *Win32KeyedMutexAcquireReleaseInfoKHR {
 	rval := &Win32KeyedMutexAcquireReleaseInfoKHR{
 		PNext: (unsafe.Pointer)(s.pNext),
 		// ignoring returned pointer type PAcquireSyncs
@@ -690,7 +786,7 @@ func (s *vkWin32KeyedMutexAcquireReleaseInfoKHR) goStruct() *Win32KeyedMutexAcqu
 	return rval
 }
 
-func (s *Win32KeyedMutexAcquireReleaseInfoKHR) vkStruct() *vkWin32KeyedMutexAcquireReleaseInfoKHR {
+func (s *Win32KeyedMutexAcquireReleaseInfoKHR) ToVK() *vkWin32KeyedMutexAcquireReleaseInfoKHR {
 	if s == nil {
 		return nil
 	}
@@ -751,6 +847,12 @@ type Win32SurfaceCreateInfoKHR struct {
 	Hwnd      windows.HWND
 }
 
+// eg: gostruct := (&vk.Win32SurfaceCreateInfoKHR{}).FromVK(goStruct2.PNext)
+func (s *Win32SurfaceCreateInfoKHR) FromVK(pn unsafe.Pointer) *Win32SurfaceCreateInfoKHR {
+	vks := (*vkWin32SurfaceCreateInfoKHR)(pn)
+	return vks.ToGo()
+}
+
 type vkWin32SurfaceCreateInfoKHR struct {
 	sType     StructureType
 	pNext     unsafe.Pointer
@@ -759,7 +861,7 @@ type vkWin32SurfaceCreateInfoKHR struct {
 	hwnd      windows.HWND
 }
 
-func (s *vkWin32SurfaceCreateInfoKHR) goStruct() *Win32SurfaceCreateInfoKHR {
+func (s *vkWin32SurfaceCreateInfoKHR) ToGo() *Win32SurfaceCreateInfoKHR {
 	rval := &Win32SurfaceCreateInfoKHR{
 		PNext:     (unsafe.Pointer)(s.pNext),
 		Flags:     (Win32SurfaceCreateFlagsKHR)(s.flags),
@@ -769,7 +871,7 @@ func (s *vkWin32SurfaceCreateInfoKHR) goStruct() *Win32SurfaceCreateInfoKHR {
 	return rval
 }
 
-func (s *Win32SurfaceCreateInfoKHR) vkStruct() *vkWin32SurfaceCreateInfoKHR {
+func (s *Win32SurfaceCreateInfoKHR) ToVK() *vkWin32SurfaceCreateInfoKHR {
 	if s == nil {
 		return nil
 	}
@@ -790,6 +892,12 @@ type ImportMemoryWin32HandleInfoNV struct {
 	Handle     windows.Handle
 }
 
+// eg: gostruct := (&vk.ImportMemoryWin32HandleInfoNV{}).FromVK(goStruct2.PNext)
+func (s *ImportMemoryWin32HandleInfoNV) FromVK(pn unsafe.Pointer) *ImportMemoryWin32HandleInfoNV {
+	vks := (*vkImportMemoryWin32HandleInfoNV)(pn)
+	return vks.ToGo()
+}
+
 type vkImportMemoryWin32HandleInfoNV struct {
 	sType      StructureType
 	pNext      unsafe.Pointer
@@ -797,7 +905,7 @@ type vkImportMemoryWin32HandleInfoNV struct {
 	handle     windows.Handle
 }
 
-func (s *vkImportMemoryWin32HandleInfoNV) goStruct() *ImportMemoryWin32HandleInfoNV {
+func (s *vkImportMemoryWin32HandleInfoNV) ToGo() *ImportMemoryWin32HandleInfoNV {
 	rval := &ImportMemoryWin32HandleInfoNV{
 		PNext:      (unsafe.Pointer)(s.pNext),
 		HandleType: (ExternalMemoryHandleTypeFlagsNV)(s.handleType),
@@ -806,7 +914,7 @@ func (s *vkImportMemoryWin32HandleInfoNV) goStruct() *ImportMemoryWin32HandleInf
 	return rval
 }
 
-func (s *ImportMemoryWin32HandleInfoNV) vkStruct() *vkImportMemoryWin32HandleInfoNV {
+func (s *ImportMemoryWin32HandleInfoNV) ToVK() *vkImportMemoryWin32HandleInfoNV {
 	if s == nil {
 		return nil
 	}
@@ -826,6 +934,12 @@ type ExportMemoryWin32HandleInfoNV struct {
 	DwAccess    uint32
 }
 
+// eg: gostruct := (&vk.ExportMemoryWin32HandleInfoNV{}).FromVK(goStruct2.PNext)
+func (s *ExportMemoryWin32HandleInfoNV) FromVK(pn unsafe.Pointer) *ExportMemoryWin32HandleInfoNV {
+	vks := (*vkExportMemoryWin32HandleInfoNV)(pn)
+	return vks.ToGo()
+}
+
 type vkExportMemoryWin32HandleInfoNV struct {
 	sType       StructureType
 	pNext       unsafe.Pointer
@@ -833,7 +947,7 @@ type vkExportMemoryWin32HandleInfoNV struct {
 	dwAccess    uint32
 }
 
-func (s *vkExportMemoryWin32HandleInfoNV) goStruct() *ExportMemoryWin32HandleInfoNV {
+func (s *vkExportMemoryWin32HandleInfoNV) ToGo() *ExportMemoryWin32HandleInfoNV {
 	rval := &ExportMemoryWin32HandleInfoNV{
 		PNext: (unsafe.Pointer)(s.pNext),
 		// ignoring returned pointer type PAttributes
@@ -842,7 +956,7 @@ func (s *vkExportMemoryWin32HandleInfoNV) goStruct() *ExportMemoryWin32HandleInf
 	return rval
 }
 
-func (s *ExportMemoryWin32HandleInfoNV) vkStruct() *vkExportMemoryWin32HandleInfoNV {
+func (s *ExportMemoryWin32HandleInfoNV) ToVK() *vkExportMemoryWin32HandleInfoNV {
 	if s == nil {
 		return nil
 	}
@@ -865,6 +979,12 @@ type Win32KeyedMutexAcquireReleaseInfoNV struct {
 	PReleaseKeys                []uint64
 }
 
+// eg: gostruct := (&vk.Win32KeyedMutexAcquireReleaseInfoNV{}).FromVK(goStruct2.PNext)
+func (s *Win32KeyedMutexAcquireReleaseInfoNV) FromVK(pn unsafe.Pointer) *Win32KeyedMutexAcquireReleaseInfoNV {
+	vks := (*vkWin32KeyedMutexAcquireReleaseInfoNV)(pn)
+	return vks.ToGo()
+}
+
 type vkWin32KeyedMutexAcquireReleaseInfoNV struct {
 	sType                       StructureType
 	pNext                       unsafe.Pointer
@@ -877,7 +997,7 @@ type vkWin32KeyedMutexAcquireReleaseInfoNV struct {
 	pReleaseKeys                *uint64
 }
 
-func (s *vkWin32KeyedMutexAcquireReleaseInfoNV) goStruct() *Win32KeyedMutexAcquireReleaseInfoNV {
+func (s *vkWin32KeyedMutexAcquireReleaseInfoNV) ToGo() *Win32KeyedMutexAcquireReleaseInfoNV {
 	rval := &Win32KeyedMutexAcquireReleaseInfoNV{
 		PNext: (unsafe.Pointer)(s.pNext),
 		// ignoring returned pointer type PAcquireSyncs
@@ -889,7 +1009,7 @@ func (s *vkWin32KeyedMutexAcquireReleaseInfoNV) goStruct() *Win32KeyedMutexAcqui
 	return rval
 }
 
-func (s *Win32KeyedMutexAcquireReleaseInfoNV) vkStruct() *vkWin32KeyedMutexAcquireReleaseInfoNV {
+func (s *Win32KeyedMutexAcquireReleaseInfoNV) ToVK() *vkWin32KeyedMutexAcquireReleaseInfoNV {
 	if s == nil {
 		return nil
 	}
@@ -953,7 +1073,7 @@ func GetPhysicalDeviceSurfacePresentModes2EXT(physicalDevice PhysicalDevice,
 	// struct requiring translation
 	var pSurfaceInfo *vkPhysicalDeviceSurfaceInfo2KHR
 	if surfaceInfo != nil {
-		pSurfaceInfo = surfaceInfo.vkStruct()
+		pSurfaceInfo = surfaceInfo.ToVK()
 	}
 
 	// a double-call array output
@@ -962,11 +1082,11 @@ func GetPhysicalDeviceSurfacePresentModes2EXT(physicalDevice PhysicalDevice,
 	var pPresentModes *PresentModeKHR
 
 	// first c-api call to get counter
-	if vkGetPhysicalDeviceSurfacePresentModes2EXT == nil {
-		vkGetPhysicalDeviceSurfacePresentModes2EXT = dlHandle.NewProc("vkGetPhysicalDeviceSurfacePresentModes2EXT")
+	if vkGetPhysicalDeviceSurfacePresentModes2EXT == 0 {
+		vkGetPhysicalDeviceSurfacePresentModes2EXT = vkCommand(GetInstanceProcAddr(Instance(VKInst), "vkGetPhysicalDeviceSurfacePresentModes2EXT"))
 	}
 	var rsys uintptr
-	rsys, _, _ = syscall.SyscallN(vkGetPhysicalDeviceSurfacePresentModes2EXT.Addr(),
+	rsys, _, _ = syscall.SyscallN(vkGetPhysicalDeviceSurfacePresentModes2EXT,
 		uintptr(physicalDevice),
 		uintptr(unsafe.Pointer(pSurfaceInfo)),
 		uintptr(unsafe.Pointer(pPresentModeCount)),
@@ -980,7 +1100,7 @@ func GetPhysicalDeviceSurfacePresentModes2EXT(physicalDevice PhysicalDevice,
 	pPresentModes = &arr_presentModes[0]
 
 	// second c-api call to get array
-	rsys, _, _ = syscall.SyscallN(vkGetPhysicalDeviceSurfacePresentModes2EXT.Addr(),
+	rsys, _, _ = syscall.SyscallN(vkGetPhysicalDeviceSurfacePresentModes2EXT,
 		uintptr(physicalDevice),
 		uintptr(unsafe.Pointer(pSurfaceInfo)),
 		uintptr(unsafe.Pointer(pPresentModeCount)),
@@ -1004,11 +1124,11 @@ var vkAcquireFullScreenExclusiveModeEXT vkCommand
 func AcquireFullScreenExclusiveModeEXT(device Device,
 	swapchain SwapchainKHR) (r error) {
 
-	if vkAcquireFullScreenExclusiveModeEXT == nil {
-		vkAcquireFullScreenExclusiveModeEXT = dlHandle.NewProc("vkAcquireFullScreenExclusiveModeEXT")
+	if vkAcquireFullScreenExclusiveModeEXT == 0 {
+		vkAcquireFullScreenExclusiveModeEXT = vkCommand(GetInstanceProcAddr(Instance(VKInst), "vkAcquireFullScreenExclusiveModeEXT"))
 	}
 	var rsys uintptr
-	rsys, _, _ = syscall.SyscallN(vkAcquireFullScreenExclusiveModeEXT.Addr(),
+	rsys, _, _ = syscall.SyscallN(vkAcquireFullScreenExclusiveModeEXT,
 		uintptr(device),
 		uintptr(swapchain),
 	)
@@ -1025,11 +1145,11 @@ var vkReleaseFullScreenExclusiveModeEXT vkCommand
 func ReleaseFullScreenExclusiveModeEXT(device Device,
 	swapchain SwapchainKHR) (r error) {
 
-	if vkReleaseFullScreenExclusiveModeEXT == nil {
-		vkReleaseFullScreenExclusiveModeEXT = dlHandle.NewProc("vkReleaseFullScreenExclusiveModeEXT")
+	if vkReleaseFullScreenExclusiveModeEXT == 0 {
+		vkReleaseFullScreenExclusiveModeEXT = vkCommand(GetInstanceProcAddr(Instance(VKInst), "vkReleaseFullScreenExclusiveModeEXT"))
 	}
 	var rsys uintptr
-	rsys, _, _ = syscall.SyscallN(vkReleaseFullScreenExclusiveModeEXT.Addr(),
+	rsys, _, _ = syscall.SyscallN(vkReleaseFullScreenExclusiveModeEXT,
 		uintptr(device),
 		uintptr(swapchain),
 	)
@@ -1049,16 +1169,16 @@ func GetDeviceGroupSurfacePresentModes2EXT(device Device,
 	// struct requiring translation
 	var pSurfaceInfo *vkPhysicalDeviceSurfaceInfo2KHR
 	if surfaceInfo != nil {
-		pSurfaceInfo = surfaceInfo.vkStruct()
+		pSurfaceInfo = surfaceInfo.ToVK()
 	}
 
 	// binding-allocated single return value populated by Vulkan
 	pModes := &modes
-	if vkGetDeviceGroupSurfacePresentModes2EXT == nil {
-		vkGetDeviceGroupSurfacePresentModes2EXT = dlHandle.NewProc("vkGetDeviceGroupSurfacePresentModes2EXT")
+	if vkGetDeviceGroupSurfacePresentModes2EXT == 0 {
+		vkGetDeviceGroupSurfacePresentModes2EXT = vkCommand(GetInstanceProcAddr(Instance(VKInst), "vkGetDeviceGroupSurfacePresentModes2EXT"))
 	}
 	var rsys uintptr
-	rsys, _, _ = syscall.SyscallN(vkGetDeviceGroupSurfacePresentModes2EXT.Addr(),
+	rsys, _, _ = syscall.SyscallN(vkGetDeviceGroupSurfacePresentModes2EXT,
 		uintptr(device),
 		uintptr(unsafe.Pointer(pSurfaceInfo)),
 		uintptr(unsafe.Pointer(pModes)),
@@ -1079,13 +1199,13 @@ func ImportFenceWin32HandleKHR(device Device,
 	// struct requiring translation
 	var pImportFenceWin32HandleInfo *vkImportFenceWin32HandleInfoKHR
 	if importFenceWin32HandleInfo != nil {
-		pImportFenceWin32HandleInfo = importFenceWin32HandleInfo.vkStruct()
+		pImportFenceWin32HandleInfo = importFenceWin32HandleInfo.ToVK()
 	}
-	if vkImportFenceWin32HandleKHR == nil {
-		vkImportFenceWin32HandleKHR = dlHandle.NewProc("vkImportFenceWin32HandleKHR")
+	if vkImportFenceWin32HandleKHR == 0 {
+		vkImportFenceWin32HandleKHR = vkCommand(GetInstanceProcAddr(Instance(VKInst), "vkImportFenceWin32HandleKHR"))
 	}
 	var rsys uintptr
-	rsys, _, _ = syscall.SyscallN(vkImportFenceWin32HandleKHR.Addr(),
+	rsys, _, _ = syscall.SyscallN(vkImportFenceWin32HandleKHR,
 		uintptr(device),
 		uintptr(unsafe.Pointer(pImportFenceWin32HandleInfo)),
 	)
@@ -1105,16 +1225,16 @@ func GetFenceWin32HandleKHR(device Device,
 	// struct requiring translation
 	var pGetWin32HandleInfo *vkFenceGetWin32HandleInfoKHR
 	if getWin32HandleInfo != nil {
-		pGetWin32HandleInfo = getWin32HandleInfo.vkStruct()
+		pGetWin32HandleInfo = getWin32HandleInfo.ToVK()
 	}
 
 	// binding-allocated single return value populated by Vulkan
 	pHandle := &handle
-	if vkGetFenceWin32HandleKHR == nil {
-		vkGetFenceWin32HandleKHR = dlHandle.NewProc("vkGetFenceWin32HandleKHR")
+	if vkGetFenceWin32HandleKHR == 0 {
+		vkGetFenceWin32HandleKHR = vkCommand(GetInstanceProcAddr(Instance(VKInst), "vkGetFenceWin32HandleKHR"))
 	}
 	var rsys uintptr
-	rsys, _, _ = syscall.SyscallN(vkGetFenceWin32HandleKHR.Addr(),
+	rsys, _, _ = syscall.SyscallN(vkGetFenceWin32HandleKHR,
 		uintptr(device),
 		uintptr(unsafe.Pointer(pGetWin32HandleInfo)),
 		uintptr(unsafe.Pointer(pHandle)),
@@ -1135,16 +1255,16 @@ func GetMemoryWin32HandleKHR(device Device,
 	// struct requiring translation
 	var pGetWin32HandleInfo *vkMemoryGetWin32HandleInfoKHR
 	if getWin32HandleInfo != nil {
-		pGetWin32HandleInfo = getWin32HandleInfo.vkStruct()
+		pGetWin32HandleInfo = getWin32HandleInfo.ToVK()
 	}
 
 	// binding-allocated single return value populated by Vulkan
 	pHandle := &handle
-	if vkGetMemoryWin32HandleKHR == nil {
-		vkGetMemoryWin32HandleKHR = dlHandle.NewProc("vkGetMemoryWin32HandleKHR")
+	if vkGetMemoryWin32HandleKHR == 0 {
+		vkGetMemoryWin32HandleKHR = vkCommand(GetInstanceProcAddr(Instance(VKInst), "vkGetMemoryWin32HandleKHR"))
 	}
 	var rsys uintptr
-	rsys, _, _ = syscall.SyscallN(vkGetMemoryWin32HandleKHR.Addr(),
+	rsys, _, _ = syscall.SyscallN(vkGetMemoryWin32HandleKHR,
 		uintptr(device),
 		uintptr(unsafe.Pointer(pGetWin32HandleInfo)),
 		uintptr(unsafe.Pointer(pHandle)),
@@ -1164,19 +1284,19 @@ func GetMemoryWin32HandlePropertiesKHR(device Device,
 	handle windows.Handle) (memoryWin32HandleProperties MemoryWin32HandlePropertiesKHR, r error) {
 
 	// binding-allocated single return value populated by Vulkan, requires translation
-	var pMemoryWin32HandleProperties *vkMemoryWin32HandlePropertiesKHR = memoryWin32HandleProperties.vkStruct()
-	if vkGetMemoryWin32HandlePropertiesKHR == nil {
-		vkGetMemoryWin32HandlePropertiesKHR = dlHandle.NewProc("vkGetMemoryWin32HandlePropertiesKHR")
+	var pMemoryWin32HandleProperties *vkMemoryWin32HandlePropertiesKHR = memoryWin32HandleProperties.ToVK()
+	if vkGetMemoryWin32HandlePropertiesKHR == 0 {
+		vkGetMemoryWin32HandlePropertiesKHR = vkCommand(GetInstanceProcAddr(Instance(VKInst), "vkGetMemoryWin32HandlePropertiesKHR"))
 	}
 	var rsys uintptr
-	rsys, _, _ = syscall.SyscallN(vkGetMemoryWin32HandlePropertiesKHR.Addr(),
+	rsys, _, _ = syscall.SyscallN(vkGetMemoryWin32HandlePropertiesKHR,
 		uintptr(device),
 		uintptr(handleType),
 		uintptr(handle),
 		uintptr(unsafe.Pointer(pMemoryWin32HandleProperties)),
 	)
 	r = Result(uintptr(rsys))
-	memoryWin32HandleProperties = *(pMemoryWin32HandleProperties.goStruct())
+	memoryWin32HandleProperties = *(pMemoryWin32HandleProperties.ToGo())
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -1192,13 +1312,13 @@ func ImportSemaphoreWin32HandleKHR(device Device,
 	// struct requiring translation
 	var pImportSemaphoreWin32HandleInfo *vkImportSemaphoreWin32HandleInfoKHR
 	if importSemaphoreWin32HandleInfo != nil {
-		pImportSemaphoreWin32HandleInfo = importSemaphoreWin32HandleInfo.vkStruct()
+		pImportSemaphoreWin32HandleInfo = importSemaphoreWin32HandleInfo.ToVK()
 	}
-	if vkImportSemaphoreWin32HandleKHR == nil {
-		vkImportSemaphoreWin32HandleKHR = dlHandle.NewProc("vkImportSemaphoreWin32HandleKHR")
+	if vkImportSemaphoreWin32HandleKHR == 0 {
+		vkImportSemaphoreWin32HandleKHR = vkCommand(GetInstanceProcAddr(Instance(VKInst), "vkImportSemaphoreWin32HandleKHR"))
 	}
 	var rsys uintptr
-	rsys, _, _ = syscall.SyscallN(vkImportSemaphoreWin32HandleKHR.Addr(),
+	rsys, _, _ = syscall.SyscallN(vkImportSemaphoreWin32HandleKHR,
 		uintptr(device),
 		uintptr(unsafe.Pointer(pImportSemaphoreWin32HandleInfo)),
 	)
@@ -1218,16 +1338,16 @@ func GetSemaphoreWin32HandleKHR(device Device,
 	// struct requiring translation
 	var pGetWin32HandleInfo *vkSemaphoreGetWin32HandleInfoKHR
 	if getWin32HandleInfo != nil {
-		pGetWin32HandleInfo = getWin32HandleInfo.vkStruct()
+		pGetWin32HandleInfo = getWin32HandleInfo.ToVK()
 	}
 
 	// binding-allocated single return value populated by Vulkan
 	pHandle := &handle
-	if vkGetSemaphoreWin32HandleKHR == nil {
-		vkGetSemaphoreWin32HandleKHR = dlHandle.NewProc("vkGetSemaphoreWin32HandleKHR")
+	if vkGetSemaphoreWin32HandleKHR == 0 {
+		vkGetSemaphoreWin32HandleKHR = vkCommand(GetInstanceProcAddr(Instance(VKInst), "vkGetSemaphoreWin32HandleKHR"))
 	}
 	var rsys uintptr
-	rsys, _, _ = syscall.SyscallN(vkGetSemaphoreWin32HandleKHR.Addr(),
+	rsys, _, _ = syscall.SyscallN(vkGetSemaphoreWin32HandleKHR,
 		uintptr(device),
 		uintptr(unsafe.Pointer(pGetWin32HandleInfo)),
 		uintptr(unsafe.Pointer(pHandle)),
@@ -1249,7 +1369,7 @@ func CreateWin32SurfaceKHR(instance Instance,
 	// struct requiring translation
 	var pCreateInfo *vkWin32SurfaceCreateInfoKHR
 	if createInfo != nil {
-		pCreateInfo = createInfo.vkStruct()
+		pCreateInfo = createInfo.ToVK()
 	}
 
 	// singular input, pass direct
@@ -1260,11 +1380,11 @@ func CreateWin32SurfaceKHR(instance Instance,
 
 	// binding-allocated single return value populated by Vulkan
 	pSurface := &surface
-	if vkCreateWin32SurfaceKHR == nil {
-		vkCreateWin32SurfaceKHR = dlHandle.NewProc("vkCreateWin32SurfaceKHR")
+	if vkCreateWin32SurfaceKHR == 0 {
+		vkCreateWin32SurfaceKHR = vkCommand(GetInstanceProcAddr(Instance(VKInst), "vkCreateWin32SurfaceKHR"))
 	}
 	var rsys uintptr
-	rsys, _, _ = syscall.SyscallN(vkCreateWin32SurfaceKHR.Addr(),
+	rsys, _, _ = syscall.SyscallN(vkCreateWin32SurfaceKHR,
 		uintptr(instance),
 		uintptr(unsafe.Pointer(pCreateInfo)),
 		uintptr(unsafe.Pointer(pAllocator)),
@@ -1283,10 +1403,10 @@ var vkGetPhysicalDeviceWin32PresentationSupportKHR vkCommand
 func GetPhysicalDeviceWin32PresentationSupportKHR(physicalDevice PhysicalDevice,
 	queueFamilyIndex uint32) {
 
-	if vkGetPhysicalDeviceWin32PresentationSupportKHR == nil {
-		vkGetPhysicalDeviceWin32PresentationSupportKHR = dlHandle.NewProc("vkGetPhysicalDeviceWin32PresentationSupportKHR")
+	if vkGetPhysicalDeviceWin32PresentationSupportKHR == 0 {
+		vkGetPhysicalDeviceWin32PresentationSupportKHR = vkCommand(GetInstanceProcAddr(Instance(VKInst), "vkGetPhysicalDeviceWin32PresentationSupportKHR"))
 	}
-	syscall.SyscallN(vkGetPhysicalDeviceWin32PresentationSupportKHR.Addr(),
+	syscall.SyscallN(vkGetPhysicalDeviceWin32PresentationSupportKHR,
 		uintptr(physicalDevice),
 		uintptr(queueFamilyIndex),
 	)
@@ -1298,11 +1418,11 @@ var vkAcquireWinrtDisplayNV vkCommand
 func AcquireWinrtDisplayNV(physicalDevice PhysicalDevice,
 	display DisplayKHR) (r error) {
 
-	if vkAcquireWinrtDisplayNV == nil {
-		vkAcquireWinrtDisplayNV = dlHandle.NewProc("vkAcquireWinrtDisplayNV")
+	if vkAcquireWinrtDisplayNV == 0 {
+		vkAcquireWinrtDisplayNV = vkCommand(GetInstanceProcAddr(Instance(VKInst), "vkAcquireWinrtDisplayNV"))
 	}
 	var rsys uintptr
-	rsys, _, _ = syscall.SyscallN(vkAcquireWinrtDisplayNV.Addr(),
+	rsys, _, _ = syscall.SyscallN(vkAcquireWinrtDisplayNV,
 		uintptr(physicalDevice),
 		uintptr(display),
 	)
@@ -1321,11 +1441,11 @@ func GetWinrtDisplayNV(physicalDevice PhysicalDevice,
 
 	// binding-allocated single return value populated by Vulkan
 	pDisplay := &display
-	if vkGetWinrtDisplayNV == nil {
-		vkGetWinrtDisplayNV = dlHandle.NewProc("vkGetWinrtDisplayNV")
+	if vkGetWinrtDisplayNV == 0 {
+		vkGetWinrtDisplayNV = vkCommand(GetInstanceProcAddr(Instance(VKInst), "vkGetWinrtDisplayNV"))
 	}
 	var rsys uintptr
-	rsys, _, _ = syscall.SyscallN(vkGetWinrtDisplayNV.Addr(),
+	rsys, _, _ = syscall.SyscallN(vkGetWinrtDisplayNV,
 		uintptr(physicalDevice),
 		uintptr(deviceRelativeId),
 		uintptr(unsafe.Pointer(pDisplay)),
@@ -1346,11 +1466,11 @@ func GetMemoryWin32HandleNV(device Device,
 
 	// binding-allocated single return value populated by Vulkan
 	pHandle := &handle
-	if vkGetMemoryWin32HandleNV == nil {
-		vkGetMemoryWin32HandleNV = dlHandle.NewProc("vkGetMemoryWin32HandleNV")
+	if vkGetMemoryWin32HandleNV == 0 {
+		vkGetMemoryWin32HandleNV = vkCommand(GetInstanceProcAddr(Instance(VKInst), "vkGetMemoryWin32HandleNV"))
 	}
 	var rsys uintptr
-	rsys, _, _ = syscall.SyscallN(vkGetMemoryWin32HandleNV.Addr(),
+	rsys, _, _ = syscall.SyscallN(vkGetMemoryWin32HandleNV,
 		uintptr(device),
 		uintptr(memory),
 		uintptr(handleType),

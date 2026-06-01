@@ -5,6 +5,7 @@
 package vk
 
 import (
+	"runtime"
 	"unsafe"
 )
 
@@ -19,7 +20,7 @@ func CreateInstance(createInfo *InstanceCreateInfo,
 	// struct requiring translation
 	var pCreateInfo *vkInstanceCreateInfo
 	if createInfo != nil {
-		pCreateInfo = createInfo.vkStruct()
+		pCreateInfo = createInfo.ToVK()
 	}
 
 	// singular input, pass direct
@@ -31,15 +32,15 @@ func CreateInstance(createInfo *InstanceCreateInfo,
 	// binding-allocated single return value populated by Vulkan
 	pInstance := &instance
 	if vkCreateInstance == nil {
-		vkCreateInstance = dlHandle.NewProc("vkCreateInstance")
+		vkCreateInstance = C.SymbolFromName(dlHandle, unsafe.Pointer(sysStringToBytes("vkCreateInstance")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkCreateInstance.Addr(),
-		uintptr(unsafe.Pointer(pCreateInfo)),
-		uintptr(unsafe.Pointer(pAllocator)),
-		uintptr(unsafe.Pointer(pInstance)),
+	rsys = C.Trampoline3(vkCreateInstance,
+		C.uintptr_t(uintptr(unsafe.Pointer(pCreateInfo))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pInstance))),
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -58,11 +59,12 @@ func DestroyInstance(instance Instance,
 		pAllocator = unsafe.Pointer(allocator)
 	}
 	if vkDestroyInstance == nil {
-		vkDestroyInstance = dlHandle.NewProc("vkDestroyInstance")
+		vkDestroyInstance = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkDestroyInstance")))
 	}
-	syscall.SyscallN(vkDestroyInstance.Addr(),
-		uintptr(instance),
-		uintptr(unsafe.Pointer(pAllocator)),
+	C.Trampoline3(vkDestroyInstance,
+		C.uintptr(uintptr(instance)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
+		0,
 	)
 }
 
@@ -78,15 +80,15 @@ func EnumeratePhysicalDevices(instance Instance) (physicalDevices []PhysicalDevi
 
 	// first c-api call to get counter
 	if vkEnumeratePhysicalDevices == nil {
-		vkEnumeratePhysicalDevices = dlHandle.NewProc("vkEnumeratePhysicalDevices")
+		vkEnumeratePhysicalDevices = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkEnumeratePhysicalDevices")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkEnumeratePhysicalDevices.Addr(),
-		uintptr(instance),
-		uintptr(unsafe.Pointer(pPhysicalDeviceCount)),
-		uintptr(unsafe.Pointer(pPhysicalDevices)),
+	rsys = C.Trampoline3(vkEnumeratePhysicalDevices,
+		C.uintptr(uintptr(instance)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pPhysicalDeviceCount))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pPhysicalDevices))),
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 
 	// allocate the array for the second call
 	arr_physicalDevices := make([]PhysicalDevice, physicalDeviceCount)
@@ -94,7 +96,7 @@ func EnumeratePhysicalDevices(instance Instance) (physicalDevices []PhysicalDevi
 	pPhysicalDevices = &arr_physicalDevices[0]
 
 	// second c-api call to get array
-	sys := C.Trampoline3(vkEnumeratePhysicalDevices,
+	rsys = C.Trampoline3(vkEnumeratePhysicalDevices,
 		C.uintptr(uintptr(instance)),
 		C.uintptr_t(uintptr(unsafe.Pointer(pPhysicalDeviceCount))),
 		C.uintptr_t(uintptr(unsafe.Pointer(pPhysicalDevices))),
@@ -114,18 +116,20 @@ func EnumeratePhysicalDevices(instance Instance) (physicalDevices []PhysicalDevi
 var vkGetPhysicalDeviceFeatures vkCommand
 
 // cmd: https://docs.vulkan.org/refpages/latest/refpages/source/vkGetPhysicalDeviceFeatures.html
-func GetPhysicalDeviceFeatures(physicalDevice PhysicalDevice) (features PhysicalDeviceFeatures) {
+func GetPhysicalDeviceFeatures(physicalDevice PhysicalDevice,
+	features *PhysicalDeviceFeatures) (ofeatures PhysicalDeviceFeatures) {
 
 	// binding-allocated single return value populated by Vulkan, requires translation
-	var pFeatures *vkPhysicalDeviceFeatures = features.vkStruct()
+	var pFeatures *vkPhysicalDeviceFeatures = features.ToVK()
 	if vkGetPhysicalDeviceFeatures == nil {
-		vkGetPhysicalDeviceFeatures = dlHandle.NewProc("vkGetPhysicalDeviceFeatures")
+		vkGetPhysicalDeviceFeatures = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetPhysicalDeviceFeatures")))
 	}
-	syscall.SyscallN(vkGetPhysicalDeviceFeatures.Addr(),
-		uintptr(physicalDevice),
-		uintptr(unsafe.Pointer(pFeatures)),
+	C.Trampoline3(vkGetPhysicalDeviceFeatures,
+		C.uintptr(uintptr(physicalDevice)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pFeatures))),
+		0,
 	)
-	features = *(pFeatures.goStruct())
+	ofeatures = *(pFeatures.ToGo())
 	return
 }
 
@@ -136,16 +140,16 @@ func GetPhysicalDeviceFormatProperties(physicalDevice PhysicalDevice,
 	format Format) (formatProperties FormatProperties) {
 
 	// binding-allocated single return value populated by Vulkan, requires translation
-	var pFormatProperties *vkFormatProperties = formatProperties.vkStruct()
+	var pFormatProperties *vkFormatProperties = formatProperties.ToVK()
 	if vkGetPhysicalDeviceFormatProperties == nil {
-		vkGetPhysicalDeviceFormatProperties = dlHandle.NewProc("vkGetPhysicalDeviceFormatProperties")
+		vkGetPhysicalDeviceFormatProperties = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetPhysicalDeviceFormatProperties")))
 	}
-	syscall.SyscallN(vkGetPhysicalDeviceFormatProperties.Addr(),
-		uintptr(physicalDevice),
-		uintptr(format),
-		uintptr(unsafe.Pointer(pFormatProperties)),
+	C.Trampoline3(vkGetPhysicalDeviceFormatProperties,
+		C.uintptr(uintptr(physicalDevice)),
+		C.uintptr(uintptr(format)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pFormatProperties))),
 	)
-	formatProperties = *(pFormatProperties.goStruct())
+	formatProperties = *(pFormatProperties.ToGo())
 	return
 }
 
@@ -160,22 +164,24 @@ func GetPhysicalDeviceImageFormatProperties(physicalDevice PhysicalDevice,
 	flags ImageCreateFlags) (imageFormatProperties ImageFormatProperties, r error) {
 
 	// binding-allocated single return value populated by Vulkan, requires translation
-	var pImageFormatProperties *vkImageFormatProperties = imageFormatProperties.vkStruct()
+	var pImageFormatProperties *vkImageFormatProperties = imageFormatProperties.ToVK()
 	if vkGetPhysicalDeviceImageFormatProperties == nil {
-		vkGetPhysicalDeviceImageFormatProperties = dlHandle.NewProc("vkGetPhysicalDeviceImageFormatProperties")
+		vkGetPhysicalDeviceImageFormatProperties = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetPhysicalDeviceImageFormatProperties")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkGetPhysicalDeviceImageFormatProperties.Addr(),
-		uintptr(physicalDevice),
-		uintptr(format),
-		uintptr(typ),
-		uintptr(tiling),
-		uintptr(usage),
-		uintptr(flags),
-		uintptr(unsafe.Pointer(pImageFormatProperties)),
+	rsys = C.Trampoline9(vkGetPhysicalDeviceImageFormatProperties,
+		C.uintptr(uintptr(physicalDevice)),
+		C.uintptr(uintptr(format)),
+		C.uintptr(uintptr(typ)),
+		C.uintptr(uintptr(tiling)),
+		C.uintptr(uintptr(usage)),
+		C.uintptr(uintptr(flags)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pImageFormatProperties))),
+		0,
+		0,
 	)
-	r = Result(uintptr(rsys))
-	imageFormatProperties = *(pImageFormatProperties.goStruct())
+	r = Result(rsys)
+	imageFormatProperties = *(pImageFormatProperties.ToGo())
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -188,15 +194,16 @@ var vkGetPhysicalDeviceProperties vkCommand
 func GetPhysicalDeviceProperties(physicalDevice PhysicalDevice) (properties PhysicalDeviceProperties) {
 
 	// binding-allocated single return value populated by Vulkan, requires translation
-	var pProperties *vkPhysicalDeviceProperties = properties.vkStruct()
+	var pProperties *vkPhysicalDeviceProperties = properties.ToVK()
 	if vkGetPhysicalDeviceProperties == nil {
-		vkGetPhysicalDeviceProperties = dlHandle.NewProc("vkGetPhysicalDeviceProperties")
+		vkGetPhysicalDeviceProperties = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetPhysicalDeviceProperties")))
 	}
-	syscall.SyscallN(vkGetPhysicalDeviceProperties.Addr(),
-		uintptr(physicalDevice),
-		uintptr(unsafe.Pointer(pProperties)),
+	C.Trampoline3(vkGetPhysicalDeviceProperties,
+		C.uintptr(uintptr(physicalDevice)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pProperties))),
+		0,
 	)
-	properties = *(pProperties.goStruct())
+	properties = *(pProperties.ToGo())
 	return
 }
 
@@ -212,12 +219,12 @@ func GetPhysicalDeviceQueueFamilyProperties(physicalDevice PhysicalDevice) (queu
 
 	// first c-api call to get counter
 	if vkGetPhysicalDeviceQueueFamilyProperties == nil {
-		vkGetPhysicalDeviceQueueFamilyProperties = dlHandle.NewProc("vkGetPhysicalDeviceQueueFamilyProperties")
+		vkGetPhysicalDeviceQueueFamilyProperties = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetPhysicalDeviceQueueFamilyProperties")))
 	}
-	syscall.SyscallN(vkGetPhysicalDeviceQueueFamilyProperties.Addr(),
-		uintptr(physicalDevice),
-		uintptr(unsafe.Pointer(pQueueFamilyPropertyCount)),
-		uintptr(unsafe.Pointer(pQueueFamilyProperties)),
+	C.Trampoline3(vkGetPhysicalDeviceQueueFamilyProperties,
+		C.uintptr(uintptr(physicalDevice)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pQueueFamilyPropertyCount))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pQueueFamilyProperties))),
 	)
 
 	// allocate the array for the second call
@@ -234,7 +241,7 @@ func GetPhysicalDeviceQueueFamilyProperties(physicalDevice PhysicalDevice) (queu
 
 	// convert the returned array to the go slice
 	for i := range arr_queueFamilyProperties {
-		queueFamilyProperties[i] = *arr_queueFamilyProperties[i].goStruct()
+		queueFamilyProperties[i] = *arr_queueFamilyProperties[i].ToGo()
 	}
 	return
 }
@@ -245,15 +252,16 @@ var vkGetPhysicalDeviceMemoryProperties vkCommand
 func GetPhysicalDeviceMemoryProperties(physicalDevice PhysicalDevice) (memoryProperties PhysicalDeviceMemoryProperties) {
 
 	// binding-allocated single return value populated by Vulkan, requires translation
-	var pMemoryProperties *vkPhysicalDeviceMemoryProperties = memoryProperties.vkStruct()
+	var pMemoryProperties *vkPhysicalDeviceMemoryProperties = memoryProperties.ToVK()
 	if vkGetPhysicalDeviceMemoryProperties == nil {
-		vkGetPhysicalDeviceMemoryProperties = dlHandle.NewProc("vkGetPhysicalDeviceMemoryProperties")
+		vkGetPhysicalDeviceMemoryProperties = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetPhysicalDeviceMemoryProperties")))
 	}
-	syscall.SyscallN(vkGetPhysicalDeviceMemoryProperties.Addr(),
-		uintptr(physicalDevice),
-		uintptr(unsafe.Pointer(pMemoryProperties)),
+	C.Trampoline3(vkGetPhysicalDeviceMemoryProperties,
+		C.uintptr(uintptr(physicalDevice)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pMemoryProperties))),
+		0,
 	)
-	memoryProperties = *(pMemoryProperties.goStruct())
+	memoryProperties = *(pMemoryProperties.ToGo())
 	return
 }
 
@@ -269,12 +277,15 @@ func GetInstanceProcAddr(instance Instance,
 		pName = sysStringToBytes(name)
 	}
 	if vkGetInstanceProcAddr == nil {
-		vkGetInstanceProcAddr = dlHandle.NewProc("vkGetInstanceProcAddr")
+		vkGetInstanceProcAddr = C.SymbolFromName(dlHandle, unsafe.Pointer(sysStringToBytes("vkGetInstanceProcAddr")))
 	}
-	syscall.SyscallN(vkGetInstanceProcAddr.Addr(),
-		uintptr(instance),
-		uintptr(unsafe.Pointer(pName)),
+	var rsys C.uintptr_t
+	rsys = C.Trampoline3(vkGetInstanceProcAddr,
+		C.uintptr(uintptr(instance)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pName))),
+		0,
 	)
+	fn = PFN_vkVoidFunction(rsys)
 	return
 }
 
@@ -290,12 +301,15 @@ func GetDeviceProcAddr(device Device,
 		pName = sysStringToBytes(name)
 	}
 	if vkGetDeviceProcAddr == nil {
-		vkGetDeviceProcAddr = dlHandle.NewProc("vkGetDeviceProcAddr")
+		vkGetDeviceProcAddr = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetDeviceProcAddr")))
 	}
-	syscall.SyscallN(vkGetDeviceProcAddr.Addr(),
-		uintptr(device),
-		uintptr(unsafe.Pointer(pName)),
+	var rsys C.uintptr_t
+	rsys = C.Trampoline3(vkGetDeviceProcAddr,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pName))),
+		0,
 	)
+	fn = PFN_vkVoidFunction(rsys)
 	return
 }
 
@@ -309,7 +323,7 @@ func CreateDevice(physicalDevice PhysicalDevice,
 	// struct requiring translation
 	var pCreateInfo *vkDeviceCreateInfo
 	if createInfo != nil {
-		pCreateInfo = createInfo.vkStruct()
+		pCreateInfo = createInfo.ToVK()
 	}
 
 	// singular input, pass direct
@@ -321,16 +335,18 @@ func CreateDevice(physicalDevice PhysicalDevice,
 	// binding-allocated single return value populated by Vulkan
 	pDevice := &device
 	if vkCreateDevice == nil {
-		vkCreateDevice = dlHandle.NewProc("vkCreateDevice")
+		vkCreateDevice = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCreateDevice")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkCreateDevice.Addr(),
-		uintptr(physicalDevice),
-		uintptr(unsafe.Pointer(pCreateInfo)),
-		uintptr(unsafe.Pointer(pAllocator)),
-		uintptr(unsafe.Pointer(pDevice)),
+	rsys = C.Trampoline6(vkCreateDevice,
+		C.uintptr(uintptr(physicalDevice)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pCreateInfo))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pDevice))),
+		0,
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -349,11 +365,12 @@ func DestroyDevice(device Device,
 		pAllocator = unsafe.Pointer(allocator)
 	}
 	if vkDestroyDevice == nil {
-		vkDestroyDevice = dlHandle.NewProc("vkDestroyDevice")
+		vkDestroyDevice = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkDestroyDevice")))
 	}
-	syscall.SyscallN(vkDestroyDevice.Addr(),
-		uintptr(device),
-		uintptr(unsafe.Pointer(pAllocator)),
+	C.Trampoline3(vkDestroyDevice,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
+		0,
 	)
 }
 
@@ -375,15 +392,15 @@ func EnumerateInstanceExtensionProperties(layerName string) (properties []Extens
 
 	// first c-api call to get counter
 	if vkEnumerateInstanceExtensionProperties == nil {
-		vkEnumerateInstanceExtensionProperties = dlHandle.NewProc("vkEnumerateInstanceExtensionProperties")
+		vkEnumerateInstanceExtensionProperties = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkEnumerateInstanceExtensionProperties")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkEnumerateInstanceExtensionProperties.Addr(),
-		uintptr(unsafe.Pointer(pLayerName)),
-		uintptr(unsafe.Pointer(pPropertyCount)),
-		uintptr(unsafe.Pointer(pProperties)),
+	rsys = C.Trampoline3(vkEnumerateInstanceExtensionProperties,
+		C.uintptr_t(uintptr(unsafe.Pointer(pLayerName))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pPropertyCount))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pProperties))),
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 
 	// allocate the array for the second call
 	arr_properties := make([]vkExtensionProperties, propertyCount)
@@ -391,7 +408,7 @@ func EnumerateInstanceExtensionProperties(layerName string) (properties []Extens
 	pProperties = &arr_properties[0]
 
 	// second c-api call to get array
-	sys := C.Trampoline3(vkEnumerateInstanceExtensionProperties,
+	rsys = C.Trampoline3(vkEnumerateInstanceExtensionProperties,
 		C.uintptr_t(uintptr(unsafe.Pointer(pLayerName))),
 		C.uintptr_t(uintptr(unsafe.Pointer(pPropertyCount))),
 		C.uintptr_t(uintptr(unsafe.Pointer(pProperties))),
@@ -400,7 +417,7 @@ func EnumerateInstanceExtensionProperties(layerName string) (properties []Extens
 
 	// convert the returned array to the go slice
 	for i := range arr_properties {
-		properties[i] = *arr_properties[i].goStruct()
+		properties[i] = *arr_properties[i].ToGo()
 	}
 	if r == Result(0) {
 		r = SUCCESS
@@ -427,16 +444,18 @@ func EnumerateDeviceExtensionProperties(physicalDevice PhysicalDevice,
 
 	// first c-api call to get counter
 	if vkEnumerateDeviceExtensionProperties == nil {
-		vkEnumerateDeviceExtensionProperties = dlHandle.NewProc("vkEnumerateDeviceExtensionProperties")
+		vkEnumerateDeviceExtensionProperties = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkEnumerateDeviceExtensionProperties")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkEnumerateDeviceExtensionProperties.Addr(),
-		uintptr(physicalDevice),
-		uintptr(unsafe.Pointer(pLayerName)),
-		uintptr(unsafe.Pointer(pPropertyCount)),
-		uintptr(unsafe.Pointer(pProperties)),
+	rsys = C.Trampoline6(vkEnumerateDeviceExtensionProperties,
+		C.uintptr(uintptr(physicalDevice)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pLayerName))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pPropertyCount))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pProperties))),
+		0,
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 
 	// allocate the array for the second call
 	arr_properties := make([]vkExtensionProperties, propertyCount)
@@ -444,7 +463,7 @@ func EnumerateDeviceExtensionProperties(physicalDevice PhysicalDevice,
 	pProperties = &arr_properties[0]
 
 	// second c-api call to get array
-	sys := C.Trampoline6(vkEnumerateDeviceExtensionProperties,
+	rsys = C.Trampoline6(vkEnumerateDeviceExtensionProperties,
 		C.uintptr(uintptr(physicalDevice)),
 		C.uintptr_t(uintptr(unsafe.Pointer(pLayerName))),
 		C.uintptr_t(uintptr(unsafe.Pointer(pPropertyCount))),
@@ -456,7 +475,7 @@ func EnumerateDeviceExtensionProperties(physicalDevice PhysicalDevice,
 
 	// convert the returned array to the go slice
 	for i := range arr_properties {
-		properties[i] = *arr_properties[i].goStruct()
+		properties[i] = *arr_properties[i].ToGo()
 	}
 	if r == Result(0) {
 		r = SUCCESS
@@ -476,14 +495,15 @@ func EnumerateInstanceLayerProperties() (properties []LayerProperties, r error) 
 
 	// first c-api call to get counter
 	if vkEnumerateInstanceLayerProperties == nil {
-		vkEnumerateInstanceLayerProperties = dlHandle.NewProc("vkEnumerateInstanceLayerProperties")
+		vkEnumerateInstanceLayerProperties = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkEnumerateInstanceLayerProperties")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkEnumerateInstanceLayerProperties.Addr(),
-		uintptr(unsafe.Pointer(pPropertyCount)),
-		uintptr(unsafe.Pointer(pProperties)),
+	rsys = C.Trampoline3(vkEnumerateInstanceLayerProperties,
+		C.uintptr_t(uintptr(unsafe.Pointer(pPropertyCount))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pProperties))),
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 
 	// allocate the array for the second call
 	arr_properties := make([]vkLayerProperties, propertyCount)
@@ -491,7 +511,7 @@ func EnumerateInstanceLayerProperties() (properties []LayerProperties, r error) 
 	pProperties = &arr_properties[0]
 
 	// second c-api call to get array
-	sys := C.Trampoline3(vkEnumerateInstanceLayerProperties,
+	rsys = C.Trampoline3(vkEnumerateInstanceLayerProperties,
 		C.uintptr_t(uintptr(unsafe.Pointer(pPropertyCount))),
 		C.uintptr_t(uintptr(unsafe.Pointer(pProperties))),
 		0,
@@ -500,7 +520,7 @@ func EnumerateInstanceLayerProperties() (properties []LayerProperties, r error) 
 
 	// convert the returned array to the go slice
 	for i := range arr_properties {
-		properties[i] = *arr_properties[i].goStruct()
+		properties[i] = *arr_properties[i].ToGo()
 	}
 	if r == Result(0) {
 		r = SUCCESS
@@ -520,15 +540,15 @@ func EnumerateDeviceLayerProperties(physicalDevice PhysicalDevice) (properties [
 
 	// first c-api call to get counter
 	if vkEnumerateDeviceLayerProperties == nil {
-		vkEnumerateDeviceLayerProperties = dlHandle.NewProc("vkEnumerateDeviceLayerProperties")
+		vkEnumerateDeviceLayerProperties = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkEnumerateDeviceLayerProperties")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkEnumerateDeviceLayerProperties.Addr(),
-		uintptr(physicalDevice),
-		uintptr(unsafe.Pointer(pPropertyCount)),
-		uintptr(unsafe.Pointer(pProperties)),
+	rsys = C.Trampoline3(vkEnumerateDeviceLayerProperties,
+		C.uintptr(uintptr(physicalDevice)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pPropertyCount))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pProperties))),
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 
 	// allocate the array for the second call
 	arr_properties := make([]vkLayerProperties, propertyCount)
@@ -536,7 +556,7 @@ func EnumerateDeviceLayerProperties(physicalDevice PhysicalDevice) (properties [
 	pProperties = &arr_properties[0]
 
 	// second c-api call to get array
-	sys := C.Trampoline3(vkEnumerateDeviceLayerProperties,
+	rsys = C.Trampoline3(vkEnumerateDeviceLayerProperties,
 		C.uintptr(uintptr(physicalDevice)),
 		C.uintptr_t(uintptr(unsafe.Pointer(pPropertyCount))),
 		C.uintptr_t(uintptr(unsafe.Pointer(pProperties))),
@@ -545,7 +565,7 @@ func EnumerateDeviceLayerProperties(physicalDevice PhysicalDevice) (properties [
 
 	// convert the returned array to the go slice
 	for i := range arr_properties {
-		properties[i] = *arr_properties[i].goStruct()
+		properties[i] = *arr_properties[i].ToGo()
 	}
 	if r == Result(0) {
 		r = SUCCESS
@@ -563,13 +583,15 @@ func GetDeviceQueue(device Device,
 	// binding-allocated single return value populated by Vulkan
 	pQueue := &queue
 	if vkGetDeviceQueue == nil {
-		vkGetDeviceQueue = dlHandle.NewProc("vkGetDeviceQueue")
+		vkGetDeviceQueue = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetDeviceQueue")))
 	}
-	syscall.SyscallN(vkGetDeviceQueue.Addr(),
-		uintptr(device),
-		uintptr(queueFamilyIndex),
-		uintptr(queueIndex),
-		uintptr(unsafe.Pointer(pQueue)),
+	C.Trampoline6(vkGetDeviceQueue,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(queueFamilyIndex)),
+		C.uintptr(uintptr(queueIndex)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pQueue))),
+		0,
+		0,
 	)
 	return
 }
@@ -587,22 +609,24 @@ func QueueSubmit(queue Queue,
 	if len(submits) > 0 {
 		tmp := make([]vkSubmitInfo, submitCount)
 		for i, v := range submits {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		pSubmits = unsafe.Pointer(&tmp[0])
 	}
 
 	if vkQueueSubmit == nil {
-		vkQueueSubmit = dlHandle.NewProc("vkQueueSubmit")
+		vkQueueSubmit = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkQueueSubmit")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkQueueSubmit.Addr(),
-		uintptr(queue),
-		uintptr(submitCount),
-		uintptr(unsafe.Pointer(pSubmits)),
-		uintptr(fence),
+	rsys = C.Trampoline6(vkQueueSubmit,
+		C.uintptr(uintptr(queue)),
+		C.uintptr(uintptr(submitCount)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pSubmits))),
+		C.uintptr(uintptr(fence)),
+		0,
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -615,13 +639,15 @@ var vkQueueWaitIdle vkCommand
 func QueueWaitIdle(queue Queue) (r error) {
 
 	if vkQueueWaitIdle == nil {
-		vkQueueWaitIdle = dlHandle.NewProc("vkQueueWaitIdle")
+		vkQueueWaitIdle = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkQueueWaitIdle")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkQueueWaitIdle.Addr(),
-		uintptr(queue),
+	rsys = C.Trampoline3(vkQueueWaitIdle,
+		C.uintptr(uintptr(queue)),
+		0,
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -634,13 +660,15 @@ var vkDeviceWaitIdle vkCommand
 func DeviceWaitIdle(device Device) (r error) {
 
 	if vkDeviceWaitIdle == nil {
-		vkDeviceWaitIdle = dlHandle.NewProc("vkDeviceWaitIdle")
+		vkDeviceWaitIdle = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkDeviceWaitIdle")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkDeviceWaitIdle.Addr(),
-		uintptr(device),
+	rsys = C.Trampoline3(vkDeviceWaitIdle,
+		C.uintptr(uintptr(device)),
+		0,
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -657,7 +685,7 @@ func AllocateMemory(device Device,
 	// struct requiring translation
 	var pAllocateInfo *vkMemoryAllocateInfo
 	if allocateInfo != nil {
-		pAllocateInfo = allocateInfo.vkStruct()
+		pAllocateInfo = allocateInfo.ToVK()
 	}
 
 	// singular input, pass direct
@@ -669,16 +697,18 @@ func AllocateMemory(device Device,
 	// binding-allocated single return value populated by Vulkan
 	pMemory := &memory
 	if vkAllocateMemory == nil {
-		vkAllocateMemory = dlHandle.NewProc("vkAllocateMemory")
+		vkAllocateMemory = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkAllocateMemory")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkAllocateMemory.Addr(),
-		uintptr(device),
-		uintptr(unsafe.Pointer(pAllocateInfo)),
-		uintptr(unsafe.Pointer(pAllocator)),
-		uintptr(unsafe.Pointer(pMemory)),
+	rsys = C.Trampoline6(vkAllocateMemory,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocateInfo))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pMemory))),
+		0,
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -698,12 +728,12 @@ func FreeMemory(device Device,
 		pAllocator = unsafe.Pointer(allocator)
 	}
 	if vkFreeMemory == nil {
-		vkFreeMemory = dlHandle.NewProc("vkFreeMemory")
+		vkFreeMemory = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkFreeMemory")))
 	}
-	syscall.SyscallN(vkFreeMemory.Addr(),
-		uintptr(device),
-		uintptr(memory),
-		uintptr(unsafe.Pointer(pAllocator)),
+	C.Trampoline3(vkFreeMemory,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(memory)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
 	)
 }
 
@@ -719,18 +749,18 @@ func MapMemory(device Device,
 	// binding-allocated single return value populated by Vulkan
 	ppData := &data
 	if vkMapMemory == nil {
-		vkMapMemory = dlHandle.NewProc("vkMapMemory")
+		vkMapMemory = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkMapMemory")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkMapMemory.Addr(),
-		uintptr(device),
-		uintptr(memory),
-		uintptr(offset),
-		uintptr(size),
-		uintptr(flags),
-		uintptr(unsafe.Pointer(ppData)),
+	rsys = C.Trampoline6(vkMapMemory,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(memory)),
+		C.uintptr(uintptr(offset)),
+		C.uintptr(uintptr(size)),
+		C.uintptr(uintptr(flags)),
+		C.uintptr_t(uintptr(unsafe.Pointer(ppData))),
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -744,11 +774,12 @@ func UnmapMemory(device Device,
 	memory DeviceMemory) {
 
 	if vkUnmapMemory == nil {
-		vkUnmapMemory = dlHandle.NewProc("vkUnmapMemory")
+		vkUnmapMemory = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkUnmapMemory")))
 	}
-	syscall.SyscallN(vkUnmapMemory.Addr(),
-		uintptr(device),
-		uintptr(memory),
+	C.Trampoline3(vkUnmapMemory,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(memory)),
+		0,
 	)
 }
 
@@ -764,20 +795,20 @@ func FlushMappedMemoryRanges(device Device,
 	if len(memoryRanges) > 0 {
 		tmp := make([]vkMappedMemoryRange, memoryRangeCount)
 		for i, v := range memoryRanges {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		pMemoryRanges = unsafe.Pointer(&tmp[0])
 	}
 	if vkFlushMappedMemoryRanges == nil {
-		vkFlushMappedMemoryRanges = dlHandle.NewProc("vkFlushMappedMemoryRanges")
+		vkFlushMappedMemoryRanges = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkFlushMappedMemoryRanges")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkFlushMappedMemoryRanges.Addr(),
-		uintptr(device),
-		uintptr(memoryRangeCount),
-		uintptr(unsafe.Pointer(pMemoryRanges)),
+	rsys = C.Trampoline3(vkFlushMappedMemoryRanges,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(memoryRangeCount)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pMemoryRanges))),
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -796,20 +827,20 @@ func InvalidateMappedMemoryRanges(device Device,
 	if len(memoryRanges) > 0 {
 		tmp := make([]vkMappedMemoryRange, memoryRangeCount)
 		for i, v := range memoryRanges {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		pMemoryRanges = unsafe.Pointer(&tmp[0])
 	}
 	if vkInvalidateMappedMemoryRanges == nil {
-		vkInvalidateMappedMemoryRanges = dlHandle.NewProc("vkInvalidateMappedMemoryRanges")
+		vkInvalidateMappedMemoryRanges = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkInvalidateMappedMemoryRanges")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkInvalidateMappedMemoryRanges.Addr(),
-		uintptr(device),
-		uintptr(memoryRangeCount),
-		uintptr(unsafe.Pointer(pMemoryRanges)),
+	rsys = C.Trampoline3(vkInvalidateMappedMemoryRanges,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(memoryRangeCount)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pMemoryRanges))),
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -825,12 +856,12 @@ func GetDeviceMemoryCommitment(device Device,
 	// binding-allocated single return value populated by Vulkan
 	pCommittedMemoryInBytes := &committedMemoryInBytes
 	if vkGetDeviceMemoryCommitment == nil {
-		vkGetDeviceMemoryCommitment = dlHandle.NewProc("vkGetDeviceMemoryCommitment")
+		vkGetDeviceMemoryCommitment = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetDeviceMemoryCommitment")))
 	}
-	syscall.SyscallN(vkGetDeviceMemoryCommitment.Addr(),
-		uintptr(device),
-		uintptr(memory),
-		uintptr(unsafe.Pointer(pCommittedMemoryInBytes)),
+	C.Trampoline3(vkGetDeviceMemoryCommitment,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(memory)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pCommittedMemoryInBytes))),
 	)
 	return
 }
@@ -844,16 +875,18 @@ func BindBufferMemory(device Device,
 	memoryOffset DeviceSize) (r error) {
 
 	if vkBindBufferMemory == nil {
-		vkBindBufferMemory = dlHandle.NewProc("vkBindBufferMemory")
+		vkBindBufferMemory = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkBindBufferMemory")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkBindBufferMemory.Addr(),
-		uintptr(device),
-		uintptr(buffer),
-		uintptr(memory),
-		uintptr(memoryOffset),
+	rsys = C.Trampoline6(vkBindBufferMemory,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(buffer)),
+		C.uintptr(uintptr(memory)),
+		C.uintptr(uintptr(memoryOffset)),
+		0,
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -869,16 +902,18 @@ func BindImageMemory(device Device,
 	memoryOffset DeviceSize) (r error) {
 
 	if vkBindImageMemory == nil {
-		vkBindImageMemory = dlHandle.NewProc("vkBindImageMemory")
+		vkBindImageMemory = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkBindImageMemory")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkBindImageMemory.Addr(),
-		uintptr(device),
-		uintptr(image),
-		uintptr(memory),
-		uintptr(memoryOffset),
+	rsys = C.Trampoline6(vkBindImageMemory,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(image)),
+		C.uintptr(uintptr(memory)),
+		C.uintptr(uintptr(memoryOffset)),
+		0,
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -892,16 +927,16 @@ func GetBufferMemoryRequirements(device Device,
 	buffer Buffer) (memoryRequirements MemoryRequirements) {
 
 	// binding-allocated single return value populated by Vulkan, requires translation
-	var pMemoryRequirements *vkMemoryRequirements = memoryRequirements.vkStruct()
+	var pMemoryRequirements *vkMemoryRequirements = memoryRequirements.ToVK()
 	if vkGetBufferMemoryRequirements == nil {
-		vkGetBufferMemoryRequirements = dlHandle.NewProc("vkGetBufferMemoryRequirements")
+		vkGetBufferMemoryRequirements = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetBufferMemoryRequirements")))
 	}
-	syscall.SyscallN(vkGetBufferMemoryRequirements.Addr(),
-		uintptr(device),
-		uintptr(buffer),
-		uintptr(unsafe.Pointer(pMemoryRequirements)),
+	C.Trampoline3(vkGetBufferMemoryRequirements,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(buffer)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pMemoryRequirements))),
 	)
-	memoryRequirements = *(pMemoryRequirements.goStruct())
+	memoryRequirements = *(pMemoryRequirements.ToGo())
 	return
 }
 
@@ -912,16 +947,16 @@ func GetImageMemoryRequirements(device Device,
 	image Image) (memoryRequirements MemoryRequirements) {
 
 	// binding-allocated single return value populated by Vulkan, requires translation
-	var pMemoryRequirements *vkMemoryRequirements = memoryRequirements.vkStruct()
+	var pMemoryRequirements *vkMemoryRequirements = memoryRequirements.ToVK()
 	if vkGetImageMemoryRequirements == nil {
-		vkGetImageMemoryRequirements = dlHandle.NewProc("vkGetImageMemoryRequirements")
+		vkGetImageMemoryRequirements = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetImageMemoryRequirements")))
 	}
-	syscall.SyscallN(vkGetImageMemoryRequirements.Addr(),
-		uintptr(device),
-		uintptr(image),
-		uintptr(unsafe.Pointer(pMemoryRequirements)),
+	C.Trampoline3(vkGetImageMemoryRequirements,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(image)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pMemoryRequirements))),
 	)
-	memoryRequirements = *(pMemoryRequirements.goStruct())
+	memoryRequirements = *(pMemoryRequirements.ToGo())
 	return
 }
 
@@ -938,13 +973,15 @@ func GetImageSparseMemoryRequirements(device Device,
 
 	// first c-api call to get counter
 	if vkGetImageSparseMemoryRequirements == nil {
-		vkGetImageSparseMemoryRequirements = dlHandle.NewProc("vkGetImageSparseMemoryRequirements")
+		vkGetImageSparseMemoryRequirements = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetImageSparseMemoryRequirements")))
 	}
-	syscall.SyscallN(vkGetImageSparseMemoryRequirements.Addr(),
-		uintptr(device),
-		uintptr(image),
-		uintptr(unsafe.Pointer(pSparseMemoryRequirementCount)),
-		uintptr(unsafe.Pointer(pSparseMemoryRequirements)),
+	C.Trampoline6(vkGetImageSparseMemoryRequirements,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(image)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pSparseMemoryRequirementCount))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pSparseMemoryRequirements))),
+		0,
+		0,
 	)
 
 	// allocate the array for the second call
@@ -964,7 +1001,7 @@ func GetImageSparseMemoryRequirements(device Device,
 
 	// convert the returned array to the go slice
 	for i := range arr_sparseMemoryRequirements {
-		sparseMemoryRequirements[i] = *arr_sparseMemoryRequirements[i].goStruct()
+		sparseMemoryRequirements[i] = *arr_sparseMemoryRequirements[i].ToGo()
 	}
 	return
 }
@@ -986,17 +1023,18 @@ func GetPhysicalDeviceSparseImageFormatProperties(physicalDevice PhysicalDevice,
 
 	// first c-api call to get counter
 	if vkGetPhysicalDeviceSparseImageFormatProperties == nil {
-		vkGetPhysicalDeviceSparseImageFormatProperties = dlHandle.NewProc("vkGetPhysicalDeviceSparseImageFormatProperties")
+		vkGetPhysicalDeviceSparseImageFormatProperties = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetPhysicalDeviceSparseImageFormatProperties")))
 	}
-	syscall.SyscallN(vkGetPhysicalDeviceSparseImageFormatProperties.Addr(),
-		uintptr(physicalDevice),
-		uintptr(format),
-		uintptr(typ),
-		uintptr(samples),
-		uintptr(usage),
-		uintptr(tiling),
-		uintptr(unsafe.Pointer(pPropertyCount)),
-		uintptr(unsafe.Pointer(pProperties)),
+	C.Trampoline9(vkGetPhysicalDeviceSparseImageFormatProperties,
+		C.uintptr(uintptr(physicalDevice)),
+		C.uintptr(uintptr(format)),
+		C.uintptr(uintptr(typ)),
+		C.uintptr(uintptr(samples)),
+		C.uintptr(uintptr(usage)),
+		C.uintptr(uintptr(tiling)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pPropertyCount))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pProperties))),
+		0,
 	)
 
 	// allocate the array for the second call
@@ -1019,7 +1057,7 @@ func GetPhysicalDeviceSparseImageFormatProperties(physicalDevice PhysicalDevice,
 
 	// convert the returned array to the go slice
 	for i := range arr_properties {
-		properties[i] = *arr_properties[i].goStruct()
+		properties[i] = *arr_properties[i].ToGo()
 	}
 	return
 }
@@ -1037,22 +1075,24 @@ func QueueBindSparse(queue Queue,
 	if len(bindInfo) > 0 {
 		tmp := make([]vkBindSparseInfo, bindInfoCount)
 		for i, v := range bindInfo {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		pBindInfo = unsafe.Pointer(&tmp[0])
 	}
 
 	if vkQueueBindSparse == nil {
-		vkQueueBindSparse = dlHandle.NewProc("vkQueueBindSparse")
+		vkQueueBindSparse = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkQueueBindSparse")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkQueueBindSparse.Addr(),
-		uintptr(queue),
-		uintptr(bindInfoCount),
-		uintptr(unsafe.Pointer(pBindInfo)),
-		uintptr(fence),
+	rsys = C.Trampoline6(vkQueueBindSparse,
+		C.uintptr(uintptr(queue)),
+		C.uintptr(uintptr(bindInfoCount)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pBindInfo))),
+		C.uintptr(uintptr(fence)),
+		0,
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -1069,7 +1109,7 @@ func CreateFence(device Device,
 	// struct requiring translation
 	var pCreateInfo *vkFenceCreateInfo
 	if createInfo != nil {
-		pCreateInfo = createInfo.vkStruct()
+		pCreateInfo = createInfo.ToVK()
 	}
 
 	// singular input, pass direct
@@ -1081,16 +1121,18 @@ func CreateFence(device Device,
 	// binding-allocated single return value populated by Vulkan
 	pFence := &fence
 	if vkCreateFence == nil {
-		vkCreateFence = dlHandle.NewProc("vkCreateFence")
+		vkCreateFence = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCreateFence")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkCreateFence.Addr(),
-		uintptr(device),
-		uintptr(unsafe.Pointer(pCreateInfo)),
-		uintptr(unsafe.Pointer(pAllocator)),
-		uintptr(unsafe.Pointer(pFence)),
+	rsys = C.Trampoline6(vkCreateFence,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pCreateInfo))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pFence))),
+		0,
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -1110,12 +1152,12 @@ func DestroyFence(device Device,
 		pAllocator = unsafe.Pointer(allocator)
 	}
 	if vkDestroyFence == nil {
-		vkDestroyFence = dlHandle.NewProc("vkDestroyFence")
+		vkDestroyFence = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkDestroyFence")))
 	}
-	syscall.SyscallN(vkDestroyFence.Addr(),
-		uintptr(device),
-		uintptr(fence),
-		uintptr(unsafe.Pointer(pAllocator)),
+	C.Trampoline3(vkDestroyFence,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(fence)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
 	)
 }
 
@@ -1132,15 +1174,15 @@ func ResetFences(device Device,
 		pFences = unsafe.Pointer(&fences[0])
 	}
 	if vkResetFences == nil {
-		vkResetFences = dlHandle.NewProc("vkResetFences")
+		vkResetFences = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkResetFences")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkResetFences.Addr(),
-		uintptr(device),
-		uintptr(fenceCount),
-		uintptr(unsafe.Pointer(pFences)),
+	rsys = C.Trampoline3(vkResetFences,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(fenceCount)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pFences))),
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -1154,14 +1196,15 @@ func GetFenceStatus(device Device,
 	fence Fence) (r error) {
 
 	if vkGetFenceStatus == nil {
-		vkGetFenceStatus = dlHandle.NewProc("vkGetFenceStatus")
+		vkGetFenceStatus = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetFenceStatus")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkGetFenceStatus.Addr(),
-		uintptr(device),
-		uintptr(fence),
+	rsys = C.Trampoline3(vkGetFenceStatus,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(fence)),
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -1186,17 +1229,18 @@ func WaitForFences(device Device,
 	waitAllBool := vkBool32(waitAll)
 
 	if vkWaitForFences == nil {
-		vkWaitForFences = dlHandle.NewProc("vkWaitForFences")
+		vkWaitForFences = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkWaitForFences")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkWaitForFences.Addr(),
-		uintptr(device),
-		uintptr(fenceCount),
-		uintptr(unsafe.Pointer(pFences)),
-		uintptr(waitAllBool),
-		uintptr(timeout),
+	rsys = C.Trampoline6(vkWaitForFences,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(fenceCount)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pFences))),
+		C.uintptr_t(uintptr(waitAllBool)),
+		C.uintptr(uintptr(timeout)),
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -1213,7 +1257,7 @@ func CreateSemaphore(device Device,
 	// struct requiring translation
 	var pCreateInfo *vkSemaphoreCreateInfo
 	if createInfo != nil {
-		pCreateInfo = createInfo.vkStruct()
+		pCreateInfo = createInfo.ToVK()
 	}
 
 	// singular input, pass direct
@@ -1225,16 +1269,18 @@ func CreateSemaphore(device Device,
 	// binding-allocated single return value populated by Vulkan
 	pSemaphore := &semaphore
 	if vkCreateSemaphore == nil {
-		vkCreateSemaphore = dlHandle.NewProc("vkCreateSemaphore")
+		vkCreateSemaphore = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCreateSemaphore")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkCreateSemaphore.Addr(),
-		uintptr(device),
-		uintptr(unsafe.Pointer(pCreateInfo)),
-		uintptr(unsafe.Pointer(pAllocator)),
-		uintptr(unsafe.Pointer(pSemaphore)),
+	rsys = C.Trampoline6(vkCreateSemaphore,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pCreateInfo))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pSemaphore))),
+		0,
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -1254,12 +1300,12 @@ func DestroySemaphore(device Device,
 		pAllocator = unsafe.Pointer(allocator)
 	}
 	if vkDestroySemaphore == nil {
-		vkDestroySemaphore = dlHandle.NewProc("vkDestroySemaphore")
+		vkDestroySemaphore = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkDestroySemaphore")))
 	}
-	syscall.SyscallN(vkDestroySemaphore.Addr(),
-		uintptr(device),
-		uintptr(semaphore),
-		uintptr(unsafe.Pointer(pAllocator)),
+	C.Trampoline3(vkDestroySemaphore,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(semaphore)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
 	)
 }
 
@@ -1273,7 +1319,7 @@ func CreateQueryPool(device Device,
 	// struct requiring translation
 	var pCreateInfo *vkQueryPoolCreateInfo
 	if createInfo != nil {
-		pCreateInfo = createInfo.vkStruct()
+		pCreateInfo = createInfo.ToVK()
 	}
 
 	// singular input, pass direct
@@ -1285,16 +1331,18 @@ func CreateQueryPool(device Device,
 	// binding-allocated single return value populated by Vulkan
 	pQueryPool := &queryPool
 	if vkCreateQueryPool == nil {
-		vkCreateQueryPool = dlHandle.NewProc("vkCreateQueryPool")
+		vkCreateQueryPool = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCreateQueryPool")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkCreateQueryPool.Addr(),
-		uintptr(device),
-		uintptr(unsafe.Pointer(pCreateInfo)),
-		uintptr(unsafe.Pointer(pAllocator)),
-		uintptr(unsafe.Pointer(pQueryPool)),
+	rsys = C.Trampoline6(vkCreateQueryPool,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pCreateInfo))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pQueryPool))),
+		0,
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -1314,12 +1362,12 @@ func DestroyQueryPool(device Device,
 		pAllocator = unsafe.Pointer(allocator)
 	}
 	if vkDestroyQueryPool == nil {
-		vkDestroyQueryPool = dlHandle.NewProc("vkDestroyQueryPool")
+		vkDestroyQueryPool = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkDestroyQueryPool")))
 	}
-	syscall.SyscallN(vkDestroyQueryPool.Addr(),
-		uintptr(device),
-		uintptr(queryPool),
-		uintptr(unsafe.Pointer(pAllocator)),
+	C.Trampoline3(vkDestroyQueryPool,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(queryPool)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
 	)
 }
 
@@ -1342,20 +1390,21 @@ func GetQueryPoolResults(device Device,
 	}
 
 	if vkGetQueryPoolResults == nil {
-		vkGetQueryPoolResults = dlHandle.NewProc("vkGetQueryPoolResults")
+		vkGetQueryPoolResults = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetQueryPoolResults")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkGetQueryPoolResults.Addr(),
-		uintptr(device),
-		uintptr(queryPool),
-		uintptr(firstQuery),
-		uintptr(queryCount),
-		uintptr(dataSize),
-		uintptr(unsafe.Pointer(pData)),
-		uintptr(stride),
-		uintptr(flags),
+	rsys = C.Trampoline9(vkGetQueryPoolResults,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(queryPool)),
+		C.uintptr(uintptr(firstQuery)),
+		C.uintptr(uintptr(queryCount)),
+		C.uintptr(uintptr(dataSize)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pData))),
+		C.uintptr(uintptr(stride)),
+		C.uintptr(uintptr(flags)),
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -1372,7 +1421,7 @@ func CreateBuffer(device Device,
 	// struct requiring translation
 	var pCreateInfo *vkBufferCreateInfo
 	if createInfo != nil {
-		pCreateInfo = createInfo.vkStruct()
+		pCreateInfo = createInfo.ToVK()
 	}
 
 	// singular input, pass direct
@@ -1384,16 +1433,18 @@ func CreateBuffer(device Device,
 	// binding-allocated single return value populated by Vulkan
 	pBuffer := &buffer
 	if vkCreateBuffer == nil {
-		vkCreateBuffer = dlHandle.NewProc("vkCreateBuffer")
+		vkCreateBuffer = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCreateBuffer")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkCreateBuffer.Addr(),
-		uintptr(device),
-		uintptr(unsafe.Pointer(pCreateInfo)),
-		uintptr(unsafe.Pointer(pAllocator)),
-		uintptr(unsafe.Pointer(pBuffer)),
+	rsys = C.Trampoline6(vkCreateBuffer,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pCreateInfo))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pBuffer))),
+		0,
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -1413,12 +1464,12 @@ func DestroyBuffer(device Device,
 		pAllocator = unsafe.Pointer(allocator)
 	}
 	if vkDestroyBuffer == nil {
-		vkDestroyBuffer = dlHandle.NewProc("vkDestroyBuffer")
+		vkDestroyBuffer = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkDestroyBuffer")))
 	}
-	syscall.SyscallN(vkDestroyBuffer.Addr(),
-		uintptr(device),
-		uintptr(buffer),
-		uintptr(unsafe.Pointer(pAllocator)),
+	C.Trampoline3(vkDestroyBuffer,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(buffer)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
 	)
 }
 
@@ -1432,7 +1483,7 @@ func CreateImage(device Device,
 	// struct requiring translation
 	var pCreateInfo *vkImageCreateInfo
 	if createInfo != nil {
-		pCreateInfo = createInfo.vkStruct()
+		pCreateInfo = createInfo.ToVK()
 	}
 
 	// singular input, pass direct
@@ -1444,16 +1495,18 @@ func CreateImage(device Device,
 	// binding-allocated single return value populated by Vulkan
 	pImage := &image
 	if vkCreateImage == nil {
-		vkCreateImage = dlHandle.NewProc("vkCreateImage")
+		vkCreateImage = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCreateImage")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkCreateImage.Addr(),
-		uintptr(device),
-		uintptr(unsafe.Pointer(pCreateInfo)),
-		uintptr(unsafe.Pointer(pAllocator)),
-		uintptr(unsafe.Pointer(pImage)),
+	rsys = C.Trampoline6(vkCreateImage,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pCreateInfo))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pImage))),
+		0,
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -1473,12 +1526,12 @@ func DestroyImage(device Device,
 		pAllocator = unsafe.Pointer(allocator)
 	}
 	if vkDestroyImage == nil {
-		vkDestroyImage = dlHandle.NewProc("vkDestroyImage")
+		vkDestroyImage = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkDestroyImage")))
 	}
-	syscall.SyscallN(vkDestroyImage.Addr(),
-		uintptr(device),
-		uintptr(image),
-		uintptr(unsafe.Pointer(pAllocator)),
+	C.Trampoline3(vkDestroyImage,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(image)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
 	)
 }
 
@@ -1496,17 +1549,19 @@ func GetImageSubresourceLayout(device Device,
 	}
 
 	// binding-allocated single return value populated by Vulkan, requires translation
-	var pLayout *vkSubresourceLayout = layout.vkStruct()
+	var pLayout *vkSubresourceLayout = layout.ToVK()
 	if vkGetImageSubresourceLayout == nil {
-		vkGetImageSubresourceLayout = dlHandle.NewProc("vkGetImageSubresourceLayout")
+		vkGetImageSubresourceLayout = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetImageSubresourceLayout")))
 	}
-	syscall.SyscallN(vkGetImageSubresourceLayout.Addr(),
-		uintptr(device),
-		uintptr(image),
-		uintptr(unsafe.Pointer(pSubresource)),
-		uintptr(unsafe.Pointer(pLayout)),
+	C.Trampoline6(vkGetImageSubresourceLayout,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(image)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pSubresource))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pLayout))),
+		0,
+		0,
 	)
-	layout = *(pLayout.goStruct())
+	layout = *(pLayout.ToGo())
 	return
 }
 
@@ -1520,7 +1575,7 @@ func CreateImageView(device Device,
 	// struct requiring translation
 	var pCreateInfo *vkImageViewCreateInfo
 	if createInfo != nil {
-		pCreateInfo = createInfo.vkStruct()
+		pCreateInfo = createInfo.ToVK()
 	}
 
 	// singular input, pass direct
@@ -1532,16 +1587,18 @@ func CreateImageView(device Device,
 	// binding-allocated single return value populated by Vulkan
 	pView := &view
 	if vkCreateImageView == nil {
-		vkCreateImageView = dlHandle.NewProc("vkCreateImageView")
+		vkCreateImageView = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCreateImageView")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkCreateImageView.Addr(),
-		uintptr(device),
-		uintptr(unsafe.Pointer(pCreateInfo)),
-		uintptr(unsafe.Pointer(pAllocator)),
-		uintptr(unsafe.Pointer(pView)),
+	rsys = C.Trampoline6(vkCreateImageView,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pCreateInfo))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pView))),
+		0,
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -1561,12 +1618,12 @@ func DestroyImageView(device Device,
 		pAllocator = unsafe.Pointer(allocator)
 	}
 	if vkDestroyImageView == nil {
-		vkDestroyImageView = dlHandle.NewProc("vkDestroyImageView")
+		vkDestroyImageView = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkDestroyImageView")))
 	}
-	syscall.SyscallN(vkDestroyImageView.Addr(),
-		uintptr(device),
-		uintptr(imageView),
-		uintptr(unsafe.Pointer(pAllocator)),
+	C.Trampoline3(vkDestroyImageView,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(imageView)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
 	)
 }
 
@@ -1580,7 +1637,7 @@ func CreateCommandPool(device Device,
 	// struct requiring translation
 	var pCreateInfo *vkCommandPoolCreateInfo
 	if createInfo != nil {
-		pCreateInfo = createInfo.vkStruct()
+		pCreateInfo = createInfo.ToVK()
 	}
 
 	// singular input, pass direct
@@ -1592,16 +1649,18 @@ func CreateCommandPool(device Device,
 	// binding-allocated single return value populated by Vulkan
 	pCommandPool := &commandPool
 	if vkCreateCommandPool == nil {
-		vkCreateCommandPool = dlHandle.NewProc("vkCreateCommandPool")
+		vkCreateCommandPool = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCreateCommandPool")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkCreateCommandPool.Addr(),
-		uintptr(device),
-		uintptr(unsafe.Pointer(pCreateInfo)),
-		uintptr(unsafe.Pointer(pAllocator)),
-		uintptr(unsafe.Pointer(pCommandPool)),
+	rsys = C.Trampoline6(vkCreateCommandPool,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pCreateInfo))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pCommandPool))),
+		0,
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -1621,12 +1680,12 @@ func DestroyCommandPool(device Device,
 		pAllocator = unsafe.Pointer(allocator)
 	}
 	if vkDestroyCommandPool == nil {
-		vkDestroyCommandPool = dlHandle.NewProc("vkDestroyCommandPool")
+		vkDestroyCommandPool = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkDestroyCommandPool")))
 	}
-	syscall.SyscallN(vkDestroyCommandPool.Addr(),
-		uintptr(device),
-		uintptr(commandPool),
-		uintptr(unsafe.Pointer(pAllocator)),
+	C.Trampoline3(vkDestroyCommandPool,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(commandPool)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
 	)
 }
 
@@ -1638,15 +1697,15 @@ func ResetCommandPool(device Device,
 	flags CommandPoolResetFlags) (r error) {
 
 	if vkResetCommandPool == nil {
-		vkResetCommandPool = dlHandle.NewProc("vkResetCommandPool")
+		vkResetCommandPool = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkResetCommandPool")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkResetCommandPool.Addr(),
-		uintptr(device),
-		uintptr(commandPool),
-		uintptr(flags),
+	rsys = C.Trampoline3(vkResetCommandPool,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(commandPool)),
+		C.uintptr(uintptr(flags)),
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -1662,22 +1721,22 @@ func AllocateCommandBuffers(device Device,
 	// struct requiring translation
 	var pAllocateInfo *vkCommandBufferAllocateInfo
 	if allocateInfo != nil {
-		pAllocateInfo = allocateInfo.vkStruct()
+		pAllocateInfo = allocateInfo.ToVK()
 	}
 
 	// binding-allocated array populated by Vulkan
 	commandBuffers = make([]CommandBuffer, pAllocateInfo.commandBufferCount)
 	pCommandBuffers := &commandBuffers[0]
 	if vkAllocateCommandBuffers == nil {
-		vkAllocateCommandBuffers = dlHandle.NewProc("vkAllocateCommandBuffers")
+		vkAllocateCommandBuffers = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkAllocateCommandBuffers")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkAllocateCommandBuffers.Addr(),
-		uintptr(device),
-		uintptr(unsafe.Pointer(pAllocateInfo)),
-		uintptr(unsafe.Pointer(pCommandBuffers)),
+	rsys = C.Trampoline3(vkAllocateCommandBuffers,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocateInfo))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pCommandBuffers))),
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -1698,13 +1757,15 @@ func FreeCommandBuffers(device Device,
 		pCommandBuffers = unsafe.Pointer(&commandBuffers[0])
 	}
 	if vkFreeCommandBuffers == nil {
-		vkFreeCommandBuffers = dlHandle.NewProc("vkFreeCommandBuffers")
+		vkFreeCommandBuffers = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkFreeCommandBuffers")))
 	}
-	syscall.SyscallN(vkFreeCommandBuffers.Addr(),
-		uintptr(device),
-		uintptr(commandPool),
-		uintptr(commandBufferCount),
-		uintptr(unsafe.Pointer(pCommandBuffers)),
+	C.Trampoline6(vkFreeCommandBuffers,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(commandPool)),
+		C.uintptr(uintptr(commandBufferCount)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pCommandBuffers))),
+		0,
+		0,
 	)
 }
 
@@ -1717,17 +1778,18 @@ func BeginCommandBuffer(commandBuffer CommandBuffer,
 	// struct requiring translation
 	var pBeginInfo *vkCommandBufferBeginInfo
 	if beginInfo != nil {
-		pBeginInfo = beginInfo.vkStruct()
+		pBeginInfo = beginInfo.ToVK()
 	}
 	if vkBeginCommandBuffer == nil {
-		vkBeginCommandBuffer = dlHandle.NewProc("vkBeginCommandBuffer")
+		vkBeginCommandBuffer = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkBeginCommandBuffer")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkBeginCommandBuffer.Addr(),
-		uintptr(commandBuffer),
-		uintptr(unsafe.Pointer(pBeginInfo)),
+	rsys = C.Trampoline3(vkBeginCommandBuffer,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pBeginInfo))),
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -1740,13 +1802,15 @@ var vkEndCommandBuffer vkCommand
 func EndCommandBuffer(commandBuffer CommandBuffer) (r error) {
 
 	if vkEndCommandBuffer == nil {
-		vkEndCommandBuffer = dlHandle.NewProc("vkEndCommandBuffer")
+		vkEndCommandBuffer = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkEndCommandBuffer")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkEndCommandBuffer.Addr(),
-		uintptr(commandBuffer),
+	rsys = C.Trampoline3(vkEndCommandBuffer,
+		C.uintptr(uintptr(commandBuffer)),
+		0,
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -1760,14 +1824,15 @@ func ResetCommandBuffer(commandBuffer CommandBuffer,
 	flags CommandBufferResetFlags) (r error) {
 
 	if vkResetCommandBuffer == nil {
-		vkResetCommandBuffer = dlHandle.NewProc("vkResetCommandBuffer")
+		vkResetCommandBuffer = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkResetCommandBuffer")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkResetCommandBuffer.Addr(),
-		uintptr(commandBuffer),
-		uintptr(flags),
+	rsys = C.Trampoline3(vkResetCommandBuffer,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(flags)),
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -1788,19 +1853,20 @@ func CmdCopyBuffer(commandBuffer CommandBuffer,
 	if len(regions) > 0 {
 		tmp := make([]vkBufferCopy, regionCount)
 		for i, v := range regions {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		pRegions = unsafe.Pointer(&tmp[0])
 	}
 	if vkCmdCopyBuffer == nil {
-		vkCmdCopyBuffer = dlHandle.NewProc("vkCmdCopyBuffer")
+		vkCmdCopyBuffer = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdCopyBuffer")))
 	}
-	syscall.SyscallN(vkCmdCopyBuffer.Addr(),
-		uintptr(commandBuffer),
-		uintptr(srcBuffer),
-		uintptr(dstBuffer),
-		uintptr(regionCount),
-		uintptr(unsafe.Pointer(pRegions)),
+	C.Trampoline6(vkCmdCopyBuffer,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(srcBuffer)),
+		C.uintptr(uintptr(dstBuffer)),
+		C.uintptr(uintptr(regionCount)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pRegions))),
+		0,
 	)
 }
 
@@ -1820,21 +1886,23 @@ func CmdCopyImage(commandBuffer CommandBuffer,
 	if len(regions) > 0 {
 		tmp := make([]vkImageCopy, regionCount)
 		for i, v := range regions {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		pRegions = unsafe.Pointer(&tmp[0])
 	}
 	if vkCmdCopyImage == nil {
-		vkCmdCopyImage = dlHandle.NewProc("vkCmdCopyImage")
+		vkCmdCopyImage = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdCopyImage")))
 	}
-	syscall.SyscallN(vkCmdCopyImage.Addr(),
-		uintptr(commandBuffer),
-		uintptr(srcImage),
-		uintptr(srcImageLayout),
-		uintptr(dstImage),
-		uintptr(dstImageLayout),
-		uintptr(regionCount),
-		uintptr(unsafe.Pointer(pRegions)),
+	C.Trampoline9(vkCmdCopyImage,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(srcImage)),
+		C.uintptr(uintptr(srcImageLayout)),
+		C.uintptr(uintptr(dstImage)),
+		C.uintptr(uintptr(dstImageLayout)),
+		C.uintptr(uintptr(regionCount)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pRegions))),
+		0,
+		0,
 	)
 }
 
@@ -1853,20 +1921,20 @@ func CmdCopyBufferToImage(commandBuffer CommandBuffer,
 	if len(regions) > 0 {
 		tmp := make([]vkBufferImageCopy, regionCount)
 		for i, v := range regions {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		pRegions = unsafe.Pointer(&tmp[0])
 	}
 	if vkCmdCopyBufferToImage == nil {
-		vkCmdCopyBufferToImage = dlHandle.NewProc("vkCmdCopyBufferToImage")
+		vkCmdCopyBufferToImage = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdCopyBufferToImage")))
 	}
-	syscall.SyscallN(vkCmdCopyBufferToImage.Addr(),
-		uintptr(commandBuffer),
-		uintptr(srcBuffer),
-		uintptr(dstImage),
-		uintptr(dstImageLayout),
-		uintptr(regionCount),
-		uintptr(unsafe.Pointer(pRegions)),
+	C.Trampoline6(vkCmdCopyBufferToImage,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(srcBuffer)),
+		C.uintptr(uintptr(dstImage)),
+		C.uintptr(uintptr(dstImageLayout)),
+		C.uintptr(uintptr(regionCount)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pRegions))),
 	)
 }
 
@@ -1885,20 +1953,20 @@ func CmdCopyImageToBuffer(commandBuffer CommandBuffer,
 	if len(regions) > 0 {
 		tmp := make([]vkBufferImageCopy, regionCount)
 		for i, v := range regions {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		pRegions = unsafe.Pointer(&tmp[0])
 	}
 	if vkCmdCopyImageToBuffer == nil {
-		vkCmdCopyImageToBuffer = dlHandle.NewProc("vkCmdCopyImageToBuffer")
+		vkCmdCopyImageToBuffer = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdCopyImageToBuffer")))
 	}
-	syscall.SyscallN(vkCmdCopyImageToBuffer.Addr(),
-		uintptr(commandBuffer),
-		uintptr(srcImage),
-		uintptr(srcImageLayout),
-		uintptr(dstBuffer),
-		uintptr(regionCount),
-		uintptr(unsafe.Pointer(pRegions)),
+	C.Trampoline6(vkCmdCopyImageToBuffer,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(srcImage)),
+		C.uintptr(uintptr(srcImageLayout)),
+		C.uintptr(uintptr(dstBuffer)),
+		C.uintptr(uintptr(regionCount)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pRegions))),
 	)
 }
 
@@ -1917,14 +1985,15 @@ func CmdUpdateBuffer(commandBuffer CommandBuffer,
 		pData = unsafe.Pointer(&data[0])
 	}
 	if vkCmdUpdateBuffer == nil {
-		vkCmdUpdateBuffer = dlHandle.NewProc("vkCmdUpdateBuffer")
+		vkCmdUpdateBuffer = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdUpdateBuffer")))
 	}
-	syscall.SyscallN(vkCmdUpdateBuffer.Addr(),
-		uintptr(commandBuffer),
-		uintptr(dstBuffer),
-		uintptr(dstOffset),
-		uintptr(dataSize),
-		uintptr(unsafe.Pointer(pData)),
+	C.Trampoline6(vkCmdUpdateBuffer,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(dstBuffer)),
+		C.uintptr(uintptr(dstOffset)),
+		C.uintptr(uintptr(dataSize)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pData))),
+		0,
 	)
 }
 
@@ -1938,14 +2007,15 @@ func CmdFillBuffer(commandBuffer CommandBuffer,
 	data uint32) {
 
 	if vkCmdFillBuffer == nil {
-		vkCmdFillBuffer = dlHandle.NewProc("vkCmdFillBuffer")
+		vkCmdFillBuffer = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdFillBuffer")))
 	}
-	syscall.SyscallN(vkCmdFillBuffer.Addr(),
-		uintptr(commandBuffer),
-		uintptr(dstBuffer),
-		uintptr(dstOffset),
-		uintptr(size),
-		uintptr(data),
+	C.Trampoline6(vkCmdFillBuffer,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(dstBuffer)),
+		C.uintptr(uintptr(dstOffset)),
+		C.uintptr(uintptr(size)),
+		C.uintptr(uintptr(data)),
+		0,
 	)
 }
 
@@ -1966,7 +2036,7 @@ func CmdPipelineBarrier(commandBuffer CommandBuffer,
 	if len(memoryBarriers) > 0 {
 		tmp := make([]vkMemoryBarrier, memoryBarrierCount)
 		for i, v := range memoryBarriers {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		pMemoryBarriers = unsafe.Pointer(&tmp[0])
 	}
@@ -1977,7 +2047,7 @@ func CmdPipelineBarrier(commandBuffer CommandBuffer,
 	if len(bufferMemoryBarriers) > 0 {
 		tmp := make([]vkBufferMemoryBarrier, bufferMemoryBarrierCount)
 		for i, v := range bufferMemoryBarriers {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		pBufferMemoryBarriers = unsafe.Pointer(&tmp[0])
 	}
@@ -1988,24 +2058,26 @@ func CmdPipelineBarrier(commandBuffer CommandBuffer,
 	if len(imageMemoryBarriers) > 0 {
 		tmp := make([]vkImageMemoryBarrier, imageMemoryBarrierCount)
 		for i, v := range imageMemoryBarriers {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		pImageMemoryBarriers = unsafe.Pointer(&tmp[0])
 	}
 	if vkCmdPipelineBarrier == nil {
-		vkCmdPipelineBarrier = dlHandle.NewProc("vkCmdPipelineBarrier")
+		vkCmdPipelineBarrier = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdPipelineBarrier")))
 	}
-	syscall.SyscallN(vkCmdPipelineBarrier.Addr(),
-		uintptr(commandBuffer),
-		uintptr(srcStageMask),
-		uintptr(dstStageMask),
-		uintptr(dependencyFlags),
-		uintptr(memoryBarrierCount),
-		uintptr(unsafe.Pointer(pMemoryBarriers)),
-		uintptr(bufferMemoryBarrierCount),
-		uintptr(unsafe.Pointer(pBufferMemoryBarriers)),
-		uintptr(imageMemoryBarrierCount),
-		uintptr(unsafe.Pointer(pImageMemoryBarriers)),
+	C.Trampoline12(vkCmdPipelineBarrier,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(srcStageMask)),
+		C.uintptr(uintptr(dstStageMask)),
+		C.uintptr(uintptr(dependencyFlags)),
+		C.uintptr(uintptr(memoryBarrierCount)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pMemoryBarriers))),
+		C.uintptr(uintptr(bufferMemoryBarrierCount)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pBufferMemoryBarriers))),
+		C.uintptr(uintptr(imageMemoryBarrierCount)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pImageMemoryBarriers))),
+		0,
+		0,
 	)
 }
 
@@ -2018,13 +2090,15 @@ func CmdBeginQuery(commandBuffer CommandBuffer,
 	flags QueryControlFlags) {
 
 	if vkCmdBeginQuery == nil {
-		vkCmdBeginQuery = dlHandle.NewProc("vkCmdBeginQuery")
+		vkCmdBeginQuery = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdBeginQuery")))
 	}
-	syscall.SyscallN(vkCmdBeginQuery.Addr(),
-		uintptr(commandBuffer),
-		uintptr(queryPool),
-		uintptr(query),
-		uintptr(flags),
+	C.Trampoline6(vkCmdBeginQuery,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(queryPool)),
+		C.uintptr(uintptr(query)),
+		C.uintptr(uintptr(flags)),
+		0,
+		0,
 	)
 }
 
@@ -2036,12 +2110,12 @@ func CmdEndQuery(commandBuffer CommandBuffer,
 	query uint32) {
 
 	if vkCmdEndQuery == nil {
-		vkCmdEndQuery = dlHandle.NewProc("vkCmdEndQuery")
+		vkCmdEndQuery = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdEndQuery")))
 	}
-	syscall.SyscallN(vkCmdEndQuery.Addr(),
-		uintptr(commandBuffer),
-		uintptr(queryPool),
-		uintptr(query),
+	C.Trampoline3(vkCmdEndQuery,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(queryPool)),
+		C.uintptr(uintptr(query)),
 	)
 }
 
@@ -2054,13 +2128,15 @@ func CmdResetQueryPool(commandBuffer CommandBuffer,
 	queryCount uint32) {
 
 	if vkCmdResetQueryPool == nil {
-		vkCmdResetQueryPool = dlHandle.NewProc("vkCmdResetQueryPool")
+		vkCmdResetQueryPool = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdResetQueryPool")))
 	}
-	syscall.SyscallN(vkCmdResetQueryPool.Addr(),
-		uintptr(commandBuffer),
-		uintptr(queryPool),
-		uintptr(firstQuery),
-		uintptr(queryCount),
+	C.Trampoline6(vkCmdResetQueryPool,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(queryPool)),
+		C.uintptr(uintptr(firstQuery)),
+		C.uintptr(uintptr(queryCount)),
+		0,
+		0,
 	)
 }
 
@@ -2073,13 +2149,15 @@ func CmdWriteTimestamp(commandBuffer CommandBuffer,
 	query uint32) {
 
 	if vkCmdWriteTimestamp == nil {
-		vkCmdWriteTimestamp = dlHandle.NewProc("vkCmdWriteTimestamp")
+		vkCmdWriteTimestamp = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdWriteTimestamp")))
 	}
-	syscall.SyscallN(vkCmdWriteTimestamp.Addr(),
-		uintptr(commandBuffer),
-		uintptr(pipelineStage),
-		uintptr(queryPool),
-		uintptr(query),
+	C.Trampoline6(vkCmdWriteTimestamp,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(pipelineStage)),
+		C.uintptr(uintptr(queryPool)),
+		C.uintptr(uintptr(query)),
+		0,
+		0,
 	)
 }
 
@@ -2096,17 +2174,18 @@ func CmdCopyQueryPoolResults(commandBuffer CommandBuffer,
 	flags QueryResultFlags) {
 
 	if vkCmdCopyQueryPoolResults == nil {
-		vkCmdCopyQueryPoolResults = dlHandle.NewProc("vkCmdCopyQueryPoolResults")
+		vkCmdCopyQueryPoolResults = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdCopyQueryPoolResults")))
 	}
-	syscall.SyscallN(vkCmdCopyQueryPoolResults.Addr(),
-		uintptr(commandBuffer),
-		uintptr(queryPool),
-		uintptr(firstQuery),
-		uintptr(queryCount),
-		uintptr(dstBuffer),
-		uintptr(dstOffset),
-		uintptr(stride),
-		uintptr(flags),
+	C.Trampoline9(vkCmdCopyQueryPoolResults,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(queryPool)),
+		C.uintptr(uintptr(firstQuery)),
+		C.uintptr(uintptr(queryCount)),
+		C.uintptr(uintptr(dstBuffer)),
+		C.uintptr(uintptr(dstOffset)),
+		C.uintptr(uintptr(stride)),
+		C.uintptr(uintptr(flags)),
+		0,
 	)
 }
 
@@ -2123,12 +2202,12 @@ func CmdExecuteCommands(commandBuffer CommandBuffer,
 		pCommandBuffers = unsafe.Pointer(&commandBuffers[0])
 	}
 	if vkCmdExecuteCommands == nil {
-		vkCmdExecuteCommands = dlHandle.NewProc("vkCmdExecuteCommands")
+		vkCmdExecuteCommands = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdExecuteCommands")))
 	}
-	syscall.SyscallN(vkCmdExecuteCommands.Addr(),
-		uintptr(commandBuffer),
-		uintptr(commandBufferCount),
-		uintptr(unsafe.Pointer(pCommandBuffers)),
+	C.Trampoline3(vkCmdExecuteCommands,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(commandBufferCount)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pCommandBuffers))),
 	)
 }
 
@@ -2142,7 +2221,7 @@ func CreateEvent(device Device,
 	// struct requiring translation
 	var pCreateInfo *vkEventCreateInfo
 	if createInfo != nil {
-		pCreateInfo = createInfo.vkStruct()
+		pCreateInfo = createInfo.ToVK()
 	}
 
 	// singular input, pass direct
@@ -2154,16 +2233,18 @@ func CreateEvent(device Device,
 	// binding-allocated single return value populated by Vulkan
 	pEvent := &event
 	if vkCreateEvent == nil {
-		vkCreateEvent = dlHandle.NewProc("vkCreateEvent")
+		vkCreateEvent = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCreateEvent")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkCreateEvent.Addr(),
-		uintptr(device),
-		uintptr(unsafe.Pointer(pCreateInfo)),
-		uintptr(unsafe.Pointer(pAllocator)),
-		uintptr(unsafe.Pointer(pEvent)),
+	rsys = C.Trampoline6(vkCreateEvent,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pCreateInfo))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pEvent))),
+		0,
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -2183,12 +2264,12 @@ func DestroyEvent(device Device,
 		pAllocator = unsafe.Pointer(allocator)
 	}
 	if vkDestroyEvent == nil {
-		vkDestroyEvent = dlHandle.NewProc("vkDestroyEvent")
+		vkDestroyEvent = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkDestroyEvent")))
 	}
-	syscall.SyscallN(vkDestroyEvent.Addr(),
-		uintptr(device),
-		uintptr(event),
-		uintptr(unsafe.Pointer(pAllocator)),
+	C.Trampoline3(vkDestroyEvent,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(event)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
 	)
 }
 
@@ -2199,14 +2280,15 @@ func GetEventStatus(device Device,
 	event Event) (r error) {
 
 	if vkGetEventStatus == nil {
-		vkGetEventStatus = dlHandle.NewProc("vkGetEventStatus")
+		vkGetEventStatus = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetEventStatus")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkGetEventStatus.Addr(),
-		uintptr(device),
-		uintptr(event),
+	rsys = C.Trampoline3(vkGetEventStatus,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(event)),
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -2220,14 +2302,15 @@ func SetEvent(device Device,
 	event Event) (r error) {
 
 	if vkSetEvent == nil {
-		vkSetEvent = dlHandle.NewProc("vkSetEvent")
+		vkSetEvent = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkSetEvent")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkSetEvent.Addr(),
-		uintptr(device),
-		uintptr(event),
+	rsys = C.Trampoline3(vkSetEvent,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(event)),
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -2241,14 +2324,15 @@ func ResetEvent(device Device,
 	event Event) (r error) {
 
 	if vkResetEvent == nil {
-		vkResetEvent = dlHandle.NewProc("vkResetEvent")
+		vkResetEvent = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkResetEvent")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkResetEvent.Addr(),
-		uintptr(device),
-		uintptr(event),
+	rsys = C.Trampoline3(vkResetEvent,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(event)),
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -2265,7 +2349,7 @@ func CreateBufferView(device Device,
 	// struct requiring translation
 	var pCreateInfo *vkBufferViewCreateInfo
 	if createInfo != nil {
-		pCreateInfo = createInfo.vkStruct()
+		pCreateInfo = createInfo.ToVK()
 	}
 
 	// singular input, pass direct
@@ -2277,16 +2361,18 @@ func CreateBufferView(device Device,
 	// binding-allocated single return value populated by Vulkan
 	pView := &view
 	if vkCreateBufferView == nil {
-		vkCreateBufferView = dlHandle.NewProc("vkCreateBufferView")
+		vkCreateBufferView = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCreateBufferView")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkCreateBufferView.Addr(),
-		uintptr(device),
-		uintptr(unsafe.Pointer(pCreateInfo)),
-		uintptr(unsafe.Pointer(pAllocator)),
-		uintptr(unsafe.Pointer(pView)),
+	rsys = C.Trampoline6(vkCreateBufferView,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pCreateInfo))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pView))),
+		0,
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -2306,12 +2392,12 @@ func DestroyBufferView(device Device,
 		pAllocator = unsafe.Pointer(allocator)
 	}
 	if vkDestroyBufferView == nil {
-		vkDestroyBufferView = dlHandle.NewProc("vkDestroyBufferView")
+		vkDestroyBufferView = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkDestroyBufferView")))
 	}
-	syscall.SyscallN(vkDestroyBufferView.Addr(),
-		uintptr(device),
-		uintptr(bufferView),
-		uintptr(unsafe.Pointer(pAllocator)),
+	C.Trampoline3(vkDestroyBufferView,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(bufferView)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
 	)
 }
 
@@ -2325,7 +2411,7 @@ func CreateShaderModule(device Device,
 	// struct requiring translation
 	var pCreateInfo *vkShaderModuleCreateInfo
 	if createInfo != nil {
-		pCreateInfo = createInfo.vkStruct()
+		pCreateInfo = createInfo.ToVK()
 	}
 
 	// singular input, pass direct
@@ -2337,16 +2423,18 @@ func CreateShaderModule(device Device,
 	// binding-allocated single return value populated by Vulkan
 	pShaderModule := &shaderModule
 	if vkCreateShaderModule == nil {
-		vkCreateShaderModule = dlHandle.NewProc("vkCreateShaderModule")
+		vkCreateShaderModule = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCreateShaderModule")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkCreateShaderModule.Addr(),
-		uintptr(device),
-		uintptr(unsafe.Pointer(pCreateInfo)),
-		uintptr(unsafe.Pointer(pAllocator)),
-		uintptr(unsafe.Pointer(pShaderModule)),
+	rsys = C.Trampoline6(vkCreateShaderModule,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pCreateInfo))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pShaderModule))),
+		0,
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -2366,12 +2454,12 @@ func DestroyShaderModule(device Device,
 		pAllocator = unsafe.Pointer(allocator)
 	}
 	if vkDestroyShaderModule == nil {
-		vkDestroyShaderModule = dlHandle.NewProc("vkDestroyShaderModule")
+		vkDestroyShaderModule = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkDestroyShaderModule")))
 	}
-	syscall.SyscallN(vkDestroyShaderModule.Addr(),
-		uintptr(device),
-		uintptr(shaderModule),
-		uintptr(unsafe.Pointer(pAllocator)),
+	C.Trampoline3(vkDestroyShaderModule,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(shaderModule)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
 	)
 }
 
@@ -2385,7 +2473,7 @@ func CreatePipelineCache(device Device,
 	// struct requiring translation
 	var pCreateInfo *vkPipelineCacheCreateInfo
 	if createInfo != nil {
-		pCreateInfo = createInfo.vkStruct()
+		pCreateInfo = createInfo.ToVK()
 	}
 
 	// singular input, pass direct
@@ -2397,16 +2485,18 @@ func CreatePipelineCache(device Device,
 	// binding-allocated single return value populated by Vulkan
 	pPipelineCache := &pipelineCache
 	if vkCreatePipelineCache == nil {
-		vkCreatePipelineCache = dlHandle.NewProc("vkCreatePipelineCache")
+		vkCreatePipelineCache = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCreatePipelineCache")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkCreatePipelineCache.Addr(),
-		uintptr(device),
-		uintptr(unsafe.Pointer(pCreateInfo)),
-		uintptr(unsafe.Pointer(pAllocator)),
-		uintptr(unsafe.Pointer(pPipelineCache)),
+	rsys = C.Trampoline6(vkCreatePipelineCache,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pCreateInfo))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pPipelineCache))),
+		0,
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -2426,12 +2516,12 @@ func DestroyPipelineCache(device Device,
 		pAllocator = unsafe.Pointer(allocator)
 	}
 	if vkDestroyPipelineCache == nil {
-		vkDestroyPipelineCache = dlHandle.NewProc("vkDestroyPipelineCache")
+		vkDestroyPipelineCache = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkDestroyPipelineCache")))
 	}
-	syscall.SyscallN(vkDestroyPipelineCache.Addr(),
-		uintptr(device),
-		uintptr(pipelineCache),
-		uintptr(unsafe.Pointer(pAllocator)),
+	C.Trampoline3(vkDestroyPipelineCache,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(pipelineCache)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
 	)
 }
 
@@ -2449,16 +2539,18 @@ func GetPipelineCacheData(device Device,
 
 	// first c-api call to get counter
 	if vkGetPipelineCacheData == nil {
-		vkGetPipelineCacheData = dlHandle.NewProc("vkGetPipelineCacheData")
+		vkGetPipelineCacheData = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetPipelineCacheData")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkGetPipelineCacheData.Addr(),
-		uintptr(device),
-		uintptr(pipelineCache),
-		uintptr(unsafe.Pointer(pDataSize)),
-		uintptr(unsafe.Pointer(pData)),
+	rsys = C.Trampoline6(vkGetPipelineCacheData,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(pipelineCache)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pDataSize))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pData))),
+		0,
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 
 	// allocate the array for the second call
 	arr_data := make([]byte, dataSize)
@@ -2466,7 +2558,7 @@ func GetPipelineCacheData(device Device,
 	pData = &arr_data[0]
 
 	// second c-api call to get array
-	sys := C.Trampoline6(vkGetPipelineCacheData,
+	rsys = C.Trampoline6(vkGetPipelineCacheData,
 		C.uintptr(uintptr(device)),
 		C.uintptr(uintptr(pipelineCache)),
 		C.uintptr_t(uintptr(unsafe.Pointer(pDataSize))),
@@ -2500,16 +2592,18 @@ func MergePipelineCaches(device Device,
 		pSrcCaches = unsafe.Pointer(&srcCaches[0])
 	}
 	if vkMergePipelineCaches == nil {
-		vkMergePipelineCaches = dlHandle.NewProc("vkMergePipelineCaches")
+		vkMergePipelineCaches = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkMergePipelineCaches")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkMergePipelineCaches.Addr(),
-		uintptr(device),
-		uintptr(dstCache),
-		uintptr(srcCacheCount),
-		uintptr(unsafe.Pointer(pSrcCaches)),
+	rsys = C.Trampoline6(vkMergePipelineCaches,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(dstCache)),
+		C.uintptr(uintptr(srcCacheCount)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pSrcCaches))),
+		0,
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -2530,7 +2624,7 @@ func CreateComputePipelines(device Device,
 	if len(createInfos) > 0 {
 		tmp := make([]vkComputePipelineCreateInfo, createInfoCount)
 		for i, v := range createInfos {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		pCreateInfos = unsafe.Pointer(&tmp[0])
 	}
@@ -2545,18 +2639,18 @@ func CreateComputePipelines(device Device,
 	pipelines = make([]Pipeline, createInfoCount)
 	pPipelines := unsafe.Pointer(&pipelines[0])
 	if vkCreateComputePipelines == nil {
-		vkCreateComputePipelines = dlHandle.NewProc("vkCreateComputePipelines")
+		vkCreateComputePipelines = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCreateComputePipelines")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkCreateComputePipelines.Addr(),
-		uintptr(device),
-		uintptr(pipelineCache),
-		uintptr(createInfoCount),
-		uintptr(unsafe.Pointer(pCreateInfos)),
-		uintptr(unsafe.Pointer(pAllocator)),
-		uintptr(unsafe.Pointer(pPipelines)),
+	rsys = C.Trampoline6(vkCreateComputePipelines,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(pipelineCache)),
+		C.uintptr(uintptr(createInfoCount)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pCreateInfos))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pPipelines))),
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -2576,12 +2670,12 @@ func DestroyPipeline(device Device,
 		pAllocator = unsafe.Pointer(allocator)
 	}
 	if vkDestroyPipeline == nil {
-		vkDestroyPipeline = dlHandle.NewProc("vkDestroyPipeline")
+		vkDestroyPipeline = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkDestroyPipeline")))
 	}
-	syscall.SyscallN(vkDestroyPipeline.Addr(),
-		uintptr(device),
-		uintptr(pipeline),
-		uintptr(unsafe.Pointer(pAllocator)),
+	C.Trampoline3(vkDestroyPipeline,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(pipeline)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
 	)
 }
 
@@ -2595,7 +2689,7 @@ func CreatePipelineLayout(device Device,
 	// struct requiring translation
 	var pCreateInfo *vkPipelineLayoutCreateInfo
 	if createInfo != nil {
-		pCreateInfo = createInfo.vkStruct()
+		pCreateInfo = createInfo.ToVK()
 	}
 
 	// singular input, pass direct
@@ -2607,16 +2701,18 @@ func CreatePipelineLayout(device Device,
 	// binding-allocated single return value populated by Vulkan
 	pPipelineLayout := &pipelineLayout
 	if vkCreatePipelineLayout == nil {
-		vkCreatePipelineLayout = dlHandle.NewProc("vkCreatePipelineLayout")
+		vkCreatePipelineLayout = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCreatePipelineLayout")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkCreatePipelineLayout.Addr(),
-		uintptr(device),
-		uintptr(unsafe.Pointer(pCreateInfo)),
-		uintptr(unsafe.Pointer(pAllocator)),
-		uintptr(unsafe.Pointer(pPipelineLayout)),
+	rsys = C.Trampoline6(vkCreatePipelineLayout,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pCreateInfo))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pPipelineLayout))),
+		0,
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -2636,12 +2732,12 @@ func DestroyPipelineLayout(device Device,
 		pAllocator = unsafe.Pointer(allocator)
 	}
 	if vkDestroyPipelineLayout == nil {
-		vkDestroyPipelineLayout = dlHandle.NewProc("vkDestroyPipelineLayout")
+		vkDestroyPipelineLayout = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkDestroyPipelineLayout")))
 	}
-	syscall.SyscallN(vkDestroyPipelineLayout.Addr(),
-		uintptr(device),
-		uintptr(pipelineLayout),
-		uintptr(unsafe.Pointer(pAllocator)),
+	C.Trampoline3(vkDestroyPipelineLayout,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(pipelineLayout)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
 	)
 }
 
@@ -2655,7 +2751,7 @@ func CreateSampler(device Device,
 	// struct requiring translation
 	var pCreateInfo *vkSamplerCreateInfo
 	if createInfo != nil {
-		pCreateInfo = createInfo.vkStruct()
+		pCreateInfo = createInfo.ToVK()
 	}
 
 	// singular input, pass direct
@@ -2667,16 +2763,18 @@ func CreateSampler(device Device,
 	// binding-allocated single return value populated by Vulkan
 	pSampler := &sampler
 	if vkCreateSampler == nil {
-		vkCreateSampler = dlHandle.NewProc("vkCreateSampler")
+		vkCreateSampler = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCreateSampler")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkCreateSampler.Addr(),
-		uintptr(device),
-		uintptr(unsafe.Pointer(pCreateInfo)),
-		uintptr(unsafe.Pointer(pAllocator)),
-		uintptr(unsafe.Pointer(pSampler)),
+	rsys = C.Trampoline6(vkCreateSampler,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pCreateInfo))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pSampler))),
+		0,
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -2696,12 +2794,12 @@ func DestroySampler(device Device,
 		pAllocator = unsafe.Pointer(allocator)
 	}
 	if vkDestroySampler == nil {
-		vkDestroySampler = dlHandle.NewProc("vkDestroySampler")
+		vkDestroySampler = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkDestroySampler")))
 	}
-	syscall.SyscallN(vkDestroySampler.Addr(),
-		uintptr(device),
-		uintptr(sampler),
-		uintptr(unsafe.Pointer(pAllocator)),
+	C.Trampoline3(vkDestroySampler,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(sampler)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
 	)
 }
 
@@ -2715,7 +2813,7 @@ func CreateDescriptorSetLayout(device Device,
 	// struct requiring translation
 	var pCreateInfo *vkDescriptorSetLayoutCreateInfo
 	if createInfo != nil {
-		pCreateInfo = createInfo.vkStruct()
+		pCreateInfo = createInfo.ToVK()
 	}
 
 	// singular input, pass direct
@@ -2727,16 +2825,18 @@ func CreateDescriptorSetLayout(device Device,
 	// binding-allocated single return value populated by Vulkan
 	pSetLayout := &setLayout
 	if vkCreateDescriptorSetLayout == nil {
-		vkCreateDescriptorSetLayout = dlHandle.NewProc("vkCreateDescriptorSetLayout")
+		vkCreateDescriptorSetLayout = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCreateDescriptorSetLayout")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkCreateDescriptorSetLayout.Addr(),
-		uintptr(device),
-		uintptr(unsafe.Pointer(pCreateInfo)),
-		uintptr(unsafe.Pointer(pAllocator)),
-		uintptr(unsafe.Pointer(pSetLayout)),
+	rsys = C.Trampoline6(vkCreateDescriptorSetLayout,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pCreateInfo))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pSetLayout))),
+		0,
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -2756,12 +2856,12 @@ func DestroyDescriptorSetLayout(device Device,
 		pAllocator = unsafe.Pointer(allocator)
 	}
 	if vkDestroyDescriptorSetLayout == nil {
-		vkDestroyDescriptorSetLayout = dlHandle.NewProc("vkDestroyDescriptorSetLayout")
+		vkDestroyDescriptorSetLayout = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkDestroyDescriptorSetLayout")))
 	}
-	syscall.SyscallN(vkDestroyDescriptorSetLayout.Addr(),
-		uintptr(device),
-		uintptr(descriptorSetLayout),
-		uintptr(unsafe.Pointer(pAllocator)),
+	C.Trampoline3(vkDestroyDescriptorSetLayout,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(descriptorSetLayout)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
 	)
 }
 
@@ -2775,7 +2875,7 @@ func CreateDescriptorPool(device Device,
 	// struct requiring translation
 	var pCreateInfo *vkDescriptorPoolCreateInfo
 	if createInfo != nil {
-		pCreateInfo = createInfo.vkStruct()
+		pCreateInfo = createInfo.ToVK()
 	}
 
 	// singular input, pass direct
@@ -2787,16 +2887,18 @@ func CreateDescriptorPool(device Device,
 	// binding-allocated single return value populated by Vulkan
 	pDescriptorPool := &descriptorPool
 	if vkCreateDescriptorPool == nil {
-		vkCreateDescriptorPool = dlHandle.NewProc("vkCreateDescriptorPool")
+		vkCreateDescriptorPool = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCreateDescriptorPool")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkCreateDescriptorPool.Addr(),
-		uintptr(device),
-		uintptr(unsafe.Pointer(pCreateInfo)),
-		uintptr(unsafe.Pointer(pAllocator)),
-		uintptr(unsafe.Pointer(pDescriptorPool)),
+	rsys = C.Trampoline6(vkCreateDescriptorPool,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pCreateInfo))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pDescriptorPool))),
+		0,
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -2816,12 +2918,12 @@ func DestroyDescriptorPool(device Device,
 		pAllocator = unsafe.Pointer(allocator)
 	}
 	if vkDestroyDescriptorPool == nil {
-		vkDestroyDescriptorPool = dlHandle.NewProc("vkDestroyDescriptorPool")
+		vkDestroyDescriptorPool = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkDestroyDescriptorPool")))
 	}
-	syscall.SyscallN(vkDestroyDescriptorPool.Addr(),
-		uintptr(device),
-		uintptr(descriptorPool),
-		uintptr(unsafe.Pointer(pAllocator)),
+	C.Trampoline3(vkDestroyDescriptorPool,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(descriptorPool)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
 	)
 }
 
@@ -2833,15 +2935,15 @@ func ResetDescriptorPool(device Device,
 	flags DescriptorPoolResetFlags) (r error) {
 
 	if vkResetDescriptorPool == nil {
-		vkResetDescriptorPool = dlHandle.NewProc("vkResetDescriptorPool")
+		vkResetDescriptorPool = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkResetDescriptorPool")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkResetDescriptorPool.Addr(),
-		uintptr(device),
-		uintptr(descriptorPool),
-		uintptr(flags),
+	rsys = C.Trampoline3(vkResetDescriptorPool,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(descriptorPool)),
+		C.uintptr(uintptr(flags)),
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -2857,22 +2959,22 @@ func AllocateDescriptorSets(device Device,
 	// struct requiring translation
 	var pAllocateInfo *vkDescriptorSetAllocateInfo
 	if allocateInfo != nil {
-		pAllocateInfo = allocateInfo.vkStruct()
+		pAllocateInfo = allocateInfo.ToVK()
 	}
 
 	// binding-allocated array populated by Vulkan
 	descriptorSets = make([]DescriptorSet, pAllocateInfo.descriptorSetCount)
 	pDescriptorSets := &descriptorSets[0]
 	if vkAllocateDescriptorSets == nil {
-		vkAllocateDescriptorSets = dlHandle.NewProc("vkAllocateDescriptorSets")
+		vkAllocateDescriptorSets = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkAllocateDescriptorSets")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkAllocateDescriptorSets.Addr(),
-		uintptr(device),
-		uintptr(unsafe.Pointer(pAllocateInfo)),
-		uintptr(unsafe.Pointer(pDescriptorSets)),
+	rsys = C.Trampoline3(vkAllocateDescriptorSets,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocateInfo))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pDescriptorSets))),
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -2893,16 +2995,18 @@ func FreeDescriptorSets(device Device,
 		pDescriptorSets = unsafe.Pointer(&descriptorSets[0])
 	}
 	if vkFreeDescriptorSets == nil {
-		vkFreeDescriptorSets = dlHandle.NewProc("vkFreeDescriptorSets")
+		vkFreeDescriptorSets = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkFreeDescriptorSets")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkFreeDescriptorSets.Addr(),
-		uintptr(device),
-		uintptr(descriptorPool),
-		uintptr(descriptorSetCount),
-		uintptr(unsafe.Pointer(pDescriptorSets)),
+	rsys = C.Trampoline6(vkFreeDescriptorSets,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(descriptorPool)),
+		C.uintptr(uintptr(descriptorSetCount)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pDescriptorSets))),
+		0,
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -2922,7 +3026,7 @@ func UpdateDescriptorSets(device Device,
 	if len(descriptorWrites) > 0 {
 		tmp := make([]vkWriteDescriptorSet, descriptorWriteCount)
 		for i, v := range descriptorWrites {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		pDescriptorWrites = unsafe.Pointer(&tmp[0])
 	}
@@ -2933,19 +3037,20 @@ func UpdateDescriptorSets(device Device,
 	if len(descriptorCopies) > 0 {
 		tmp := make([]vkCopyDescriptorSet, descriptorCopyCount)
 		for i, v := range descriptorCopies {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		pDescriptorCopies = unsafe.Pointer(&tmp[0])
 	}
 	if vkUpdateDescriptorSets == nil {
-		vkUpdateDescriptorSets = dlHandle.NewProc("vkUpdateDescriptorSets")
+		vkUpdateDescriptorSets = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkUpdateDescriptorSets")))
 	}
-	syscall.SyscallN(vkUpdateDescriptorSets.Addr(),
-		uintptr(device),
-		uintptr(descriptorWriteCount),
-		uintptr(unsafe.Pointer(pDescriptorWrites)),
-		uintptr(descriptorCopyCount),
-		uintptr(unsafe.Pointer(pDescriptorCopies)),
+	C.Trampoline6(vkUpdateDescriptorSets,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(descriptorWriteCount)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pDescriptorWrites))),
+		C.uintptr(uintptr(descriptorCopyCount)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pDescriptorCopies))),
+		0,
 	)
 }
 
@@ -2957,12 +3062,12 @@ func CmdBindPipeline(commandBuffer CommandBuffer,
 	pipeline Pipeline) {
 
 	if vkCmdBindPipeline == nil {
-		vkCmdBindPipeline = dlHandle.NewProc("vkCmdBindPipeline")
+		vkCmdBindPipeline = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdBindPipeline")))
 	}
-	syscall.SyscallN(vkCmdBindPipeline.Addr(),
-		uintptr(commandBuffer),
-		uintptr(pipelineBindPoint),
-		uintptr(pipeline),
+	C.Trampoline3(vkCmdBindPipeline,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(pipelineBindPoint)),
+		C.uintptr(uintptr(pipeline)),
 	)
 }
 
@@ -2990,17 +3095,18 @@ func CmdBindDescriptorSets(commandBuffer CommandBuffer,
 		pDynamicOffsets = unsafe.Pointer(&dynamicOffsets[0])
 	}
 	if vkCmdBindDescriptorSets == nil {
-		vkCmdBindDescriptorSets = dlHandle.NewProc("vkCmdBindDescriptorSets")
+		vkCmdBindDescriptorSets = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdBindDescriptorSets")))
 	}
-	syscall.SyscallN(vkCmdBindDescriptorSets.Addr(),
-		uintptr(commandBuffer),
-		uintptr(pipelineBindPoint),
-		uintptr(layout),
-		uintptr(firstSet),
-		uintptr(descriptorSetCount),
-		uintptr(unsafe.Pointer(pDescriptorSets)),
-		uintptr(dynamicOffsetCount),
-		uintptr(unsafe.Pointer(pDynamicOffsets)),
+	C.Trampoline9(vkCmdBindDescriptorSets,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(pipelineBindPoint)),
+		C.uintptr(uintptr(layout)),
+		C.uintptr(uintptr(firstSet)),
+		C.uintptr(uintptr(descriptorSetCount)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pDescriptorSets))),
+		C.uintptr(uintptr(dynamicOffsetCount)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pDynamicOffsets))),
+		0,
 	)
 }
 
@@ -3016,7 +3122,7 @@ func CmdClearColorImage(commandBuffer CommandBuffer,
 	// struct requiring translation
 	var pColor *vkClearColorValue
 	if color != nil {
-		pColor = color.vkStruct()
+		pColor = color.ToVK()
 	}
 
 	// input slice of struct that requires translation
@@ -3025,20 +3131,20 @@ func CmdClearColorImage(commandBuffer CommandBuffer,
 	if len(ranges) > 0 {
 		tmp := make([]vkImageSubresourceRange, rangeCount)
 		for i, v := range ranges {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		pRanges = unsafe.Pointer(&tmp[0])
 	}
 	if vkCmdClearColorImage == nil {
-		vkCmdClearColorImage = dlHandle.NewProc("vkCmdClearColorImage")
+		vkCmdClearColorImage = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdClearColorImage")))
 	}
-	syscall.SyscallN(vkCmdClearColorImage.Addr(),
-		uintptr(commandBuffer),
-		uintptr(image),
-		uintptr(imageLayout),
-		uintptr(unsafe.Pointer(pColor)),
-		uintptr(rangeCount),
-		uintptr(unsafe.Pointer(pRanges)),
+	C.Trampoline6(vkCmdClearColorImage,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(image)),
+		C.uintptr(uintptr(imageLayout)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pColor))),
+		C.uintptr(uintptr(rangeCount)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pRanges))),
 	)
 }
 
@@ -3051,13 +3157,15 @@ func CmdDispatch(commandBuffer CommandBuffer,
 	groupCountZ uint32) {
 
 	if vkCmdDispatch == nil {
-		vkCmdDispatch = dlHandle.NewProc("vkCmdDispatch")
+		vkCmdDispatch = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdDispatch")))
 	}
-	syscall.SyscallN(vkCmdDispatch.Addr(),
-		uintptr(commandBuffer),
-		uintptr(groupCountX),
-		uintptr(groupCountY),
-		uintptr(groupCountZ),
+	C.Trampoline6(vkCmdDispatch,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(groupCountX)),
+		C.uintptr(uintptr(groupCountY)),
+		C.uintptr(uintptr(groupCountZ)),
+		0,
+		0,
 	)
 }
 
@@ -3069,12 +3177,12 @@ func CmdDispatchIndirect(commandBuffer CommandBuffer,
 	offset DeviceSize) {
 
 	if vkCmdDispatchIndirect == nil {
-		vkCmdDispatchIndirect = dlHandle.NewProc("vkCmdDispatchIndirect")
+		vkCmdDispatchIndirect = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdDispatchIndirect")))
 	}
-	syscall.SyscallN(vkCmdDispatchIndirect.Addr(),
-		uintptr(commandBuffer),
-		uintptr(buffer),
-		uintptr(offset),
+	C.Trampoline3(vkCmdDispatchIndirect,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(buffer)),
+		C.uintptr(uintptr(offset)),
 	)
 }
 
@@ -3086,12 +3194,12 @@ func CmdSetEvent(commandBuffer CommandBuffer,
 	stageMask PipelineStageFlags) {
 
 	if vkCmdSetEvent == nil {
-		vkCmdSetEvent = dlHandle.NewProc("vkCmdSetEvent")
+		vkCmdSetEvent = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdSetEvent")))
 	}
-	syscall.SyscallN(vkCmdSetEvent.Addr(),
-		uintptr(commandBuffer),
-		uintptr(event),
-		uintptr(stageMask),
+	C.Trampoline3(vkCmdSetEvent,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(event)),
+		C.uintptr(uintptr(stageMask)),
 	)
 }
 
@@ -3103,12 +3211,12 @@ func CmdResetEvent(commandBuffer CommandBuffer,
 	stageMask PipelineStageFlags) {
 
 	if vkCmdResetEvent == nil {
-		vkCmdResetEvent = dlHandle.NewProc("vkCmdResetEvent")
+		vkCmdResetEvent = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdResetEvent")))
 	}
-	syscall.SyscallN(vkCmdResetEvent.Addr(),
-		uintptr(commandBuffer),
-		uintptr(event),
-		uintptr(stageMask),
+	C.Trampoline3(vkCmdResetEvent,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(event)),
+		C.uintptr(uintptr(stageMask)),
 	)
 }
 
@@ -3136,7 +3244,7 @@ func CmdWaitEvents(commandBuffer CommandBuffer,
 	if len(memoryBarriers) > 0 {
 		tmp := make([]vkMemoryBarrier, memoryBarrierCount)
 		for i, v := range memoryBarriers {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		pMemoryBarriers = unsafe.Pointer(&tmp[0])
 	}
@@ -3147,7 +3255,7 @@ func CmdWaitEvents(commandBuffer CommandBuffer,
 	if len(bufferMemoryBarriers) > 0 {
 		tmp := make([]vkBufferMemoryBarrier, bufferMemoryBarrierCount)
 		for i, v := range bufferMemoryBarriers {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		pBufferMemoryBarriers = unsafe.Pointer(&tmp[0])
 	}
@@ -3158,25 +3266,26 @@ func CmdWaitEvents(commandBuffer CommandBuffer,
 	if len(imageMemoryBarriers) > 0 {
 		tmp := make([]vkImageMemoryBarrier, imageMemoryBarrierCount)
 		for i, v := range imageMemoryBarriers {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		pImageMemoryBarriers = unsafe.Pointer(&tmp[0])
 	}
 	if vkCmdWaitEvents == nil {
-		vkCmdWaitEvents = dlHandle.NewProc("vkCmdWaitEvents")
+		vkCmdWaitEvents = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdWaitEvents")))
 	}
-	syscall.SyscallN(vkCmdWaitEvents.Addr(),
-		uintptr(commandBuffer),
-		uintptr(eventCount),
-		uintptr(unsafe.Pointer(pEvents)),
-		uintptr(srcStageMask),
-		uintptr(dstStageMask),
-		uintptr(memoryBarrierCount),
-		uintptr(unsafe.Pointer(pMemoryBarriers)),
-		uintptr(bufferMemoryBarrierCount),
-		uintptr(unsafe.Pointer(pBufferMemoryBarriers)),
-		uintptr(imageMemoryBarrierCount),
-		uintptr(unsafe.Pointer(pImageMemoryBarriers)),
+	C.Trampoline12(vkCmdWaitEvents,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(eventCount)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pEvents))),
+		C.uintptr(uintptr(srcStageMask)),
+		C.uintptr(uintptr(dstStageMask)),
+		C.uintptr(uintptr(memoryBarrierCount)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pMemoryBarriers))),
+		C.uintptr(uintptr(bufferMemoryBarrierCount)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pBufferMemoryBarriers))),
+		C.uintptr(uintptr(imageMemoryBarrierCount)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pImageMemoryBarriers))),
+		0,
 	)
 }
 
@@ -3196,15 +3305,15 @@ func CmdPushConstants(commandBuffer CommandBuffer,
 		pValues = unsafe.Pointer(&values[0])
 	}
 	if vkCmdPushConstants == nil {
-		vkCmdPushConstants = dlHandle.NewProc("vkCmdPushConstants")
+		vkCmdPushConstants = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdPushConstants")))
 	}
-	syscall.SyscallN(vkCmdPushConstants.Addr(),
-		uintptr(commandBuffer),
-		uintptr(layout),
-		uintptr(stageFlags),
-		uintptr(offset),
-		uintptr(size),
-		uintptr(unsafe.Pointer(pValues)),
+	C.Trampoline6(vkCmdPushConstants,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(layout)),
+		C.uintptr(uintptr(stageFlags)),
+		C.uintptr(uintptr(offset)),
+		C.uintptr(uintptr(size)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pValues))),
 	)
 }
 
@@ -3222,7 +3331,7 @@ func CreateGraphicsPipelines(device Device,
 	if len(createInfos) > 0 {
 		tmp := make([]vkGraphicsPipelineCreateInfo, createInfoCount)
 		for i, v := range createInfos {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		pCreateInfos = unsafe.Pointer(&tmp[0])
 	}
@@ -3237,18 +3346,18 @@ func CreateGraphicsPipelines(device Device,
 	pipelines = make([]Pipeline, createInfoCount)
 	pPipelines := unsafe.Pointer(&pipelines[0])
 	if vkCreateGraphicsPipelines == nil {
-		vkCreateGraphicsPipelines = dlHandle.NewProc("vkCreateGraphicsPipelines")
+		vkCreateGraphicsPipelines = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCreateGraphicsPipelines")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkCreateGraphicsPipelines.Addr(),
-		uintptr(device),
-		uintptr(pipelineCache),
-		uintptr(createInfoCount),
-		uintptr(unsafe.Pointer(pCreateInfos)),
-		uintptr(unsafe.Pointer(pAllocator)),
-		uintptr(unsafe.Pointer(pPipelines)),
+	rsys = C.Trampoline6(vkCreateGraphicsPipelines,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(pipelineCache)),
+		C.uintptr(uintptr(createInfoCount)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pCreateInfos))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pPipelines))),
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -3265,7 +3374,7 @@ func CreateFramebuffer(device Device,
 	// struct requiring translation
 	var pCreateInfo *vkFramebufferCreateInfo
 	if createInfo != nil {
-		pCreateInfo = createInfo.vkStruct()
+		pCreateInfo = createInfo.ToVK()
 	}
 
 	// singular input, pass direct
@@ -3277,16 +3386,18 @@ func CreateFramebuffer(device Device,
 	// binding-allocated single return value populated by Vulkan
 	pFramebuffer := &framebuffer
 	if vkCreateFramebuffer == nil {
-		vkCreateFramebuffer = dlHandle.NewProc("vkCreateFramebuffer")
+		vkCreateFramebuffer = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCreateFramebuffer")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkCreateFramebuffer.Addr(),
-		uintptr(device),
-		uintptr(unsafe.Pointer(pCreateInfo)),
-		uintptr(unsafe.Pointer(pAllocator)),
-		uintptr(unsafe.Pointer(pFramebuffer)),
+	rsys = C.Trampoline6(vkCreateFramebuffer,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pCreateInfo))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pFramebuffer))),
+		0,
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -3306,12 +3417,12 @@ func DestroyFramebuffer(device Device,
 		pAllocator = unsafe.Pointer(allocator)
 	}
 	if vkDestroyFramebuffer == nil {
-		vkDestroyFramebuffer = dlHandle.NewProc("vkDestroyFramebuffer")
+		vkDestroyFramebuffer = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkDestroyFramebuffer")))
 	}
-	syscall.SyscallN(vkDestroyFramebuffer.Addr(),
-		uintptr(device),
-		uintptr(framebuffer),
-		uintptr(unsafe.Pointer(pAllocator)),
+	C.Trampoline3(vkDestroyFramebuffer,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(framebuffer)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
 	)
 }
 
@@ -3325,7 +3436,7 @@ func CreateRenderPass(device Device,
 	// struct requiring translation
 	var pCreateInfo *vkRenderPassCreateInfo
 	if createInfo != nil {
-		pCreateInfo = createInfo.vkStruct()
+		pCreateInfo = createInfo.ToVK()
 	}
 
 	// singular input, pass direct
@@ -3337,16 +3448,18 @@ func CreateRenderPass(device Device,
 	// binding-allocated single return value populated by Vulkan
 	pRenderPass := &renderPass
 	if vkCreateRenderPass == nil {
-		vkCreateRenderPass = dlHandle.NewProc("vkCreateRenderPass")
+		vkCreateRenderPass = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCreateRenderPass")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkCreateRenderPass.Addr(),
-		uintptr(device),
-		uintptr(unsafe.Pointer(pCreateInfo)),
-		uintptr(unsafe.Pointer(pAllocator)),
-		uintptr(unsafe.Pointer(pRenderPass)),
+	rsys = C.Trampoline6(vkCreateRenderPass,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pCreateInfo))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pRenderPass))),
+		0,
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -3366,12 +3479,12 @@ func DestroyRenderPass(device Device,
 		pAllocator = unsafe.Pointer(allocator)
 	}
 	if vkDestroyRenderPass == nil {
-		vkDestroyRenderPass = dlHandle.NewProc("vkDestroyRenderPass")
+		vkDestroyRenderPass = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkDestroyRenderPass")))
 	}
-	syscall.SyscallN(vkDestroyRenderPass.Addr(),
-		uintptr(device),
-		uintptr(renderPass),
-		uintptr(unsafe.Pointer(pAllocator)),
+	C.Trampoline3(vkDestroyRenderPass,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(renderPass)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
 	)
 }
 
@@ -3382,16 +3495,16 @@ func GetRenderAreaGranularity(device Device,
 	renderPass RenderPass) (granularity Extent2D) {
 
 	// binding-allocated single return value populated by Vulkan, requires translation
-	var pGranularity *vkExtent2D = granularity.vkStruct()
+	var pGranularity *vkExtent2D = granularity.ToVK()
 	if vkGetRenderAreaGranularity == nil {
-		vkGetRenderAreaGranularity = dlHandle.NewProc("vkGetRenderAreaGranularity")
+		vkGetRenderAreaGranularity = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetRenderAreaGranularity")))
 	}
-	syscall.SyscallN(vkGetRenderAreaGranularity.Addr(),
-		uintptr(device),
-		uintptr(renderPass),
-		uintptr(unsafe.Pointer(pGranularity)),
+	C.Trampoline3(vkGetRenderAreaGranularity,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(renderPass)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pGranularity))),
 	)
-	granularity = *(pGranularity.goStruct())
+	granularity = *(pGranularity.ToGo())
 	return
 }
 
@@ -3408,18 +3521,20 @@ func CmdSetViewport(commandBuffer CommandBuffer,
 	if len(viewports) > 0 {
 		tmp := make([]vkViewport, viewportCount)
 		for i, v := range viewports {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		pViewports = unsafe.Pointer(&tmp[0])
 	}
 	if vkCmdSetViewport == nil {
-		vkCmdSetViewport = dlHandle.NewProc("vkCmdSetViewport")
+		vkCmdSetViewport = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdSetViewport")))
 	}
-	syscall.SyscallN(vkCmdSetViewport.Addr(),
-		uintptr(commandBuffer),
-		uintptr(firstViewport),
-		uintptr(viewportCount),
-		uintptr(unsafe.Pointer(pViewports)),
+	C.Trampoline6(vkCmdSetViewport,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(firstViewport)),
+		C.uintptr(uintptr(viewportCount)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pViewports))),
+		0,
+		0,
 	)
 }
 
@@ -3436,18 +3551,20 @@ func CmdSetScissor(commandBuffer CommandBuffer,
 	if len(scissors) > 0 {
 		tmp := make([]vkRect2D, scissorCount)
 		for i, v := range scissors {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		pScissors = unsafe.Pointer(&tmp[0])
 	}
 	if vkCmdSetScissor == nil {
-		vkCmdSetScissor = dlHandle.NewProc("vkCmdSetScissor")
+		vkCmdSetScissor = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdSetScissor")))
 	}
-	syscall.SyscallN(vkCmdSetScissor.Addr(),
-		uintptr(commandBuffer),
-		uintptr(firstScissor),
-		uintptr(scissorCount),
-		uintptr(unsafe.Pointer(pScissors)),
+	C.Trampoline6(vkCmdSetScissor,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(firstScissor)),
+		C.uintptr(uintptr(scissorCount)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pScissors))),
+		0,
+		0,
 	)
 }
 
@@ -3458,11 +3575,12 @@ func CmdSetLineWidth(commandBuffer CommandBuffer,
 	lineWidth float32) {
 
 	if vkCmdSetLineWidth == nil {
-		vkCmdSetLineWidth = dlHandle.NewProc("vkCmdSetLineWidth")
+		vkCmdSetLineWidth = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdSetLineWidth")))
 	}
-	syscall.SyscallN(vkCmdSetLineWidth.Addr(),
-		uintptr(commandBuffer),
-		uintptr(lineWidth),
+	C.Trampoline3(vkCmdSetLineWidth,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(lineWidth)),
+		0,
 	)
 }
 
@@ -3475,13 +3593,15 @@ func CmdSetDepthBias(commandBuffer CommandBuffer,
 	depthBiasSlopeFactor float32) {
 
 	if vkCmdSetDepthBias == nil {
-		vkCmdSetDepthBias = dlHandle.NewProc("vkCmdSetDepthBias")
+		vkCmdSetDepthBias = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdSetDepthBias")))
 	}
-	syscall.SyscallN(vkCmdSetDepthBias.Addr(),
-		uintptr(commandBuffer),
-		uintptr(depthBiasConstantFactor),
-		uintptr(depthBiasClamp),
-		uintptr(depthBiasSlopeFactor),
+	C.Trampoline6(vkCmdSetDepthBias,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(depthBiasConstantFactor)),
+		C.uintptr(uintptr(depthBiasClamp)),
+		C.uintptr(uintptr(depthBiasSlopeFactor)),
+		0,
+		0,
 	)
 }
 
@@ -3492,11 +3612,12 @@ func CmdSetBlendConstants(commandBuffer CommandBuffer,
 	blendConstants float32) {
 
 	if vkCmdSetBlendConstants == nil {
-		vkCmdSetBlendConstants = dlHandle.NewProc("vkCmdSetBlendConstants")
+		vkCmdSetBlendConstants = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdSetBlendConstants")))
 	}
-	syscall.SyscallN(vkCmdSetBlendConstants.Addr(),
-		uintptr(commandBuffer),
-		uintptr(blendConstants),
+	C.Trampoline3(vkCmdSetBlendConstants,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(blendConstants)),
+		0,
 	)
 }
 
@@ -3508,12 +3629,12 @@ func CmdSetDepthBounds(commandBuffer CommandBuffer,
 	maxDepthBounds float32) {
 
 	if vkCmdSetDepthBounds == nil {
-		vkCmdSetDepthBounds = dlHandle.NewProc("vkCmdSetDepthBounds")
+		vkCmdSetDepthBounds = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdSetDepthBounds")))
 	}
-	syscall.SyscallN(vkCmdSetDepthBounds.Addr(),
-		uintptr(commandBuffer),
-		uintptr(minDepthBounds),
-		uintptr(maxDepthBounds),
+	C.Trampoline3(vkCmdSetDepthBounds,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(minDepthBounds)),
+		C.uintptr(uintptr(maxDepthBounds)),
 	)
 }
 
@@ -3525,12 +3646,12 @@ func CmdSetStencilCompareMask(commandBuffer CommandBuffer,
 	compareMask uint32) {
 
 	if vkCmdSetStencilCompareMask == nil {
-		vkCmdSetStencilCompareMask = dlHandle.NewProc("vkCmdSetStencilCompareMask")
+		vkCmdSetStencilCompareMask = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdSetStencilCompareMask")))
 	}
-	syscall.SyscallN(vkCmdSetStencilCompareMask.Addr(),
-		uintptr(commandBuffer),
-		uintptr(faceMask),
-		uintptr(compareMask),
+	C.Trampoline3(vkCmdSetStencilCompareMask,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(faceMask)),
+		C.uintptr(uintptr(compareMask)),
 	)
 }
 
@@ -3542,12 +3663,12 @@ func CmdSetStencilWriteMask(commandBuffer CommandBuffer,
 	writeMask uint32) {
 
 	if vkCmdSetStencilWriteMask == nil {
-		vkCmdSetStencilWriteMask = dlHandle.NewProc("vkCmdSetStencilWriteMask")
+		vkCmdSetStencilWriteMask = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdSetStencilWriteMask")))
 	}
-	syscall.SyscallN(vkCmdSetStencilWriteMask.Addr(),
-		uintptr(commandBuffer),
-		uintptr(faceMask),
-		uintptr(writeMask),
+	C.Trampoline3(vkCmdSetStencilWriteMask,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(faceMask)),
+		C.uintptr(uintptr(writeMask)),
 	)
 }
 
@@ -3559,12 +3680,12 @@ func CmdSetStencilReference(commandBuffer CommandBuffer,
 	reference uint32) {
 
 	if vkCmdSetStencilReference == nil {
-		vkCmdSetStencilReference = dlHandle.NewProc("vkCmdSetStencilReference")
+		vkCmdSetStencilReference = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdSetStencilReference")))
 	}
-	syscall.SyscallN(vkCmdSetStencilReference.Addr(),
-		uintptr(commandBuffer),
-		uintptr(faceMask),
-		uintptr(reference),
+	C.Trampoline3(vkCmdSetStencilReference,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(faceMask)),
+		C.uintptr(uintptr(reference)),
 	)
 }
 
@@ -3577,13 +3698,15 @@ func CmdBindIndexBuffer(commandBuffer CommandBuffer,
 	indexType IndexType) {
 
 	if vkCmdBindIndexBuffer == nil {
-		vkCmdBindIndexBuffer = dlHandle.NewProc("vkCmdBindIndexBuffer")
+		vkCmdBindIndexBuffer = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdBindIndexBuffer")))
 	}
-	syscall.SyscallN(vkCmdBindIndexBuffer.Addr(),
-		uintptr(commandBuffer),
-		uintptr(buffer),
-		uintptr(offset),
-		uintptr(indexType),
+	C.Trampoline6(vkCmdBindIndexBuffer,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(buffer)),
+		C.uintptr(uintptr(offset)),
+		C.uintptr(uintptr(indexType)),
+		0,
+		0,
 	)
 }
 
@@ -3608,14 +3731,15 @@ func CmdBindVertexBuffers(commandBuffer CommandBuffer,
 		pOffsets = unsafe.Pointer(&offsets[0])
 	}
 	if vkCmdBindVertexBuffers == nil {
-		vkCmdBindVertexBuffers = dlHandle.NewProc("vkCmdBindVertexBuffers")
+		vkCmdBindVertexBuffers = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdBindVertexBuffers")))
 	}
-	syscall.SyscallN(vkCmdBindVertexBuffers.Addr(),
-		uintptr(commandBuffer),
-		uintptr(firstBinding),
-		uintptr(bindingCount),
-		uintptr(unsafe.Pointer(pBuffers)),
-		uintptr(unsafe.Pointer(pOffsets)),
+	C.Trampoline6(vkCmdBindVertexBuffers,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(firstBinding)),
+		C.uintptr(uintptr(bindingCount)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pBuffers))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pOffsets))),
+		0,
 	)
 }
 
@@ -3629,14 +3753,15 @@ func CmdDraw(commandBuffer CommandBuffer,
 	firstInstance uint32) {
 
 	if vkCmdDraw == nil {
-		vkCmdDraw = dlHandle.NewProc("vkCmdDraw")
+		vkCmdDraw = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdDraw")))
 	}
-	syscall.SyscallN(vkCmdDraw.Addr(),
-		uintptr(commandBuffer),
-		uintptr(vertexCount),
-		uintptr(instanceCount),
-		uintptr(firstVertex),
-		uintptr(firstInstance),
+	C.Trampoline6(vkCmdDraw,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(vertexCount)),
+		C.uintptr(uintptr(instanceCount)),
+		C.uintptr(uintptr(firstVertex)),
+		C.uintptr(uintptr(firstInstance)),
+		0,
 	)
 }
 
@@ -3651,15 +3776,15 @@ func CmdDrawIndexed(commandBuffer CommandBuffer,
 	firstInstance uint32) {
 
 	if vkCmdDrawIndexed == nil {
-		vkCmdDrawIndexed = dlHandle.NewProc("vkCmdDrawIndexed")
+		vkCmdDrawIndexed = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdDrawIndexed")))
 	}
-	syscall.SyscallN(vkCmdDrawIndexed.Addr(),
-		uintptr(commandBuffer),
-		uintptr(indexCount),
-		uintptr(instanceCount),
-		uintptr(firstIndex),
-		uintptr(vertexOffset),
-		uintptr(firstInstance),
+	C.Trampoline6(vkCmdDrawIndexed,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(indexCount)),
+		C.uintptr(uintptr(instanceCount)),
+		C.uintptr(uintptr(firstIndex)),
+		C.uintptr(uintptr(vertexOffset)),
+		C.uintptr(uintptr(firstInstance)),
 	)
 }
 
@@ -3673,14 +3798,15 @@ func CmdDrawIndirect(commandBuffer CommandBuffer,
 	stride uint32) {
 
 	if vkCmdDrawIndirect == nil {
-		vkCmdDrawIndirect = dlHandle.NewProc("vkCmdDrawIndirect")
+		vkCmdDrawIndirect = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdDrawIndirect")))
 	}
-	syscall.SyscallN(vkCmdDrawIndirect.Addr(),
-		uintptr(commandBuffer),
-		uintptr(buffer),
-		uintptr(offset),
-		uintptr(drawCount),
-		uintptr(stride),
+	C.Trampoline6(vkCmdDrawIndirect,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(buffer)),
+		C.uintptr(uintptr(offset)),
+		C.uintptr(uintptr(drawCount)),
+		C.uintptr(uintptr(stride)),
+		0,
 	)
 }
 
@@ -3694,14 +3820,15 @@ func CmdDrawIndexedIndirect(commandBuffer CommandBuffer,
 	stride uint32) {
 
 	if vkCmdDrawIndexedIndirect == nil {
-		vkCmdDrawIndexedIndirect = dlHandle.NewProc("vkCmdDrawIndexedIndirect")
+		vkCmdDrawIndexedIndirect = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdDrawIndexedIndirect")))
 	}
-	syscall.SyscallN(vkCmdDrawIndexedIndirect.Addr(),
-		uintptr(commandBuffer),
-		uintptr(buffer),
-		uintptr(offset),
-		uintptr(drawCount),
-		uintptr(stride),
+	C.Trampoline6(vkCmdDrawIndexedIndirect,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(buffer)),
+		C.uintptr(uintptr(offset)),
+		C.uintptr(uintptr(drawCount)),
+		C.uintptr(uintptr(stride)),
+		0,
 	)
 }
 
@@ -3722,23 +3849,24 @@ func CmdBlitImage(commandBuffer CommandBuffer,
 	if len(regions) > 0 {
 		tmp := make([]vkImageBlit, regionCount)
 		for i, v := range regions {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		pRegions = unsafe.Pointer(&tmp[0])
 	}
 
 	if vkCmdBlitImage == nil {
-		vkCmdBlitImage = dlHandle.NewProc("vkCmdBlitImage")
+		vkCmdBlitImage = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdBlitImage")))
 	}
-	syscall.SyscallN(vkCmdBlitImage.Addr(),
-		uintptr(commandBuffer),
-		uintptr(srcImage),
-		uintptr(srcImageLayout),
-		uintptr(dstImage),
-		uintptr(dstImageLayout),
-		uintptr(regionCount),
-		uintptr(unsafe.Pointer(pRegions)),
-		uintptr(filter),
+	C.Trampoline9(vkCmdBlitImage,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(srcImage)),
+		C.uintptr(uintptr(srcImageLayout)),
+		C.uintptr(uintptr(dstImage)),
+		C.uintptr(uintptr(dstImageLayout)),
+		C.uintptr(uintptr(regionCount)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pRegions))),
+		C.uintptr(uintptr(filter)),
+		0,
 	)
 }
 
@@ -3763,20 +3891,20 @@ func CmdClearDepthStencilImage(commandBuffer CommandBuffer,
 	if len(ranges) > 0 {
 		tmp := make([]vkImageSubresourceRange, rangeCount)
 		for i, v := range ranges {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		pRanges = unsafe.Pointer(&tmp[0])
 	}
 	if vkCmdClearDepthStencilImage == nil {
-		vkCmdClearDepthStencilImage = dlHandle.NewProc("vkCmdClearDepthStencilImage")
+		vkCmdClearDepthStencilImage = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdClearDepthStencilImage")))
 	}
-	syscall.SyscallN(vkCmdClearDepthStencilImage.Addr(),
-		uintptr(commandBuffer),
-		uintptr(image),
-		uintptr(imageLayout),
-		uintptr(unsafe.Pointer(pDepthStencil)),
-		uintptr(rangeCount),
-		uintptr(unsafe.Pointer(pRanges)),
+	C.Trampoline6(vkCmdClearDepthStencilImage,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(image)),
+		C.uintptr(uintptr(imageLayout)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pDepthStencil))),
+		C.uintptr(uintptr(rangeCount)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pRanges))),
 	)
 }
 
@@ -3793,7 +3921,7 @@ func CmdClearAttachments(commandBuffer CommandBuffer,
 	if len(attachments) > 0 {
 		tmp := make([]vkClearAttachment, attachmentCount)
 		for i, v := range attachments {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		pAttachments = unsafe.Pointer(&tmp[0])
 	}
@@ -3804,19 +3932,20 @@ func CmdClearAttachments(commandBuffer CommandBuffer,
 	if len(rects) > 0 {
 		tmp := make([]vkClearRect, rectCount)
 		for i, v := range rects {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		pRects = unsafe.Pointer(&tmp[0])
 	}
 	if vkCmdClearAttachments == nil {
-		vkCmdClearAttachments = dlHandle.NewProc("vkCmdClearAttachments")
+		vkCmdClearAttachments = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdClearAttachments")))
 	}
-	syscall.SyscallN(vkCmdClearAttachments.Addr(),
-		uintptr(commandBuffer),
-		uintptr(attachmentCount),
-		uintptr(unsafe.Pointer(pAttachments)),
-		uintptr(rectCount),
-		uintptr(unsafe.Pointer(pRects)),
+	C.Trampoline6(vkCmdClearAttachments,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(attachmentCount)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAttachments))),
+		C.uintptr(uintptr(rectCount)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pRects))),
+		0,
 	)
 }
 
@@ -3836,21 +3965,23 @@ func CmdResolveImage(commandBuffer CommandBuffer,
 	if len(regions) > 0 {
 		tmp := make([]vkImageResolve, regionCount)
 		for i, v := range regions {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		pRegions = unsafe.Pointer(&tmp[0])
 	}
 	if vkCmdResolveImage == nil {
-		vkCmdResolveImage = dlHandle.NewProc("vkCmdResolveImage")
+		vkCmdResolveImage = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdResolveImage")))
 	}
-	syscall.SyscallN(vkCmdResolveImage.Addr(),
-		uintptr(commandBuffer),
-		uintptr(srcImage),
-		uintptr(srcImageLayout),
-		uintptr(dstImage),
-		uintptr(dstImageLayout),
-		uintptr(regionCount),
-		uintptr(unsafe.Pointer(pRegions)),
+	C.Trampoline9(vkCmdResolveImage,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(srcImage)),
+		C.uintptr(uintptr(srcImageLayout)),
+		C.uintptr(uintptr(dstImage)),
+		C.uintptr(uintptr(dstImageLayout)),
+		C.uintptr(uintptr(regionCount)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pRegions))),
+		0,
+		0,
 	)
 }
 
@@ -3864,16 +3995,16 @@ func CmdBeginRenderPass(commandBuffer CommandBuffer,
 	// struct requiring translation
 	var pRenderPassBegin *vkRenderPassBeginInfo
 	if renderPassBegin != nil {
-		pRenderPassBegin = renderPassBegin.vkStruct()
+		pRenderPassBegin = renderPassBegin.ToVK()
 	}
 
 	if vkCmdBeginRenderPass == nil {
-		vkCmdBeginRenderPass = dlHandle.NewProc("vkCmdBeginRenderPass")
+		vkCmdBeginRenderPass = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdBeginRenderPass")))
 	}
-	syscall.SyscallN(vkCmdBeginRenderPass.Addr(),
-		uintptr(commandBuffer),
-		uintptr(unsafe.Pointer(pRenderPassBegin)),
-		uintptr(contents),
+	C.Trampoline3(vkCmdBeginRenderPass,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pRenderPassBegin))),
+		C.uintptr(uintptr(contents)),
 	)
 }
 
@@ -3884,11 +4015,12 @@ func CmdNextSubpass(commandBuffer CommandBuffer,
 	contents SubpassContents) {
 
 	if vkCmdNextSubpass == nil {
-		vkCmdNextSubpass = dlHandle.NewProc("vkCmdNextSubpass")
+		vkCmdNextSubpass = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdNextSubpass")))
 	}
-	syscall.SyscallN(vkCmdNextSubpass.Addr(),
-		uintptr(commandBuffer),
-		uintptr(contents),
+	C.Trampoline3(vkCmdNextSubpass,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(contents)),
+		0,
 	)
 }
 
@@ -3898,10 +4030,12 @@ var vkCmdEndRenderPass vkCommand
 func CmdEndRenderPass(commandBuffer CommandBuffer) {
 
 	if vkCmdEndRenderPass == nil {
-		vkCmdEndRenderPass = dlHandle.NewProc("vkCmdEndRenderPass")
+		vkCmdEndRenderPass = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdEndRenderPass")))
 	}
-	syscall.SyscallN(vkCmdEndRenderPass.Addr(),
-		uintptr(commandBuffer),
+	C.Trampoline3(vkCmdEndRenderPass,
+		C.uintptr(uintptr(commandBuffer)),
+		0,
+		0,
 	)
 }
 
@@ -3913,13 +4047,15 @@ func EnumerateInstanceVersion() (apiVersion uint32, r error) {
 	// binding-allocated single return value populated by Vulkan
 	pApiVersion := &apiVersion
 	if vkEnumerateInstanceVersion == nil {
-		vkEnumerateInstanceVersion = dlHandle.NewProc("vkEnumerateInstanceVersion")
+		vkEnumerateInstanceVersion = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkEnumerateInstanceVersion")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkEnumerateInstanceVersion.Addr(),
-		uintptr(unsafe.Pointer(pApiVersion)),
+	rsys = C.Trampoline3(vkEnumerateInstanceVersion,
+		C.uintptr_t(uintptr(unsafe.Pointer(pApiVersion))),
+		0,
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -3938,20 +4074,20 @@ func BindBufferMemory2(device Device,
 	if len(bindInfos) > 0 {
 		tmp := make([]vkBindBufferMemoryInfo, bindInfoCount)
 		for i, v := range bindInfos {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		pBindInfos = unsafe.Pointer(&tmp[0])
 	}
 	if vkBindBufferMemory2 == nil {
-		vkBindBufferMemory2 = dlHandle.NewProc("vkBindBufferMemory2")
+		vkBindBufferMemory2 = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkBindBufferMemory2")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkBindBufferMemory2.Addr(),
-		uintptr(device),
-		uintptr(bindInfoCount),
-		uintptr(unsafe.Pointer(pBindInfos)),
+	rsys = C.Trampoline3(vkBindBufferMemory2,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(bindInfoCount)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pBindInfos))),
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -3970,20 +4106,20 @@ func BindImageMemory2(device Device,
 	if len(bindInfos) > 0 {
 		tmp := make([]vkBindImageMemoryInfo, bindInfoCount)
 		for i, v := range bindInfos {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		pBindInfos = unsafe.Pointer(&tmp[0])
 	}
 	if vkBindImageMemory2 == nil {
-		vkBindImageMemory2 = dlHandle.NewProc("vkBindImageMemory2")
+		vkBindImageMemory2 = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkBindImageMemory2")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkBindImageMemory2.Addr(),
-		uintptr(device),
-		uintptr(bindInfoCount),
-		uintptr(unsafe.Pointer(pBindInfos)),
+	rsys = C.Trampoline3(vkBindImageMemory2,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(bindInfoCount)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pBindInfos))),
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -4001,14 +4137,15 @@ func GetDeviceGroupPeerMemoryFeatures(device Device,
 	// binding-allocated single return value populated by Vulkan
 	pPeerMemoryFeatures := &peerMemoryFeatures
 	if vkGetDeviceGroupPeerMemoryFeatures == nil {
-		vkGetDeviceGroupPeerMemoryFeatures = dlHandle.NewProc("vkGetDeviceGroupPeerMemoryFeatures")
+		vkGetDeviceGroupPeerMemoryFeatures = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetDeviceGroupPeerMemoryFeatures")))
 	}
-	syscall.SyscallN(vkGetDeviceGroupPeerMemoryFeatures.Addr(),
-		uintptr(device),
-		uintptr(heapIndex),
-		uintptr(localDeviceIndex),
-		uintptr(remoteDeviceIndex),
-		uintptr(unsafe.Pointer(pPeerMemoryFeatures)),
+	C.Trampoline6(vkGetDeviceGroupPeerMemoryFeatures,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(heapIndex)),
+		C.uintptr(uintptr(localDeviceIndex)),
+		C.uintptr(uintptr(remoteDeviceIndex)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pPeerMemoryFeatures))),
+		0,
 	)
 	return
 }
@@ -4020,11 +4157,12 @@ func CmdSetDeviceMask(commandBuffer CommandBuffer,
 	deviceMask uint32) {
 
 	if vkCmdSetDeviceMask == nil {
-		vkCmdSetDeviceMask = dlHandle.NewProc("vkCmdSetDeviceMask")
+		vkCmdSetDeviceMask = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdSetDeviceMask")))
 	}
-	syscall.SyscallN(vkCmdSetDeviceMask.Addr(),
-		uintptr(commandBuffer),
-		uintptr(deviceMask),
+	C.Trampoline3(vkCmdSetDeviceMask,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(deviceMask)),
+		0,
 	)
 }
 
@@ -4040,15 +4178,15 @@ func EnumeratePhysicalDeviceGroups(instance Instance) (physicalDeviceGroupProper
 
 	// first c-api call to get counter
 	if vkEnumeratePhysicalDeviceGroups == nil {
-		vkEnumeratePhysicalDeviceGroups = dlHandle.NewProc("vkEnumeratePhysicalDeviceGroups")
+		vkEnumeratePhysicalDeviceGroups = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkEnumeratePhysicalDeviceGroups")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkEnumeratePhysicalDeviceGroups.Addr(),
-		uintptr(instance),
-		uintptr(unsafe.Pointer(pPhysicalDeviceGroupCount)),
-		uintptr(unsafe.Pointer(pPhysicalDeviceGroupProperties)),
+	rsys = C.Trampoline3(vkEnumeratePhysicalDeviceGroups,
+		C.uintptr(uintptr(instance)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pPhysicalDeviceGroupCount))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pPhysicalDeviceGroupProperties))),
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 
 	// allocate the array for the second call
 	arr_physicalDeviceGroupProperties := make([]vkPhysicalDeviceGroupProperties, physicalDeviceGroupCount)
@@ -4056,7 +4194,7 @@ func EnumeratePhysicalDeviceGroups(instance Instance) (physicalDeviceGroupProper
 	pPhysicalDeviceGroupProperties = &arr_physicalDeviceGroupProperties[0]
 
 	// second c-api call to get array
-	sys := C.Trampoline3(vkEnumeratePhysicalDeviceGroups,
+	rsys = C.Trampoline3(vkEnumeratePhysicalDeviceGroups,
 		C.uintptr(uintptr(instance)),
 		C.uintptr_t(uintptr(unsafe.Pointer(pPhysicalDeviceGroupCount))),
 		C.uintptr_t(uintptr(unsafe.Pointer(pPhysicalDeviceGroupProperties))),
@@ -4065,7 +4203,7 @@ func EnumeratePhysicalDeviceGroups(instance Instance) (physicalDeviceGroupProper
 
 	// convert the returned array to the go slice
 	for i := range arr_physicalDeviceGroupProperties {
-		physicalDeviceGroupProperties[i] = *arr_physicalDeviceGroupProperties[i].goStruct()
+		physicalDeviceGroupProperties[i] = *arr_physicalDeviceGroupProperties[i].ToGo()
 	}
 	if r == Result(0) {
 		r = SUCCESS
@@ -4082,20 +4220,20 @@ func GetImageMemoryRequirements2(device Device,
 	// struct requiring translation
 	var pInfo *vkImageMemoryRequirementsInfo2
 	if info != nil {
-		pInfo = info.vkStruct()
+		pInfo = info.ToVK()
 	}
 
 	// binding-allocated single return value populated by Vulkan, requires translation
-	var pMemoryRequirements *vkMemoryRequirements2 = memoryRequirements.vkStruct()
+	var pMemoryRequirements *vkMemoryRequirements2 = memoryRequirements.ToVK()
 	if vkGetImageMemoryRequirements2 == nil {
-		vkGetImageMemoryRequirements2 = dlHandle.NewProc("vkGetImageMemoryRequirements2")
+		vkGetImageMemoryRequirements2 = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetImageMemoryRequirements2")))
 	}
-	syscall.SyscallN(vkGetImageMemoryRequirements2.Addr(),
-		uintptr(device),
-		uintptr(unsafe.Pointer(pInfo)),
-		uintptr(unsafe.Pointer(pMemoryRequirements)),
+	C.Trampoline3(vkGetImageMemoryRequirements2,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pInfo))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pMemoryRequirements))),
 	)
-	memoryRequirements = *(pMemoryRequirements.goStruct())
+	memoryRequirements = *(pMemoryRequirements.ToGo())
 	return
 }
 
@@ -4108,20 +4246,20 @@ func GetBufferMemoryRequirements2(device Device,
 	// struct requiring translation
 	var pInfo *vkBufferMemoryRequirementsInfo2
 	if info != nil {
-		pInfo = info.vkStruct()
+		pInfo = info.ToVK()
 	}
 
 	// binding-allocated single return value populated by Vulkan, requires translation
-	var pMemoryRequirements *vkMemoryRequirements2 = memoryRequirements.vkStruct()
+	var pMemoryRequirements *vkMemoryRequirements2 = memoryRequirements.ToVK()
 	if vkGetBufferMemoryRequirements2 == nil {
-		vkGetBufferMemoryRequirements2 = dlHandle.NewProc("vkGetBufferMemoryRequirements2")
+		vkGetBufferMemoryRequirements2 = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetBufferMemoryRequirements2")))
 	}
-	syscall.SyscallN(vkGetBufferMemoryRequirements2.Addr(),
-		uintptr(device),
-		uintptr(unsafe.Pointer(pInfo)),
-		uintptr(unsafe.Pointer(pMemoryRequirements)),
+	C.Trampoline3(vkGetBufferMemoryRequirements2,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pInfo))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pMemoryRequirements))),
 	)
-	memoryRequirements = *(pMemoryRequirements.goStruct())
+	memoryRequirements = *(pMemoryRequirements.ToGo())
 	return
 }
 
@@ -4134,7 +4272,7 @@ func GetImageSparseMemoryRequirements2(device Device,
 	// struct requiring translation
 	var pInfo *vkImageSparseMemoryRequirementsInfo2
 	if info != nil {
-		pInfo = info.vkStruct()
+		pInfo = info.ToVK()
 	}
 
 	// a double-call array output
@@ -4144,13 +4282,15 @@ func GetImageSparseMemoryRequirements2(device Device,
 
 	// first c-api call to get counter
 	if vkGetImageSparseMemoryRequirements2 == nil {
-		vkGetImageSparseMemoryRequirements2 = dlHandle.NewProc("vkGetImageSparseMemoryRequirements2")
+		vkGetImageSparseMemoryRequirements2 = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetImageSparseMemoryRequirements2")))
 	}
-	syscall.SyscallN(vkGetImageSparseMemoryRequirements2.Addr(),
-		uintptr(device),
-		uintptr(unsafe.Pointer(pInfo)),
-		uintptr(unsafe.Pointer(pSparseMemoryRequirementCount)),
-		uintptr(unsafe.Pointer(pSparseMemoryRequirements)),
+	C.Trampoline6(vkGetImageSparseMemoryRequirements2,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pInfo))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pSparseMemoryRequirementCount))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pSparseMemoryRequirements))),
+		0,
+		0,
 	)
 
 	// allocate the array for the second call
@@ -4170,7 +4310,7 @@ func GetImageSparseMemoryRequirements2(device Device,
 
 	// convert the returned array to the go slice
 	for i := range arr_sparseMemoryRequirements {
-		sparseMemoryRequirements[i] = *arr_sparseMemoryRequirements[i].goStruct()
+		sparseMemoryRequirements[i] = *arr_sparseMemoryRequirements[i].ToGo()
 	}
 	return
 }
@@ -4178,18 +4318,20 @@ func GetImageSparseMemoryRequirements2(device Device,
 var vkGetPhysicalDeviceFeatures2 vkCommand
 
 // cmd: https://docs.vulkan.org/refpages/latest/refpages/source/vkGetPhysicalDeviceFeatures2.html
-func GetPhysicalDeviceFeatures2(physicalDevice PhysicalDevice) (features PhysicalDeviceFeatures2) {
+func GetPhysicalDeviceFeatures2(physicalDevice PhysicalDevice,
+	features *PhysicalDeviceFeatures2) (ofeatures PhysicalDeviceFeatures2) {
 
 	// binding-allocated single return value populated by Vulkan, requires translation
-	var pFeatures *vkPhysicalDeviceFeatures2 = features.vkStruct()
+	var pFeatures *vkPhysicalDeviceFeatures2 = features.ToVK()
 	if vkGetPhysicalDeviceFeatures2 == nil {
-		vkGetPhysicalDeviceFeatures2 = dlHandle.NewProc("vkGetPhysicalDeviceFeatures2")
+		vkGetPhysicalDeviceFeatures2 = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetPhysicalDeviceFeatures2")))
 	}
-	syscall.SyscallN(vkGetPhysicalDeviceFeatures2.Addr(),
-		uintptr(physicalDevice),
-		uintptr(unsafe.Pointer(pFeatures)),
+	C.Trampoline3(vkGetPhysicalDeviceFeatures2,
+		C.uintptr(uintptr(physicalDevice)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pFeatures))),
+		0,
 	)
-	features = *(pFeatures.goStruct())
+	ofeatures = *(pFeatures.ToGo())
 	return
 }
 
@@ -4199,15 +4341,16 @@ var vkGetPhysicalDeviceProperties2 vkCommand
 func GetPhysicalDeviceProperties2(physicalDevice PhysicalDevice) (properties PhysicalDeviceProperties2) {
 
 	// binding-allocated single return value populated by Vulkan, requires translation
-	var pProperties *vkPhysicalDeviceProperties2 = properties.vkStruct()
+	var pProperties *vkPhysicalDeviceProperties2 = properties.ToVK()
 	if vkGetPhysicalDeviceProperties2 == nil {
-		vkGetPhysicalDeviceProperties2 = dlHandle.NewProc("vkGetPhysicalDeviceProperties2")
+		vkGetPhysicalDeviceProperties2 = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetPhysicalDeviceProperties2")))
 	}
-	syscall.SyscallN(vkGetPhysicalDeviceProperties2.Addr(),
-		uintptr(physicalDevice),
-		uintptr(unsafe.Pointer(pProperties)),
+	C.Trampoline3(vkGetPhysicalDeviceProperties2,
+		C.uintptr(uintptr(physicalDevice)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pProperties))),
+		0,
 	)
-	properties = *(pProperties.goStruct())
+	properties = *(pProperties.ToGo())
 	return
 }
 
@@ -4218,16 +4361,16 @@ func GetPhysicalDeviceFormatProperties2(physicalDevice PhysicalDevice,
 	format Format) (formatProperties FormatProperties2) {
 
 	// binding-allocated single return value populated by Vulkan, requires translation
-	var pFormatProperties *vkFormatProperties2 = formatProperties.vkStruct()
+	var pFormatProperties *vkFormatProperties2 = formatProperties.ToVK()
 	if vkGetPhysicalDeviceFormatProperties2 == nil {
-		vkGetPhysicalDeviceFormatProperties2 = dlHandle.NewProc("vkGetPhysicalDeviceFormatProperties2")
+		vkGetPhysicalDeviceFormatProperties2 = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetPhysicalDeviceFormatProperties2")))
 	}
-	syscall.SyscallN(vkGetPhysicalDeviceFormatProperties2.Addr(),
-		uintptr(physicalDevice),
-		uintptr(format),
-		uintptr(unsafe.Pointer(pFormatProperties)),
+	C.Trampoline3(vkGetPhysicalDeviceFormatProperties2,
+		C.uintptr(uintptr(physicalDevice)),
+		C.uintptr(uintptr(format)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pFormatProperties))),
 	)
-	formatProperties = *(pFormatProperties.goStruct())
+	formatProperties = *(pFormatProperties.ToGo())
 	return
 }
 
@@ -4240,22 +4383,22 @@ func GetPhysicalDeviceImageFormatProperties2(physicalDevice PhysicalDevice,
 	// struct requiring translation
 	var pImageFormatInfo *vkPhysicalDeviceImageFormatInfo2
 	if imageFormatInfo != nil {
-		pImageFormatInfo = imageFormatInfo.vkStruct()
+		pImageFormatInfo = imageFormatInfo.ToVK()
 	}
 
 	// binding-allocated single return value populated by Vulkan, requires translation
-	var pImageFormatProperties *vkImageFormatProperties2 = imageFormatProperties.vkStruct()
+	var pImageFormatProperties *vkImageFormatProperties2 = imageFormatProperties.ToVK()
 	if vkGetPhysicalDeviceImageFormatProperties2 == nil {
-		vkGetPhysicalDeviceImageFormatProperties2 = dlHandle.NewProc("vkGetPhysicalDeviceImageFormatProperties2")
+		vkGetPhysicalDeviceImageFormatProperties2 = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetPhysicalDeviceImageFormatProperties2")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkGetPhysicalDeviceImageFormatProperties2.Addr(),
-		uintptr(physicalDevice),
-		uintptr(unsafe.Pointer(pImageFormatInfo)),
-		uintptr(unsafe.Pointer(pImageFormatProperties)),
+	rsys = C.Trampoline3(vkGetPhysicalDeviceImageFormatProperties2,
+		C.uintptr(uintptr(physicalDevice)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pImageFormatInfo))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pImageFormatProperties))),
 	)
-	r = Result(uintptr(rsys))
-	imageFormatProperties = *(pImageFormatProperties.goStruct())
+	r = Result(rsys)
+	imageFormatProperties = *(pImageFormatProperties.ToGo())
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -4274,12 +4417,12 @@ func GetPhysicalDeviceQueueFamilyProperties2(physicalDevice PhysicalDevice) (que
 
 	// first c-api call to get counter
 	if vkGetPhysicalDeviceQueueFamilyProperties2 == nil {
-		vkGetPhysicalDeviceQueueFamilyProperties2 = dlHandle.NewProc("vkGetPhysicalDeviceQueueFamilyProperties2")
+		vkGetPhysicalDeviceQueueFamilyProperties2 = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetPhysicalDeviceQueueFamilyProperties2")))
 	}
-	syscall.SyscallN(vkGetPhysicalDeviceQueueFamilyProperties2.Addr(),
-		uintptr(physicalDevice),
-		uintptr(unsafe.Pointer(pQueueFamilyPropertyCount)),
-		uintptr(unsafe.Pointer(pQueueFamilyProperties)),
+	C.Trampoline3(vkGetPhysicalDeviceQueueFamilyProperties2,
+		C.uintptr(uintptr(physicalDevice)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pQueueFamilyPropertyCount))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pQueueFamilyProperties))),
 	)
 
 	// allocate the array for the second call
@@ -4296,7 +4439,7 @@ func GetPhysicalDeviceQueueFamilyProperties2(physicalDevice PhysicalDevice) (que
 
 	// convert the returned array to the go slice
 	for i := range arr_queueFamilyProperties {
-		queueFamilyProperties[i] = *arr_queueFamilyProperties[i].goStruct()
+		queueFamilyProperties[i] = *arr_queueFamilyProperties[i].ToGo()
 	}
 	return
 }
@@ -4307,15 +4450,16 @@ var vkGetPhysicalDeviceMemoryProperties2 vkCommand
 func GetPhysicalDeviceMemoryProperties2(physicalDevice PhysicalDevice) (memoryProperties PhysicalDeviceMemoryProperties2) {
 
 	// binding-allocated single return value populated by Vulkan, requires translation
-	var pMemoryProperties *vkPhysicalDeviceMemoryProperties2 = memoryProperties.vkStruct()
+	var pMemoryProperties *vkPhysicalDeviceMemoryProperties2 = memoryProperties.ToVK()
 	if vkGetPhysicalDeviceMemoryProperties2 == nil {
-		vkGetPhysicalDeviceMemoryProperties2 = dlHandle.NewProc("vkGetPhysicalDeviceMemoryProperties2")
+		vkGetPhysicalDeviceMemoryProperties2 = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetPhysicalDeviceMemoryProperties2")))
 	}
-	syscall.SyscallN(vkGetPhysicalDeviceMemoryProperties2.Addr(),
-		uintptr(physicalDevice),
-		uintptr(unsafe.Pointer(pMemoryProperties)),
+	C.Trampoline3(vkGetPhysicalDeviceMemoryProperties2,
+		C.uintptr(uintptr(physicalDevice)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pMemoryProperties))),
+		0,
 	)
-	memoryProperties = *(pMemoryProperties.goStruct())
+	memoryProperties = *(pMemoryProperties.ToGo())
 	return
 }
 
@@ -4328,7 +4472,7 @@ func GetPhysicalDeviceSparseImageFormatProperties2(physicalDevice PhysicalDevice
 	// struct requiring translation
 	var pFormatInfo *vkPhysicalDeviceSparseImageFormatInfo2
 	if formatInfo != nil {
-		pFormatInfo = formatInfo.vkStruct()
+		pFormatInfo = formatInfo.ToVK()
 	}
 
 	// a double-call array output
@@ -4338,13 +4482,15 @@ func GetPhysicalDeviceSparseImageFormatProperties2(physicalDevice PhysicalDevice
 
 	// first c-api call to get counter
 	if vkGetPhysicalDeviceSparseImageFormatProperties2 == nil {
-		vkGetPhysicalDeviceSparseImageFormatProperties2 = dlHandle.NewProc("vkGetPhysicalDeviceSparseImageFormatProperties2")
+		vkGetPhysicalDeviceSparseImageFormatProperties2 = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetPhysicalDeviceSparseImageFormatProperties2")))
 	}
-	syscall.SyscallN(vkGetPhysicalDeviceSparseImageFormatProperties2.Addr(),
-		uintptr(physicalDevice),
-		uintptr(unsafe.Pointer(pFormatInfo)),
-		uintptr(unsafe.Pointer(pPropertyCount)),
-		uintptr(unsafe.Pointer(pProperties)),
+	C.Trampoline6(vkGetPhysicalDeviceSparseImageFormatProperties2,
+		C.uintptr(uintptr(physicalDevice)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pFormatInfo))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pPropertyCount))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pProperties))),
+		0,
+		0,
 	)
 
 	// allocate the array for the second call
@@ -4364,7 +4510,7 @@ func GetPhysicalDeviceSparseImageFormatProperties2(physicalDevice PhysicalDevice
 
 	// convert the returned array to the go slice
 	for i := range arr_properties {
-		properties[i] = *arr_properties[i].goStruct()
+		properties[i] = *arr_properties[i].ToGo()
 	}
 	return
 }
@@ -4377,12 +4523,12 @@ func TrimCommandPool(device Device,
 	flags CommandPoolTrimFlags) {
 
 	if vkTrimCommandPool == nil {
-		vkTrimCommandPool = dlHandle.NewProc("vkTrimCommandPool")
+		vkTrimCommandPool = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkTrimCommandPool")))
 	}
-	syscall.SyscallN(vkTrimCommandPool.Addr(),
-		uintptr(device),
-		uintptr(commandPool),
-		uintptr(flags),
+	C.Trampoline3(vkTrimCommandPool,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(commandPool)),
+		C.uintptr(uintptr(flags)),
 	)
 }
 
@@ -4395,18 +4541,18 @@ func GetDeviceQueue2(device Device,
 	// struct requiring translation
 	var pQueueInfo *vkDeviceQueueInfo2
 	if queueInfo != nil {
-		pQueueInfo = queueInfo.vkStruct()
+		pQueueInfo = queueInfo.ToVK()
 	}
 
 	// binding-allocated single return value populated by Vulkan
 	pQueue := &queue
 	if vkGetDeviceQueue2 == nil {
-		vkGetDeviceQueue2 = dlHandle.NewProc("vkGetDeviceQueue2")
+		vkGetDeviceQueue2 = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetDeviceQueue2")))
 	}
-	syscall.SyscallN(vkGetDeviceQueue2.Addr(),
-		uintptr(device),
-		uintptr(unsafe.Pointer(pQueueInfo)),
-		uintptr(unsafe.Pointer(pQueue)),
+	C.Trampoline3(vkGetDeviceQueue2,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pQueueInfo))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pQueue))),
 	)
 	return
 }
@@ -4420,20 +4566,20 @@ func GetPhysicalDeviceExternalBufferProperties(physicalDevice PhysicalDevice,
 	// struct requiring translation
 	var pExternalBufferInfo *vkPhysicalDeviceExternalBufferInfo
 	if externalBufferInfo != nil {
-		pExternalBufferInfo = externalBufferInfo.vkStruct()
+		pExternalBufferInfo = externalBufferInfo.ToVK()
 	}
 
 	// binding-allocated single return value populated by Vulkan, requires translation
-	var pExternalBufferProperties *vkExternalBufferProperties = externalBufferProperties.vkStruct()
+	var pExternalBufferProperties *vkExternalBufferProperties = externalBufferProperties.ToVK()
 	if vkGetPhysicalDeviceExternalBufferProperties == nil {
-		vkGetPhysicalDeviceExternalBufferProperties = dlHandle.NewProc("vkGetPhysicalDeviceExternalBufferProperties")
+		vkGetPhysicalDeviceExternalBufferProperties = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetPhysicalDeviceExternalBufferProperties")))
 	}
-	syscall.SyscallN(vkGetPhysicalDeviceExternalBufferProperties.Addr(),
-		uintptr(physicalDevice),
-		uintptr(unsafe.Pointer(pExternalBufferInfo)),
-		uintptr(unsafe.Pointer(pExternalBufferProperties)),
+	C.Trampoline3(vkGetPhysicalDeviceExternalBufferProperties,
+		C.uintptr(uintptr(physicalDevice)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pExternalBufferInfo))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pExternalBufferProperties))),
 	)
-	externalBufferProperties = *(pExternalBufferProperties.goStruct())
+	externalBufferProperties = *(pExternalBufferProperties.ToGo())
 	return
 }
 
@@ -4446,20 +4592,20 @@ func GetPhysicalDeviceExternalFenceProperties(physicalDevice PhysicalDevice,
 	// struct requiring translation
 	var pExternalFenceInfo *vkPhysicalDeviceExternalFenceInfo
 	if externalFenceInfo != nil {
-		pExternalFenceInfo = externalFenceInfo.vkStruct()
+		pExternalFenceInfo = externalFenceInfo.ToVK()
 	}
 
 	// binding-allocated single return value populated by Vulkan, requires translation
-	var pExternalFenceProperties *vkExternalFenceProperties = externalFenceProperties.vkStruct()
+	var pExternalFenceProperties *vkExternalFenceProperties = externalFenceProperties.ToVK()
 	if vkGetPhysicalDeviceExternalFenceProperties == nil {
-		vkGetPhysicalDeviceExternalFenceProperties = dlHandle.NewProc("vkGetPhysicalDeviceExternalFenceProperties")
+		vkGetPhysicalDeviceExternalFenceProperties = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetPhysicalDeviceExternalFenceProperties")))
 	}
-	syscall.SyscallN(vkGetPhysicalDeviceExternalFenceProperties.Addr(),
-		uintptr(physicalDevice),
-		uintptr(unsafe.Pointer(pExternalFenceInfo)),
-		uintptr(unsafe.Pointer(pExternalFenceProperties)),
+	C.Trampoline3(vkGetPhysicalDeviceExternalFenceProperties,
+		C.uintptr(uintptr(physicalDevice)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pExternalFenceInfo))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pExternalFenceProperties))),
 	)
-	externalFenceProperties = *(pExternalFenceProperties.goStruct())
+	externalFenceProperties = *(pExternalFenceProperties.ToGo())
 	return
 }
 
@@ -4472,20 +4618,20 @@ func GetPhysicalDeviceExternalSemaphoreProperties(physicalDevice PhysicalDevice,
 	// struct requiring translation
 	var pExternalSemaphoreInfo *vkPhysicalDeviceExternalSemaphoreInfo
 	if externalSemaphoreInfo != nil {
-		pExternalSemaphoreInfo = externalSemaphoreInfo.vkStruct()
+		pExternalSemaphoreInfo = externalSemaphoreInfo.ToVK()
 	}
 
 	// binding-allocated single return value populated by Vulkan, requires translation
-	var pExternalSemaphoreProperties *vkExternalSemaphoreProperties = externalSemaphoreProperties.vkStruct()
+	var pExternalSemaphoreProperties *vkExternalSemaphoreProperties = externalSemaphoreProperties.ToVK()
 	if vkGetPhysicalDeviceExternalSemaphoreProperties == nil {
-		vkGetPhysicalDeviceExternalSemaphoreProperties = dlHandle.NewProc("vkGetPhysicalDeviceExternalSemaphoreProperties")
+		vkGetPhysicalDeviceExternalSemaphoreProperties = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetPhysicalDeviceExternalSemaphoreProperties")))
 	}
-	syscall.SyscallN(vkGetPhysicalDeviceExternalSemaphoreProperties.Addr(),
-		uintptr(physicalDevice),
-		uintptr(unsafe.Pointer(pExternalSemaphoreInfo)),
-		uintptr(unsafe.Pointer(pExternalSemaphoreProperties)),
+	C.Trampoline3(vkGetPhysicalDeviceExternalSemaphoreProperties,
+		C.uintptr(uintptr(physicalDevice)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pExternalSemaphoreInfo))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pExternalSemaphoreProperties))),
 	)
-	externalSemaphoreProperties = *(pExternalSemaphoreProperties.goStruct())
+	externalSemaphoreProperties = *(pExternalSemaphoreProperties.ToGo())
 	return
 }
 
@@ -4501,16 +4647,18 @@ func CmdDispatchBase(commandBuffer CommandBuffer,
 	groupCountZ uint32) {
 
 	if vkCmdDispatchBase == nil {
-		vkCmdDispatchBase = dlHandle.NewProc("vkCmdDispatchBase")
+		vkCmdDispatchBase = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdDispatchBase")))
 	}
-	syscall.SyscallN(vkCmdDispatchBase.Addr(),
-		uintptr(commandBuffer),
-		uintptr(baseGroupX),
-		uintptr(baseGroupY),
-		uintptr(baseGroupZ),
-		uintptr(groupCountX),
-		uintptr(groupCountY),
-		uintptr(groupCountZ),
+	C.Trampoline9(vkCmdDispatchBase,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(baseGroupX)),
+		C.uintptr(uintptr(baseGroupY)),
+		C.uintptr(uintptr(baseGroupZ)),
+		C.uintptr(uintptr(groupCountX)),
+		C.uintptr(uintptr(groupCountY)),
+		C.uintptr(uintptr(groupCountZ)),
+		0,
+		0,
 	)
 }
 
@@ -4524,7 +4672,7 @@ func CreateDescriptorUpdateTemplate(device Device,
 	// struct requiring translation
 	var pCreateInfo *vkDescriptorUpdateTemplateCreateInfo
 	if createInfo != nil {
-		pCreateInfo = createInfo.vkStruct()
+		pCreateInfo = createInfo.ToVK()
 	}
 
 	// singular input, pass direct
@@ -4536,16 +4684,18 @@ func CreateDescriptorUpdateTemplate(device Device,
 	// binding-allocated single return value populated by Vulkan
 	pDescriptorUpdateTemplate := &descriptorUpdateTemplate
 	if vkCreateDescriptorUpdateTemplate == nil {
-		vkCreateDescriptorUpdateTemplate = dlHandle.NewProc("vkCreateDescriptorUpdateTemplate")
+		vkCreateDescriptorUpdateTemplate = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCreateDescriptorUpdateTemplate")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkCreateDescriptorUpdateTemplate.Addr(),
-		uintptr(device),
-		uintptr(unsafe.Pointer(pCreateInfo)),
-		uintptr(unsafe.Pointer(pAllocator)),
-		uintptr(unsafe.Pointer(pDescriptorUpdateTemplate)),
+	rsys = C.Trampoline6(vkCreateDescriptorUpdateTemplate,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pCreateInfo))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pDescriptorUpdateTemplate))),
+		0,
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -4565,12 +4715,12 @@ func DestroyDescriptorUpdateTemplate(device Device,
 		pAllocator = unsafe.Pointer(allocator)
 	}
 	if vkDestroyDescriptorUpdateTemplate == nil {
-		vkDestroyDescriptorUpdateTemplate = dlHandle.NewProc("vkDestroyDescriptorUpdateTemplate")
+		vkDestroyDescriptorUpdateTemplate = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkDestroyDescriptorUpdateTemplate")))
 	}
-	syscall.SyscallN(vkDestroyDescriptorUpdateTemplate.Addr(),
-		uintptr(device),
-		uintptr(descriptorUpdateTemplate),
-		uintptr(unsafe.Pointer(pAllocator)),
+	C.Trampoline3(vkDestroyDescriptorUpdateTemplate,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(descriptorUpdateTemplate)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
 	)
 }
 
@@ -4588,13 +4738,15 @@ func UpdateDescriptorSetWithTemplate(device Device,
 		pData = unsafe.Pointer(data)
 	}
 	if vkUpdateDescriptorSetWithTemplate == nil {
-		vkUpdateDescriptorSetWithTemplate = dlHandle.NewProc("vkUpdateDescriptorSetWithTemplate")
+		vkUpdateDescriptorSetWithTemplate = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkUpdateDescriptorSetWithTemplate")))
 	}
-	syscall.SyscallN(vkUpdateDescriptorSetWithTemplate.Addr(),
-		uintptr(device),
-		uintptr(descriptorSet),
-		uintptr(descriptorUpdateTemplate),
-		uintptr(pData),
+	C.Trampoline6(vkUpdateDescriptorSetWithTemplate,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(descriptorSet)),
+		C.uintptr(uintptr(descriptorUpdateTemplate)),
+		C.uintptr(uintptr(pData)),
+		0,
+		0,
 	)
 }
 
@@ -4607,20 +4759,20 @@ func GetDescriptorSetLayoutSupport(device Device,
 	// struct requiring translation
 	var pCreateInfo *vkDescriptorSetLayoutCreateInfo
 	if createInfo != nil {
-		pCreateInfo = createInfo.vkStruct()
+		pCreateInfo = createInfo.ToVK()
 	}
 
 	// binding-allocated single return value populated by Vulkan, requires translation
-	var pSupport *vkDescriptorSetLayoutSupport = support.vkStruct()
+	var pSupport *vkDescriptorSetLayoutSupport = support.ToVK()
 	if vkGetDescriptorSetLayoutSupport == nil {
-		vkGetDescriptorSetLayoutSupport = dlHandle.NewProc("vkGetDescriptorSetLayoutSupport")
+		vkGetDescriptorSetLayoutSupport = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetDescriptorSetLayoutSupport")))
 	}
-	syscall.SyscallN(vkGetDescriptorSetLayoutSupport.Addr(),
-		uintptr(device),
-		uintptr(unsafe.Pointer(pCreateInfo)),
-		uintptr(unsafe.Pointer(pSupport)),
+	C.Trampoline3(vkGetDescriptorSetLayoutSupport,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pCreateInfo))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pSupport))),
 	)
-	support = *(pSupport.goStruct())
+	support = *(pSupport.ToGo())
 	return
 }
 
@@ -4634,7 +4786,7 @@ func CreateSamplerYcbcrConversion(device Device,
 	// struct requiring translation
 	var pCreateInfo *vkSamplerYcbcrConversionCreateInfo
 	if createInfo != nil {
-		pCreateInfo = createInfo.vkStruct()
+		pCreateInfo = createInfo.ToVK()
 	}
 
 	// singular input, pass direct
@@ -4646,16 +4798,18 @@ func CreateSamplerYcbcrConversion(device Device,
 	// binding-allocated single return value populated by Vulkan
 	pYcbcrConversion := &ycbcrConversion
 	if vkCreateSamplerYcbcrConversion == nil {
-		vkCreateSamplerYcbcrConversion = dlHandle.NewProc("vkCreateSamplerYcbcrConversion")
+		vkCreateSamplerYcbcrConversion = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCreateSamplerYcbcrConversion")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkCreateSamplerYcbcrConversion.Addr(),
-		uintptr(device),
-		uintptr(unsafe.Pointer(pCreateInfo)),
-		uintptr(unsafe.Pointer(pAllocator)),
-		uintptr(unsafe.Pointer(pYcbcrConversion)),
+	rsys = C.Trampoline6(vkCreateSamplerYcbcrConversion,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pCreateInfo))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pYcbcrConversion))),
+		0,
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -4675,12 +4829,12 @@ func DestroySamplerYcbcrConversion(device Device,
 		pAllocator = unsafe.Pointer(allocator)
 	}
 	if vkDestroySamplerYcbcrConversion == nil {
-		vkDestroySamplerYcbcrConversion = dlHandle.NewProc("vkDestroySamplerYcbcrConversion")
+		vkDestroySamplerYcbcrConversion = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkDestroySamplerYcbcrConversion")))
 	}
-	syscall.SyscallN(vkDestroySamplerYcbcrConversion.Addr(),
-		uintptr(device),
-		uintptr(ycbcrConversion),
-		uintptr(unsafe.Pointer(pAllocator)),
+	C.Trampoline3(vkDestroySamplerYcbcrConversion,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(ycbcrConversion)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
 	)
 }
 
@@ -4693,13 +4847,15 @@ func ResetQueryPool(device Device,
 	queryCount uint32) {
 
 	if vkResetQueryPool == nil {
-		vkResetQueryPool = dlHandle.NewProc("vkResetQueryPool")
+		vkResetQueryPool = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkResetQueryPool")))
 	}
-	syscall.SyscallN(vkResetQueryPool.Addr(),
-		uintptr(device),
-		uintptr(queryPool),
-		uintptr(firstQuery),
-		uintptr(queryCount),
+	C.Trampoline6(vkResetQueryPool,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(queryPool)),
+		C.uintptr(uintptr(firstQuery)),
+		C.uintptr(uintptr(queryCount)),
+		0,
+		0,
 	)
 }
 
@@ -4712,15 +4868,15 @@ func GetSemaphoreCounterValue(device Device,
 	// binding-allocated single return value populated by Vulkan
 	pValue := &value
 	if vkGetSemaphoreCounterValue == nil {
-		vkGetSemaphoreCounterValue = dlHandle.NewProc("vkGetSemaphoreCounterValue")
+		vkGetSemaphoreCounterValue = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetSemaphoreCounterValue")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkGetSemaphoreCounterValue.Addr(),
-		uintptr(device),
-		uintptr(semaphore),
-		uintptr(unsafe.Pointer(pValue)),
+	rsys = C.Trampoline3(vkGetSemaphoreCounterValue,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(semaphore)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pValue))),
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -4737,19 +4893,19 @@ func WaitSemaphores(device Device,
 	// struct requiring translation
 	var pWaitInfo *vkSemaphoreWaitInfo
 	if waitInfo != nil {
-		pWaitInfo = waitInfo.vkStruct()
+		pWaitInfo = waitInfo.ToVK()
 	}
 
 	if vkWaitSemaphores == nil {
-		vkWaitSemaphores = dlHandle.NewProc("vkWaitSemaphores")
+		vkWaitSemaphores = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkWaitSemaphores")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkWaitSemaphores.Addr(),
-		uintptr(device),
-		uintptr(unsafe.Pointer(pWaitInfo)),
-		uintptr(timeout),
+	rsys = C.Trampoline3(vkWaitSemaphores,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pWaitInfo))),
+		C.uintptr(uintptr(timeout)),
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -4765,17 +4921,18 @@ func SignalSemaphore(device Device,
 	// struct requiring translation
 	var pSignalInfo *vkSemaphoreSignalInfo
 	if signalInfo != nil {
-		pSignalInfo = signalInfo.vkStruct()
+		pSignalInfo = signalInfo.ToVK()
 	}
 	if vkSignalSemaphore == nil {
-		vkSignalSemaphore = dlHandle.NewProc("vkSignalSemaphore")
+		vkSignalSemaphore = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkSignalSemaphore")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkSignalSemaphore.Addr(),
-		uintptr(device),
-		uintptr(unsafe.Pointer(pSignalInfo)),
+	rsys = C.Trampoline3(vkSignalSemaphore,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pSignalInfo))),
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -4786,20 +4943,24 @@ var vkGetBufferDeviceAddress vkCommand
 
 // cmd: https://docs.vulkan.org/refpages/latest/refpages/source/vkGetBufferDeviceAddress.html
 func GetBufferDeviceAddress(device Device,
-	info *BufferDeviceAddressInfo) {
+	info *BufferDeviceAddressInfo) (addr DeviceAddress) {
 
 	// struct requiring translation
 	var pInfo *vkBufferDeviceAddressInfo
 	if info != nil {
-		pInfo = info.vkStruct()
+		pInfo = info.ToVK()
 	}
 	if vkGetBufferDeviceAddress == nil {
-		vkGetBufferDeviceAddress = dlHandle.NewProc("vkGetBufferDeviceAddress")
+		vkGetBufferDeviceAddress = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetBufferDeviceAddress")))
 	}
-	syscall.SyscallN(vkGetBufferDeviceAddress.Addr(),
-		uintptr(device),
-		uintptr(unsafe.Pointer(pInfo)),
+	var rsys C.uintptr_t
+	rsys = C.Trampoline3(vkGetBufferDeviceAddress,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pInfo))),
+		0,
 	)
+	addr = DeviceAddress(rsys)
+	return
 }
 
 var vkGetBufferOpaqueCaptureAddress vkCommand
@@ -4811,14 +4972,15 @@ func GetBufferOpaqueCaptureAddress(device Device,
 	// struct requiring translation
 	var pInfo *vkBufferDeviceAddressInfo
 	if info != nil {
-		pInfo = info.vkStruct()
+		pInfo = info.ToVK()
 	}
 	if vkGetBufferOpaqueCaptureAddress == nil {
-		vkGetBufferOpaqueCaptureAddress = dlHandle.NewProc("vkGetBufferOpaqueCaptureAddress")
+		vkGetBufferOpaqueCaptureAddress = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetBufferOpaqueCaptureAddress")))
 	}
-	syscall.SyscallN(vkGetBufferOpaqueCaptureAddress.Addr(),
-		uintptr(device),
-		uintptr(unsafe.Pointer(pInfo)),
+	C.Trampoline3(vkGetBufferOpaqueCaptureAddress,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pInfo))),
+		0,
 	)
 }
 
@@ -4831,14 +4993,15 @@ func GetDeviceMemoryOpaqueCaptureAddress(device Device,
 	// struct requiring translation
 	var pInfo *vkDeviceMemoryOpaqueCaptureAddressInfo
 	if info != nil {
-		pInfo = info.vkStruct()
+		pInfo = info.ToVK()
 	}
 	if vkGetDeviceMemoryOpaqueCaptureAddress == nil {
-		vkGetDeviceMemoryOpaqueCaptureAddress = dlHandle.NewProc("vkGetDeviceMemoryOpaqueCaptureAddress")
+		vkGetDeviceMemoryOpaqueCaptureAddress = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetDeviceMemoryOpaqueCaptureAddress")))
 	}
-	syscall.SyscallN(vkGetDeviceMemoryOpaqueCaptureAddress.Addr(),
-		uintptr(device),
-		uintptr(unsafe.Pointer(pInfo)),
+	C.Trampoline3(vkGetDeviceMemoryOpaqueCaptureAddress,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pInfo))),
+		0,
 	)
 }
 
@@ -4854,16 +5017,18 @@ func CmdDrawIndirectCount(commandBuffer CommandBuffer,
 	stride uint32) {
 
 	if vkCmdDrawIndirectCount == nil {
-		vkCmdDrawIndirectCount = dlHandle.NewProc("vkCmdDrawIndirectCount")
+		vkCmdDrawIndirectCount = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdDrawIndirectCount")))
 	}
-	syscall.SyscallN(vkCmdDrawIndirectCount.Addr(),
-		uintptr(commandBuffer),
-		uintptr(buffer),
-		uintptr(offset),
-		uintptr(countBuffer),
-		uintptr(countBufferOffset),
-		uintptr(maxDrawCount),
-		uintptr(stride),
+	C.Trampoline9(vkCmdDrawIndirectCount,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(buffer)),
+		C.uintptr(uintptr(offset)),
+		C.uintptr(uintptr(countBuffer)),
+		C.uintptr(uintptr(countBufferOffset)),
+		C.uintptr(uintptr(maxDrawCount)),
+		C.uintptr(uintptr(stride)),
+		0,
+		0,
 	)
 }
 
@@ -4879,16 +5044,18 @@ func CmdDrawIndexedIndirectCount(commandBuffer CommandBuffer,
 	stride uint32) {
 
 	if vkCmdDrawIndexedIndirectCount == nil {
-		vkCmdDrawIndexedIndirectCount = dlHandle.NewProc("vkCmdDrawIndexedIndirectCount")
+		vkCmdDrawIndexedIndirectCount = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdDrawIndexedIndirectCount")))
 	}
-	syscall.SyscallN(vkCmdDrawIndexedIndirectCount.Addr(),
-		uintptr(commandBuffer),
-		uintptr(buffer),
-		uintptr(offset),
-		uintptr(countBuffer),
-		uintptr(countBufferOffset),
-		uintptr(maxDrawCount),
-		uintptr(stride),
+	C.Trampoline9(vkCmdDrawIndexedIndirectCount,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(buffer)),
+		C.uintptr(uintptr(offset)),
+		C.uintptr(uintptr(countBuffer)),
+		C.uintptr(uintptr(countBufferOffset)),
+		C.uintptr(uintptr(maxDrawCount)),
+		C.uintptr(uintptr(stride)),
+		0,
+		0,
 	)
 }
 
@@ -4902,7 +5069,7 @@ func CreateRenderPass2(device Device,
 	// struct requiring translation
 	var pCreateInfo *vkRenderPassCreateInfo2
 	if createInfo != nil {
-		pCreateInfo = createInfo.vkStruct()
+		pCreateInfo = createInfo.ToVK()
 	}
 
 	// singular input, pass direct
@@ -4914,16 +5081,18 @@ func CreateRenderPass2(device Device,
 	// binding-allocated single return value populated by Vulkan
 	pRenderPass := &renderPass
 	if vkCreateRenderPass2 == nil {
-		vkCreateRenderPass2 = dlHandle.NewProc("vkCreateRenderPass2")
+		vkCreateRenderPass2 = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCreateRenderPass2")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkCreateRenderPass2.Addr(),
-		uintptr(device),
-		uintptr(unsafe.Pointer(pCreateInfo)),
-		uintptr(unsafe.Pointer(pAllocator)),
-		uintptr(unsafe.Pointer(pRenderPass)),
+	rsys = C.Trampoline6(vkCreateRenderPass2,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pCreateInfo))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pRenderPass))),
+		0,
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -4940,21 +5109,21 @@ func CmdBeginRenderPass2(commandBuffer CommandBuffer,
 	// struct requiring translation
 	var pRenderPassBegin *vkRenderPassBeginInfo
 	if renderPassBegin != nil {
-		pRenderPassBegin = renderPassBegin.vkStruct()
+		pRenderPassBegin = renderPassBegin.ToVK()
 	}
 
 	// struct requiring translation
 	var pSubpassBeginInfo *vkSubpassBeginInfo
 	if subpassBeginInfo != nil {
-		pSubpassBeginInfo = subpassBeginInfo.vkStruct()
+		pSubpassBeginInfo = subpassBeginInfo.ToVK()
 	}
 	if vkCmdBeginRenderPass2 == nil {
-		vkCmdBeginRenderPass2 = dlHandle.NewProc("vkCmdBeginRenderPass2")
+		vkCmdBeginRenderPass2 = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdBeginRenderPass2")))
 	}
-	syscall.SyscallN(vkCmdBeginRenderPass2.Addr(),
-		uintptr(commandBuffer),
-		uintptr(unsafe.Pointer(pRenderPassBegin)),
-		uintptr(unsafe.Pointer(pSubpassBeginInfo)),
+	C.Trampoline3(vkCmdBeginRenderPass2,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pRenderPassBegin))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pSubpassBeginInfo))),
 	)
 }
 
@@ -4968,21 +5137,21 @@ func CmdNextSubpass2(commandBuffer CommandBuffer,
 	// struct requiring translation
 	var pSubpassBeginInfo *vkSubpassBeginInfo
 	if subpassBeginInfo != nil {
-		pSubpassBeginInfo = subpassBeginInfo.vkStruct()
+		pSubpassBeginInfo = subpassBeginInfo.ToVK()
 	}
 
 	// struct requiring translation
 	var pSubpassEndInfo *vkSubpassEndInfo
 	if subpassEndInfo != nil {
-		pSubpassEndInfo = subpassEndInfo.vkStruct()
+		pSubpassEndInfo = subpassEndInfo.ToVK()
 	}
 	if vkCmdNextSubpass2 == nil {
-		vkCmdNextSubpass2 = dlHandle.NewProc("vkCmdNextSubpass2")
+		vkCmdNextSubpass2 = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdNextSubpass2")))
 	}
-	syscall.SyscallN(vkCmdNextSubpass2.Addr(),
-		uintptr(commandBuffer),
-		uintptr(unsafe.Pointer(pSubpassBeginInfo)),
-		uintptr(unsafe.Pointer(pSubpassEndInfo)),
+	C.Trampoline3(vkCmdNextSubpass2,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pSubpassBeginInfo))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pSubpassEndInfo))),
 	)
 }
 
@@ -4995,14 +5164,15 @@ func CmdEndRenderPass2(commandBuffer CommandBuffer,
 	// struct requiring translation
 	var pSubpassEndInfo *vkSubpassEndInfo
 	if subpassEndInfo != nil {
-		pSubpassEndInfo = subpassEndInfo.vkStruct()
+		pSubpassEndInfo = subpassEndInfo.ToVK()
 	}
 	if vkCmdEndRenderPass2 == nil {
-		vkCmdEndRenderPass2 = dlHandle.NewProc("vkCmdEndRenderPass2")
+		vkCmdEndRenderPass2 = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdEndRenderPass2")))
 	}
-	syscall.SyscallN(vkCmdEndRenderPass2.Addr(),
-		uintptr(commandBuffer),
-		uintptr(unsafe.Pointer(pSubpassEndInfo)),
+	C.Trampoline3(vkCmdEndRenderPass2,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pSubpassEndInfo))),
+		0,
 	)
 }
 
@@ -5018,15 +5188,15 @@ func GetPhysicalDeviceToolProperties(physicalDevice PhysicalDevice) (toolPropert
 
 	// first c-api call to get counter
 	if vkGetPhysicalDeviceToolProperties == nil {
-		vkGetPhysicalDeviceToolProperties = dlHandle.NewProc("vkGetPhysicalDeviceToolProperties")
+		vkGetPhysicalDeviceToolProperties = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetPhysicalDeviceToolProperties")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkGetPhysicalDeviceToolProperties.Addr(),
-		uintptr(physicalDevice),
-		uintptr(unsafe.Pointer(pToolCount)),
-		uintptr(unsafe.Pointer(pToolProperties)),
+	rsys = C.Trampoline3(vkGetPhysicalDeviceToolProperties,
+		C.uintptr(uintptr(physicalDevice)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pToolCount))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pToolProperties))),
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 
 	// allocate the array for the second call
 	arr_toolProperties := make([]vkPhysicalDeviceToolProperties, toolCount)
@@ -5034,7 +5204,7 @@ func GetPhysicalDeviceToolProperties(physicalDevice PhysicalDevice) (toolPropert
 	pToolProperties = &arr_toolProperties[0]
 
 	// second c-api call to get array
-	sys := C.Trampoline3(vkGetPhysicalDeviceToolProperties,
+	rsys = C.Trampoline3(vkGetPhysicalDeviceToolProperties,
 		C.uintptr(uintptr(physicalDevice)),
 		C.uintptr_t(uintptr(unsafe.Pointer(pToolCount))),
 		C.uintptr_t(uintptr(unsafe.Pointer(pToolProperties))),
@@ -5043,7 +5213,7 @@ func GetPhysicalDeviceToolProperties(physicalDevice PhysicalDevice) (toolPropert
 
 	// convert the returned array to the go slice
 	for i := range arr_toolProperties {
-		toolProperties[i] = *arr_toolProperties[i].goStruct()
+		toolProperties[i] = *arr_toolProperties[i].ToGo()
 	}
 	if r == Result(0) {
 		r = SUCCESS
@@ -5061,7 +5231,7 @@ func CreatePrivateDataSlot(device Device,
 	// struct requiring translation
 	var pCreateInfo *vkPrivateDataSlotCreateInfo
 	if createInfo != nil {
-		pCreateInfo = createInfo.vkStruct()
+		pCreateInfo = createInfo.ToVK()
 	}
 
 	// singular input, pass direct
@@ -5073,16 +5243,18 @@ func CreatePrivateDataSlot(device Device,
 	// binding-allocated single return value populated by Vulkan
 	pPrivateDataSlot := &privateDataSlot
 	if vkCreatePrivateDataSlot == nil {
-		vkCreatePrivateDataSlot = dlHandle.NewProc("vkCreatePrivateDataSlot")
+		vkCreatePrivateDataSlot = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCreatePrivateDataSlot")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkCreatePrivateDataSlot.Addr(),
-		uintptr(device),
-		uintptr(unsafe.Pointer(pCreateInfo)),
-		uintptr(unsafe.Pointer(pAllocator)),
-		uintptr(unsafe.Pointer(pPrivateDataSlot)),
+	rsys = C.Trampoline6(vkCreatePrivateDataSlot,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pCreateInfo))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pPrivateDataSlot))),
+		0,
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -5102,12 +5274,12 @@ func DestroyPrivateDataSlot(device Device,
 		pAllocator = unsafe.Pointer(allocator)
 	}
 	if vkDestroyPrivateDataSlot == nil {
-		vkDestroyPrivateDataSlot = dlHandle.NewProc("vkDestroyPrivateDataSlot")
+		vkDestroyPrivateDataSlot = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkDestroyPrivateDataSlot")))
 	}
-	syscall.SyscallN(vkDestroyPrivateDataSlot.Addr(),
-		uintptr(device),
-		uintptr(privateDataSlot),
-		uintptr(unsafe.Pointer(pAllocator)),
+	C.Trampoline3(vkDestroyPrivateDataSlot,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(privateDataSlot)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
 	)
 }
 
@@ -5121,17 +5293,18 @@ func SetPrivateData(device Device,
 	data uint64) (r error) {
 
 	if vkSetPrivateData == nil {
-		vkSetPrivateData = dlHandle.NewProc("vkSetPrivateData")
+		vkSetPrivateData = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkSetPrivateData")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkSetPrivateData.Addr(),
-		uintptr(device),
-		uintptr(objectType),
-		uintptr(objectHandle),
-		uintptr(privateDataSlot),
-		uintptr(data),
+	rsys = C.Trampoline6(vkSetPrivateData,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(objectType)),
+		C.uintptr(uintptr(objectHandle)),
+		C.uintptr(uintptr(privateDataSlot)),
+		C.uintptr(uintptr(data)),
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -5149,14 +5322,15 @@ func GetPrivateData(device Device,
 	// binding-allocated single return value populated by Vulkan
 	pData := &data
 	if vkGetPrivateData == nil {
-		vkGetPrivateData = dlHandle.NewProc("vkGetPrivateData")
+		vkGetPrivateData = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetPrivateData")))
 	}
-	syscall.SyscallN(vkGetPrivateData.Addr(),
-		uintptr(device),
-		uintptr(objectType),
-		uintptr(objectHandle),
-		uintptr(privateDataSlot),
-		uintptr(unsafe.Pointer(pData)),
+	C.Trampoline6(vkGetPrivateData,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(objectType)),
+		C.uintptr(uintptr(objectHandle)),
+		C.uintptr(uintptr(privateDataSlot)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pData))),
+		0,
 	)
 	return
 }
@@ -5170,14 +5344,15 @@ func CmdPipelineBarrier2(commandBuffer CommandBuffer,
 	// struct requiring translation
 	var pDependencyInfo *vkDependencyInfo
 	if dependencyInfo != nil {
-		pDependencyInfo = dependencyInfo.vkStruct()
+		pDependencyInfo = dependencyInfo.ToVK()
 	}
 	if vkCmdPipelineBarrier2 == nil {
-		vkCmdPipelineBarrier2 = dlHandle.NewProc("vkCmdPipelineBarrier2")
+		vkCmdPipelineBarrier2 = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdPipelineBarrier2")))
 	}
-	syscall.SyscallN(vkCmdPipelineBarrier2.Addr(),
-		uintptr(commandBuffer),
-		uintptr(unsafe.Pointer(pDependencyInfo)),
+	C.Trampoline3(vkCmdPipelineBarrier2,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pDependencyInfo))),
+		0,
 	)
 }
 
@@ -5190,13 +5365,15 @@ func CmdWriteTimestamp2(commandBuffer CommandBuffer,
 	query uint32) {
 
 	if vkCmdWriteTimestamp2 == nil {
-		vkCmdWriteTimestamp2 = dlHandle.NewProc("vkCmdWriteTimestamp2")
+		vkCmdWriteTimestamp2 = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdWriteTimestamp2")))
 	}
-	syscall.SyscallN(vkCmdWriteTimestamp2.Addr(),
-		uintptr(commandBuffer),
-		uintptr(stage),
-		uintptr(queryPool),
-		uintptr(query),
+	C.Trampoline6(vkCmdWriteTimestamp2,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(stage)),
+		C.uintptr(uintptr(queryPool)),
+		C.uintptr(uintptr(query)),
+		0,
+		0,
 	)
 }
 
@@ -5213,22 +5390,24 @@ func QueueSubmit2(queue Queue,
 	if len(submits) > 0 {
 		tmp := make([]vkSubmitInfo2, submitCount)
 		for i, v := range submits {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		pSubmits = unsafe.Pointer(&tmp[0])
 	}
 
 	if vkQueueSubmit2 == nil {
-		vkQueueSubmit2 = dlHandle.NewProc("vkQueueSubmit2")
+		vkQueueSubmit2 = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkQueueSubmit2")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkQueueSubmit2.Addr(),
-		uintptr(queue),
-		uintptr(submitCount),
-		uintptr(unsafe.Pointer(pSubmits)),
-		uintptr(fence),
+	rsys = C.Trampoline6(vkQueueSubmit2,
+		C.uintptr(uintptr(queue)),
+		C.uintptr(uintptr(submitCount)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pSubmits))),
+		C.uintptr(uintptr(fence)),
+		0,
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -5244,14 +5423,15 @@ func CmdCopyBuffer2(commandBuffer CommandBuffer,
 	// struct requiring translation
 	var pCopyBufferInfo *vkCopyBufferInfo2
 	if copyBufferInfo != nil {
-		pCopyBufferInfo = copyBufferInfo.vkStruct()
+		pCopyBufferInfo = copyBufferInfo.ToVK()
 	}
 	if vkCmdCopyBuffer2 == nil {
-		vkCmdCopyBuffer2 = dlHandle.NewProc("vkCmdCopyBuffer2")
+		vkCmdCopyBuffer2 = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdCopyBuffer2")))
 	}
-	syscall.SyscallN(vkCmdCopyBuffer2.Addr(),
-		uintptr(commandBuffer),
-		uintptr(unsafe.Pointer(pCopyBufferInfo)),
+	C.Trampoline3(vkCmdCopyBuffer2,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pCopyBufferInfo))),
+		0,
 	)
 }
 
@@ -5264,14 +5444,15 @@ func CmdCopyImage2(commandBuffer CommandBuffer,
 	// struct requiring translation
 	var pCopyImageInfo *vkCopyImageInfo2
 	if copyImageInfo != nil {
-		pCopyImageInfo = copyImageInfo.vkStruct()
+		pCopyImageInfo = copyImageInfo.ToVK()
 	}
 	if vkCmdCopyImage2 == nil {
-		vkCmdCopyImage2 = dlHandle.NewProc("vkCmdCopyImage2")
+		vkCmdCopyImage2 = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdCopyImage2")))
 	}
-	syscall.SyscallN(vkCmdCopyImage2.Addr(),
-		uintptr(commandBuffer),
-		uintptr(unsafe.Pointer(pCopyImageInfo)),
+	C.Trampoline3(vkCmdCopyImage2,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pCopyImageInfo))),
+		0,
 	)
 }
 
@@ -5284,14 +5465,15 @@ func CmdCopyBufferToImage2(commandBuffer CommandBuffer,
 	// struct requiring translation
 	var pCopyBufferToImageInfo *vkCopyBufferToImageInfo2
 	if copyBufferToImageInfo != nil {
-		pCopyBufferToImageInfo = copyBufferToImageInfo.vkStruct()
+		pCopyBufferToImageInfo = copyBufferToImageInfo.ToVK()
 	}
 	if vkCmdCopyBufferToImage2 == nil {
-		vkCmdCopyBufferToImage2 = dlHandle.NewProc("vkCmdCopyBufferToImage2")
+		vkCmdCopyBufferToImage2 = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdCopyBufferToImage2")))
 	}
-	syscall.SyscallN(vkCmdCopyBufferToImage2.Addr(),
-		uintptr(commandBuffer),
-		uintptr(unsafe.Pointer(pCopyBufferToImageInfo)),
+	C.Trampoline3(vkCmdCopyBufferToImage2,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pCopyBufferToImageInfo))),
+		0,
 	)
 }
 
@@ -5304,14 +5486,15 @@ func CmdCopyImageToBuffer2(commandBuffer CommandBuffer,
 	// struct requiring translation
 	var pCopyImageToBufferInfo *vkCopyImageToBufferInfo2
 	if copyImageToBufferInfo != nil {
-		pCopyImageToBufferInfo = copyImageToBufferInfo.vkStruct()
+		pCopyImageToBufferInfo = copyImageToBufferInfo.ToVK()
 	}
 	if vkCmdCopyImageToBuffer2 == nil {
-		vkCmdCopyImageToBuffer2 = dlHandle.NewProc("vkCmdCopyImageToBuffer2")
+		vkCmdCopyImageToBuffer2 = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdCopyImageToBuffer2")))
 	}
-	syscall.SyscallN(vkCmdCopyImageToBuffer2.Addr(),
-		uintptr(commandBuffer),
-		uintptr(unsafe.Pointer(pCopyImageToBufferInfo)),
+	C.Trampoline3(vkCmdCopyImageToBuffer2,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pCopyImageToBufferInfo))),
+		0,
 	)
 }
 
@@ -5324,20 +5507,20 @@ func GetDeviceBufferMemoryRequirements(device Device,
 	// struct requiring translation
 	var pInfo *vkDeviceBufferMemoryRequirements
 	if info != nil {
-		pInfo = info.vkStruct()
+		pInfo = info.ToVK()
 	}
 
 	// binding-allocated single return value populated by Vulkan, requires translation
-	var pMemoryRequirements *vkMemoryRequirements2 = memoryRequirements.vkStruct()
+	var pMemoryRequirements *vkMemoryRequirements2 = memoryRequirements.ToVK()
 	if vkGetDeviceBufferMemoryRequirements == nil {
-		vkGetDeviceBufferMemoryRequirements = dlHandle.NewProc("vkGetDeviceBufferMemoryRequirements")
+		vkGetDeviceBufferMemoryRequirements = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetDeviceBufferMemoryRequirements")))
 	}
-	syscall.SyscallN(vkGetDeviceBufferMemoryRequirements.Addr(),
-		uintptr(device),
-		uintptr(unsafe.Pointer(pInfo)),
-		uintptr(unsafe.Pointer(pMemoryRequirements)),
+	C.Trampoline3(vkGetDeviceBufferMemoryRequirements,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pInfo))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pMemoryRequirements))),
 	)
-	memoryRequirements = *(pMemoryRequirements.goStruct())
+	memoryRequirements = *(pMemoryRequirements.ToGo())
 	return
 }
 
@@ -5350,20 +5533,20 @@ func GetDeviceImageMemoryRequirements(device Device,
 	// struct requiring translation
 	var pInfo *vkDeviceImageMemoryRequirements
 	if info != nil {
-		pInfo = info.vkStruct()
+		pInfo = info.ToVK()
 	}
 
 	// binding-allocated single return value populated by Vulkan, requires translation
-	var pMemoryRequirements *vkMemoryRequirements2 = memoryRequirements.vkStruct()
+	var pMemoryRequirements *vkMemoryRequirements2 = memoryRequirements.ToVK()
 	if vkGetDeviceImageMemoryRequirements == nil {
-		vkGetDeviceImageMemoryRequirements = dlHandle.NewProc("vkGetDeviceImageMemoryRequirements")
+		vkGetDeviceImageMemoryRequirements = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetDeviceImageMemoryRequirements")))
 	}
-	syscall.SyscallN(vkGetDeviceImageMemoryRequirements.Addr(),
-		uintptr(device),
-		uintptr(unsafe.Pointer(pInfo)),
-		uintptr(unsafe.Pointer(pMemoryRequirements)),
+	C.Trampoline3(vkGetDeviceImageMemoryRequirements,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pInfo))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pMemoryRequirements))),
 	)
-	memoryRequirements = *(pMemoryRequirements.goStruct())
+	memoryRequirements = *(pMemoryRequirements.ToGo())
 	return
 }
 
@@ -5376,7 +5559,7 @@ func GetDeviceImageSparseMemoryRequirements(device Device,
 	// struct requiring translation
 	var pInfo *vkDeviceImageMemoryRequirements
 	if info != nil {
-		pInfo = info.vkStruct()
+		pInfo = info.ToVK()
 	}
 
 	// a double-call array output
@@ -5386,13 +5569,15 @@ func GetDeviceImageSparseMemoryRequirements(device Device,
 
 	// first c-api call to get counter
 	if vkGetDeviceImageSparseMemoryRequirements == nil {
-		vkGetDeviceImageSparseMemoryRequirements = dlHandle.NewProc("vkGetDeviceImageSparseMemoryRequirements")
+		vkGetDeviceImageSparseMemoryRequirements = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetDeviceImageSparseMemoryRequirements")))
 	}
-	syscall.SyscallN(vkGetDeviceImageSparseMemoryRequirements.Addr(),
-		uintptr(device),
-		uintptr(unsafe.Pointer(pInfo)),
-		uintptr(unsafe.Pointer(pSparseMemoryRequirementCount)),
-		uintptr(unsafe.Pointer(pSparseMemoryRequirements)),
+	C.Trampoline6(vkGetDeviceImageSparseMemoryRequirements,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pInfo))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pSparseMemoryRequirementCount))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pSparseMemoryRequirements))),
+		0,
+		0,
 	)
 
 	// allocate the array for the second call
@@ -5412,7 +5597,7 @@ func GetDeviceImageSparseMemoryRequirements(device Device,
 
 	// convert the returned array to the go slice
 	for i := range arr_sparseMemoryRequirements {
-		sparseMemoryRequirements[i] = *arr_sparseMemoryRequirements[i].goStruct()
+		sparseMemoryRequirements[i] = *arr_sparseMemoryRequirements[i].ToGo()
 	}
 	return
 }
@@ -5427,15 +5612,15 @@ func CmdSetEvent2(commandBuffer CommandBuffer,
 	// struct requiring translation
 	var pDependencyInfo *vkDependencyInfo
 	if dependencyInfo != nil {
-		pDependencyInfo = dependencyInfo.vkStruct()
+		pDependencyInfo = dependencyInfo.ToVK()
 	}
 	if vkCmdSetEvent2 == nil {
-		vkCmdSetEvent2 = dlHandle.NewProc("vkCmdSetEvent2")
+		vkCmdSetEvent2 = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdSetEvent2")))
 	}
-	syscall.SyscallN(vkCmdSetEvent2.Addr(),
-		uintptr(commandBuffer),
-		uintptr(event),
-		uintptr(unsafe.Pointer(pDependencyInfo)),
+	C.Trampoline3(vkCmdSetEvent2,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(event)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pDependencyInfo))),
 	)
 }
 
@@ -5447,12 +5632,12 @@ func CmdResetEvent2(commandBuffer CommandBuffer,
 	stageMask PipelineStageFlags2) {
 
 	if vkCmdResetEvent2 == nil {
-		vkCmdResetEvent2 = dlHandle.NewProc("vkCmdResetEvent2")
+		vkCmdResetEvent2 = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdResetEvent2")))
 	}
-	syscall.SyscallN(vkCmdResetEvent2.Addr(),
-		uintptr(commandBuffer),
-		uintptr(event),
-		uintptr(stageMask),
+	C.Trampoline3(vkCmdResetEvent2,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(event)),
+		C.uintptr(uintptr(stageMask)),
 	)
 }
 
@@ -5475,18 +5660,20 @@ func CmdWaitEvents2(commandBuffer CommandBuffer,
 	if len(dependencyInfos) > 0 {
 		tmp := make([]vkDependencyInfo, eventCount)
 		for i, v := range dependencyInfos {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		pDependencyInfos = unsafe.Pointer(&tmp[0])
 	}
 	if vkCmdWaitEvents2 == nil {
-		vkCmdWaitEvents2 = dlHandle.NewProc("vkCmdWaitEvents2")
+		vkCmdWaitEvents2 = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdWaitEvents2")))
 	}
-	syscall.SyscallN(vkCmdWaitEvents2.Addr(),
-		uintptr(commandBuffer),
-		uintptr(eventCount),
-		uintptr(unsafe.Pointer(pEvents)),
-		uintptr(unsafe.Pointer(pDependencyInfos)),
+	C.Trampoline6(vkCmdWaitEvents2,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(eventCount)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pEvents))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pDependencyInfos))),
+		0,
+		0,
 	)
 }
 
@@ -5499,14 +5686,15 @@ func CmdBlitImage2(commandBuffer CommandBuffer,
 	// struct requiring translation
 	var pBlitImageInfo *vkBlitImageInfo2
 	if blitImageInfo != nil {
-		pBlitImageInfo = blitImageInfo.vkStruct()
+		pBlitImageInfo = blitImageInfo.ToVK()
 	}
 	if vkCmdBlitImage2 == nil {
-		vkCmdBlitImage2 = dlHandle.NewProc("vkCmdBlitImage2")
+		vkCmdBlitImage2 = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdBlitImage2")))
 	}
-	syscall.SyscallN(vkCmdBlitImage2.Addr(),
-		uintptr(commandBuffer),
-		uintptr(unsafe.Pointer(pBlitImageInfo)),
+	C.Trampoline3(vkCmdBlitImage2,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pBlitImageInfo))),
+		0,
 	)
 }
 
@@ -5519,14 +5707,15 @@ func CmdResolveImage2(commandBuffer CommandBuffer,
 	// struct requiring translation
 	var pResolveImageInfo *vkResolveImageInfo2
 	if resolveImageInfo != nil {
-		pResolveImageInfo = resolveImageInfo.vkStruct()
+		pResolveImageInfo = resolveImageInfo.ToVK()
 	}
 	if vkCmdResolveImage2 == nil {
-		vkCmdResolveImage2 = dlHandle.NewProc("vkCmdResolveImage2")
+		vkCmdResolveImage2 = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdResolveImage2")))
 	}
-	syscall.SyscallN(vkCmdResolveImage2.Addr(),
-		uintptr(commandBuffer),
-		uintptr(unsafe.Pointer(pResolveImageInfo)),
+	C.Trampoline3(vkCmdResolveImage2,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pResolveImageInfo))),
+		0,
 	)
 }
 
@@ -5539,14 +5728,15 @@ func CmdBeginRendering(commandBuffer CommandBuffer,
 	// struct requiring translation
 	var pRenderingInfo *vkRenderingInfo
 	if renderingInfo != nil {
-		pRenderingInfo = renderingInfo.vkStruct()
+		pRenderingInfo = renderingInfo.ToVK()
 	}
 	if vkCmdBeginRendering == nil {
-		vkCmdBeginRendering = dlHandle.NewProc("vkCmdBeginRendering")
+		vkCmdBeginRendering = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdBeginRendering")))
 	}
-	syscall.SyscallN(vkCmdBeginRendering.Addr(),
-		uintptr(commandBuffer),
-		uintptr(unsafe.Pointer(pRenderingInfo)),
+	C.Trampoline3(vkCmdBeginRendering,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pRenderingInfo))),
+		0,
 	)
 }
 
@@ -5556,10 +5746,12 @@ var vkCmdEndRendering vkCommand
 func CmdEndRendering(commandBuffer CommandBuffer) {
 
 	if vkCmdEndRendering == nil {
-		vkCmdEndRendering = dlHandle.NewProc("vkCmdEndRendering")
+		vkCmdEndRendering = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdEndRendering")))
 	}
-	syscall.SyscallN(vkCmdEndRendering.Addr(),
-		uintptr(commandBuffer),
+	C.Trampoline3(vkCmdEndRendering,
+		C.uintptr(uintptr(commandBuffer)),
+		0,
+		0,
 	)
 }
 
@@ -5570,11 +5762,12 @@ func CmdSetCullMode(commandBuffer CommandBuffer,
 	cullMode CullModeFlags) {
 
 	if vkCmdSetCullMode == nil {
-		vkCmdSetCullMode = dlHandle.NewProc("vkCmdSetCullMode")
+		vkCmdSetCullMode = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdSetCullMode")))
 	}
-	syscall.SyscallN(vkCmdSetCullMode.Addr(),
-		uintptr(commandBuffer),
-		uintptr(cullMode),
+	C.Trampoline3(vkCmdSetCullMode,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(cullMode)),
+		0,
 	)
 }
 
@@ -5585,11 +5778,12 @@ func CmdSetFrontFace(commandBuffer CommandBuffer,
 	frontFace FrontFace) {
 
 	if vkCmdSetFrontFace == nil {
-		vkCmdSetFrontFace = dlHandle.NewProc("vkCmdSetFrontFace")
+		vkCmdSetFrontFace = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdSetFrontFace")))
 	}
-	syscall.SyscallN(vkCmdSetFrontFace.Addr(),
-		uintptr(commandBuffer),
-		uintptr(frontFace),
+	C.Trampoline3(vkCmdSetFrontFace,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(frontFace)),
+		0,
 	)
 }
 
@@ -5600,11 +5794,12 @@ func CmdSetPrimitiveTopology(commandBuffer CommandBuffer,
 	primitiveTopology PrimitiveTopology) {
 
 	if vkCmdSetPrimitiveTopology == nil {
-		vkCmdSetPrimitiveTopology = dlHandle.NewProc("vkCmdSetPrimitiveTopology")
+		vkCmdSetPrimitiveTopology = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdSetPrimitiveTopology")))
 	}
-	syscall.SyscallN(vkCmdSetPrimitiveTopology.Addr(),
-		uintptr(commandBuffer),
-		uintptr(primitiveTopology),
+	C.Trampoline3(vkCmdSetPrimitiveTopology,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(primitiveTopology)),
+		0,
 	)
 }
 
@@ -5620,17 +5815,17 @@ func CmdSetViewportWithCount(commandBuffer CommandBuffer,
 	if len(viewports) > 0 {
 		tmp := make([]vkViewport, viewportCount)
 		for i, v := range viewports {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		pViewports = unsafe.Pointer(&tmp[0])
 	}
 	if vkCmdSetViewportWithCount == nil {
-		vkCmdSetViewportWithCount = dlHandle.NewProc("vkCmdSetViewportWithCount")
+		vkCmdSetViewportWithCount = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdSetViewportWithCount")))
 	}
-	syscall.SyscallN(vkCmdSetViewportWithCount.Addr(),
-		uintptr(commandBuffer),
-		uintptr(viewportCount),
-		uintptr(unsafe.Pointer(pViewports)),
+	C.Trampoline3(vkCmdSetViewportWithCount,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(viewportCount)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pViewports))),
 	)
 }
 
@@ -5646,17 +5841,17 @@ func CmdSetScissorWithCount(commandBuffer CommandBuffer,
 	if len(scissors) > 0 {
 		tmp := make([]vkRect2D, scissorCount)
 		for i, v := range scissors {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		pScissors = unsafe.Pointer(&tmp[0])
 	}
 	if vkCmdSetScissorWithCount == nil {
-		vkCmdSetScissorWithCount = dlHandle.NewProc("vkCmdSetScissorWithCount")
+		vkCmdSetScissorWithCount = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdSetScissorWithCount")))
 	}
-	syscall.SyscallN(vkCmdSetScissorWithCount.Addr(),
-		uintptr(commandBuffer),
-		uintptr(scissorCount),
-		uintptr(unsafe.Pointer(pScissors)),
+	C.Trampoline3(vkCmdSetScissorWithCount,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(scissorCount)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pScissors))),
 	)
 }
 
@@ -5695,16 +5890,18 @@ func CmdBindVertexBuffers2(commandBuffer CommandBuffer,
 		pStrides = unsafe.Pointer(&strides[0])
 	}
 	if vkCmdBindVertexBuffers2 == nil {
-		vkCmdBindVertexBuffers2 = dlHandle.NewProc("vkCmdBindVertexBuffers2")
+		vkCmdBindVertexBuffers2 = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdBindVertexBuffers2")))
 	}
-	syscall.SyscallN(vkCmdBindVertexBuffers2.Addr(),
-		uintptr(commandBuffer),
-		uintptr(firstBinding),
-		uintptr(bindingCount),
-		uintptr(unsafe.Pointer(pBuffers)),
-		uintptr(unsafe.Pointer(pOffsets)),
-		uintptr(unsafe.Pointer(pSizes)),
-		uintptr(unsafe.Pointer(pStrides)),
+	C.Trampoline9(vkCmdBindVertexBuffers2,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(firstBinding)),
+		C.uintptr(uintptr(bindingCount)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pBuffers))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pOffsets))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pSizes))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pStrides))),
+		0,
+		0,
 	)
 }
 
@@ -5716,11 +5913,12 @@ func CmdSetDepthTestEnable(commandBuffer CommandBuffer,
 
 	depthTestEnableBool := vkBool32(depthTestEnable)
 	if vkCmdSetDepthTestEnable == nil {
-		vkCmdSetDepthTestEnable = dlHandle.NewProc("vkCmdSetDepthTestEnable")
+		vkCmdSetDepthTestEnable = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdSetDepthTestEnable")))
 	}
-	syscall.SyscallN(vkCmdSetDepthTestEnable.Addr(),
-		uintptr(commandBuffer),
-		uintptr(depthTestEnableBool),
+	C.Trampoline3(vkCmdSetDepthTestEnable,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr_t(uintptr(depthTestEnableBool)),
+		0,
 	)
 }
 
@@ -5732,11 +5930,12 @@ func CmdSetDepthWriteEnable(commandBuffer CommandBuffer,
 
 	depthWriteEnableBool := vkBool32(depthWriteEnable)
 	if vkCmdSetDepthWriteEnable == nil {
-		vkCmdSetDepthWriteEnable = dlHandle.NewProc("vkCmdSetDepthWriteEnable")
+		vkCmdSetDepthWriteEnable = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdSetDepthWriteEnable")))
 	}
-	syscall.SyscallN(vkCmdSetDepthWriteEnable.Addr(),
-		uintptr(commandBuffer),
-		uintptr(depthWriteEnableBool),
+	C.Trampoline3(vkCmdSetDepthWriteEnable,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr_t(uintptr(depthWriteEnableBool)),
+		0,
 	)
 }
 
@@ -5747,11 +5946,12 @@ func CmdSetDepthCompareOp(commandBuffer CommandBuffer,
 	depthCompareOp CompareOp) {
 
 	if vkCmdSetDepthCompareOp == nil {
-		vkCmdSetDepthCompareOp = dlHandle.NewProc("vkCmdSetDepthCompareOp")
+		vkCmdSetDepthCompareOp = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdSetDepthCompareOp")))
 	}
-	syscall.SyscallN(vkCmdSetDepthCompareOp.Addr(),
-		uintptr(commandBuffer),
-		uintptr(depthCompareOp),
+	C.Trampoline3(vkCmdSetDepthCompareOp,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(depthCompareOp)),
+		0,
 	)
 }
 
@@ -5763,11 +5963,12 @@ func CmdSetDepthBoundsTestEnable(commandBuffer CommandBuffer,
 
 	depthBoundsTestEnableBool := vkBool32(depthBoundsTestEnable)
 	if vkCmdSetDepthBoundsTestEnable == nil {
-		vkCmdSetDepthBoundsTestEnable = dlHandle.NewProc("vkCmdSetDepthBoundsTestEnable")
+		vkCmdSetDepthBoundsTestEnable = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdSetDepthBoundsTestEnable")))
 	}
-	syscall.SyscallN(vkCmdSetDepthBoundsTestEnable.Addr(),
-		uintptr(commandBuffer),
-		uintptr(depthBoundsTestEnableBool),
+	C.Trampoline3(vkCmdSetDepthBoundsTestEnable,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr_t(uintptr(depthBoundsTestEnableBool)),
+		0,
 	)
 }
 
@@ -5779,11 +5980,12 @@ func CmdSetStencilTestEnable(commandBuffer CommandBuffer,
 
 	stencilTestEnableBool := vkBool32(stencilTestEnable)
 	if vkCmdSetStencilTestEnable == nil {
-		vkCmdSetStencilTestEnable = dlHandle.NewProc("vkCmdSetStencilTestEnable")
+		vkCmdSetStencilTestEnable = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdSetStencilTestEnable")))
 	}
-	syscall.SyscallN(vkCmdSetStencilTestEnable.Addr(),
-		uintptr(commandBuffer),
-		uintptr(stencilTestEnableBool),
+	C.Trampoline3(vkCmdSetStencilTestEnable,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr_t(uintptr(stencilTestEnableBool)),
+		0,
 	)
 }
 
@@ -5798,15 +6000,15 @@ func CmdSetStencilOp(commandBuffer CommandBuffer,
 	compareOp CompareOp) {
 
 	if vkCmdSetStencilOp == nil {
-		vkCmdSetStencilOp = dlHandle.NewProc("vkCmdSetStencilOp")
+		vkCmdSetStencilOp = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdSetStencilOp")))
 	}
-	syscall.SyscallN(vkCmdSetStencilOp.Addr(),
-		uintptr(commandBuffer),
-		uintptr(faceMask),
-		uintptr(failOp),
-		uintptr(passOp),
-		uintptr(depthFailOp),
-		uintptr(compareOp),
+	C.Trampoline6(vkCmdSetStencilOp,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(faceMask)),
+		C.uintptr(uintptr(failOp)),
+		C.uintptr(uintptr(passOp)),
+		C.uintptr(uintptr(depthFailOp)),
+		C.uintptr(uintptr(compareOp)),
 	)
 }
 
@@ -5818,11 +6020,12 @@ func CmdSetRasterizerDiscardEnable(commandBuffer CommandBuffer,
 
 	rasterizerDiscardEnableBool := vkBool32(rasterizerDiscardEnable)
 	if vkCmdSetRasterizerDiscardEnable == nil {
-		vkCmdSetRasterizerDiscardEnable = dlHandle.NewProc("vkCmdSetRasterizerDiscardEnable")
+		vkCmdSetRasterizerDiscardEnable = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdSetRasterizerDiscardEnable")))
 	}
-	syscall.SyscallN(vkCmdSetRasterizerDiscardEnable.Addr(),
-		uintptr(commandBuffer),
-		uintptr(rasterizerDiscardEnableBool),
+	C.Trampoline3(vkCmdSetRasterizerDiscardEnable,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr_t(uintptr(rasterizerDiscardEnableBool)),
+		0,
 	)
 }
 
@@ -5834,11 +6037,12 @@ func CmdSetDepthBiasEnable(commandBuffer CommandBuffer,
 
 	depthBiasEnableBool := vkBool32(depthBiasEnable)
 	if vkCmdSetDepthBiasEnable == nil {
-		vkCmdSetDepthBiasEnable = dlHandle.NewProc("vkCmdSetDepthBiasEnable")
+		vkCmdSetDepthBiasEnable = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdSetDepthBiasEnable")))
 	}
-	syscall.SyscallN(vkCmdSetDepthBiasEnable.Addr(),
-		uintptr(commandBuffer),
-		uintptr(depthBiasEnableBool),
+	C.Trampoline3(vkCmdSetDepthBiasEnable,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr_t(uintptr(depthBiasEnableBool)),
+		0,
 	)
 }
 
@@ -5850,11 +6054,12 @@ func CmdSetPrimitiveRestartEnable(commandBuffer CommandBuffer,
 
 	primitiveRestartEnableBool := vkBool32(primitiveRestartEnable)
 	if vkCmdSetPrimitiveRestartEnable == nil {
-		vkCmdSetPrimitiveRestartEnable = dlHandle.NewProc("vkCmdSetPrimitiveRestartEnable")
+		vkCmdSetPrimitiveRestartEnable = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdSetPrimitiveRestartEnable")))
 	}
-	syscall.SyscallN(vkCmdSetPrimitiveRestartEnable.Addr(),
-		uintptr(commandBuffer),
-		uintptr(primitiveRestartEnableBool),
+	C.Trampoline3(vkCmdSetPrimitiveRestartEnable,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr_t(uintptr(primitiveRestartEnableBool)),
+		0,
 	)
 }
 
@@ -5867,21 +6072,21 @@ func MapMemory2(device Device,
 	// struct requiring translation
 	var pMemoryMapInfo *vkMemoryMapInfo
 	if memoryMapInfo != nil {
-		pMemoryMapInfo = memoryMapInfo.vkStruct()
+		pMemoryMapInfo = memoryMapInfo.ToVK()
 	}
 
 	// binding-allocated single return value populated by Vulkan
 	ppData := &data
 	if vkMapMemory2 == nil {
-		vkMapMemory2 = dlHandle.NewProc("vkMapMemory2")
+		vkMapMemory2 = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkMapMemory2")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkMapMemory2.Addr(),
-		uintptr(device),
-		uintptr(unsafe.Pointer(pMemoryMapInfo)),
-		uintptr(unsafe.Pointer(ppData)),
+	rsys = C.Trampoline3(vkMapMemory2,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pMemoryMapInfo))),
+		C.uintptr_t(uintptr(unsafe.Pointer(ppData))),
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -5897,17 +6102,18 @@ func UnmapMemory2(device Device,
 	// struct requiring translation
 	var pMemoryUnmapInfo *vkMemoryUnmapInfo
 	if memoryUnmapInfo != nil {
-		pMemoryUnmapInfo = memoryUnmapInfo.vkStruct()
+		pMemoryUnmapInfo = memoryUnmapInfo.ToVK()
 	}
 	if vkUnmapMemory2 == nil {
-		vkUnmapMemory2 = dlHandle.NewProc("vkUnmapMemory2")
+		vkUnmapMemory2 = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkUnmapMemory2")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkUnmapMemory2.Addr(),
-		uintptr(device),
-		uintptr(unsafe.Pointer(pMemoryUnmapInfo)),
+	rsys = C.Trampoline3(vkUnmapMemory2,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pMemoryUnmapInfo))),
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -5923,20 +6129,20 @@ func GetDeviceImageSubresourceLayout(device Device,
 	// struct requiring translation
 	var pInfo *vkDeviceImageSubresourceInfo
 	if info != nil {
-		pInfo = info.vkStruct()
+		pInfo = info.ToVK()
 	}
 
 	// binding-allocated single return value populated by Vulkan, requires translation
-	var pLayout *vkSubresourceLayout2 = layout.vkStruct()
+	var pLayout *vkSubresourceLayout2 = layout.ToVK()
 	if vkGetDeviceImageSubresourceLayout == nil {
-		vkGetDeviceImageSubresourceLayout = dlHandle.NewProc("vkGetDeviceImageSubresourceLayout")
+		vkGetDeviceImageSubresourceLayout = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetDeviceImageSubresourceLayout")))
 	}
-	syscall.SyscallN(vkGetDeviceImageSubresourceLayout.Addr(),
-		uintptr(device),
-		uintptr(unsafe.Pointer(pInfo)),
-		uintptr(unsafe.Pointer(pLayout)),
+	C.Trampoline3(vkGetDeviceImageSubresourceLayout,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pInfo))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pLayout))),
 	)
-	layout = *(pLayout.goStruct())
+	layout = *(pLayout.ToGo())
 	return
 }
 
@@ -5950,21 +6156,23 @@ func GetImageSubresourceLayout2(device Device,
 	// struct requiring translation
 	var pSubresource *vkImageSubresource2
 	if subresource != nil {
-		pSubresource = subresource.vkStruct()
+		pSubresource = subresource.ToVK()
 	}
 
 	// binding-allocated single return value populated by Vulkan, requires translation
-	var pLayout *vkSubresourceLayout2 = layout.vkStruct()
+	var pLayout *vkSubresourceLayout2 = layout.ToVK()
 	if vkGetImageSubresourceLayout2 == nil {
-		vkGetImageSubresourceLayout2 = dlHandle.NewProc("vkGetImageSubresourceLayout2")
+		vkGetImageSubresourceLayout2 = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetImageSubresourceLayout2")))
 	}
-	syscall.SyscallN(vkGetImageSubresourceLayout2.Addr(),
-		uintptr(device),
-		uintptr(image),
-		uintptr(unsafe.Pointer(pSubresource)),
-		uintptr(unsafe.Pointer(pLayout)),
+	C.Trampoline6(vkGetImageSubresourceLayout2,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(image)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pSubresource))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pLayout))),
+		0,
+		0,
 	)
-	layout = *(pLayout.goStruct())
+	layout = *(pLayout.ToGo())
 	return
 }
 
@@ -5977,17 +6185,18 @@ func CopyMemoryToImage(device Device,
 	// struct requiring translation
 	var pCopyMemoryToImageInfo *vkCopyMemoryToImageInfo
 	if copyMemoryToImageInfo != nil {
-		pCopyMemoryToImageInfo = copyMemoryToImageInfo.vkStruct()
+		pCopyMemoryToImageInfo = copyMemoryToImageInfo.ToVK()
 	}
 	if vkCopyMemoryToImage == nil {
-		vkCopyMemoryToImage = dlHandle.NewProc("vkCopyMemoryToImage")
+		vkCopyMemoryToImage = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCopyMemoryToImage")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkCopyMemoryToImage.Addr(),
-		uintptr(device),
-		uintptr(unsafe.Pointer(pCopyMemoryToImageInfo)),
+	rsys = C.Trampoline3(vkCopyMemoryToImage,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pCopyMemoryToImageInfo))),
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -6003,17 +6212,18 @@ func CopyImageToMemory(device Device,
 	// struct requiring translation
 	var pCopyImageToMemoryInfo *vkCopyImageToMemoryInfo
 	if copyImageToMemoryInfo != nil {
-		pCopyImageToMemoryInfo = copyImageToMemoryInfo.vkStruct()
+		pCopyImageToMemoryInfo = copyImageToMemoryInfo.ToVK()
 	}
 	if vkCopyImageToMemory == nil {
-		vkCopyImageToMemory = dlHandle.NewProc("vkCopyImageToMemory")
+		vkCopyImageToMemory = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCopyImageToMemory")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkCopyImageToMemory.Addr(),
-		uintptr(device),
-		uintptr(unsafe.Pointer(pCopyImageToMemoryInfo)),
+	rsys = C.Trampoline3(vkCopyImageToMemory,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pCopyImageToMemoryInfo))),
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -6029,17 +6239,18 @@ func CopyImageToImage(device Device,
 	// struct requiring translation
 	var pCopyImageToImageInfo *vkCopyImageToImageInfo
 	if copyImageToImageInfo != nil {
-		pCopyImageToImageInfo = copyImageToImageInfo.vkStruct()
+		pCopyImageToImageInfo = copyImageToImageInfo.ToVK()
 	}
 	if vkCopyImageToImage == nil {
-		vkCopyImageToImage = dlHandle.NewProc("vkCopyImageToImage")
+		vkCopyImageToImage = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCopyImageToImage")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkCopyImageToImage.Addr(),
-		uintptr(device),
-		uintptr(unsafe.Pointer(pCopyImageToImageInfo)),
+	rsys = C.Trampoline3(vkCopyImageToImage,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pCopyImageToImageInfo))),
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -6058,20 +6269,20 @@ func TransitionImageLayout(device Device,
 	if len(transitions) > 0 {
 		tmp := make([]vkHostImageLayoutTransitionInfo, transitionCount)
 		for i, v := range transitions {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		pTransitions = unsafe.Pointer(&tmp[0])
 	}
 	if vkTransitionImageLayout == nil {
-		vkTransitionImageLayout = dlHandle.NewProc("vkTransitionImageLayout")
+		vkTransitionImageLayout = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkTransitionImageLayout")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkTransitionImageLayout.Addr(),
-		uintptr(device),
-		uintptr(transitionCount),
-		uintptr(unsafe.Pointer(pTransitions)),
+	rsys = C.Trampoline3(vkTransitionImageLayout,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(transitionCount)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pTransitions))),
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -6093,20 +6304,20 @@ func CmdPushDescriptorSet(commandBuffer CommandBuffer,
 	if len(descriptorWrites) > 0 {
 		tmp := make([]vkWriteDescriptorSet, descriptorWriteCount)
 		for i, v := range descriptorWrites {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		pDescriptorWrites = unsafe.Pointer(&tmp[0])
 	}
 	if vkCmdPushDescriptorSet == nil {
-		vkCmdPushDescriptorSet = dlHandle.NewProc("vkCmdPushDescriptorSet")
+		vkCmdPushDescriptorSet = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdPushDescriptorSet")))
 	}
-	syscall.SyscallN(vkCmdPushDescriptorSet.Addr(),
-		uintptr(commandBuffer),
-		uintptr(pipelineBindPoint),
-		uintptr(layout),
-		uintptr(set),
-		uintptr(descriptorWriteCount),
-		uintptr(unsafe.Pointer(pDescriptorWrites)),
+	C.Trampoline6(vkCmdPushDescriptorSet,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(pipelineBindPoint)),
+		C.uintptr(uintptr(layout)),
+		C.uintptr(uintptr(set)),
+		C.uintptr(uintptr(descriptorWriteCount)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pDescriptorWrites))),
 	)
 }
 
@@ -6125,14 +6336,15 @@ func CmdPushDescriptorSetWithTemplate(commandBuffer CommandBuffer,
 		pData = unsafe.Pointer(data)
 	}
 	if vkCmdPushDescriptorSetWithTemplate == nil {
-		vkCmdPushDescriptorSetWithTemplate = dlHandle.NewProc("vkCmdPushDescriptorSetWithTemplate")
+		vkCmdPushDescriptorSetWithTemplate = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdPushDescriptorSetWithTemplate")))
 	}
-	syscall.SyscallN(vkCmdPushDescriptorSetWithTemplate.Addr(),
-		uintptr(commandBuffer),
-		uintptr(descriptorUpdateTemplate),
-		uintptr(layout),
-		uintptr(set),
-		uintptr(pData),
+	C.Trampoline6(vkCmdPushDescriptorSetWithTemplate,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(descriptorUpdateTemplate)),
+		C.uintptr(uintptr(layout)),
+		C.uintptr(uintptr(set)),
+		C.uintptr(uintptr(pData)),
+		0,
 	)
 }
 
@@ -6145,14 +6357,15 @@ func CmdBindDescriptorSets2(commandBuffer CommandBuffer,
 	// struct requiring translation
 	var pBindDescriptorSetsInfo *vkBindDescriptorSetsInfo
 	if bindDescriptorSetsInfo != nil {
-		pBindDescriptorSetsInfo = bindDescriptorSetsInfo.vkStruct()
+		pBindDescriptorSetsInfo = bindDescriptorSetsInfo.ToVK()
 	}
 	if vkCmdBindDescriptorSets2 == nil {
-		vkCmdBindDescriptorSets2 = dlHandle.NewProc("vkCmdBindDescriptorSets2")
+		vkCmdBindDescriptorSets2 = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdBindDescriptorSets2")))
 	}
-	syscall.SyscallN(vkCmdBindDescriptorSets2.Addr(),
-		uintptr(commandBuffer),
-		uintptr(unsafe.Pointer(pBindDescriptorSetsInfo)),
+	C.Trampoline3(vkCmdBindDescriptorSets2,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pBindDescriptorSetsInfo))),
+		0,
 	)
 }
 
@@ -6165,14 +6378,15 @@ func CmdPushConstants2(commandBuffer CommandBuffer,
 	// struct requiring translation
 	var pPushConstantsInfo *vkPushConstantsInfo
 	if pushConstantsInfo != nil {
-		pPushConstantsInfo = pushConstantsInfo.vkStruct()
+		pPushConstantsInfo = pushConstantsInfo.ToVK()
 	}
 	if vkCmdPushConstants2 == nil {
-		vkCmdPushConstants2 = dlHandle.NewProc("vkCmdPushConstants2")
+		vkCmdPushConstants2 = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdPushConstants2")))
 	}
-	syscall.SyscallN(vkCmdPushConstants2.Addr(),
-		uintptr(commandBuffer),
-		uintptr(unsafe.Pointer(pPushConstantsInfo)),
+	C.Trampoline3(vkCmdPushConstants2,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pPushConstantsInfo))),
+		0,
 	)
 }
 
@@ -6185,14 +6399,15 @@ func CmdPushDescriptorSet2(commandBuffer CommandBuffer,
 	// struct requiring translation
 	var pPushDescriptorSetInfo *vkPushDescriptorSetInfo
 	if pushDescriptorSetInfo != nil {
-		pPushDescriptorSetInfo = pushDescriptorSetInfo.vkStruct()
+		pPushDescriptorSetInfo = pushDescriptorSetInfo.ToVK()
 	}
 	if vkCmdPushDescriptorSet2 == nil {
-		vkCmdPushDescriptorSet2 = dlHandle.NewProc("vkCmdPushDescriptorSet2")
+		vkCmdPushDescriptorSet2 = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdPushDescriptorSet2")))
 	}
-	syscall.SyscallN(vkCmdPushDescriptorSet2.Addr(),
-		uintptr(commandBuffer),
-		uintptr(unsafe.Pointer(pPushDescriptorSetInfo)),
+	C.Trampoline3(vkCmdPushDescriptorSet2,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pPushDescriptorSetInfo))),
+		0,
 	)
 }
 
@@ -6205,14 +6420,15 @@ func CmdPushDescriptorSetWithTemplate2(commandBuffer CommandBuffer,
 	// struct requiring translation
 	var pPushDescriptorSetWithTemplateInfo *vkPushDescriptorSetWithTemplateInfo
 	if pushDescriptorSetWithTemplateInfo != nil {
-		pPushDescriptorSetWithTemplateInfo = pushDescriptorSetWithTemplateInfo.vkStruct()
+		pPushDescriptorSetWithTemplateInfo = pushDescriptorSetWithTemplateInfo.ToVK()
 	}
 	if vkCmdPushDescriptorSetWithTemplate2 == nil {
-		vkCmdPushDescriptorSetWithTemplate2 = dlHandle.NewProc("vkCmdPushDescriptorSetWithTemplate2")
+		vkCmdPushDescriptorSetWithTemplate2 = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdPushDescriptorSetWithTemplate2")))
 	}
-	syscall.SyscallN(vkCmdPushDescriptorSetWithTemplate2.Addr(),
-		uintptr(commandBuffer),
-		uintptr(unsafe.Pointer(pPushDescriptorSetWithTemplateInfo)),
+	C.Trampoline3(vkCmdPushDescriptorSetWithTemplate2,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pPushDescriptorSetWithTemplateInfo))),
+		0,
 	)
 }
 
@@ -6224,12 +6440,12 @@ func CmdSetLineStipple(commandBuffer CommandBuffer,
 	lineStipplePattern uint16) {
 
 	if vkCmdSetLineStipple == nil {
-		vkCmdSetLineStipple = dlHandle.NewProc("vkCmdSetLineStipple")
+		vkCmdSetLineStipple = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdSetLineStipple")))
 	}
-	syscall.SyscallN(vkCmdSetLineStipple.Addr(),
-		uintptr(commandBuffer),
-		uintptr(lineStippleFactor),
-		uintptr(lineStipplePattern),
+	C.Trampoline3(vkCmdSetLineStipple,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(lineStippleFactor)),
+		C.uintptr(uintptr(lineStipplePattern)),
 	)
 }
 
@@ -6243,14 +6459,15 @@ func CmdBindIndexBuffer2(commandBuffer CommandBuffer,
 	indexType IndexType) {
 
 	if vkCmdBindIndexBuffer2 == nil {
-		vkCmdBindIndexBuffer2 = dlHandle.NewProc("vkCmdBindIndexBuffer2")
+		vkCmdBindIndexBuffer2 = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdBindIndexBuffer2")))
 	}
-	syscall.SyscallN(vkCmdBindIndexBuffer2.Addr(),
-		uintptr(commandBuffer),
-		uintptr(buffer),
-		uintptr(offset),
-		uintptr(size),
-		uintptr(indexType),
+	C.Trampoline6(vkCmdBindIndexBuffer2,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(buffer)),
+		C.uintptr(uintptr(offset)),
+		C.uintptr(uintptr(size)),
+		C.uintptr(uintptr(indexType)),
+		0,
 	)
 }
 
@@ -6263,20 +6480,20 @@ func GetRenderingAreaGranularity(device Device,
 	// struct requiring translation
 	var pRenderingAreaInfo *vkRenderingAreaInfo
 	if renderingAreaInfo != nil {
-		pRenderingAreaInfo = renderingAreaInfo.vkStruct()
+		pRenderingAreaInfo = renderingAreaInfo.ToVK()
 	}
 
 	// binding-allocated single return value populated by Vulkan, requires translation
-	var pGranularity *vkExtent2D = granularity.vkStruct()
+	var pGranularity *vkExtent2D = granularity.ToVK()
 	if vkGetRenderingAreaGranularity == nil {
-		vkGetRenderingAreaGranularity = dlHandle.NewProc("vkGetRenderingAreaGranularity")
+		vkGetRenderingAreaGranularity = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetRenderingAreaGranularity")))
 	}
-	syscall.SyscallN(vkGetRenderingAreaGranularity.Addr(),
-		uintptr(device),
-		uintptr(unsafe.Pointer(pRenderingAreaInfo)),
-		uintptr(unsafe.Pointer(pGranularity)),
+	C.Trampoline3(vkGetRenderingAreaGranularity,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pRenderingAreaInfo))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pGranularity))),
 	)
-	granularity = *(pGranularity.goStruct())
+	granularity = *(pGranularity.ToGo())
 	return
 }
 
@@ -6289,14 +6506,15 @@ func CmdSetRenderingAttachmentLocations(commandBuffer CommandBuffer,
 	// struct requiring translation
 	var pLocationInfo *vkRenderingAttachmentLocationInfo
 	if locationInfo != nil {
-		pLocationInfo = locationInfo.vkStruct()
+		pLocationInfo = locationInfo.ToVK()
 	}
 	if vkCmdSetRenderingAttachmentLocations == nil {
-		vkCmdSetRenderingAttachmentLocations = dlHandle.NewProc("vkCmdSetRenderingAttachmentLocations")
+		vkCmdSetRenderingAttachmentLocations = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdSetRenderingAttachmentLocations")))
 	}
-	syscall.SyscallN(vkCmdSetRenderingAttachmentLocations.Addr(),
-		uintptr(commandBuffer),
-		uintptr(unsafe.Pointer(pLocationInfo)),
+	C.Trampoline3(vkCmdSetRenderingAttachmentLocations,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pLocationInfo))),
+		0,
 	)
 }
 
@@ -6309,14 +6527,15 @@ func CmdSetRenderingInputAttachmentIndices(commandBuffer CommandBuffer,
 	// struct requiring translation
 	var pInputAttachmentIndexInfo *vkRenderingInputAttachmentIndexInfo
 	if inputAttachmentIndexInfo != nil {
-		pInputAttachmentIndexInfo = inputAttachmentIndexInfo.vkStruct()
+		pInputAttachmentIndexInfo = inputAttachmentIndexInfo.ToVK()
 	}
 	if vkCmdSetRenderingInputAttachmentIndices == nil {
-		vkCmdSetRenderingInputAttachmentIndices = dlHandle.NewProc("vkCmdSetRenderingInputAttachmentIndices")
+		vkCmdSetRenderingInputAttachmentIndices = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdSetRenderingInputAttachmentIndices")))
 	}
-	syscall.SyscallN(vkCmdSetRenderingInputAttachmentIndices.Addr(),
-		uintptr(commandBuffer),
-		uintptr(unsafe.Pointer(pInputAttachmentIndexInfo)),
+	C.Trampoline3(vkCmdSetRenderingInputAttachmentIndices,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pInputAttachmentIndexInfo))),
+		0,
 	)
 }
 
@@ -6327,14 +6546,709 @@ func ReleaseDisplayEXT(physicalDevice PhysicalDevice,
 	display DisplayKHR) (r error) {
 
 	if vkReleaseDisplayEXT == nil {
-		vkReleaseDisplayEXT = dlHandle.NewProc("vkReleaseDisplayEXT")
+		vkReleaseDisplayEXT = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkReleaseDisplayEXT")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkReleaseDisplayEXT.Addr(),
-		uintptr(physicalDevice),
-		uintptr(display),
+	rsys = C.Trampoline3(vkReleaseDisplayEXT,
+		C.uintptr(uintptr(physicalDevice)),
+		C.uintptr(uintptr(display)),
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
+	if r == Result(0) {
+		r = SUCCESS
+	}
+	return
+}
+
+var vkCreateAccelerationStructureKHR vkCommand
+
+// cmd: https://docs.vulkan.org/refpages/latest/refpages/source/vkCreateAccelerationStructureKHR.html
+func CreateAccelerationStructureKHR(device Device,
+	createInfo *AccelerationStructureCreateInfoKHR,
+	allocator *AllocationCallbacks) (accelerationStructure AccelerationStructureKHR, r error) {
+
+	// struct requiring translation
+	var pCreateInfo *vkAccelerationStructureCreateInfoKHR
+	if createInfo != nil {
+		pCreateInfo = createInfo.ToVK()
+	}
+
+	// singular input, pass direct
+	var pAllocator unsafe.Pointer
+	if allocator != nil {
+		pAllocator = unsafe.Pointer(allocator)
+	}
+
+	// binding-allocated single return value populated by Vulkan
+	pAccelerationStructure := &accelerationStructure
+	if vkCreateAccelerationStructureKHR == nil {
+		vkCreateAccelerationStructureKHR = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCreateAccelerationStructureKHR")))
+	}
+	var rsys C.uintptr_t
+	rsys = C.Trampoline6(vkCreateAccelerationStructureKHR,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pCreateInfo))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAccelerationStructure))),
+		0,
+		0,
+	)
+	r = Result(rsys)
+	if r == Result(0) {
+		r = SUCCESS
+	}
+	return
+}
+
+var vkDestroyAccelerationStructureKHR vkCommand
+
+// cmd: https://docs.vulkan.org/refpages/latest/refpages/source/vkDestroyAccelerationStructureKHR.html
+func DestroyAccelerationStructureKHR(device Device,
+	accelerationStructure AccelerationStructureKHR,
+	allocator *AllocationCallbacks) {
+
+	// singular input, pass direct
+	var pAllocator unsafe.Pointer
+	if allocator != nil {
+		pAllocator = unsafe.Pointer(allocator)
+	}
+	if vkDestroyAccelerationStructureKHR == nil {
+		vkDestroyAccelerationStructureKHR = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkDestroyAccelerationStructureKHR")))
+	}
+	C.Trampoline3(vkDestroyAccelerationStructureKHR,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(accelerationStructure)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
+	)
+}
+
+var vkCmdBuildAccelerationStructuresKHR vkCommand
+
+// cmd: https://docs.vulkan.org/refpages/latest/refpages/source/vkCmdBuildAccelerationStructuresKHR.html
+func CmdBuildAccelerationStructuresKHR(commandBuffer CommandBuffer,
+	infos []AccelerationStructureBuildGeometryInfoKHR,
+	buildRangeInfos []*AccelerationStructureBuildRangeInfoKHR) {
+
+	// input slice of struct that requires translation
+	var pInfos unsafe.Pointer
+	infoCount := len(infos)
+	if len(infos) > 0 {
+		tmp := make([]vkAccelerationStructureBuildGeometryInfoKHR, infoCount)
+		for i, v := range infos {
+			tmp[i] = *(v.ToVK())
+		}
+		pInfos = unsafe.Pointer(&tmp[0])
+	}
+
+	// input slice of struct pointers that requires translation
+	var ppBuildRangeInfos unsafe.Pointer
+	if len(buildRangeInfos) > 0 {
+		tmp := make([]*vkAccelerationStructureBuildRangeInfoKHR, infoCount)
+		for i, v := range buildRangeInfos {
+			tmp[i] = v.ToVK()
+		}
+		ppBuildRangeInfos = unsafe.Pointer(&tmp[0])
+	}
+	if vkCmdBuildAccelerationStructuresKHR == nil {
+		vkCmdBuildAccelerationStructuresKHR = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdBuildAccelerationStructuresKHR")))
+	}
+	C.Trampoline6(vkCmdBuildAccelerationStructuresKHR,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(infoCount)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pInfos))),
+		C.uintptr(uintptr(ppBuildRangeInfos)),
+		0,
+		0,
+	)
+}
+
+var vkCmdBuildAccelerationStructuresIndirectKHR vkCommand
+
+// cmd: https://docs.vulkan.org/refpages/latest/refpages/source/vkCmdBuildAccelerationStructuresIndirectKHR.html
+func CmdBuildAccelerationStructuresIndirectKHR(commandBuffer CommandBuffer,
+	infos []AccelerationStructureBuildGeometryInfoKHR,
+	indirectDeviceAddresses []DeviceAddress,
+	indirectStrides []uint32,
+	maxPrimitiveCounts []uint32) {
+
+	// input slice of struct that requires translation
+	var pInfos unsafe.Pointer
+	infoCount := len(infos)
+	if len(infos) > 0 {
+		tmp := make([]vkAccelerationStructureBuildGeometryInfoKHR, infoCount)
+		for i, v := range infos {
+			tmp[i] = *(v.ToVK())
+		}
+		pInfos = unsafe.Pointer(&tmp[0])
+	}
+
+	// input slice of values that do not need translation
+	var pIndirectDeviceAddresses unsafe.Pointer
+	if indirectDeviceAddresses != nil {
+		pIndirectDeviceAddresses = unsafe.Pointer(&indirectDeviceAddresses[0])
+	}
+
+	// input slice of values that do not need translation
+	var pIndirectStrides unsafe.Pointer
+	if indirectStrides != nil {
+		pIndirectStrides = unsafe.Pointer(&indirectStrides[0])
+	}
+
+	// input slice of values that do not need translation
+	var ppMaxPrimitiveCounts unsafe.Pointer
+	if maxPrimitiveCounts != nil {
+		ppMaxPrimitiveCounts = unsafe.Pointer(&maxPrimitiveCounts[0])
+	}
+	if vkCmdBuildAccelerationStructuresIndirectKHR == nil {
+		vkCmdBuildAccelerationStructuresIndirectKHR = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdBuildAccelerationStructuresIndirectKHR")))
+	}
+	C.Trampoline6(vkCmdBuildAccelerationStructuresIndirectKHR,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(infoCount)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pInfos))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pIndirectDeviceAddresses))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pIndirectStrides))),
+		C.uintptr_t(uintptr(unsafe.Pointer(ppMaxPrimitiveCounts))),
+	)
+}
+
+var vkBuildAccelerationStructuresKHR vkCommand
+
+// cmd: https://docs.vulkan.org/refpages/latest/refpages/source/vkBuildAccelerationStructuresKHR.html
+func BuildAccelerationStructuresKHR(device Device,
+	deferredOperation DeferredOperationKHR,
+	infos []AccelerationStructureBuildGeometryInfoKHR,
+	buildRangeInfos []*AccelerationStructureBuildRangeInfoKHR) (r error) {
+
+	// input slice of struct that requires translation
+	var pInfos unsafe.Pointer
+	infoCount := len(infos)
+	if len(infos) > 0 {
+		tmp := make([]vkAccelerationStructureBuildGeometryInfoKHR, infoCount)
+		for i, v := range infos {
+			tmp[i] = *(v.ToVK())
+		}
+		pInfos = unsafe.Pointer(&tmp[0])
+	}
+
+	// input slice of struct pointers that requires translation
+	var ppBuildRangeInfos unsafe.Pointer
+	if len(buildRangeInfos) > 0 {
+		tmp := make([]*vkAccelerationStructureBuildRangeInfoKHR, infoCount)
+		for i, v := range buildRangeInfos {
+			tmp[i] = v.ToVK()
+		}
+		ppBuildRangeInfos = unsafe.Pointer(&tmp[0])
+	}
+	if vkBuildAccelerationStructuresKHR == nil {
+		vkBuildAccelerationStructuresKHR = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkBuildAccelerationStructuresKHR")))
+	}
+	var rsys C.uintptr_t
+	rsys = C.Trampoline6(vkBuildAccelerationStructuresKHR,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(deferredOperation)),
+		C.uintptr(uintptr(infoCount)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pInfos))),
+		C.uintptr(uintptr(ppBuildRangeInfos)),
+		0,
+	)
+	r = Result(rsys)
+	if r == Result(0) {
+		r = SUCCESS
+	}
+	return
+}
+
+var vkCopyAccelerationStructureKHR vkCommand
+
+// cmd: https://docs.vulkan.org/refpages/latest/refpages/source/vkCopyAccelerationStructureKHR.html
+func CopyAccelerationStructureKHR(device Device,
+	deferredOperation DeferredOperationKHR,
+	info *CopyAccelerationStructureInfoKHR) (r error) {
+
+	// struct requiring translation
+	var pInfo *vkCopyAccelerationStructureInfoKHR
+	if info != nil {
+		pInfo = info.ToVK()
+	}
+	if vkCopyAccelerationStructureKHR == nil {
+		vkCopyAccelerationStructureKHR = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCopyAccelerationStructureKHR")))
+	}
+	var rsys C.uintptr_t
+	rsys = C.Trampoline3(vkCopyAccelerationStructureKHR,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(deferredOperation)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pInfo))),
+	)
+	r = Result(rsys)
+	if r == Result(0) {
+		r = SUCCESS
+	}
+	return
+}
+
+var vkCopyAccelerationStructureToMemoryKHR vkCommand
+
+// cmd: https://docs.vulkan.org/refpages/latest/refpages/source/vkCopyAccelerationStructureToMemoryKHR.html
+func CopyAccelerationStructureToMemoryKHR(device Device,
+	deferredOperation DeferredOperationKHR,
+	info *CopyAccelerationStructureToMemoryInfoKHR) (r error) {
+
+	// struct requiring translation
+	var pInfo *vkCopyAccelerationStructureToMemoryInfoKHR
+	if info != nil {
+		pInfo = info.ToVK()
+	}
+	if vkCopyAccelerationStructureToMemoryKHR == nil {
+		vkCopyAccelerationStructureToMemoryKHR = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCopyAccelerationStructureToMemoryKHR")))
+	}
+	var rsys C.uintptr_t
+	rsys = C.Trampoline3(vkCopyAccelerationStructureToMemoryKHR,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(deferredOperation)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pInfo))),
+	)
+	r = Result(rsys)
+	if r == Result(0) {
+		r = SUCCESS
+	}
+	return
+}
+
+var vkCopyMemoryToAccelerationStructureKHR vkCommand
+
+// cmd: https://docs.vulkan.org/refpages/latest/refpages/source/vkCopyMemoryToAccelerationStructureKHR.html
+func CopyMemoryToAccelerationStructureKHR(device Device,
+	deferredOperation DeferredOperationKHR,
+	info *CopyMemoryToAccelerationStructureInfoKHR) (r error) {
+
+	// struct requiring translation
+	var pInfo *vkCopyMemoryToAccelerationStructureInfoKHR
+	if info != nil {
+		pInfo = info.ToVK()
+	}
+	if vkCopyMemoryToAccelerationStructureKHR == nil {
+		vkCopyMemoryToAccelerationStructureKHR = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCopyMemoryToAccelerationStructureKHR")))
+	}
+	var rsys C.uintptr_t
+	rsys = C.Trampoline3(vkCopyMemoryToAccelerationStructureKHR,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(deferredOperation)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pInfo))),
+	)
+	r = Result(rsys)
+	if r == Result(0) {
+		r = SUCCESS
+	}
+	return
+}
+
+var vkWriteAccelerationStructuresPropertiesKHR vkCommand
+
+// cmd: https://docs.vulkan.org/refpages/latest/refpages/source/vkWriteAccelerationStructuresPropertiesKHR.html
+func WriteAccelerationStructuresPropertiesKHR(device Device,
+	accelerationStructures []AccelerationStructureKHR,
+	queryType QueryType,
+	data []byte,
+	stride uintptr) (r error) {
+
+	// input slice of values that do not need translation
+	accelerationStructureCount := len(accelerationStructures)
+	var pAccelerationStructures unsafe.Pointer
+	if accelerationStructures != nil {
+		pAccelerationStructures = unsafe.Pointer(&accelerationStructures[0])
+	}
+
+	// input slice of values that do not need translation
+	dataSize := len(data)
+	var pData unsafe.Pointer
+	if data != nil {
+		pData = unsafe.Pointer(&data[0])
+	}
+
+	if vkWriteAccelerationStructuresPropertiesKHR == nil {
+		vkWriteAccelerationStructuresPropertiesKHR = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkWriteAccelerationStructuresPropertiesKHR")))
+	}
+	var rsys C.uintptr_t
+	rsys = C.Trampoline9(vkWriteAccelerationStructuresPropertiesKHR,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(accelerationStructureCount)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAccelerationStructures))),
+		C.uintptr(uintptr(queryType)),
+		C.uintptr(uintptr(dataSize)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pData))),
+		C.uintptr(uintptr(stride)),
+		0,
+		0,
+	)
+	r = Result(rsys)
+	if r == Result(0) {
+		r = SUCCESS
+	}
+	return
+}
+
+var vkCmdCopyAccelerationStructureKHR vkCommand
+
+// cmd: https://docs.vulkan.org/refpages/latest/refpages/source/vkCmdCopyAccelerationStructureKHR.html
+func CmdCopyAccelerationStructureKHR(commandBuffer CommandBuffer,
+	info *CopyAccelerationStructureInfoKHR) {
+
+	// struct requiring translation
+	var pInfo *vkCopyAccelerationStructureInfoKHR
+	if info != nil {
+		pInfo = info.ToVK()
+	}
+	if vkCmdCopyAccelerationStructureKHR == nil {
+		vkCmdCopyAccelerationStructureKHR = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdCopyAccelerationStructureKHR")))
+	}
+	C.Trampoline3(vkCmdCopyAccelerationStructureKHR,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pInfo))),
+		0,
+	)
+}
+
+var vkCmdCopyAccelerationStructureToMemoryKHR vkCommand
+
+// cmd: https://docs.vulkan.org/refpages/latest/refpages/source/vkCmdCopyAccelerationStructureToMemoryKHR.html
+func CmdCopyAccelerationStructureToMemoryKHR(commandBuffer CommandBuffer,
+	info *CopyAccelerationStructureToMemoryInfoKHR) {
+
+	// struct requiring translation
+	var pInfo *vkCopyAccelerationStructureToMemoryInfoKHR
+	if info != nil {
+		pInfo = info.ToVK()
+	}
+	if vkCmdCopyAccelerationStructureToMemoryKHR == nil {
+		vkCmdCopyAccelerationStructureToMemoryKHR = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdCopyAccelerationStructureToMemoryKHR")))
+	}
+	C.Trampoline3(vkCmdCopyAccelerationStructureToMemoryKHR,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pInfo))),
+		0,
+	)
+}
+
+var vkCmdCopyMemoryToAccelerationStructureKHR vkCommand
+
+// cmd: https://docs.vulkan.org/refpages/latest/refpages/source/vkCmdCopyMemoryToAccelerationStructureKHR.html
+func CmdCopyMemoryToAccelerationStructureKHR(commandBuffer CommandBuffer,
+	info *CopyMemoryToAccelerationStructureInfoKHR) {
+
+	// struct requiring translation
+	var pInfo *vkCopyMemoryToAccelerationStructureInfoKHR
+	if info != nil {
+		pInfo = info.ToVK()
+	}
+	if vkCmdCopyMemoryToAccelerationStructureKHR == nil {
+		vkCmdCopyMemoryToAccelerationStructureKHR = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdCopyMemoryToAccelerationStructureKHR")))
+	}
+	C.Trampoline3(vkCmdCopyMemoryToAccelerationStructureKHR,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pInfo))),
+		0,
+	)
+}
+
+var vkGetAccelerationStructureDeviceAddressKHR vkCommand
+
+// cmd: https://docs.vulkan.org/refpages/latest/refpages/source/vkGetAccelerationStructureDeviceAddressKHR.html
+func GetAccelerationStructureDeviceAddressKHR(device Device,
+	info *AccelerationStructureDeviceAddressInfoKHR) (addr DeviceAddress) {
+
+	// struct requiring translation
+	var pInfo *vkAccelerationStructureDeviceAddressInfoKHR
+	if info != nil {
+		pInfo = info.ToVK()
+	}
+	if vkGetAccelerationStructureDeviceAddressKHR == nil {
+		vkGetAccelerationStructureDeviceAddressKHR = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetAccelerationStructureDeviceAddressKHR")))
+	}
+	var rsys C.uintptr_t
+	rsys = C.Trampoline3(vkGetAccelerationStructureDeviceAddressKHR,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pInfo))),
+		0,
+	)
+	addr = DeviceAddress(rsys)
+	return
+}
+
+var vkCmdWriteAccelerationStructuresPropertiesKHR vkCommand
+
+// cmd: https://docs.vulkan.org/refpages/latest/refpages/source/vkCmdWriteAccelerationStructuresPropertiesKHR.html
+func CmdWriteAccelerationStructuresPropertiesKHR(commandBuffer CommandBuffer,
+	accelerationStructures []AccelerationStructureKHR,
+	queryType QueryType,
+	queryPool QueryPool,
+	firstQuery uint32) {
+
+	// input slice of values that do not need translation
+	accelerationStructureCount := len(accelerationStructures)
+	var pAccelerationStructures unsafe.Pointer
+	if accelerationStructures != nil {
+		pAccelerationStructures = unsafe.Pointer(&accelerationStructures[0])
+	}
+
+	if vkCmdWriteAccelerationStructuresPropertiesKHR == nil {
+		vkCmdWriteAccelerationStructuresPropertiesKHR = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCmdWriteAccelerationStructuresPropertiesKHR")))
+	}
+	C.Trampoline6(vkCmdWriteAccelerationStructuresPropertiesKHR,
+		C.uintptr(uintptr(commandBuffer)),
+		C.uintptr(uintptr(accelerationStructureCount)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAccelerationStructures))),
+		C.uintptr(uintptr(queryType)),
+		C.uintptr(uintptr(queryPool)),
+		C.uintptr(uintptr(firstQuery)),
+	)
+}
+
+var vkGetDeviceAccelerationStructureCompatibilityKHR vkCommand
+
+// cmd: https://docs.vulkan.org/refpages/latest/refpages/source/vkGetDeviceAccelerationStructureCompatibilityKHR.html
+func GetDeviceAccelerationStructureCompatibilityKHR(device Device,
+	versionInfo *AccelerationStructureVersionInfoKHR) (compatibility AccelerationStructureCompatibilityKHR) {
+
+	// struct requiring translation
+	var pVersionInfo *vkAccelerationStructureVersionInfoKHR
+	if versionInfo != nil {
+		pVersionInfo = versionInfo.ToVK()
+	}
+
+	// binding-allocated single return value populated by Vulkan
+	pCompatibility := &compatibility
+	if vkGetDeviceAccelerationStructureCompatibilityKHR == nil {
+		vkGetDeviceAccelerationStructureCompatibilityKHR = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetDeviceAccelerationStructureCompatibilityKHR")))
+	}
+	C.Trampoline3(vkGetDeviceAccelerationStructureCompatibilityKHR,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pVersionInfo))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pCompatibility))),
+	)
+	return
+}
+
+var vkGetAccelerationStructureBuildSizesKHR vkCommand
+
+// cmd: https://docs.vulkan.org/refpages/latest/refpages/source/vkGetAccelerationStructureBuildSizesKHR.html
+func GetAccelerationStructureBuildSizesKHR(device Device,
+	buildType AccelerationStructureBuildTypeKHR,
+	buildInfo *AccelerationStructureBuildGeometryInfoKHR,
+	maxPrimitiveCounts []uint32) (sizeInfo AccelerationStructureBuildSizesInfoKHR) {
+
+	// need to pin pointers in struct.
+	pinner := runtime.Pinner{}
+	defer pinner.Unpin()
+	// struct requiring translation
+	var pBuildInfo *vkAccelerationStructureBuildGeometryInfoKHR
+	if buildInfo != nil {
+		pBuildInfo = buildInfo.ToVK()
+		if pBuildInfo.pGeometries != nil && pBuildInfo.geometryCount > 0 {
+			pinner.Pin(pBuildInfo.pGeometries)
+		}
+		if pBuildInfo.ppGeometries != nil && pBuildInfo.geometryCount > 0 {
+			pinner.Pin(pBuildInfo.ppGeometries)
+			pinner.Pin(*pBuildInfo.ppGeometries)
+		}
+	}
+
+	// input slice of values that do not need translation
+	var pMaxPrimitiveCounts unsafe.Pointer
+	if maxPrimitiveCounts != nil {
+		pMaxPrimitiveCounts = unsafe.Pointer(&maxPrimitiveCounts[0])
+	}
+
+	// binding-allocated single return value populated by Vulkan, requires translation
+	var pSizeInfo *vkAccelerationStructureBuildSizesInfoKHR = sizeInfo.ToVK()
+	if vkGetAccelerationStructureBuildSizesKHR == nil {
+		vkGetAccelerationStructureBuildSizesKHR = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetAccelerationStructureBuildSizesKHR")))
+	}
+	C.Trampoline6(vkGetAccelerationStructureBuildSizesKHR,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(buildType)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pBuildInfo))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pMaxPrimitiveCounts))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pSizeInfo))),
+		0,
+	)
+	sizeInfo = *(pSizeInfo.ToGo())
+	return
+}
+
+var vkGetBufferDeviceAddressKHR vkCommand
+
+// cmd: https://docs.vulkan.org/refpages/latest/refpages/source/vkGetBufferDeviceAddressKHR.html
+func GetBufferDeviceAddressKHR(device Device,
+	info *BufferDeviceAddressInfo) (addr DeviceAddress) {
+
+	// struct requiring translation
+	var pInfo *vkBufferDeviceAddressInfo
+	if info != nil {
+		pInfo = info.ToVK()
+	}
+	if vkGetBufferDeviceAddressKHR == nil {
+		vkGetBufferDeviceAddressKHR = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetBufferDeviceAddressKHR")))
+	}
+	var rsys C.uintptr_t
+	rsys = C.Trampoline3(vkGetBufferDeviceAddressKHR,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pInfo))),
+		0,
+	)
+	addr = DeviceAddress(rsys)
+	return
+}
+
+var vkGetBufferOpaqueCaptureAddressKHR vkCommand
+
+// cmd: https://docs.vulkan.org/refpages/latest/refpages/source/vkGetBufferOpaqueCaptureAddressKHR.html
+func GetBufferOpaqueCaptureAddressKHR(device Device,
+	info *BufferDeviceAddressInfo) {
+
+	// struct requiring translation
+	var pInfo *vkBufferDeviceAddressInfo
+	if info != nil {
+		pInfo = info.ToVK()
+	}
+	if vkGetBufferOpaqueCaptureAddressKHR == nil {
+		vkGetBufferOpaqueCaptureAddressKHR = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetBufferOpaqueCaptureAddressKHR")))
+	}
+	C.Trampoline3(vkGetBufferOpaqueCaptureAddressKHR,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pInfo))),
+		0,
+	)
+}
+
+var vkGetDeviceMemoryOpaqueCaptureAddressKHR vkCommand
+
+// cmd: https://docs.vulkan.org/refpages/latest/refpages/source/vkGetDeviceMemoryOpaqueCaptureAddressKHR.html
+func GetDeviceMemoryOpaqueCaptureAddressKHR(device Device,
+	info *DeviceMemoryOpaqueCaptureAddressInfo) {
+
+	// struct requiring translation
+	var pInfo *vkDeviceMemoryOpaqueCaptureAddressInfo
+	if info != nil {
+		pInfo = info.ToVK()
+	}
+	if vkGetDeviceMemoryOpaqueCaptureAddressKHR == nil {
+		vkGetDeviceMemoryOpaqueCaptureAddressKHR = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetDeviceMemoryOpaqueCaptureAddressKHR")))
+	}
+	C.Trampoline3(vkGetDeviceMemoryOpaqueCaptureAddressKHR,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pInfo))),
+		0,
+	)
+}
+
+var vkCreateDeferredOperationKHR vkCommand
+
+// cmd: https://docs.vulkan.org/refpages/latest/refpages/source/vkCreateDeferredOperationKHR.html
+func CreateDeferredOperationKHR(device Device,
+	allocator *AllocationCallbacks) (deferredOperation DeferredOperationKHR, r error) {
+
+	// singular input, pass direct
+	var pAllocator unsafe.Pointer
+	if allocator != nil {
+		pAllocator = unsafe.Pointer(allocator)
+	}
+
+	// binding-allocated single return value populated by Vulkan
+	pDeferredOperation := &deferredOperation
+	if vkCreateDeferredOperationKHR == nil {
+		vkCreateDeferredOperationKHR = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCreateDeferredOperationKHR")))
+	}
+	var rsys C.uintptr_t
+	rsys = C.Trampoline3(vkCreateDeferredOperationKHR,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pDeferredOperation))),
+	)
+	r = Result(rsys)
+	if r == Result(0) {
+		r = SUCCESS
+	}
+	return
+}
+
+var vkDestroyDeferredOperationKHR vkCommand
+
+// cmd: https://docs.vulkan.org/refpages/latest/refpages/source/vkDestroyDeferredOperationKHR.html
+func DestroyDeferredOperationKHR(device Device,
+	operation DeferredOperationKHR,
+	allocator *AllocationCallbacks) {
+
+	// singular input, pass direct
+	var pAllocator unsafe.Pointer
+	if allocator != nil {
+		pAllocator = unsafe.Pointer(allocator)
+	}
+	if vkDestroyDeferredOperationKHR == nil {
+		vkDestroyDeferredOperationKHR = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkDestroyDeferredOperationKHR")))
+	}
+	C.Trampoline3(vkDestroyDeferredOperationKHR,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(operation)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
+	)
+}
+
+var vkGetDeferredOperationMaxConcurrencyKHR vkCommand
+
+// cmd: https://docs.vulkan.org/refpages/latest/refpages/source/vkGetDeferredOperationMaxConcurrencyKHR.html
+func GetDeferredOperationMaxConcurrencyKHR(device Device,
+	operation DeferredOperationKHR) {
+
+	if vkGetDeferredOperationMaxConcurrencyKHR == nil {
+		vkGetDeferredOperationMaxConcurrencyKHR = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetDeferredOperationMaxConcurrencyKHR")))
+	}
+	C.Trampoline3(vkGetDeferredOperationMaxConcurrencyKHR,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(operation)),
+		0,
+	)
+}
+
+var vkGetDeferredOperationResultKHR vkCommand
+
+// cmd: https://docs.vulkan.org/refpages/latest/refpages/source/vkGetDeferredOperationResultKHR.html
+func GetDeferredOperationResultKHR(device Device,
+	operation DeferredOperationKHR) (r error) {
+
+	if vkGetDeferredOperationResultKHR == nil {
+		vkGetDeferredOperationResultKHR = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetDeferredOperationResultKHR")))
+	}
+	var rsys C.uintptr_t
+	rsys = C.Trampoline3(vkGetDeferredOperationResultKHR,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(operation)),
+		0,
+	)
+	r = Result(rsys)
+	if r == Result(0) {
+		r = SUCCESS
+	}
+	return
+}
+
+var vkDeferredOperationJoinKHR vkCommand
+
+// cmd: https://docs.vulkan.org/refpages/latest/refpages/source/vkDeferredOperationJoinKHR.html
+func DeferredOperationJoinKHR(device Device,
+	operation DeferredOperationKHR) (r error) {
+
+	if vkDeferredOperationJoinKHR == nil {
+		vkDeferredOperationJoinKHR = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkDeferredOperationJoinKHR")))
+	}
+	var rsys C.uintptr_t
+	rsys = C.Trampoline3(vkDeferredOperationJoinKHR,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(operation)),
+		0,
+	)
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -6344,18 +7258,20 @@ func ReleaseDisplayEXT(physicalDevice PhysicalDevice,
 var vkGetPhysicalDeviceFeatures2KHR vkCommand
 
 // cmd: https://docs.vulkan.org/refpages/latest/refpages/source/vkGetPhysicalDeviceFeatures2KHR.html
-func GetPhysicalDeviceFeatures2KHR(physicalDevice PhysicalDevice) (features PhysicalDeviceFeatures2) {
+func GetPhysicalDeviceFeatures2KHR(physicalDevice PhysicalDevice,
+	features *PhysicalDeviceFeatures2) (ofeatures PhysicalDeviceFeatures2) {
 
 	// binding-allocated single return value populated by Vulkan, requires translation
-	var pFeatures *vkPhysicalDeviceFeatures2 = features.vkStruct()
+	var pFeatures *vkPhysicalDeviceFeatures2 = features.ToVK()
 	if vkGetPhysicalDeviceFeatures2KHR == nil {
-		vkGetPhysicalDeviceFeatures2KHR = dlHandle.NewProc("vkGetPhysicalDeviceFeatures2KHR")
+		vkGetPhysicalDeviceFeatures2KHR = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetPhysicalDeviceFeatures2KHR")))
 	}
-	syscall.SyscallN(vkGetPhysicalDeviceFeatures2KHR.Addr(),
-		uintptr(physicalDevice),
-		uintptr(unsafe.Pointer(pFeatures)),
+	C.Trampoline3(vkGetPhysicalDeviceFeatures2KHR,
+		C.uintptr(uintptr(physicalDevice)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pFeatures))),
+		0,
 	)
-	features = *(pFeatures.goStruct())
+	ofeatures = *(pFeatures.ToGo())
 	return
 }
 
@@ -6365,15 +7281,16 @@ var vkGetPhysicalDeviceProperties2KHR vkCommand
 func GetPhysicalDeviceProperties2KHR(physicalDevice PhysicalDevice) (properties PhysicalDeviceProperties2) {
 
 	// binding-allocated single return value populated by Vulkan, requires translation
-	var pProperties *vkPhysicalDeviceProperties2 = properties.vkStruct()
+	var pProperties *vkPhysicalDeviceProperties2 = properties.ToVK()
 	if vkGetPhysicalDeviceProperties2KHR == nil {
-		vkGetPhysicalDeviceProperties2KHR = dlHandle.NewProc("vkGetPhysicalDeviceProperties2KHR")
+		vkGetPhysicalDeviceProperties2KHR = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetPhysicalDeviceProperties2KHR")))
 	}
-	syscall.SyscallN(vkGetPhysicalDeviceProperties2KHR.Addr(),
-		uintptr(physicalDevice),
-		uintptr(unsafe.Pointer(pProperties)),
+	C.Trampoline3(vkGetPhysicalDeviceProperties2KHR,
+		C.uintptr(uintptr(physicalDevice)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pProperties))),
+		0,
 	)
-	properties = *(pProperties.goStruct())
+	properties = *(pProperties.ToGo())
 	return
 }
 
@@ -6384,16 +7301,16 @@ func GetPhysicalDeviceFormatProperties2KHR(physicalDevice PhysicalDevice,
 	format Format) (formatProperties FormatProperties2) {
 
 	// binding-allocated single return value populated by Vulkan, requires translation
-	var pFormatProperties *vkFormatProperties2 = formatProperties.vkStruct()
+	var pFormatProperties *vkFormatProperties2 = formatProperties.ToVK()
 	if vkGetPhysicalDeviceFormatProperties2KHR == nil {
-		vkGetPhysicalDeviceFormatProperties2KHR = dlHandle.NewProc("vkGetPhysicalDeviceFormatProperties2KHR")
+		vkGetPhysicalDeviceFormatProperties2KHR = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetPhysicalDeviceFormatProperties2KHR")))
 	}
-	syscall.SyscallN(vkGetPhysicalDeviceFormatProperties2KHR.Addr(),
-		uintptr(physicalDevice),
-		uintptr(format),
-		uintptr(unsafe.Pointer(pFormatProperties)),
+	C.Trampoline3(vkGetPhysicalDeviceFormatProperties2KHR,
+		C.uintptr(uintptr(physicalDevice)),
+		C.uintptr(uintptr(format)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pFormatProperties))),
 	)
-	formatProperties = *(pFormatProperties.goStruct())
+	formatProperties = *(pFormatProperties.ToGo())
 	return
 }
 
@@ -6406,22 +7323,22 @@ func GetPhysicalDeviceImageFormatProperties2KHR(physicalDevice PhysicalDevice,
 	// struct requiring translation
 	var pImageFormatInfo *vkPhysicalDeviceImageFormatInfo2
 	if imageFormatInfo != nil {
-		pImageFormatInfo = imageFormatInfo.vkStruct()
+		pImageFormatInfo = imageFormatInfo.ToVK()
 	}
 
 	// binding-allocated single return value populated by Vulkan, requires translation
-	var pImageFormatProperties *vkImageFormatProperties2 = imageFormatProperties.vkStruct()
+	var pImageFormatProperties *vkImageFormatProperties2 = imageFormatProperties.ToVK()
 	if vkGetPhysicalDeviceImageFormatProperties2KHR == nil {
-		vkGetPhysicalDeviceImageFormatProperties2KHR = dlHandle.NewProc("vkGetPhysicalDeviceImageFormatProperties2KHR")
+		vkGetPhysicalDeviceImageFormatProperties2KHR = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetPhysicalDeviceImageFormatProperties2KHR")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkGetPhysicalDeviceImageFormatProperties2KHR.Addr(),
-		uintptr(physicalDevice),
-		uintptr(unsafe.Pointer(pImageFormatInfo)),
-		uintptr(unsafe.Pointer(pImageFormatProperties)),
+	rsys = C.Trampoline3(vkGetPhysicalDeviceImageFormatProperties2KHR,
+		C.uintptr(uintptr(physicalDevice)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pImageFormatInfo))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pImageFormatProperties))),
 	)
-	r = Result(uintptr(rsys))
-	imageFormatProperties = *(pImageFormatProperties.goStruct())
+	r = Result(rsys)
+	imageFormatProperties = *(pImageFormatProperties.ToGo())
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -6440,12 +7357,12 @@ func GetPhysicalDeviceQueueFamilyProperties2KHR(physicalDevice PhysicalDevice) (
 
 	// first c-api call to get counter
 	if vkGetPhysicalDeviceQueueFamilyProperties2KHR == nil {
-		vkGetPhysicalDeviceQueueFamilyProperties2KHR = dlHandle.NewProc("vkGetPhysicalDeviceQueueFamilyProperties2KHR")
+		vkGetPhysicalDeviceQueueFamilyProperties2KHR = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetPhysicalDeviceQueueFamilyProperties2KHR")))
 	}
-	syscall.SyscallN(vkGetPhysicalDeviceQueueFamilyProperties2KHR.Addr(),
-		uintptr(physicalDevice),
-		uintptr(unsafe.Pointer(pQueueFamilyPropertyCount)),
-		uintptr(unsafe.Pointer(pQueueFamilyProperties)),
+	C.Trampoline3(vkGetPhysicalDeviceQueueFamilyProperties2KHR,
+		C.uintptr(uintptr(physicalDevice)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pQueueFamilyPropertyCount))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pQueueFamilyProperties))),
 	)
 
 	// allocate the array for the second call
@@ -6462,7 +7379,7 @@ func GetPhysicalDeviceQueueFamilyProperties2KHR(physicalDevice PhysicalDevice) (
 
 	// convert the returned array to the go slice
 	for i := range arr_queueFamilyProperties {
-		queueFamilyProperties[i] = *arr_queueFamilyProperties[i].goStruct()
+		queueFamilyProperties[i] = *arr_queueFamilyProperties[i].ToGo()
 	}
 	return
 }
@@ -6473,15 +7390,16 @@ var vkGetPhysicalDeviceMemoryProperties2KHR vkCommand
 func GetPhysicalDeviceMemoryProperties2KHR(physicalDevice PhysicalDevice) (memoryProperties PhysicalDeviceMemoryProperties2) {
 
 	// binding-allocated single return value populated by Vulkan, requires translation
-	var pMemoryProperties *vkPhysicalDeviceMemoryProperties2 = memoryProperties.vkStruct()
+	var pMemoryProperties *vkPhysicalDeviceMemoryProperties2 = memoryProperties.ToVK()
 	if vkGetPhysicalDeviceMemoryProperties2KHR == nil {
-		vkGetPhysicalDeviceMemoryProperties2KHR = dlHandle.NewProc("vkGetPhysicalDeviceMemoryProperties2KHR")
+		vkGetPhysicalDeviceMemoryProperties2KHR = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetPhysicalDeviceMemoryProperties2KHR")))
 	}
-	syscall.SyscallN(vkGetPhysicalDeviceMemoryProperties2KHR.Addr(),
-		uintptr(physicalDevice),
-		uintptr(unsafe.Pointer(pMemoryProperties)),
+	C.Trampoline3(vkGetPhysicalDeviceMemoryProperties2KHR,
+		C.uintptr(uintptr(physicalDevice)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pMemoryProperties))),
+		0,
 	)
-	memoryProperties = *(pMemoryProperties.goStruct())
+	memoryProperties = *(pMemoryProperties.ToGo())
 	return
 }
 
@@ -6494,7 +7412,7 @@ func GetPhysicalDeviceSparseImageFormatProperties2KHR(physicalDevice PhysicalDev
 	// struct requiring translation
 	var pFormatInfo *vkPhysicalDeviceSparseImageFormatInfo2
 	if formatInfo != nil {
-		pFormatInfo = formatInfo.vkStruct()
+		pFormatInfo = formatInfo.ToVK()
 	}
 
 	// a double-call array output
@@ -6504,13 +7422,15 @@ func GetPhysicalDeviceSparseImageFormatProperties2KHR(physicalDevice PhysicalDev
 
 	// first c-api call to get counter
 	if vkGetPhysicalDeviceSparseImageFormatProperties2KHR == nil {
-		vkGetPhysicalDeviceSparseImageFormatProperties2KHR = dlHandle.NewProc("vkGetPhysicalDeviceSparseImageFormatProperties2KHR")
+		vkGetPhysicalDeviceSparseImageFormatProperties2KHR = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetPhysicalDeviceSparseImageFormatProperties2KHR")))
 	}
-	syscall.SyscallN(vkGetPhysicalDeviceSparseImageFormatProperties2KHR.Addr(),
-		uintptr(physicalDevice),
-		uintptr(unsafe.Pointer(pFormatInfo)),
-		uintptr(unsafe.Pointer(pPropertyCount)),
-		uintptr(unsafe.Pointer(pProperties)),
+	C.Trampoline6(vkGetPhysicalDeviceSparseImageFormatProperties2KHR,
+		C.uintptr(uintptr(physicalDevice)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pFormatInfo))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pPropertyCount))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pProperties))),
+		0,
+		0,
 	)
 
 	// allocate the array for the second call
@@ -6530,7 +7450,7 @@ func GetPhysicalDeviceSparseImageFormatProperties2KHR(physicalDevice PhysicalDev
 
 	// convert the returned array to the go slice
 	for i := range arr_properties {
-		properties[i] = *arr_properties[i].goStruct()
+		properties[i] = *arr_properties[i].ToGo()
 	}
 	return
 }
@@ -6544,22 +7464,22 @@ func GetPhysicalDeviceSurfaceCapabilities2KHR(physicalDevice PhysicalDevice,
 	// struct requiring translation
 	var pSurfaceInfo *vkPhysicalDeviceSurfaceInfo2KHR
 	if surfaceInfo != nil {
-		pSurfaceInfo = surfaceInfo.vkStruct()
+		pSurfaceInfo = surfaceInfo.ToVK()
 	}
 
 	// binding-allocated single return value populated by Vulkan, requires translation
-	var pSurfaceCapabilities *vkSurfaceCapabilities2KHR = surfaceCapabilities.vkStruct()
+	var pSurfaceCapabilities *vkSurfaceCapabilities2KHR = surfaceCapabilities.ToVK()
 	if vkGetPhysicalDeviceSurfaceCapabilities2KHR == nil {
-		vkGetPhysicalDeviceSurfaceCapabilities2KHR = dlHandle.NewProc("vkGetPhysicalDeviceSurfaceCapabilities2KHR")
+		vkGetPhysicalDeviceSurfaceCapabilities2KHR = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetPhysicalDeviceSurfaceCapabilities2KHR")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkGetPhysicalDeviceSurfaceCapabilities2KHR.Addr(),
-		uintptr(physicalDevice),
-		uintptr(unsafe.Pointer(pSurfaceInfo)),
-		uintptr(unsafe.Pointer(pSurfaceCapabilities)),
+	rsys = C.Trampoline3(vkGetPhysicalDeviceSurfaceCapabilities2KHR,
+		C.uintptr(uintptr(physicalDevice)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pSurfaceInfo))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pSurfaceCapabilities))),
 	)
-	r = Result(uintptr(rsys))
-	surfaceCapabilities = *(pSurfaceCapabilities.goStruct())
+	r = Result(rsys)
+	surfaceCapabilities = *(pSurfaceCapabilities.ToGo())
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -6575,7 +7495,7 @@ func GetPhysicalDeviceSurfaceFormats2KHR(physicalDevice PhysicalDevice,
 	// struct requiring translation
 	var pSurfaceInfo *vkPhysicalDeviceSurfaceInfo2KHR
 	if surfaceInfo != nil {
-		pSurfaceInfo = surfaceInfo.vkStruct()
+		pSurfaceInfo = surfaceInfo.ToVK()
 	}
 
 	// a double-call array output
@@ -6585,16 +7505,18 @@ func GetPhysicalDeviceSurfaceFormats2KHR(physicalDevice PhysicalDevice,
 
 	// first c-api call to get counter
 	if vkGetPhysicalDeviceSurfaceFormats2KHR == nil {
-		vkGetPhysicalDeviceSurfaceFormats2KHR = dlHandle.NewProc("vkGetPhysicalDeviceSurfaceFormats2KHR")
+		vkGetPhysicalDeviceSurfaceFormats2KHR = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetPhysicalDeviceSurfaceFormats2KHR")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkGetPhysicalDeviceSurfaceFormats2KHR.Addr(),
-		uintptr(physicalDevice),
-		uintptr(unsafe.Pointer(pSurfaceInfo)),
-		uintptr(unsafe.Pointer(pSurfaceFormatCount)),
-		uintptr(unsafe.Pointer(pSurfaceFormats)),
+	rsys = C.Trampoline6(vkGetPhysicalDeviceSurfaceFormats2KHR,
+		C.uintptr(uintptr(physicalDevice)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pSurfaceInfo))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pSurfaceFormatCount))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pSurfaceFormats))),
+		0,
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 
 	// allocate the array for the second call
 	arr_surfaceFormats := make([]vkSurfaceFormat2KHR, surfaceFormatCount)
@@ -6602,7 +7524,7 @@ func GetPhysicalDeviceSurfaceFormats2KHR(physicalDevice PhysicalDevice,
 	pSurfaceFormats = &arr_surfaceFormats[0]
 
 	// second c-api call to get array
-	sys := C.Trampoline6(vkGetPhysicalDeviceSurfaceFormats2KHR,
+	rsys = C.Trampoline6(vkGetPhysicalDeviceSurfaceFormats2KHR,
 		C.uintptr(uintptr(physicalDevice)),
 		C.uintptr_t(uintptr(unsafe.Pointer(pSurfaceInfo))),
 		C.uintptr_t(uintptr(unsafe.Pointer(pSurfaceFormatCount))),
@@ -6614,7 +7536,7 @@ func GetPhysicalDeviceSurfaceFormats2KHR(physicalDevice PhysicalDevice,
 
 	// convert the returned array to the go slice
 	for i := range arr_surfaceFormats {
-		surfaceFormats[i] = *arr_surfaceFormats[i].goStruct()
+		surfaceFormats[i] = *arr_surfaceFormats[i].ToGo()
 	}
 	if r == Result(0) {
 		r = SUCCESS
@@ -6635,12 +7557,12 @@ func DestroySurfaceKHR(instance Instance,
 		pAllocator = unsafe.Pointer(allocator)
 	}
 	if vkDestroySurfaceKHR == nil {
-		vkDestroySurfaceKHR = dlHandle.NewProc("vkDestroySurfaceKHR")
+		vkDestroySurfaceKHR = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkDestroySurfaceKHR")))
 	}
-	syscall.SyscallN(vkDestroySurfaceKHR.Addr(),
-		uintptr(instance),
-		uintptr(surface),
-		uintptr(unsafe.Pointer(pAllocator)),
+	C.Trampoline3(vkDestroySurfaceKHR,
+		C.uintptr(uintptr(instance)),
+		C.uintptr(uintptr(surface)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
 	)
 }
 
@@ -6655,16 +7577,18 @@ func GetPhysicalDeviceSurfaceSupportKHR(physicalDevice PhysicalDevice,
 	tmpbool := vkBool32(supported)
 	pSupportedBool := &tmpbool
 	if vkGetPhysicalDeviceSurfaceSupportKHR == nil {
-		vkGetPhysicalDeviceSurfaceSupportKHR = dlHandle.NewProc("vkGetPhysicalDeviceSurfaceSupportKHR")
+		vkGetPhysicalDeviceSurfaceSupportKHR = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetPhysicalDeviceSurfaceSupportKHR")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkGetPhysicalDeviceSurfaceSupportKHR.Addr(),
-		uintptr(physicalDevice),
-		uintptr(queueFamilyIndex),
-		uintptr(surface),
+	rsys = C.Trampoline6(vkGetPhysicalDeviceSurfaceSupportKHR,
+		C.uintptr(uintptr(physicalDevice)),
+		C.uintptr(uintptr(queueFamilyIndex)),
+		C.uintptr(uintptr(surface)),
 		uintptr(unsafe.Pointer(pSupportedBool)),
+		0,
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	supported = goBool32(tmpbool)
 	if r == Result(0) {
 		r = SUCCESS
@@ -6679,18 +7603,18 @@ func GetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice PhysicalDevice,
 	surface SurfaceKHR) (surfaceCapabilities SurfaceCapabilitiesKHR, r error) {
 
 	// binding-allocated single return value populated by Vulkan, requires translation
-	var pSurfaceCapabilities *vkSurfaceCapabilitiesKHR = surfaceCapabilities.vkStruct()
+	var pSurfaceCapabilities *vkSurfaceCapabilitiesKHR = surfaceCapabilities.ToVK()
 	if vkGetPhysicalDeviceSurfaceCapabilitiesKHR == nil {
-		vkGetPhysicalDeviceSurfaceCapabilitiesKHR = dlHandle.NewProc("vkGetPhysicalDeviceSurfaceCapabilitiesKHR")
+		vkGetPhysicalDeviceSurfaceCapabilitiesKHR = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetPhysicalDeviceSurfaceCapabilitiesKHR")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkGetPhysicalDeviceSurfaceCapabilitiesKHR.Addr(),
-		uintptr(physicalDevice),
-		uintptr(surface),
-		uintptr(unsafe.Pointer(pSurfaceCapabilities)),
+	rsys = C.Trampoline3(vkGetPhysicalDeviceSurfaceCapabilitiesKHR,
+		C.uintptr(uintptr(physicalDevice)),
+		C.uintptr(uintptr(surface)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pSurfaceCapabilities))),
 	)
-	r = Result(uintptr(rsys))
-	surfaceCapabilities = *(pSurfaceCapabilities.goStruct())
+	r = Result(rsys)
+	surfaceCapabilities = *(pSurfaceCapabilities.ToGo())
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -6710,16 +7634,18 @@ func GetPhysicalDeviceSurfaceFormatsKHR(physicalDevice PhysicalDevice,
 
 	// first c-api call to get counter
 	if vkGetPhysicalDeviceSurfaceFormatsKHR == nil {
-		vkGetPhysicalDeviceSurfaceFormatsKHR = dlHandle.NewProc("vkGetPhysicalDeviceSurfaceFormatsKHR")
+		vkGetPhysicalDeviceSurfaceFormatsKHR = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetPhysicalDeviceSurfaceFormatsKHR")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkGetPhysicalDeviceSurfaceFormatsKHR.Addr(),
-		uintptr(physicalDevice),
-		uintptr(surface),
-		uintptr(unsafe.Pointer(pSurfaceFormatCount)),
-		uintptr(unsafe.Pointer(pSurfaceFormats)),
+	rsys = C.Trampoline6(vkGetPhysicalDeviceSurfaceFormatsKHR,
+		C.uintptr(uintptr(physicalDevice)),
+		C.uintptr(uintptr(surface)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pSurfaceFormatCount))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pSurfaceFormats))),
+		0,
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 
 	// allocate the array for the second call
 	arr_surfaceFormats := make([]vkSurfaceFormatKHR, surfaceFormatCount)
@@ -6727,7 +7653,7 @@ func GetPhysicalDeviceSurfaceFormatsKHR(physicalDevice PhysicalDevice,
 	pSurfaceFormats = &arr_surfaceFormats[0]
 
 	// second c-api call to get array
-	sys := C.Trampoline6(vkGetPhysicalDeviceSurfaceFormatsKHR,
+	rsys = C.Trampoline6(vkGetPhysicalDeviceSurfaceFormatsKHR,
 		C.uintptr(uintptr(physicalDevice)),
 		C.uintptr(uintptr(surface)),
 		C.uintptr_t(uintptr(unsafe.Pointer(pSurfaceFormatCount))),
@@ -6739,7 +7665,7 @@ func GetPhysicalDeviceSurfaceFormatsKHR(physicalDevice PhysicalDevice,
 
 	// convert the returned array to the go slice
 	for i := range arr_surfaceFormats {
-		surfaceFormats[i] = *arr_surfaceFormats[i].goStruct()
+		surfaceFormats[i] = *arr_surfaceFormats[i].ToGo()
 	}
 	if r == Result(0) {
 		r = SUCCESS
@@ -6760,16 +7686,18 @@ func GetPhysicalDeviceSurfacePresentModesKHR(physicalDevice PhysicalDevice,
 
 	// first c-api call to get counter
 	if vkGetPhysicalDeviceSurfacePresentModesKHR == nil {
-		vkGetPhysicalDeviceSurfacePresentModesKHR = dlHandle.NewProc("vkGetPhysicalDeviceSurfacePresentModesKHR")
+		vkGetPhysicalDeviceSurfacePresentModesKHR = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetPhysicalDeviceSurfacePresentModesKHR")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkGetPhysicalDeviceSurfacePresentModesKHR.Addr(),
-		uintptr(physicalDevice),
-		uintptr(surface),
-		uintptr(unsafe.Pointer(pPresentModeCount)),
-		uintptr(unsafe.Pointer(pPresentModes)),
+	rsys = C.Trampoline6(vkGetPhysicalDeviceSurfacePresentModesKHR,
+		C.uintptr(uintptr(physicalDevice)),
+		C.uintptr(uintptr(surface)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pPresentModeCount))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pPresentModes))),
+		0,
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 
 	// allocate the array for the second call
 	arr_presentModes := make([]PresentModeKHR, presentModeCount)
@@ -6777,7 +7705,7 @@ func GetPhysicalDeviceSurfacePresentModesKHR(physicalDevice PhysicalDevice,
 	pPresentModes = &arr_presentModes[0]
 
 	// second c-api call to get array
-	sys := C.Trampoline6(vkGetPhysicalDeviceSurfacePresentModesKHR,
+	rsys = C.Trampoline6(vkGetPhysicalDeviceSurfacePresentModesKHR,
 		C.uintptr(uintptr(physicalDevice)),
 		C.uintptr(uintptr(surface)),
 		C.uintptr_t(uintptr(unsafe.Pointer(pPresentModeCount))),
@@ -6807,7 +7735,7 @@ func CreateSwapchainKHR(device Device,
 	// struct requiring translation
 	var pCreateInfo *vkSwapchainCreateInfoKHR
 	if createInfo != nil {
-		pCreateInfo = createInfo.vkStruct()
+		pCreateInfo = createInfo.ToVK()
 	}
 
 	// singular input, pass direct
@@ -6819,16 +7747,18 @@ func CreateSwapchainKHR(device Device,
 	// binding-allocated single return value populated by Vulkan
 	pSwapchain := &swapchain
 	if vkCreateSwapchainKHR == nil {
-		vkCreateSwapchainKHR = dlHandle.NewProc("vkCreateSwapchainKHR")
+		vkCreateSwapchainKHR = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkCreateSwapchainKHR")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkCreateSwapchainKHR.Addr(),
-		uintptr(device),
-		uintptr(unsafe.Pointer(pCreateInfo)),
-		uintptr(unsafe.Pointer(pAllocator)),
-		uintptr(unsafe.Pointer(pSwapchain)),
+	rsys = C.Trampoline6(vkCreateSwapchainKHR,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pCreateInfo))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pSwapchain))),
+		0,
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -6848,12 +7778,12 @@ func DestroySwapchainKHR(device Device,
 		pAllocator = unsafe.Pointer(allocator)
 	}
 	if vkDestroySwapchainKHR == nil {
-		vkDestroySwapchainKHR = dlHandle.NewProc("vkDestroySwapchainKHR")
+		vkDestroySwapchainKHR = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkDestroySwapchainKHR")))
 	}
-	syscall.SyscallN(vkDestroySwapchainKHR.Addr(),
-		uintptr(device),
-		uintptr(swapchain),
-		uintptr(unsafe.Pointer(pAllocator)),
+	C.Trampoline3(vkDestroySwapchainKHR,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(swapchain)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAllocator))),
 	)
 }
 
@@ -6870,16 +7800,18 @@ func GetSwapchainImagesKHR(device Device,
 
 	// first c-api call to get counter
 	if vkGetSwapchainImagesKHR == nil {
-		vkGetSwapchainImagesKHR = dlHandle.NewProc("vkGetSwapchainImagesKHR")
+		vkGetSwapchainImagesKHR = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetSwapchainImagesKHR")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkGetSwapchainImagesKHR.Addr(),
-		uintptr(device),
-		uintptr(swapchain),
-		uintptr(unsafe.Pointer(pSwapchainImageCount)),
-		uintptr(unsafe.Pointer(pSwapchainImages)),
+	rsys = C.Trampoline6(vkGetSwapchainImagesKHR,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(swapchain)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pSwapchainImageCount))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pSwapchainImages))),
+		0,
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 
 	// allocate the array for the second call
 	arr_swapchainImages := make([]Image, swapchainImageCount)
@@ -6887,7 +7819,7 @@ func GetSwapchainImagesKHR(device Device,
 	pSwapchainImages = &arr_swapchainImages[0]
 
 	// second c-api call to get array
-	sys := C.Trampoline6(vkGetSwapchainImagesKHR,
+	rsys = C.Trampoline6(vkGetSwapchainImagesKHR,
 		C.uintptr(uintptr(device)),
 		C.uintptr(uintptr(swapchain)),
 		C.uintptr_t(uintptr(unsafe.Pointer(pSwapchainImageCount))),
@@ -6919,18 +7851,18 @@ func AcquireNextImageKHR(device Device,
 	// binding-allocated single return value populated by Vulkan
 	pImageIndex := &imageIndex
 	if vkAcquireNextImageKHR == nil {
-		vkAcquireNextImageKHR = dlHandle.NewProc("vkAcquireNextImageKHR")
+		vkAcquireNextImageKHR = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkAcquireNextImageKHR")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkAcquireNextImageKHR.Addr(),
-		uintptr(device),
-		uintptr(swapchain),
-		uintptr(timeout),
-		uintptr(semaphore),
-		uintptr(fence),
-		uintptr(unsafe.Pointer(pImageIndex)),
+	rsys = C.Trampoline6(vkAcquireNextImageKHR,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(swapchain)),
+		C.uintptr(uintptr(timeout)),
+		C.uintptr(uintptr(semaphore)),
+		C.uintptr(uintptr(fence)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pImageIndex))),
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -6946,17 +7878,18 @@ func QueuePresentKHR(queue Queue,
 	// struct requiring translation
 	var pPresentInfo *vkPresentInfoKHR
 	if presentInfo != nil {
-		pPresentInfo = presentInfo.vkStruct()
+		pPresentInfo = presentInfo.ToVK()
 	}
 	if vkQueuePresentKHR == nil {
-		vkQueuePresentKHR = dlHandle.NewProc("vkQueuePresentKHR")
+		vkQueuePresentKHR = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkQueuePresentKHR")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkQueuePresentKHR.Addr(),
-		uintptr(queue),
-		uintptr(unsafe.Pointer(pPresentInfo)),
+	rsys = C.Trampoline3(vkQueuePresentKHR,
+		C.uintptr(uintptr(queue)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pPresentInfo))),
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -6969,17 +7902,18 @@ var vkGetDeviceGroupPresentCapabilitiesKHR vkCommand
 func GetDeviceGroupPresentCapabilitiesKHR(device Device) (deviceGroupPresentCapabilities DeviceGroupPresentCapabilitiesKHR, r error) {
 
 	// binding-allocated single return value populated by Vulkan, requires translation
-	var pDeviceGroupPresentCapabilities *vkDeviceGroupPresentCapabilitiesKHR = deviceGroupPresentCapabilities.vkStruct()
+	var pDeviceGroupPresentCapabilities *vkDeviceGroupPresentCapabilitiesKHR = deviceGroupPresentCapabilities.ToVK()
 	if vkGetDeviceGroupPresentCapabilitiesKHR == nil {
-		vkGetDeviceGroupPresentCapabilitiesKHR = dlHandle.NewProc("vkGetDeviceGroupPresentCapabilitiesKHR")
+		vkGetDeviceGroupPresentCapabilitiesKHR = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetDeviceGroupPresentCapabilitiesKHR")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkGetDeviceGroupPresentCapabilitiesKHR.Addr(),
-		uintptr(device),
-		uintptr(unsafe.Pointer(pDeviceGroupPresentCapabilities)),
+	rsys = C.Trampoline3(vkGetDeviceGroupPresentCapabilitiesKHR,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pDeviceGroupPresentCapabilities))),
+		0,
 	)
-	r = Result(uintptr(rsys))
-	deviceGroupPresentCapabilities = *(pDeviceGroupPresentCapabilities.goStruct())
+	r = Result(rsys)
+	deviceGroupPresentCapabilities = *(pDeviceGroupPresentCapabilities.ToGo())
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -6995,15 +7929,15 @@ func GetDeviceGroupSurfacePresentModesKHR(device Device,
 	// binding-allocated single return value populated by Vulkan
 	pModes := &modes
 	if vkGetDeviceGroupSurfacePresentModesKHR == nil {
-		vkGetDeviceGroupSurfacePresentModesKHR = dlHandle.NewProc("vkGetDeviceGroupSurfacePresentModesKHR")
+		vkGetDeviceGroupSurfacePresentModesKHR = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetDeviceGroupSurfacePresentModesKHR")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkGetDeviceGroupSurfacePresentModesKHR.Addr(),
-		uintptr(device),
-		uintptr(surface),
-		uintptr(unsafe.Pointer(pModes)),
+	rsys = C.Trampoline3(vkGetDeviceGroupSurfacePresentModesKHR,
+		C.uintptr(uintptr(device)),
+		C.uintptr(uintptr(surface)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pModes))),
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}
@@ -7023,16 +7957,18 @@ func GetPhysicalDevicePresentRectanglesKHR(physicalDevice PhysicalDevice,
 
 	// first c-api call to get counter
 	if vkGetPhysicalDevicePresentRectanglesKHR == nil {
-		vkGetPhysicalDevicePresentRectanglesKHR = dlHandle.NewProc("vkGetPhysicalDevicePresentRectanglesKHR")
+		vkGetPhysicalDevicePresentRectanglesKHR = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkGetPhysicalDevicePresentRectanglesKHR")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkGetPhysicalDevicePresentRectanglesKHR.Addr(),
-		uintptr(physicalDevice),
-		uintptr(surface),
-		uintptr(unsafe.Pointer(pRectCount)),
-		uintptr(unsafe.Pointer(pRects)),
+	rsys = C.Trampoline6(vkGetPhysicalDevicePresentRectanglesKHR,
+		C.uintptr(uintptr(physicalDevice)),
+		C.uintptr(uintptr(surface)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pRectCount))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pRects))),
+		0,
+		0,
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 
 	// allocate the array for the second call
 	arr_rects := make([]vkRect2D, rectCount)
@@ -7040,7 +7976,7 @@ func GetPhysicalDevicePresentRectanglesKHR(physicalDevice PhysicalDevice,
 	pRects = &arr_rects[0]
 
 	// second c-api call to get array
-	sys := C.Trampoline6(vkGetPhysicalDevicePresentRectanglesKHR,
+	rsys = C.Trampoline6(vkGetPhysicalDevicePresentRectanglesKHR,
 		C.uintptr(uintptr(physicalDevice)),
 		C.uintptr(uintptr(surface)),
 		C.uintptr_t(uintptr(unsafe.Pointer(pRectCount))),
@@ -7052,7 +7988,7 @@ func GetPhysicalDevicePresentRectanglesKHR(physicalDevice PhysicalDevice,
 
 	// convert the returned array to the go slice
 	for i := range arr_rects {
-		rects[i] = *arr_rects[i].goStruct()
+		rects[i] = *arr_rects[i].ToGo()
 	}
 	if r == Result(0) {
 		r = SUCCESS
@@ -7069,21 +8005,21 @@ func AcquireNextImage2KHR(device Device,
 	// struct requiring translation
 	var pAcquireInfo *vkAcquireNextImageInfoKHR
 	if acquireInfo != nil {
-		pAcquireInfo = acquireInfo.vkStruct()
+		pAcquireInfo = acquireInfo.ToVK()
 	}
 
 	// binding-allocated single return value populated by Vulkan
 	pImageIndex := &imageIndex
 	if vkAcquireNextImage2KHR == nil {
-		vkAcquireNextImage2KHR = dlHandle.NewProc("vkAcquireNextImage2KHR")
+		vkAcquireNextImage2KHR = vkCommand(uintptr(GetInstanceProcAddr(Instance(VKInst), "vkAcquireNextImage2KHR")))
 	}
 	var rsys C.uintptr_t
-	rsys, _, _ = syscall.SyscallN(vkAcquireNextImage2KHR.Addr(),
-		uintptr(device),
-		uintptr(unsafe.Pointer(pAcquireInfo)),
-		uintptr(unsafe.Pointer(pImageIndex)),
+	rsys = C.Trampoline3(vkAcquireNextImage2KHR,
+		C.uintptr(uintptr(device)),
+		C.uintptr_t(uintptr(unsafe.Pointer(pAcquireInfo))),
+		C.uintptr_t(uintptr(unsafe.Pointer(pImageIndex))),
 	)
-	r = Result(uintptr(rsys))
+	r = Result(rsys)
 	if r == Result(0) {
 		r = SUCCESS
 	}

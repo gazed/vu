@@ -26,9 +26,9 @@ func (e *Entity) AddModel(assets ...string) (me *Entity) {
 	return me
 }
 
-// AddInstancedModel adds a model where the immediate children are
-// instances of the parent model. The parent model will be rendered
-// for each childs transform data.
+// AddInstancedModel adds a model where the transform and other instance
+// data is saved separately from the model specific data. This way a large
+// number of the same model can be rendered differently.
 func (e *Entity) AddInstancedModel(assets ...string) (me *Entity) {
 	me = e.AddPart() // add a transform node
 	if mod := me.app.models.create(me); mod != nil {
@@ -44,8 +44,8 @@ func (e *Entity) SetInstanceData(eng *Engine, count uint32, data []load.Buffer) 
 	if mod := e.app.models.get(e.eid); mod != nil && mod.isInstanced {
 		var err error
 		mod.instanceCount = count
-		mod.instanceID, err = eng.rc.LoadInstanceData(data)
-		if err != nil {
+		// TODO need to wait for mid...
+		if err = eng.rc.LoadInstanceData(mod.mesh.mid, data); err != nil {
 			slog.Error("SetInstanceData", "error", err)
 			mod.instanceCount = 0
 		}
@@ -55,13 +55,13 @@ func (e *Entity) SetInstanceData(eng *Engine, count uint32, data []load.Buffer) 
 	return e
 }
 
-// UpdateInstanceData updates the instance data for an instanced model.
-// This should only be done on instance data that has already been set and is
-// not currently being rendered. The data attributes, sizes, and number of instances
-// must match the original instance data.
-func (e *Entity) UpdateInstanceData(eng *Engine, data []load.Buffer) (me *Entity) {
-	if mod := e.app.models.get(e.eid); mod != nil && mod.isInstanced && mod.instanceID >= 0 {
-		if err := eng.rc.UpdateInstanceData(mod.instanceID, data); err != nil {
+// UpdateMesh updates existing mesh data. This should only be done on
+// mesh data that has already been set and is not currently being rendered.
+// The data attributes, sizes, and number of instances must match
+// the original mesh data.
+func (e *Entity) UpdateMesh(eng *Engine, data []load.Buffer) (me *Entity) {
+	if mod := e.app.models.get(e.eid); mod != nil && mod.mesh != nil && mod.mesh.mid >= 0 {
+		if err := eng.rc.UpdateMesh(mod.mesh.mid, data); err != nil {
 			slog.Error("UpdateInstanceData", "error", err)
 		}
 		return e
@@ -270,9 +270,9 @@ type model struct {
 
 	// true if this model will be rendered at each of
 	// its child transforms.
-	isInstanced   bool   // default false.
-	instanceCount uint32 // default false.
-	instanceID    uint32 // render instance data ID.
+	isInstanced   bool          // default false.
+	instanceCount uint32        // default false.
+	instanceData  load.MeshData // render instance data ID.
 
 	// FUTURE
 	// anim   *actor  // set for an animated model
@@ -301,11 +301,16 @@ func (m *model) getAssets(me *Entity, assets ...string) {
 		attr := strings.Split(attribute, ":")
 		switch len(attr) {
 		case 2:
-			// most asset hav two fields "asset_type:asset_name"
+			// most asset have two fields "asset_type:asset_name"
 			name := attr[1]
 			switch attr[0] {
 			case "msh":
-				me.app.ld.getAsset(assetID(msh, name), me.eid, me.app.models.assetLoaded)
+				if m.isInstanced {
+					println("model requesting instanced mesh data")
+					me.app.ld.getAsset(assetID(msh, name), me.eid, me.app.models.assetLoaded)
+				} else {
+					me.app.ld.getAsset(assetID(msh, name), me.eid, me.app.models.assetLoaded)
+				}
 			case "mat":
 				me.app.ld.getAsset(assetID(mat, name), me.eid, me.app.models.assetLoaded)
 			case "shd":
@@ -314,12 +319,12 @@ func (m *model) getAssets(me *Entity, assets ...string) {
 				m.fntAID = assetID(fnt, name)
 				me.app.ld.getAsset(m.fntAID, me.eid, me.app.models.assetLoaded)
 			case "anm":
-				// TODO get animation bone data from GLB files.
+				// FUTURE: get mesh animation bone data from GLB files.
 			default:
 				slog.Error("undefined model asset", "attr", attr[0], "name", name, "eid", me.eid)
 			}
 		case 3:
-			// textures have three fields  "asset_type:uniform_sampler_name:asset_name"
+			// textures have three fields "asset_type:uniform_sampler_name:asset_name"
 			uniform := attr[1]
 			name := attr[2]
 			switch attr[0] {
@@ -403,19 +408,8 @@ func (m *model) fillPacket(packet *render.Packet, pov *pov, cam *Camera) error {
 			return fmt.Errorf("instance data not loaded: %s", m.req)
 		}
 		packet.IsInstanced = true
-		packet.InstanceID = m.instanceID
 		packet.InstanceCount = m.instanceCount
 	}
-
-	// FUTURE: debug validation that the render layer has the uploaded
-	// vertex data for the attributes, ie: the m.mesh.mid references
-	// vertex data in the render context and each shader attribute
-	// should have a non-zero count for the matching vertex data.
-	// Needs code that has access to the render context, ie:
-	//   for i := range m.shader.config.Attrs {
-	//   	  attr := &m.shader.config.Attrs[i]
-	//      eng.rc.HasVertexData(m.mesh.mid, attr.AttrType)
-	//   }
 
 	// expect one texture for each sampler. Mismatches happen if:
 	// - the texture has not yet loaded.
@@ -454,7 +448,7 @@ func (m *model) fillPacket(packet *render.Packet, pov *pov, cam *Camera) error {
 	uniforms := m.shader.config.Uniforms
 	for i := range uniforms {
 		u := &uniforms[i]
-		if u.UType != load.Type_SAMPLER && (u.Scope == load.ModelScope || u.Scope == load.PushScope) {
+		if u.UType != load.Type_SAMPLER && u.Scope == load.PushScope {
 			switch u.ModelUID {
 			case load.MODEL:
 				packet.Uniforms[load.MODEL] = render.M4ToBytes(pov.mm, packet.Uniforms[load.MODEL])
@@ -485,8 +479,8 @@ func (m *model) fillPacket(packet *render.Packet, pov *pov, cam *Camera) error {
 		}
 	}
 
-	// add the eid to help debug packets.
-	packet.Tag = uint32(pov.eid) // Use eid for debugging draw calls.
+	// add the eid to uniquely identify an mesh instance.
+	packet.EID = uint32(pov.eid) // Use eid for debugging draw calls.
 
 	// set the render packet sorting information.
 	packet.Bucket = setBucketType(packet.Bucket, drawOpaque)
@@ -551,6 +545,22 @@ func (ms *models) createLabel(s string, wrap int, e *Entity) *model {
 	m.mat = newMaterial(fmt.Sprintf("mat%d", e.eid)) // fake name
 	m.mat.color = rgba{1, 1, 1, 1}
 	return m
+}
+
+// meshData is called from loader when a model asset
+// requires instance data.
+func (ms *models) meshData(eid eID) (data load.MeshData) {
+	m := ms.get(eid)
+	if m == nil {
+		// The model may have been disposed before it finished loading.
+		slog.Warn("no model for asset", "eid", eid)
+		return
+	}
+	if !m.isInstanced || len(m.instanceData) == 0 {
+		slog.Warn("model.instanceData: not an instanced model", "eid", eid)
+		return
+	}
+	return m.instanceData
 }
 
 // assetsLoaded is called from loader when a model asset

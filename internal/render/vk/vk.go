@@ -182,6 +182,12 @@ type PrivateDataSlot nonDispatchableHandle
 // HANDLE: https://docs.vulkan.org/refpages/latest/refpages/source/VkDisplayKHR.html
 type DisplayKHR nonDispatchableHandle
 
+// HANDLE: https://docs.vulkan.org/refpages/latest/refpages/source/VkAccelerationStructureKHR.html
+type AccelerationStructureKHR nonDispatchableHandle
+
+// HANDLE: https://docs.vulkan.org/refpages/latest/refpages/source/VkDeferredOperationKHR.html
+type DeferredOperationKHR nonDispatchableHandle
+
 // basetype ==============================================================
 
 type PFN_vkAllocationFunction unsafe.Pointer
@@ -195,6 +201,8 @@ type PFN_vkInternalFreeNotification unsafe.Pointer
 type PFN_vkReallocationFunction unsafe.Pointer
 
 type PFN_vkVoidFunction unsafe.Pointer
+
+type VkDescriptorBindingFlagsEXT DescriptorBindingFlags
 
 type VkFenceImportFlagsKHR FenceImportFlags
 
@@ -224,8 +232,16 @@ const (
 	MAX_DRIVER_NAME_SIZE                                uint32  = 256
 	MAX_DRIVER_INFO_SIZE                                uint32  = 256
 	MAX_GLOBAL_PRIORITY_SIZE                            uint32  = 16
+	EXT_DESCRIPTOR_INDEXING_SPEC_VERSION                        = 2
+	EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME                      = "VK_EXT_descriptor_indexing"
 	EXT_DIRECT_MODE_DISPLAY_SPEC_VERSION                        = 1
 	EXT_DIRECT_MODE_DISPLAY_EXTENSION_NAME                      = "VK_EXT_direct_mode_display"
+	KHR_ACCELERATION_STRUCTURE_SPEC_VERSION                     = 13
+	KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME                   = "VK_KHR_acceleration_structure"
+	KHR_BUFFER_DEVICE_ADDRESS_SPEC_VERSION                      = 1
+	KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME                    = "VK_KHR_buffer_device_address"
+	KHR_DEFERRED_HOST_OPERATIONS_SPEC_VERSION                   = 4
+	KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME                 = "VK_KHR_deferred_host_operations"
 	KHR_EXTERNAL_FENCE_SPEC_VERSION                             = 1
 	KHR_EXTERNAL_FENCE_EXTENSION_NAME                           = "VK_KHR_external_fence"
 	KHR_EXTERNAL_MEMORY_SPEC_VERSION                            = 1
@@ -237,6 +253,10 @@ const (
 	KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME         = "VK_KHR_get_physical_device_properties2"
 	KHR_GET_SURFACE_CAPABILITIES_2_SPEC_VERSION                 = 1
 	KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME               = "VK_KHR_get_surface_capabilities2"
+	KHR_RAY_QUERY_SPEC_VERSION                                  = 1
+	KHR_RAY_QUERY_EXTENSION_NAME                                = "VK_KHR_ray_query"
+	KHR_SPIRV_1_4_SPEC_VERSION                                  = 1
+	KHR_SPIRV_1_4_EXTENSION_NAME                                = "VK_KHR_spirv_1_4"
 	KHR_SURFACE_SPEC_VERSION                                    = 25
 	KHR_SURFACE_EXTENSION_NAME                                  = "VK_KHR_surface"
 	KHR_SWAPCHAIN_SPEC_VERSION                                  = 70
@@ -247,7 +267,7 @@ const (
 
 // bitmask ===============================================================
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/FormatFeatureFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkFormatFeatureFlagBits.html
 type FormatFeatureFlagBits = FormatFeatureFlags
 
 const (
@@ -274,12 +294,13 @@ const (
 	FORMAT_FEATURE_DISJOINT_BIT                                                                FormatFeatureFlagBits = 1 << 22
 	FORMAT_FEATURE_COSITED_CHROMA_SAMPLES_BIT                                                  FormatFeatureFlagBits = 1 << 23
 	FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_MINMAX_BIT                                             FormatFeatureFlagBits = 1 << 16
+	FORMAT_FEATURE_ACCELERATION_STRUCTURE_VERTEX_BUFFER_BIT_KHR                                FormatFeatureFlagBits = 1 << 29
 )
 
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkFormatFeatureFlags.html
 type FormatFeatureFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/ImageCreateFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkImageCreateFlagBits.html
 type ImageCreateFlagBits = ImageCreateFlags
 
 const (
@@ -300,7 +321,7 @@ const (
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkImageCreateFlags.html
 type ImageCreateFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/SampleCountFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkSampleCountFlagBits.html
 type SampleCountFlagBits = SampleCountFlags
 
 const (
@@ -316,7 +337,7 @@ const (
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkSampleCountFlags.html
 type SampleCountFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/ImageUsageFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkImageUsageFlagBits.html
 type ImageUsageFlagBits = ImageUsageFlags
 
 const (
@@ -334,7 +355,7 @@ const (
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkImageUsageFlags.html
 type ImageUsageFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/InstanceCreateFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkInstanceCreateFlagBits.html
 type InstanceCreateFlagBits = InstanceCreateFlags
 
 const ()
@@ -342,7 +363,7 @@ const ()
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkInstanceCreateFlags.html
 type InstanceCreateFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/MemoryHeapFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkMemoryHeapFlagBits.html
 type MemoryHeapFlagBits = MemoryHeapFlags
 
 const (
@@ -353,7 +374,7 @@ const (
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkMemoryHeapFlags.html
 type MemoryHeapFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/MemoryPropertyFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkMemoryPropertyFlagBits.html
 type MemoryPropertyFlagBits = MemoryPropertyFlags
 
 const (
@@ -368,7 +389,7 @@ const (
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkMemoryPropertyFlags.html
 type MemoryPropertyFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/QueueFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkQueueFlagBits.html
 type QueueFlagBits = QueueFlags
 
 const (
@@ -382,7 +403,7 @@ const (
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkQueueFlags.html
 type QueueFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/ShaderStageFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkShaderStageFlagBits.html
 type ShaderStageFlagBits = ShaderStageFlags
 
 const (
@@ -402,7 +423,7 @@ type ShaderStageFlags Flags
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkDeviceCreateFlags.html
 type DeviceCreateFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/DeviceQueueCreateFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkDeviceQueueCreateFlagBits.html
 type DeviceQueueCreateFlagBits = DeviceQueueCreateFlags
 
 const (
@@ -412,34 +433,35 @@ const (
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkDeviceQueueCreateFlags.html
 type DeviceQueueCreateFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/PipelineStageFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkPipelineStageFlagBits.html
 type PipelineStageFlagBits = PipelineStageFlags
 
 const (
-	PIPELINE_STAGE_TOP_OF_PIPE_BIT                    PipelineStageFlagBits = 1 << 0
-	PIPELINE_STAGE_DRAW_INDIRECT_BIT                  PipelineStageFlagBits = 1 << 1
-	PIPELINE_STAGE_VERTEX_INPUT_BIT                   PipelineStageFlagBits = 1 << 2
-	PIPELINE_STAGE_VERTEX_SHADER_BIT                  PipelineStageFlagBits = 1 << 3
-	PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT    PipelineStageFlagBits = 1 << 4
-	PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT PipelineStageFlagBits = 1 << 5
-	PIPELINE_STAGE_GEOMETRY_SHADER_BIT                PipelineStageFlagBits = 1 << 6
-	PIPELINE_STAGE_FRAGMENT_SHADER_BIT                PipelineStageFlagBits = 1 << 7
-	PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT           PipelineStageFlagBits = 1 << 8
-	PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT            PipelineStageFlagBits = 1 << 9
-	PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT        PipelineStageFlagBits = 1 << 10
-	PIPELINE_STAGE_COMPUTE_SHADER_BIT                 PipelineStageFlagBits = 1 << 11
-	PIPELINE_STAGE_TRANSFER_BIT                       PipelineStageFlagBits = 1 << 12
-	PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT                 PipelineStageFlagBits = 1 << 13
-	PIPELINE_STAGE_HOST_BIT                           PipelineStageFlagBits = 1 << 14
-	PIPELINE_STAGE_ALL_GRAPHICS_BIT                   PipelineStageFlagBits = 1 << 15
-	PIPELINE_STAGE_ALL_COMMANDS_BIT                   PipelineStageFlagBits = 1 << 16
-	PIPELINE_STAGE_NONE                               PipelineStageFlagBits = 0
+	PIPELINE_STAGE_TOP_OF_PIPE_BIT                      PipelineStageFlagBits = 1 << 0
+	PIPELINE_STAGE_DRAW_INDIRECT_BIT                    PipelineStageFlagBits = 1 << 1
+	PIPELINE_STAGE_VERTEX_INPUT_BIT                     PipelineStageFlagBits = 1 << 2
+	PIPELINE_STAGE_VERTEX_SHADER_BIT                    PipelineStageFlagBits = 1 << 3
+	PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT      PipelineStageFlagBits = 1 << 4
+	PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT   PipelineStageFlagBits = 1 << 5
+	PIPELINE_STAGE_GEOMETRY_SHADER_BIT                  PipelineStageFlagBits = 1 << 6
+	PIPELINE_STAGE_FRAGMENT_SHADER_BIT                  PipelineStageFlagBits = 1 << 7
+	PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT             PipelineStageFlagBits = 1 << 8
+	PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT              PipelineStageFlagBits = 1 << 9
+	PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT          PipelineStageFlagBits = 1 << 10
+	PIPELINE_STAGE_COMPUTE_SHADER_BIT                   PipelineStageFlagBits = 1 << 11
+	PIPELINE_STAGE_TRANSFER_BIT                         PipelineStageFlagBits = 1 << 12
+	PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT                   PipelineStageFlagBits = 1 << 13
+	PIPELINE_STAGE_HOST_BIT                             PipelineStageFlagBits = 1 << 14
+	PIPELINE_STAGE_ALL_GRAPHICS_BIT                     PipelineStageFlagBits = 1 << 15
+	PIPELINE_STAGE_ALL_COMMANDS_BIT                     PipelineStageFlagBits = 1 << 16
+	PIPELINE_STAGE_NONE                                 PipelineStageFlagBits = 0
+	PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR PipelineStageFlagBits = 1 << 25
 )
 
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkPipelineStageFlags.html
 type PipelineStageFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/MemoryMapFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkMemoryMapFlagBits.html
 type MemoryMapFlagBits = MemoryMapFlags
 
 const ()
@@ -447,7 +469,7 @@ const ()
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkMemoryMapFlags.html
 type MemoryMapFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/ImageAspectFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkImageAspectFlagBits.html
 type ImageAspectFlagBits = ImageAspectFlags
 
 const (
@@ -464,7 +486,7 @@ const (
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkImageAspectFlags.html
 type ImageAspectFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/SparseImageFormatFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkSparseImageFormatFlagBits.html
 type SparseImageFormatFlagBits = SparseImageFormatFlags
 
 const (
@@ -476,7 +498,7 @@ const (
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkSparseImageFormatFlags.html
 type SparseImageFormatFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/SparseMemoryBindFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkSparseMemoryBindFlagBits.html
 type SparseMemoryBindFlagBits = SparseMemoryBindFlags
 
 const (
@@ -486,7 +508,7 @@ const (
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkSparseMemoryBindFlags.html
 type SparseMemoryBindFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/FenceCreateFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkFenceCreateFlagBits.html
 type FenceCreateFlagBits = FenceCreateFlags
 
 const (
@@ -499,7 +521,7 @@ type FenceCreateFlags Flags
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkSemaphoreCreateFlags.html
 type SemaphoreCreateFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/QueryPoolCreateFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkQueryPoolCreateFlagBits.html
 type QueryPoolCreateFlagBits = QueryPoolCreateFlags
 
 const ()
@@ -507,7 +529,7 @@ const ()
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkQueryPoolCreateFlags.html
 type QueryPoolCreateFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/QueryPipelineStatisticFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkQueryPipelineStatisticFlagBits.html
 type QueryPipelineStatisticFlagBits = QueryPipelineStatisticFlags
 
 const (
@@ -527,7 +549,7 @@ const (
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkQueryPipelineStatisticFlags.html
 type QueryPipelineStatisticFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/QueryResultFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkQueryResultFlagBits.html
 type QueryResultFlagBits = QueryResultFlags
 
 const (
@@ -540,40 +562,44 @@ const (
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkQueryResultFlags.html
 type QueryResultFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/BufferCreateFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkBufferCreateFlagBits.html
 type BufferCreateFlagBits = BufferCreateFlags
 
 const (
-	BUFFER_CREATE_SPARSE_BINDING_BIT                BufferCreateFlagBits = 1 << 0
-	BUFFER_CREATE_SPARSE_RESIDENCY_BIT              BufferCreateFlagBits = 1 << 1
-	BUFFER_CREATE_SPARSE_ALIASED_BIT                BufferCreateFlagBits = 1 << 2
-	BUFFER_CREATE_PROTECTED_BIT                     BufferCreateFlagBits = 1 << 3
-	BUFFER_CREATE_DEVICE_ADDRESS_CAPTURE_REPLAY_BIT BufferCreateFlagBits = 1 << 4
+	BUFFER_CREATE_SPARSE_BINDING_BIT                    BufferCreateFlagBits = 1 << 0
+	BUFFER_CREATE_SPARSE_RESIDENCY_BIT                  BufferCreateFlagBits = 1 << 1
+	BUFFER_CREATE_SPARSE_ALIASED_BIT                    BufferCreateFlagBits = 1 << 2
+	BUFFER_CREATE_PROTECTED_BIT                         BufferCreateFlagBits = 1 << 3
+	BUFFER_CREATE_DEVICE_ADDRESS_CAPTURE_REPLAY_BIT     BufferCreateFlagBits = 1 << 4
+	BUFFER_CREATE_DEVICE_ADDRESS_CAPTURE_REPLAY_BIT_KHR BufferCreateFlagBits = BUFFER_CREATE_DEVICE_ADDRESS_CAPTURE_REPLAY_BIT
 )
 
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkBufferCreateFlags.html
 type BufferCreateFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/BufferUsageFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkBufferUsageFlagBits.html
 type BufferUsageFlagBits = BufferUsageFlags
 
 const (
-	BUFFER_USAGE_TRANSFER_SRC_BIT          BufferUsageFlagBits = 1 << 0
-	BUFFER_USAGE_TRANSFER_DST_BIT          BufferUsageFlagBits = 1 << 1
-	BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT  BufferUsageFlagBits = 1 << 2
-	BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT  BufferUsageFlagBits = 1 << 3
-	BUFFER_USAGE_UNIFORM_BUFFER_BIT        BufferUsageFlagBits = 1 << 4
-	BUFFER_USAGE_STORAGE_BUFFER_BIT        BufferUsageFlagBits = 1 << 5
-	BUFFER_USAGE_INDEX_BUFFER_BIT          BufferUsageFlagBits = 1 << 6
-	BUFFER_USAGE_VERTEX_BUFFER_BIT         BufferUsageFlagBits = 1 << 7
-	BUFFER_USAGE_INDIRECT_BUFFER_BIT       BufferUsageFlagBits = 1 << 8
-	BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT BufferUsageFlagBits = 1 << 17
+	BUFFER_USAGE_TRANSFER_SRC_BIT                                     BufferUsageFlagBits = 1 << 0
+	BUFFER_USAGE_TRANSFER_DST_BIT                                     BufferUsageFlagBits = 1 << 1
+	BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT                             BufferUsageFlagBits = 1 << 2
+	BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT                             BufferUsageFlagBits = 1 << 3
+	BUFFER_USAGE_UNIFORM_BUFFER_BIT                                   BufferUsageFlagBits = 1 << 4
+	BUFFER_USAGE_STORAGE_BUFFER_BIT                                   BufferUsageFlagBits = 1 << 5
+	BUFFER_USAGE_INDEX_BUFFER_BIT                                     BufferUsageFlagBits = 1 << 6
+	BUFFER_USAGE_VERTEX_BUFFER_BIT                                    BufferUsageFlagBits = 1 << 7
+	BUFFER_USAGE_INDIRECT_BUFFER_BIT                                  BufferUsageFlagBits = 1 << 8
+	BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT                            BufferUsageFlagBits = 1 << 17
+	BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR BufferUsageFlagBits = 1 << 19
+	BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR               BufferUsageFlagBits = 1 << 20
+	BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT_KHR                        BufferUsageFlagBits = BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT
 )
 
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkBufferUsageFlags.html
 type BufferUsageFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/ImageViewCreateFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkImageViewCreateFlagBits.html
 type ImageViewCreateFlagBits = ImageViewCreateFlags
 
 const ()
@@ -581,34 +607,36 @@ const ()
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkImageViewCreateFlags.html
 type ImageViewCreateFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/AccessFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkAccessFlagBits.html
 type AccessFlagBits = AccessFlags
 
 const (
-	ACCESS_INDIRECT_COMMAND_READ_BIT          AccessFlagBits = 1 << 0
-	ACCESS_INDEX_READ_BIT                     AccessFlagBits = 1 << 1
-	ACCESS_VERTEX_ATTRIBUTE_READ_BIT          AccessFlagBits = 1 << 2
-	ACCESS_UNIFORM_READ_BIT                   AccessFlagBits = 1 << 3
-	ACCESS_INPUT_ATTACHMENT_READ_BIT          AccessFlagBits = 1 << 4
-	ACCESS_SHADER_READ_BIT                    AccessFlagBits = 1 << 5
-	ACCESS_SHADER_WRITE_BIT                   AccessFlagBits = 1 << 6
-	ACCESS_COLOR_ATTACHMENT_READ_BIT          AccessFlagBits = 1 << 7
-	ACCESS_COLOR_ATTACHMENT_WRITE_BIT         AccessFlagBits = 1 << 8
-	ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT  AccessFlagBits = 1 << 9
-	ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT AccessFlagBits = 1 << 10
-	ACCESS_TRANSFER_READ_BIT                  AccessFlagBits = 1 << 11
-	ACCESS_TRANSFER_WRITE_BIT                 AccessFlagBits = 1 << 12
-	ACCESS_HOST_READ_BIT                      AccessFlagBits = 1 << 13
-	ACCESS_HOST_WRITE_BIT                     AccessFlagBits = 1 << 14
-	ACCESS_MEMORY_READ_BIT                    AccessFlagBits = 1 << 15
-	ACCESS_MEMORY_WRITE_BIT                   AccessFlagBits = 1 << 16
-	ACCESS_NONE                               AccessFlagBits = 0
+	ACCESS_INDIRECT_COMMAND_READ_BIT            AccessFlagBits = 1 << 0
+	ACCESS_INDEX_READ_BIT                       AccessFlagBits = 1 << 1
+	ACCESS_VERTEX_ATTRIBUTE_READ_BIT            AccessFlagBits = 1 << 2
+	ACCESS_UNIFORM_READ_BIT                     AccessFlagBits = 1 << 3
+	ACCESS_INPUT_ATTACHMENT_READ_BIT            AccessFlagBits = 1 << 4
+	ACCESS_SHADER_READ_BIT                      AccessFlagBits = 1 << 5
+	ACCESS_SHADER_WRITE_BIT                     AccessFlagBits = 1 << 6
+	ACCESS_COLOR_ATTACHMENT_READ_BIT            AccessFlagBits = 1 << 7
+	ACCESS_COLOR_ATTACHMENT_WRITE_BIT           AccessFlagBits = 1 << 8
+	ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT    AccessFlagBits = 1 << 9
+	ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT   AccessFlagBits = 1 << 10
+	ACCESS_TRANSFER_READ_BIT                    AccessFlagBits = 1 << 11
+	ACCESS_TRANSFER_WRITE_BIT                   AccessFlagBits = 1 << 12
+	ACCESS_HOST_READ_BIT                        AccessFlagBits = 1 << 13
+	ACCESS_HOST_WRITE_BIT                       AccessFlagBits = 1 << 14
+	ACCESS_MEMORY_READ_BIT                      AccessFlagBits = 1 << 15
+	ACCESS_MEMORY_WRITE_BIT                     AccessFlagBits = 1 << 16
+	ACCESS_NONE                                 AccessFlagBits = 0
+	ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR  AccessFlagBits = 1 << 21
+	ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR AccessFlagBits = 1 << 22
 )
 
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkAccessFlags.html
 type AccessFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/DependencyFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkDependencyFlagBits.html
 type DependencyFlagBits = DependencyFlags
 
 const (
@@ -620,7 +648,7 @@ const (
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkDependencyFlags.html
 type DependencyFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/CommandPoolCreateFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkCommandPoolCreateFlagBits.html
 type CommandPoolCreateFlagBits = CommandPoolCreateFlags
 
 const (
@@ -632,7 +660,7 @@ const (
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkCommandPoolCreateFlags.html
 type CommandPoolCreateFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/CommandPoolResetFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkCommandPoolResetFlagBits.html
 type CommandPoolResetFlagBits = CommandPoolResetFlags
 
 const (
@@ -642,7 +670,7 @@ const (
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkCommandPoolResetFlags.html
 type CommandPoolResetFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/QueryControlFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkQueryControlFlagBits.html
 type QueryControlFlagBits = QueryControlFlags
 
 const (
@@ -652,7 +680,7 @@ const (
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkQueryControlFlags.html
 type QueryControlFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/CommandBufferUsageFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkCommandBufferUsageFlagBits.html
 type CommandBufferUsageFlagBits = CommandBufferUsageFlags
 
 const (
@@ -664,7 +692,7 @@ const (
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkCommandBufferUsageFlags.html
 type CommandBufferUsageFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/CommandBufferResetFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkCommandBufferResetFlagBits.html
 type CommandBufferResetFlagBits = CommandBufferResetFlags
 
 const (
@@ -674,7 +702,7 @@ const (
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkCommandBufferResetFlags.html
 type CommandBufferResetFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/EventCreateFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkEventCreateFlagBits.html
 type EventCreateFlagBits = EventCreateFlags
 
 const (
@@ -690,7 +718,7 @@ type BufferViewCreateFlags Flags
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkShaderModuleCreateFlags.html
 type ShaderModuleCreateFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/PipelineCacheCreateFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkPipelineCacheCreateFlagBits.html
 type PipelineCacheCreateFlagBits = PipelineCacheCreateFlags
 
 const (
@@ -700,7 +728,7 @@ const (
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkPipelineCacheCreateFlags.html
 type PipelineCacheCreateFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/PipelineCreateFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkPipelineCreateFlagBits.html
 type PipelineCreateFlagBits = PipelineCreateFlags
 
 const (
@@ -719,7 +747,7 @@ const (
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkPipelineCreateFlags.html
 type PipelineCreateFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/PipelineLayoutCreateFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkPipelineLayoutCreateFlagBits.html
 type PipelineLayoutCreateFlagBits = PipelineLayoutCreateFlags
 
 const ()
@@ -727,7 +755,7 @@ const ()
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkPipelineLayoutCreateFlags.html
 type PipelineLayoutCreateFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/PipelineShaderStageCreateFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkPipelineShaderStageCreateFlagBits.html
 type PipelineShaderStageCreateFlagBits = PipelineShaderStageCreateFlags
 
 const (
@@ -738,7 +766,7 @@ const (
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkPipelineShaderStageCreateFlags.html
 type PipelineShaderStageCreateFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/SamplerCreateFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkSamplerCreateFlagBits.html
 type SamplerCreateFlagBits = SamplerCreateFlags
 
 const ()
@@ -746,12 +774,13 @@ const ()
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkSamplerCreateFlags.html
 type SamplerCreateFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/DescriptorPoolCreateFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkDescriptorPoolCreateFlagBits.html
 type DescriptorPoolCreateFlagBits = DescriptorPoolCreateFlags
 
 const (
-	DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT DescriptorPoolCreateFlagBits = 1 << 0
-	DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT   DescriptorPoolCreateFlagBits = 1 << 1
+	DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT   DescriptorPoolCreateFlagBits = 1 << 0
+	DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT     DescriptorPoolCreateFlagBits = 1 << 1
+	DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT_EXT DescriptorPoolCreateFlagBits = DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT
 )
 
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkDescriptorPoolCreateFlags.html
@@ -760,18 +789,19 @@ type DescriptorPoolCreateFlags Flags
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkDescriptorPoolResetFlags.html
 type DescriptorPoolResetFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/DescriptorSetLayoutCreateFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkDescriptorSetLayoutCreateFlagBits.html
 type DescriptorSetLayoutCreateFlagBits = DescriptorSetLayoutCreateFlags
 
 const (
-	DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT DescriptorSetLayoutCreateFlagBits = 1 << 1
-	DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT        DescriptorSetLayoutCreateFlagBits = 1 << 0
+	DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT     DescriptorSetLayoutCreateFlagBits = 1 << 1
+	DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT            DescriptorSetLayoutCreateFlagBits = 1 << 0
+	DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT_EXT DescriptorSetLayoutCreateFlagBits = DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT
 )
 
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkDescriptorSetLayoutCreateFlags.html
 type DescriptorSetLayoutCreateFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/ColorComponentFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkColorComponentFlagBits.html
 type ColorComponentFlagBits = ColorComponentFlags
 
 const (
@@ -784,7 +814,7 @@ const (
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkColorComponentFlags.html
 type ColorComponentFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/CullModeFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkCullModeFlagBits.html
 type CullModeFlagBits = CullModeFlags
 
 const (
@@ -797,7 +827,7 @@ const (
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkCullModeFlags.html
 type CullModeFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/PipelineColorBlendStateCreateFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkPipelineColorBlendStateCreateFlagBits.html
 type PipelineColorBlendStateCreateFlagBits = PipelineColorBlendStateCreateFlags
 
 const ()
@@ -805,7 +835,7 @@ const ()
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkPipelineColorBlendStateCreateFlags.html
 type PipelineColorBlendStateCreateFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/PipelineDepthStencilStateCreateFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkPipelineDepthStencilStateCreateFlagBits.html
 type PipelineDepthStencilStateCreateFlagBits = PipelineDepthStencilStateCreateFlags
 
 const ()
@@ -834,7 +864,7 @@ type PipelineVertexInputStateCreateFlags Flags
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkPipelineViewportStateCreateFlags.html
 type PipelineViewportStateCreateFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/AttachmentDescriptionFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkAttachmentDescriptionFlagBits.html
 type AttachmentDescriptionFlagBits = AttachmentDescriptionFlags
 
 const (
@@ -844,7 +874,7 @@ const (
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkAttachmentDescriptionFlags.html
 type AttachmentDescriptionFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/FramebufferCreateFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkFramebufferCreateFlagBits.html
 type FramebufferCreateFlagBits = FramebufferCreateFlags
 
 const (
@@ -854,7 +884,7 @@ const (
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkFramebufferCreateFlags.html
 type FramebufferCreateFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/RenderPassCreateFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkRenderPassCreateFlagBits.html
 type RenderPassCreateFlagBits = RenderPassCreateFlags
 
 const ()
@@ -862,7 +892,7 @@ const ()
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkRenderPassCreateFlags.html
 type RenderPassCreateFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/SubpassDescriptionFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkSubpassDescriptionFlagBits.html
 type SubpassDescriptionFlagBits = SubpassDescriptionFlags
 
 const ()
@@ -870,7 +900,7 @@ const ()
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkSubpassDescriptionFlags.html
 type SubpassDescriptionFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/StencilFaceFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkStencilFaceFlagBits.html
 type StencilFaceFlagBits = StencilFaceFlags
 
 const (
@@ -883,7 +913,7 @@ const (
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkStencilFaceFlags.html
 type StencilFaceFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/SubgroupFeatureFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkSubgroupFeatureFlagBits.html
 type SubgroupFeatureFlagBits = SubgroupFeatureFlags
 
 const (
@@ -902,7 +932,7 @@ const (
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkSubgroupFeatureFlags.html
 type SubgroupFeatureFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/PeerMemoryFeatureFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkPeerMemoryFeatureFlagBits.html
 type PeerMemoryFeatureFlagBits = PeerMemoryFeatureFlags
 
 const (
@@ -915,13 +945,15 @@ const (
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkPeerMemoryFeatureFlags.html
 type PeerMemoryFeatureFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/MemoryAllocateFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkMemoryAllocateFlagBits.html
 type MemoryAllocateFlagBits = MemoryAllocateFlags
 
 const (
-	MEMORY_ALLOCATE_DEVICE_MASK_BIT                   MemoryAllocateFlagBits = 1 << 0
-	MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT                MemoryAllocateFlagBits = 1 << 1
-	MEMORY_ALLOCATE_DEVICE_ADDRESS_CAPTURE_REPLAY_BIT MemoryAllocateFlagBits = 1 << 2
+	MEMORY_ALLOCATE_DEVICE_MASK_BIT                       MemoryAllocateFlagBits = 1 << 0
+	MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT                    MemoryAllocateFlagBits = 1 << 1
+	MEMORY_ALLOCATE_DEVICE_ADDRESS_CAPTURE_REPLAY_BIT     MemoryAllocateFlagBits = 1 << 2
+	MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT_KHR                MemoryAllocateFlagBits = MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT
+	MEMORY_ALLOCATE_DEVICE_ADDRESS_CAPTURE_REPLAY_BIT_KHR MemoryAllocateFlagBits = MEMORY_ALLOCATE_DEVICE_ADDRESS_CAPTURE_REPLAY_BIT
 )
 
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkMemoryAllocateFlags.html
@@ -930,7 +962,7 @@ type MemoryAllocateFlags Flags
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkCommandPoolTrimFlags.html
 type CommandPoolTrimFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/ExternalMemoryHandleTypeFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkExternalMemoryHandleTypeFlagBits.html
 type ExternalMemoryHandleTypeFlagBits = ExternalMemoryHandleTypeFlags
 
 const (
@@ -949,7 +981,7 @@ const (
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkExternalMemoryHandleTypeFlags.html
 type ExternalMemoryHandleTypeFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/ExternalMemoryFeatureFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkExternalMemoryFeatureFlagBits.html
 type ExternalMemoryFeatureFlagBits = ExternalMemoryFeatureFlags
 
 const (
@@ -961,7 +993,7 @@ const (
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkExternalMemoryFeatureFlags.html
 type ExternalMemoryFeatureFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/ExternalFenceHandleTypeFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkExternalFenceHandleTypeFlagBits.html
 type ExternalFenceHandleTypeFlagBits = ExternalFenceHandleTypeFlags
 
 const (
@@ -974,7 +1006,7 @@ const (
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkExternalFenceHandleTypeFlags.html
 type ExternalFenceHandleTypeFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/ExternalFenceFeatureFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkExternalFenceFeatureFlagBits.html
 type ExternalFenceFeatureFlagBits = ExternalFenceFeatureFlags
 
 const (
@@ -985,7 +1017,7 @@ const (
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkExternalFenceFeatureFlags.html
 type ExternalFenceFeatureFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/FenceImportFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkFenceImportFlagBits.html
 type FenceImportFlagBits = FenceImportFlags
 
 const (
@@ -996,7 +1028,7 @@ const (
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkFenceImportFlags.html
 type FenceImportFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/SemaphoreImportFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkSemaphoreImportFlagBits.html
 type SemaphoreImportFlagBits = SemaphoreImportFlags
 
 const (
@@ -1007,7 +1039,7 @@ const (
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkSemaphoreImportFlags.html
 type SemaphoreImportFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/ExternalSemaphoreHandleTypeFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkExternalSemaphoreHandleTypeFlagBits.html
 type ExternalSemaphoreHandleTypeFlagBits = ExternalSemaphoreHandleTypeFlags
 
 const (
@@ -1022,7 +1054,7 @@ const (
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkExternalSemaphoreHandleTypeFlags.html
 type ExternalSemaphoreHandleTypeFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/ExternalSemaphoreFeatureFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkExternalSemaphoreFeatureFlagBits.html
 type ExternalSemaphoreFeatureFlagBits = ExternalSemaphoreFeatureFlags
 
 const (
@@ -1036,7 +1068,7 @@ type ExternalSemaphoreFeatureFlags Flags
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkDescriptorUpdateTemplateCreateFlags.html
 type DescriptorUpdateTemplateCreateFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/ResolveModeFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkResolveModeFlagBits.html
 type ResolveModeFlagBits = ResolveModeFlags
 
 const (
@@ -1050,7 +1082,7 @@ const (
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkResolveModeFlags.html
 type ResolveModeFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/SemaphoreWaitFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkSemaphoreWaitFlagBits.html
 type SemaphoreWaitFlagBits = SemaphoreWaitFlags
 
 const (
@@ -1060,20 +1092,24 @@ const (
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkSemaphoreWaitFlags.html
 type SemaphoreWaitFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/DescriptorBindingFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkDescriptorBindingFlagBits.html
 type DescriptorBindingFlagBits = DescriptorBindingFlags
 
 const (
-	DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT           DescriptorBindingFlagBits = 1 << 0
-	DESCRIPTOR_BINDING_UPDATE_UNUSED_WHILE_PENDING_BIT DescriptorBindingFlagBits = 1 << 1
-	DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT             DescriptorBindingFlagBits = 1 << 2
-	DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT   DescriptorBindingFlagBits = 1 << 3
+	DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT               DescriptorBindingFlagBits = 1 << 0
+	DESCRIPTOR_BINDING_UPDATE_UNUSED_WHILE_PENDING_BIT     DescriptorBindingFlagBits = 1 << 1
+	DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT                 DescriptorBindingFlagBits = 1 << 2
+	DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT       DescriptorBindingFlagBits = 1 << 3
+	DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT_EXT           DescriptorBindingFlagBits = DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT
+	DESCRIPTOR_BINDING_UPDATE_UNUSED_WHILE_PENDING_BIT_EXT DescriptorBindingFlagBits = DESCRIPTOR_BINDING_UPDATE_UNUSED_WHILE_PENDING_BIT
+	DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT_EXT             DescriptorBindingFlagBits = DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT
+	DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT_EXT   DescriptorBindingFlagBits = DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT
 )
 
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkDescriptorBindingFlags.html
 type DescriptorBindingFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/ToolPurposeFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkToolPurposeFlagBits.html
 type ToolPurposeFlagBits = ToolPurposeFlags
 
 const (
@@ -1094,7 +1130,7 @@ type PrivateDataSlotCreateFlags Flags
 type PipelineStageFlags2 Flags64
 
 // BITMASK64: https://docs.vulkan.org/refpages/latest/refpages/source/VkPipelineStageFlagBits2.html
-type PipelineStageFlagBits2 uint64
+type PipelineStageFlagBits2 = PipelineStageFlags2
 
 const (
 	PIPELINE_STAGE_2_NONE                               PipelineStageFlagBits2 = 0
@@ -1129,7 +1165,7 @@ const (
 type AccessFlags2 Flags64
 
 // BITMASK64: https://docs.vulkan.org/refpages/latest/refpages/source/VkAccessFlagBits2.html
-type AccessFlagBits2 uint64
+type AccessFlagBits2 = AccessFlags2
 
 const (
 	ACCESS_2_NONE                               AccessFlagBits2 = 0
@@ -1155,7 +1191,7 @@ const (
 	ACCESS_2_SHADER_STORAGE_WRITE_BIT           AccessFlagBits2 = 1 << 34
 )
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/SubmitFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkSubmitFlagBits.html
 type SubmitFlagBits = SubmitFlags
 
 const (
@@ -1169,7 +1205,7 @@ type SubmitFlags Flags
 type FormatFeatureFlags2 Flags64
 
 // BITMASK64: https://docs.vulkan.org/refpages/latest/refpages/source/VkFormatFeatureFlagBits2.html
-type FormatFeatureFlagBits2 uint64
+type FormatFeatureFlagBits2 = FormatFeatureFlags2
 
 const (
 	FORMAT_FEATURE_2_SAMPLED_IMAGE_BIT                                                           FormatFeatureFlagBits2 = 1 << 0
@@ -1200,9 +1236,10 @@ const (
 	FORMAT_FEATURE_2_SAMPLED_IMAGE_DEPTH_COMPARISON_BIT                                          FormatFeatureFlagBits2 = 1 << 33
 	FORMAT_FEATURE_2_SAMPLED_IMAGE_FILTER_CUBIC_BIT                                              FormatFeatureFlagBits2 = 1 << 13
 	FORMAT_FEATURE_2_HOST_IMAGE_TRANSFER_BIT                                                     FormatFeatureFlagBits2 = 1 << 46
+	FORMAT_FEATURE_2_ACCELERATION_STRUCTURE_VERTEX_BUFFER_BIT_KHR                                FormatFeatureFlagBits2 = 1 << 29
 )
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/PipelineCreationFeedbackFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkPipelineCreationFeedbackFlagBits.html
 type PipelineCreationFeedbackFlagBits = PipelineCreationFeedbackFlags
 
 const (
@@ -1214,7 +1251,7 @@ const (
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkPipelineCreationFeedbackFlags.html
 type PipelineCreationFeedbackFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/RenderingFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkRenderingFlagBits.html
 type RenderingFlagBits = RenderingFlags
 
 const (
@@ -1226,7 +1263,7 @@ const (
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkRenderingFlags.html
 type RenderingFlags Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/MemoryUnmapFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkMemoryUnmapFlagBits.html
 type MemoryUnmapFlagBits = MemoryUnmapFlags
 
 const ()
@@ -1238,7 +1275,7 @@ type MemoryUnmapFlags Flags
 type BufferUsageFlags2 Flags64
 
 // BITMASK64: https://docs.vulkan.org/refpages/latest/refpages/source/VkBufferUsageFlagBits2.html
-type BufferUsageFlagBits2 uint64
+type BufferUsageFlagBits2 = BufferUsageFlags2
 
 const (
 	BUFFER_USAGE_2_TRANSFER_SRC_BIT          BufferUsageFlagBits2 = 1 << 0
@@ -1253,7 +1290,7 @@ const (
 	BUFFER_USAGE_2_SHADER_DEVICE_ADDRESS_BIT BufferUsageFlagBits2 = 1 << 17
 )
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/HostImageCopyFlagBits.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkHostImageCopyFlagBits.html
 type HostImageCopyFlagBits = HostImageCopyFlags
 
 const (
@@ -1268,7 +1305,7 @@ type HostImageCopyFlags Flags
 type PipelineCreateFlags2 Flags64
 
 // BITMASK64: https://docs.vulkan.org/refpages/latest/refpages/source/VkPipelineCreateFlagBits2.html
-type PipelineCreateFlagBits2 uint64
+type PipelineCreateFlagBits2 = PipelineCreateFlags2
 
 const (
 	PIPELINE_CREATE_2_DISABLE_OPTIMIZATION_BIT              PipelineCreateFlagBits2 = 1 << 0
@@ -1282,13 +1319,65 @@ const (
 	PIPELINE_CREATE_2_PROTECTED_ACCESS_ONLY_BIT             PipelineCreateFlagBits2 = 1 << 30
 )
 
+// aliasgroup: https://docs.vulkan.org/refpages/latest/refpages/source/DescriptorBindingFlagBitsEXT.html
+type DescriptorBindingFlagBitsEXT = DescriptorBindingFlagBits
+
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkBuildAccelerationStructureFlagBitsKHR.html
+type BuildAccelerationStructureFlagBitsKHR = BuildAccelerationStructureFlagsKHR
+
+const (
+	BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR      BuildAccelerationStructureFlagBitsKHR = 1 << 0
+	BUILD_ACCELERATION_STRUCTURE_ALLOW_COMPACTION_BIT_KHR  BuildAccelerationStructureFlagBitsKHR = 1 << 1
+	BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR BuildAccelerationStructureFlagBitsKHR = 1 << 2
+	BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_BUILD_BIT_KHR BuildAccelerationStructureFlagBitsKHR = 1 << 3
+	BUILD_ACCELERATION_STRUCTURE_LOW_MEMORY_BIT_KHR        BuildAccelerationStructureFlagBitsKHR = 1 << 4
+)
+
+// bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkBuildAccelerationStructureFlagsKHR.html
+type BuildAccelerationStructureFlagsKHR Flags
+
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkGeometryFlagBitsKHR.html
+type GeometryFlagBitsKHR = GeometryFlagsKHR
+
+const (
+	GEOMETRY_OPAQUE_BIT_KHR                          GeometryFlagBitsKHR = 1 << 0
+	GEOMETRY_NO_DUPLICATE_ANY_HIT_INVOCATION_BIT_KHR GeometryFlagBitsKHR = 1 << 1
+)
+
+// bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkGeometryFlagsKHR.html
+type GeometryFlagsKHR Flags
+
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkGeometryInstanceFlagBitsKHR.html
+type GeometryInstanceFlagBitsKHR = GeometryInstanceFlagsKHR
+
+const (
+	GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR    GeometryInstanceFlagBitsKHR = 1 << 0
+	GEOMETRY_INSTANCE_TRIANGLE_FLIP_FACING_BIT_KHR            GeometryInstanceFlagBitsKHR = 1 << 1
+	GEOMETRY_INSTANCE_FORCE_OPAQUE_BIT_KHR                    GeometryInstanceFlagBitsKHR = 1 << 2
+	GEOMETRY_INSTANCE_FORCE_NO_OPAQUE_BIT_KHR                 GeometryInstanceFlagBitsKHR = 1 << 3
+	GEOMETRY_INSTANCE_TRIANGLE_FRONT_COUNTERCLOCKWISE_BIT_KHR GeometryInstanceFlagBitsKHR = GEOMETRY_INSTANCE_TRIANGLE_FLIP_FACING_BIT_KHR
+)
+
+// bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkGeometryInstanceFlagsKHR.html
+type GeometryInstanceFlagsKHR Flags
+
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkAccelerationStructureCreateFlagBitsKHR.html
+type AccelerationStructureCreateFlagBitsKHR = AccelerationStructureCreateFlagsKHR
+
+const (
+	ACCELERATION_STRUCTURE_CREATE_DEVICE_ADDRESS_CAPTURE_REPLAY_BIT_KHR AccelerationStructureCreateFlagBitsKHR = 1 << 0
+)
+
+// bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkAccelerationStructureCreateFlagsKHR.html
+type AccelerationStructureCreateFlagsKHR Flags
+
 // aliasgroup: https://docs.vulkan.org/refpages/latest/refpages/source/FenceImportFlagBitsKHR.html
 type FenceImportFlagBitsKHR = FenceImportFlagBits
 
 // aliasgroup: https://docs.vulkan.org/refpages/latest/refpages/source/SemaphoreImportFlagBitsKHR.html
 type SemaphoreImportFlagBitsKHR = SemaphoreImportFlagBits
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/SurfaceTransformFlagBitsKHR.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkSurfaceTransformFlagBitsKHR.html
 type SurfaceTransformFlagBitsKHR = SurfaceTransformFlagsKHR
 
 const (
@@ -1306,7 +1395,7 @@ const (
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkSurfaceTransformFlagsKHR.html
 type SurfaceTransformFlagsKHR Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/CompositeAlphaFlagBitsKHR.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkCompositeAlphaFlagBitsKHR.html
 type CompositeAlphaFlagBitsKHR = CompositeAlphaFlagsKHR
 
 const (
@@ -1319,7 +1408,7 @@ const (
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkCompositeAlphaFlagsKHR.html
 type CompositeAlphaFlagsKHR Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/SwapchainCreateFlagBitsKHR.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkSwapchainCreateFlagBitsKHR.html
 type SwapchainCreateFlagBitsKHR = SwapchainCreateFlagsKHR
 
 const (
@@ -1330,7 +1419,7 @@ const (
 // bitmask: https://docs.vulkan.org/refpages/latest/refpages/source/VkSwapchainCreateFlagsKHR.html
 type SwapchainCreateFlagsKHR Flags
 
-// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/ExternalMemoryHandleTypeFlagBitsNV.html
+// BITMASK32: https://docs.vulkan.org/refpages/latest/refpages/source/VkExternalMemoryHandleTypeFlagBitsNV.html
 type ExternalMemoryHandleTypeFlagBitsNV = ExternalMemoryHandleTypeFlagsNV
 
 const (
@@ -1345,7 +1434,7 @@ type ExternalMemoryHandleTypeFlagsNV Flags
 
 // group =================================================================
 
-// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/Result.html
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkResult.html
 type Result int32
 
 // Error implements the error interface
@@ -1386,10 +1475,16 @@ const (
 	SUBOPTIMAL_KHR                            Result = 1000001003
 	ERROR_OUT_OF_DATE_KHR                     Result = -1000001004
 	ERROR_INVALID_EXTERNAL_HANDLE_KHR         Result = ERROR_INVALID_EXTERNAL_HANDLE
+	ERROR_FRAGMENTATION_EXT                   Result = ERROR_FRAGMENTATION
 	ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT Result = -1000255000
+	ERROR_INVALID_OPAQUE_CAPTURE_ADDRESS_KHR  Result = ERROR_INVALID_OPAQUE_CAPTURE_ADDRESS
+	THREAD_IDLE_KHR                           Result = 1000268000
+	THREAD_DONE_KHR                           Result = 1000268001
+	OPERATION_DEFERRED_KHR                    Result = 1000268002
+	OPERATION_NOT_DEFERRED_KHR                Result = 1000268003
 )
 
-// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/StructureType.html
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkStructureType.html
 type StructureType int32
 
 const (
@@ -1704,10 +1799,36 @@ const (
 	STRUCTURE_TYPE_PHYSICAL_DEVICE_SURFACE_INFO_2_KHR                          StructureType = 1000119000
 	STRUCTURE_TYPE_SURFACE_CAPABILITIES_2_KHR                                  StructureType = 1000119001
 	STRUCTURE_TYPE_SURFACE_FORMAT_2_KHR                                        StructureType = 1000119002
+	STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR             StructureType = 1000150007
+	STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR              StructureType = 1000150000
+	STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR              StructureType = 1000150002
+	STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_AABBS_DATA_KHR              StructureType = 1000150003
+	STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR          StructureType = 1000150004
+	STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR          StructureType = 1000150005
+	STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR                         StructureType = 1000150006
+	STRUCTURE_TYPE_ACCELERATION_STRUCTURE_VERSION_INFO_KHR                     StructureType = 1000150009
+	STRUCTURE_TYPE_COPY_ACCELERATION_STRUCTURE_INFO_KHR                        StructureType = 1000150010
+	STRUCTURE_TYPE_COPY_ACCELERATION_STRUCTURE_TO_MEMORY_INFO_KHR              StructureType = 1000150011
+	STRUCTURE_TYPE_COPY_MEMORY_TO_ACCELERATION_STRUCTURE_INFO_KHR              StructureType = 1000150012
+	STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR         StructureType = 1000150013
+	STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR       StructureType = 1000150014
+	STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR                      StructureType = 1000150017
+	STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR                 StructureType = 1000150020
+	STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR                      StructureType = 1000348013
+	STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO_EXT         StructureType = STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO
+	STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES_EXT            StructureType = STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES
+	STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_PROPERTIES_EXT          StructureType = STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_PROPERTIES
+	STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO_EXT  StructureType = STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO
+	STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_LAYOUT_SUPPORT_EXT StructureType = STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_LAYOUT_SUPPORT
 	STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT                               StructureType = 1000217000
 	STRUCTURE_TYPE_SURFACE_FULL_SCREEN_EXCLUSIVE_INFO_EXT                      StructureType = 1000255000
 	STRUCTURE_TYPE_SURFACE_CAPABILITIES_FULL_SCREEN_EXCLUSIVE_EXT              StructureType = 1000255002
 	STRUCTURE_TYPE_SURFACE_FULL_SCREEN_EXCLUSIVE_WIN32_INFO_EXT                StructureType = 1000255001
+	STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES_KHR          StructureType = STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES
+	STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO_KHR                              StructureType = STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO
+	STRUCTURE_TYPE_BUFFER_OPAQUE_CAPTURE_ADDRESS_CREATE_INFO_KHR               StructureType = STRUCTURE_TYPE_BUFFER_OPAQUE_CAPTURE_ADDRESS_CREATE_INFO
+	STRUCTURE_TYPE_MEMORY_OPAQUE_CAPTURE_ADDRESS_ALLOCATE_INFO_KHR             StructureType = STRUCTURE_TYPE_MEMORY_OPAQUE_CAPTURE_ADDRESS_ALLOCATE_INFO
+	STRUCTURE_TYPE_DEVICE_MEMORY_OPAQUE_CAPTURE_ADDRESS_INFO_KHR               StructureType = STRUCTURE_TYPE_DEVICE_MEMORY_OPAQUE_CAPTURE_ADDRESS_INFO
 	STRUCTURE_TYPE_EXPORT_METAL_OBJECT_CREATE_INFO_EXT                         StructureType = 1000311000
 	STRUCTURE_TYPE_EXPORT_METAL_OBJECTS_INFO_EXT                               StructureType = 1000311001
 	STRUCTURE_TYPE_EXPORT_METAL_DEVICE_INFO_EXT                                StructureType = 1000311002
@@ -1725,7 +1846,7 @@ const (
 	STRUCTURE_TYPE_MEMORY_GET_METAL_HANDLE_INFO_EXT                            StructureType = 1000602002
 )
 
-// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/ObjectType.html
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkObjectType.html
 type ObjectType int32
 
 const (
@@ -1760,9 +1881,11 @@ const (
 	OBJECT_TYPE_PRIVATE_DATA_SLOT          ObjectType = 1000295000
 	OBJECT_TYPE_SURFACE_KHR                ObjectType = 1000000000
 	OBJECT_TYPE_SWAPCHAIN_KHR              ObjectType = 1000001000
+	OBJECT_TYPE_ACCELERATION_STRUCTURE_KHR ObjectType = 1000150000
+	OBJECT_TYPE_DEFERRED_OPERATION_KHR     ObjectType = 1000268000
 )
 
-// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VendorId.html
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkVendorId.html
 type VendorId int32
 
 const (
@@ -1776,7 +1899,7 @@ const (
 	VENDOR_ID_MOBILEYE VendorId = 0x10007
 )
 
-// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/SystemAllocationScope.html
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkSystemAllocationScope.html
 type SystemAllocationScope int32
 
 const (
@@ -1787,14 +1910,14 @@ const (
 	SYSTEM_ALLOCATION_SCOPE_INSTANCE SystemAllocationScope = 4
 )
 
-// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/InternalAllocationType.html
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkInternalAllocationType.html
 type InternalAllocationType int32
 
 const (
 	INTERNAL_ALLOCATION_TYPE_EXECUTABLE InternalAllocationType = 0
 )
 
-// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/Format.html
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkFormat.html
 type Format int32
 
 const (
@@ -2041,7 +2164,7 @@ const (
 	FORMAT_A8_UNORM                                   Format = 1000470001
 )
 
-// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/ImageTiling.html
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkImageTiling.html
 type ImageTiling int32
 
 const (
@@ -2049,7 +2172,7 @@ const (
 	IMAGE_TILING_LINEAR  ImageTiling = 1
 )
 
-// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/ImageType.html
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkImageType.html
 type ImageType int32
 
 const (
@@ -2058,7 +2181,7 @@ const (
 	IMAGE_TYPE_3D ImageType = 2
 )
 
-// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/PhysicalDeviceType.html
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkPhysicalDeviceType.html
 type PhysicalDeviceType int32
 
 const (
@@ -2069,16 +2192,18 @@ const (
 	PHYSICAL_DEVICE_TYPE_CPU            PhysicalDeviceType = 4
 )
 
-// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/QueryType.html
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkQueryType.html
 type QueryType int32
 
 const (
-	QUERY_TYPE_OCCLUSION           QueryType = 0
-	QUERY_TYPE_PIPELINE_STATISTICS QueryType = 1
-	QUERY_TYPE_TIMESTAMP           QueryType = 2
+	QUERY_TYPE_OCCLUSION                                     QueryType = 0
+	QUERY_TYPE_PIPELINE_STATISTICS                           QueryType = 1
+	QUERY_TYPE_TIMESTAMP                                     QueryType = 2
+	QUERY_TYPE_ACCELERATION_STRUCTURE_COMPACTED_SIZE_KHR     QueryType = 1000150000
+	QUERY_TYPE_ACCELERATION_STRUCTURE_SERIALIZATION_SIZE_KHR QueryType = 1000150001
 )
 
-// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/SharingMode.html
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkSharingMode.html
 type SharingMode int32
 
 const (
@@ -2086,7 +2211,7 @@ const (
 	SHARING_MODE_CONCURRENT SharingMode = 1
 )
 
-// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/ImageLayout.html
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkImageLayout.html
 type ImageLayout int32
 
 const (
@@ -2111,7 +2236,7 @@ const (
 	IMAGE_LAYOUT_PRESENT_SRC_KHR                            ImageLayout = 1000001002
 )
 
-// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/ComponentSwizzle.html
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkComponentSwizzle.html
 type ComponentSwizzle int32
 
 const (
@@ -2124,7 +2249,7 @@ const (
 	COMPONENT_SWIZZLE_A        ComponentSwizzle = 6
 )
 
-// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/ImageViewType.html
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkImageViewType.html
 type ImageViewType int32
 
 const (
@@ -2137,7 +2262,7 @@ const (
 	IMAGE_VIEW_TYPE_CUBE_ARRAY ImageViewType = 6
 )
 
-// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/CommandBufferLevel.html
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkCommandBufferLevel.html
 type CommandBufferLevel int32
 
 const (
@@ -2145,23 +2270,24 @@ const (
 	COMMAND_BUFFER_LEVEL_SECONDARY CommandBufferLevel = 1
 )
 
-// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/IndexType.html
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkIndexType.html
 type IndexType int32
 
 const (
-	INDEX_TYPE_UINT16 IndexType = 0
-	INDEX_TYPE_UINT32 IndexType = 1
-	INDEX_TYPE_UINT8  IndexType = 1000265000
+	INDEX_TYPE_UINT16   IndexType = 0
+	INDEX_TYPE_UINT32   IndexType = 1
+	INDEX_TYPE_UINT8    IndexType = 1000265000
+	INDEX_TYPE_NONE_KHR IndexType = 1000165000
 )
 
-// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/PipelineCacheHeaderVersion.html
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkPipelineCacheHeaderVersion.html
 type PipelineCacheHeaderVersion int32
 
 const (
 	PIPELINE_CACHE_HEADER_VERSION_ONE PipelineCacheHeaderVersion = 1
 )
 
-// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/BorderColor.html
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkBorderColor.html
 type BorderColor int32
 
 const (
@@ -2173,7 +2299,7 @@ const (
 	BORDER_COLOR_INT_OPAQUE_WHITE        BorderColor = 5
 )
 
-// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/Filter.html
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkFilter.html
 type Filter int32
 
 const (
@@ -2181,7 +2307,7 @@ const (
 	FILTER_LINEAR  Filter = 1
 )
 
-// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/SamplerAddressMode.html
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkSamplerAddressMode.html
 type SamplerAddressMode int32
 
 const (
@@ -2192,7 +2318,7 @@ const (
 	SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE SamplerAddressMode = 4
 )
 
-// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/CompareOp.html
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkCompareOp.html
 type CompareOp int32
 
 const (
@@ -2206,7 +2332,7 @@ const (
 	COMPARE_OP_ALWAYS           CompareOp = 7
 )
 
-// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/SamplerMipmapMode.html
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkSamplerMipmapMode.html
 type SamplerMipmapMode int32
 
 const (
@@ -2214,25 +2340,26 @@ const (
 	SAMPLER_MIPMAP_MODE_LINEAR  SamplerMipmapMode = 1
 )
 
-// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/DescriptorType.html
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkDescriptorType.html
 type DescriptorType int32
 
 const (
-	DESCRIPTOR_TYPE_SAMPLER                DescriptorType = 0
-	DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER DescriptorType = 1
-	DESCRIPTOR_TYPE_SAMPLED_IMAGE          DescriptorType = 2
-	DESCRIPTOR_TYPE_STORAGE_IMAGE          DescriptorType = 3
-	DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER   DescriptorType = 4
-	DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER   DescriptorType = 5
-	DESCRIPTOR_TYPE_UNIFORM_BUFFER         DescriptorType = 6
-	DESCRIPTOR_TYPE_STORAGE_BUFFER         DescriptorType = 7
-	DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC DescriptorType = 8
-	DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC DescriptorType = 9
-	DESCRIPTOR_TYPE_INPUT_ATTACHMENT       DescriptorType = 10
-	DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK   DescriptorType = 1000138000
+	DESCRIPTOR_TYPE_SAMPLER                    DescriptorType = 0
+	DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER     DescriptorType = 1
+	DESCRIPTOR_TYPE_SAMPLED_IMAGE              DescriptorType = 2
+	DESCRIPTOR_TYPE_STORAGE_IMAGE              DescriptorType = 3
+	DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER       DescriptorType = 4
+	DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER       DescriptorType = 5
+	DESCRIPTOR_TYPE_UNIFORM_BUFFER             DescriptorType = 6
+	DESCRIPTOR_TYPE_STORAGE_BUFFER             DescriptorType = 7
+	DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC     DescriptorType = 8
+	DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC     DescriptorType = 9
+	DESCRIPTOR_TYPE_INPUT_ATTACHMENT           DescriptorType = 10
+	DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK       DescriptorType = 1000138000
+	DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR DescriptorType = 1000150000
 )
 
-// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/PipelineBindPoint.html
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkPipelineBindPoint.html
 type PipelineBindPoint int32
 
 const (
@@ -2240,7 +2367,7 @@ const (
 	PIPELINE_BIND_POINT_COMPUTE  PipelineBindPoint = 1
 )
 
-// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/BlendFactor.html
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkBlendFactor.html
 type BlendFactor int32
 
 const (
@@ -2265,7 +2392,7 @@ const (
 	BLEND_FACTOR_ONE_MINUS_SRC1_ALPHA     BlendFactor = 18
 )
 
-// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/BlendOp.html
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkBlendOp.html
 type BlendOp int32
 
 const (
@@ -2276,7 +2403,7 @@ const (
 	BLEND_OP_MAX              BlendOp = 4
 )
 
-// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/DynamicState.html
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkDynamicState.html
 type DynamicState int32
 
 const (
@@ -2307,7 +2434,7 @@ const (
 	DYNAMIC_STATE_LINE_STIPPLE                DynamicState = 1000259000
 )
 
-// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/FrontFace.html
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkFrontFace.html
 type FrontFace int32
 
 const (
@@ -2315,7 +2442,7 @@ const (
 	FRONT_FACE_CLOCKWISE         FrontFace = 1
 )
 
-// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/LogicOp.html
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkLogicOp.html
 type LogicOp int32
 
 const (
@@ -2337,7 +2464,7 @@ const (
 	LOGIC_OP_SET           LogicOp = 15
 )
 
-// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/StencilOp.html
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkStencilOp.html
 type StencilOp int32
 
 const (
@@ -2351,7 +2478,7 @@ const (
 	STENCIL_OP_DECREMENT_AND_WRAP  StencilOp = 7
 )
 
-// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VertexInputRate.html
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkVertexInputRate.html
 type VertexInputRate int32
 
 const (
@@ -2359,7 +2486,7 @@ const (
 	VERTEX_INPUT_RATE_INSTANCE VertexInputRate = 1
 )
 
-// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/PrimitiveTopology.html
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkPrimitiveTopology.html
 type PrimitiveTopology int32
 
 const (
@@ -2376,7 +2503,7 @@ const (
 	PRIMITIVE_TOPOLOGY_PATCH_LIST                    PrimitiveTopology = 10
 )
 
-// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/PolygonMode.html
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkPolygonMode.html
 type PolygonMode int32
 
 const (
@@ -2385,7 +2512,7 @@ const (
 	POLYGON_MODE_POINT PolygonMode = 2
 )
 
-// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/AttachmentLoadOp.html
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkAttachmentLoadOp.html
 type AttachmentLoadOp int32
 
 const (
@@ -2395,7 +2522,7 @@ const (
 	ATTACHMENT_LOAD_OP_NONE      AttachmentLoadOp = 1000400000
 )
 
-// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/AttachmentStoreOp.html
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkAttachmentStoreOp.html
 type AttachmentStoreOp int32
 
 const (
@@ -2404,7 +2531,7 @@ const (
 	ATTACHMENT_STORE_OP_NONE      AttachmentStoreOp = 1000301000
 )
 
-// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/SubpassContents.html
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkSubpassContents.html
 type SubpassContents int32
 
 const (
@@ -2412,7 +2539,7 @@ const (
 	SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS SubpassContents = 1
 )
 
-// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/PointClippingBehavior.html
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkPointClippingBehavior.html
 type PointClippingBehavior int32
 
 const (
@@ -2420,7 +2547,7 @@ const (
 	POINT_CLIPPING_BEHAVIOR_USER_CLIP_PLANES_ONLY PointClippingBehavior = 1
 )
 
-// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/DescriptorUpdateTemplateType.html
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkDescriptorUpdateTemplateType.html
 type DescriptorUpdateTemplateType int32
 
 const (
@@ -2428,7 +2555,7 @@ const (
 	DESCRIPTOR_UPDATE_TEMPLATE_TYPE_PUSH_DESCRIPTORS DescriptorUpdateTemplateType = 1
 )
 
-// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/SamplerYcbcrModelConversion.html
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkSamplerYcbcrModelConversion.html
 type SamplerYcbcrModelConversion int32
 
 const (
@@ -2439,7 +2566,7 @@ const (
 	SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_2020     SamplerYcbcrModelConversion = 4
 )
 
-// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/SamplerYcbcrRange.html
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkSamplerYcbcrRange.html
 type SamplerYcbcrRange int32
 
 const (
@@ -2447,7 +2574,7 @@ const (
 	SAMPLER_YCBCR_RANGE_ITU_NARROW SamplerYcbcrRange = 1
 )
 
-// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/ChromaLocation.html
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkChromaLocation.html
 type ChromaLocation int32
 
 const (
@@ -2455,7 +2582,7 @@ const (
 	CHROMA_LOCATION_MIDPOINT     ChromaLocation = 1
 )
 
-// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/TessellationDomainOrigin.html
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkTessellationDomainOrigin.html
 type TessellationDomainOrigin int32
 
 const (
@@ -2463,7 +2590,7 @@ const (
 	TESSELLATION_DOMAIN_ORIGIN_LOWER_LEFT TessellationDomainOrigin = 1
 )
 
-// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/DriverId.html
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkDriverId.html
 type DriverId int32
 
 const (
@@ -2497,7 +2624,7 @@ const (
 	DRIVER_ID_MESA_KOSMICKRISP              DriverId = 28
 )
 
-// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/ShaderFloatControlsIndependence.html
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkShaderFloatControlsIndependence.html
 type ShaderFloatControlsIndependence int32
 
 const (
@@ -2506,7 +2633,7 @@ const (
 	SHADER_FLOAT_CONTROLS_INDEPENDENCE_NONE        ShaderFloatControlsIndependence = 2
 )
 
-// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/SemaphoreType.html
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkSemaphoreType.html
 type SemaphoreType int32
 
 const (
@@ -2514,7 +2641,7 @@ const (
 	SEMAPHORE_TYPE_TIMELINE SemaphoreType = 1
 )
 
-// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/SamplerReductionMode.html
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkSamplerReductionMode.html
 type SamplerReductionMode int32
 
 const (
@@ -2523,7 +2650,7 @@ const (
 	SAMPLER_REDUCTION_MODE_MAX              SamplerReductionMode = 2
 )
 
-// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/PipelineRobustnessBufferBehavior.html
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkPipelineRobustnessBufferBehavior.html
 type PipelineRobustnessBufferBehavior int32
 
 const (
@@ -2533,7 +2660,7 @@ const (
 	PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_ROBUST_BUFFER_ACCESS_2 PipelineRobustnessBufferBehavior = 3
 )
 
-// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/PipelineRobustnessImageBehavior.html
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkPipelineRobustnessImageBehavior.html
 type PipelineRobustnessImageBehavior int32
 
 const (
@@ -2543,7 +2670,7 @@ const (
 	PIPELINE_ROBUSTNESS_IMAGE_BEHAVIOR_ROBUST_IMAGE_ACCESS_2 PipelineRobustnessImageBehavior = 3
 )
 
-// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/QueueGlobalPriority.html
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkQueueGlobalPriority.html
 type QueueGlobalPriority int32
 
 const (
@@ -2553,7 +2680,7 @@ const (
 	QUEUE_GLOBAL_PRIORITY_REALTIME QueueGlobalPriority = 1024
 )
 
-// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/LineRasterizationMode.html
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkLineRasterizationMode.html
 type LineRasterizationMode int32
 
 const (
@@ -2563,7 +2690,60 @@ const (
 	LINE_RASTERIZATION_MODE_RECTANGULAR_SMOOTH LineRasterizationMode = 3
 )
 
-// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/ColorSpaceKHR.html
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkAccelerationStructureTypeKHR.html
+type AccelerationStructureTypeKHR int32
+
+const (
+	ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR    AccelerationStructureTypeKHR = 0
+	ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR AccelerationStructureTypeKHR = 1
+	ACCELERATION_STRUCTURE_TYPE_GENERIC_KHR      AccelerationStructureTypeKHR = 2
+)
+
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkBuildAccelerationStructureModeKHR.html
+type BuildAccelerationStructureModeKHR int32
+
+const (
+	BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR  BuildAccelerationStructureModeKHR = 0
+	BUILD_ACCELERATION_STRUCTURE_MODE_UPDATE_KHR BuildAccelerationStructureModeKHR = 1
+)
+
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkGeometryTypeKHR.html
+type GeometryTypeKHR int32
+
+const (
+	GEOMETRY_TYPE_TRIANGLES_KHR GeometryTypeKHR = 0
+	GEOMETRY_TYPE_AABBS_KHR     GeometryTypeKHR = 1
+	GEOMETRY_TYPE_INSTANCES_KHR GeometryTypeKHR = 2
+)
+
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkAccelerationStructureBuildTypeKHR.html
+type AccelerationStructureBuildTypeKHR int32
+
+const (
+	ACCELERATION_STRUCTURE_BUILD_TYPE_HOST_KHR           AccelerationStructureBuildTypeKHR = 0
+	ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR         AccelerationStructureBuildTypeKHR = 1
+	ACCELERATION_STRUCTURE_BUILD_TYPE_HOST_OR_DEVICE_KHR AccelerationStructureBuildTypeKHR = 2
+)
+
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkCopyAccelerationStructureModeKHR.html
+type CopyAccelerationStructureModeKHR int32
+
+const (
+	COPY_ACCELERATION_STRUCTURE_MODE_CLONE_KHR       CopyAccelerationStructureModeKHR = 0
+	COPY_ACCELERATION_STRUCTURE_MODE_COMPACT_KHR     CopyAccelerationStructureModeKHR = 1
+	COPY_ACCELERATION_STRUCTURE_MODE_SERIALIZE_KHR   CopyAccelerationStructureModeKHR = 2
+	COPY_ACCELERATION_STRUCTURE_MODE_DESERIALIZE_KHR CopyAccelerationStructureModeKHR = 3
+)
+
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkAccelerationStructureCompatibilityKHR.html
+type AccelerationStructureCompatibilityKHR int32
+
+const (
+	ACCELERATION_STRUCTURE_COMPATIBILITY_COMPATIBLE_KHR   AccelerationStructureCompatibilityKHR = 0
+	ACCELERATION_STRUCTURE_COMPATIBILITY_INCOMPATIBLE_KHR AccelerationStructureCompatibilityKHR = 1
+)
+
+// ENUM32: https://docs.vulkan.org/refpages/latest/refpages/source/VkColorSpaceKHR.html
 type ColorSpaceKHR int32
 
 const (
@@ -2579,18 +2759,24 @@ type Extent2D struct {
 	Height uint32
 }
 
+// eg: gostruct := (&vk.Extent2D{}).FromVK(goStruct2.PNext)
+func (s *Extent2D) FromVK(pn unsafe.Pointer) *Extent2D {
+	vks := (*vkExtent2D)(pn)
+	return vks.ToGo()
+}
+
 type vkExtent2D = Extent2D
 
-func (s *vkExtent2D) goStruct() *Extent2D {
-	rval := (*vkExtent2D)(s)
+func (s *vkExtent2D) ToGo() *Extent2D {
+	rval := (*Extent2D)(s)
 	return rval
 }
 
-func (s *Extent2D) vkStruct() *vkExtent2D {
+func (s *Extent2D) ToVK() *vkExtent2D {
 	if s == nil {
 		return nil
 	}
-	rval := (*Extent2D)(s)
+	rval := (*vkExtent2D)(s)
 	return rval
 }
 
@@ -2601,18 +2787,24 @@ type Extent3D struct {
 	Depth  uint32
 }
 
+// eg: gostruct := (&vk.Extent3D{}).FromVK(goStruct2.PNext)
+func (s *Extent3D) FromVK(pn unsafe.Pointer) *Extent3D {
+	vks := (*vkExtent3D)(pn)
+	return vks.ToGo()
+}
+
 type vkExtent3D = Extent3D
 
-func (s *vkExtent3D) goStruct() *Extent3D {
-	rval := (*vkExtent3D)(s)
+func (s *vkExtent3D) ToGo() *Extent3D {
+	rval := (*Extent3D)(s)
 	return rval
 }
 
-func (s *Extent3D) vkStruct() *vkExtent3D {
+func (s *Extent3D) ToVK() *vkExtent3D {
 	if s == nil {
 		return nil
 	}
-	rval := (*Extent3D)(s)
+	rval := (*vkExtent3D)(s)
 	return rval
 }
 
@@ -2622,18 +2814,24 @@ type Offset2D struct {
 	Y int32
 }
 
+// eg: gostruct := (&vk.Offset2D{}).FromVK(goStruct2.PNext)
+func (s *Offset2D) FromVK(pn unsafe.Pointer) *Offset2D {
+	vks := (*vkOffset2D)(pn)
+	return vks.ToGo()
+}
+
 type vkOffset2D = Offset2D
 
-func (s *vkOffset2D) goStruct() *Offset2D {
-	rval := (*vkOffset2D)(s)
+func (s *vkOffset2D) ToGo() *Offset2D {
+	rval := (*Offset2D)(s)
 	return rval
 }
 
-func (s *Offset2D) vkStruct() *vkOffset2D {
+func (s *Offset2D) ToVK() *vkOffset2D {
 	if s == nil {
 		return nil
 	}
-	rval := (*Offset2D)(s)
+	rval := (*vkOffset2D)(s)
 	return rval
 }
 
@@ -2644,18 +2842,24 @@ type Offset3D struct {
 	Z int32
 }
 
+// eg: gostruct := (&vk.Offset3D{}).FromVK(goStruct2.PNext)
+func (s *Offset3D) FromVK(pn unsafe.Pointer) *Offset3D {
+	vks := (*vkOffset3D)(pn)
+	return vks.ToGo()
+}
+
 type vkOffset3D = Offset3D
 
-func (s *vkOffset3D) goStruct() *Offset3D {
-	rval := (*vkOffset3D)(s)
+func (s *vkOffset3D) ToGo() *Offset3D {
+	rval := (*Offset3D)(s)
 	return rval
 }
 
-func (s *Offset3D) vkStruct() *vkOffset3D {
+func (s *Offset3D) ToVK() *vkOffset3D {
 	if s == nil {
 		return nil
 	}
-	rval := (*Offset3D)(s)
+	rval := (*vkOffset3D)(s)
 	return rval
 }
 
@@ -2665,18 +2869,24 @@ type Rect2D struct {
 	Extent Extent2D
 }
 
+// eg: gostruct := (&vk.Rect2D{}).FromVK(goStruct2.PNext)
+func (s *Rect2D) FromVK(pn unsafe.Pointer) *Rect2D {
+	vks := (*vkRect2D)(pn)
+	return vks.ToGo()
+}
+
 type vkRect2D = Rect2D
 
-func (s *vkRect2D) goStruct() *Rect2D {
-	rval := (*vkRect2D)(s)
+func (s *vkRect2D) ToGo() *Rect2D {
+	rval := (*Rect2D)(s)
 	return rval
 }
 
-func (s *Rect2D) vkStruct() *vkRect2D {
+func (s *Rect2D) ToVK() *vkRect2D {
 	if s == nil {
 		return nil
 	}
-	rval := (*Rect2D)(s)
+	rval := (*vkRect2D)(s)
 	return rval
 }
 
@@ -2685,19 +2895,25 @@ type BaseInStructure struct {
 	PNext unsafe.Pointer
 }
 
+// eg: gostruct := (&vk.BaseInStructure{}).FromVK(goStruct2.PNext)
+func (s *BaseInStructure) FromVK(pn unsafe.Pointer) *BaseInStructure {
+	vks := (*vkBaseInStructure)(pn)
+	return vks.ToGo()
+}
+
 type vkBaseInStructure struct {
 	sType StructureType
 	pNext unsafe.Pointer
 }
 
-func (s *vkBaseInStructure) goStruct() *BaseInStructure {
+func (s *vkBaseInStructure) ToGo() *BaseInStructure {
 	rval := &BaseInStructure{
 		PNext: (unsafe.Pointer)(s.pNext),
 	}
 	return rval
 }
 
-func (s *BaseInStructure) vkStruct() *vkBaseInStructure {
+func (s *BaseInStructure) ToVK() *vkBaseInStructure {
 	if s == nil {
 		return nil
 	}
@@ -2712,19 +2928,25 @@ type BaseOutStructure struct {
 	PNext unsafe.Pointer
 }
 
+// eg: gostruct := (&vk.BaseOutStructure{}).FromVK(goStruct2.PNext)
+func (s *BaseOutStructure) FromVK(pn unsafe.Pointer) *BaseOutStructure {
+	vks := (*vkBaseOutStructure)(pn)
+	return vks.ToGo()
+}
+
 type vkBaseOutStructure struct {
 	sType StructureType
 	pNext unsafe.Pointer
 }
 
-func (s *vkBaseOutStructure) goStruct() *BaseOutStructure {
+func (s *vkBaseOutStructure) ToGo() *BaseOutStructure {
 	rval := &BaseOutStructure{
 		PNext: (unsafe.Pointer)(s.pNext),
 	}
 	return rval
 }
 
-func (s *BaseOutStructure) vkStruct() *vkBaseOutStructure {
+func (s *BaseOutStructure) ToVK() *vkBaseOutStructure {
 	if s == nil {
 		return nil
 	}
@@ -2744,18 +2966,24 @@ type AllocationCallbacks struct {
 	PfnInternalFree       PFN_vkInternalFreeNotification
 }
 
+// eg: gostruct := (&vk.AllocationCallbacks{}).FromVK(goStruct2.PNext)
+func (s *AllocationCallbacks) FromVK(pn unsafe.Pointer) *AllocationCallbacks {
+	vks := (*vkAllocationCallbacks)(pn)
+	return vks.ToGo()
+}
+
 type vkAllocationCallbacks = AllocationCallbacks
 
-func (s *vkAllocationCallbacks) goStruct() *AllocationCallbacks {
-	rval := (*vkAllocationCallbacks)(s)
+func (s *vkAllocationCallbacks) ToGo() *AllocationCallbacks {
+	rval := (*AllocationCallbacks)(s)
 	return rval
 }
 
-func (s *AllocationCallbacks) vkStruct() *vkAllocationCallbacks {
+func (s *AllocationCallbacks) ToVK() *vkAllocationCallbacks {
 	if s == nil {
 		return nil
 	}
-	rval := (*AllocationCallbacks)(s)
+	rval := (*vkAllocationCallbacks)(s)
 	return rval
 }
 
@@ -2769,6 +2997,12 @@ type ApplicationInfo struct {
 	ApiVersion         uint32
 }
 
+// eg: gostruct := (&vk.ApplicationInfo{}).FromVK(goStruct2.PNext)
+func (s *ApplicationInfo) FromVK(pn unsafe.Pointer) *ApplicationInfo {
+	vks := (*vkApplicationInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkApplicationInfo struct {
 	sType              StructureType
 	pNext              unsafe.Pointer
@@ -2779,7 +3013,7 @@ type vkApplicationInfo struct {
 	apiVersion         uint32
 }
 
-func (s *vkApplicationInfo) goStruct() *ApplicationInfo {
+func (s *vkApplicationInfo) ToGo() *ApplicationInfo {
 	rval := &ApplicationInfo{
 		PNext: (unsafe.Pointer)(s.pNext),
 		// ignoring returned pointer type PApplicationName
@@ -2791,7 +3025,7 @@ func (s *vkApplicationInfo) goStruct() *ApplicationInfo {
 	return rval
 }
 
-func (s *ApplicationInfo) vkStruct() *vkApplicationInfo {
+func (s *ApplicationInfo) ToVK() *vkApplicationInfo {
 	if s == nil {
 		return nil
 	}
@@ -2814,18 +3048,24 @@ type FormatProperties struct {
 	BufferFeatures        FormatFeatureFlags
 }
 
+// eg: gostruct := (&vk.FormatProperties{}).FromVK(goStruct2.PNext)
+func (s *FormatProperties) FromVK(pn unsafe.Pointer) *FormatProperties {
+	vks := (*vkFormatProperties)(pn)
+	return vks.ToGo()
+}
+
 type vkFormatProperties = FormatProperties
 
-func (s *vkFormatProperties) goStruct() *FormatProperties {
-	rval := (*vkFormatProperties)(s)
+func (s *vkFormatProperties) ToGo() *FormatProperties {
+	rval := (*FormatProperties)(s)
 	return rval
 }
 
-func (s *FormatProperties) vkStruct() *vkFormatProperties {
+func (s *FormatProperties) ToVK() *vkFormatProperties {
 	if s == nil {
 		return nil
 	}
-	rval := (*FormatProperties)(s)
+	rval := (*vkFormatProperties)(s)
 	return rval
 }
 
@@ -2838,18 +3078,24 @@ type ImageFormatProperties struct {
 	MaxResourceSize DeviceSize
 }
 
+// eg: gostruct := (&vk.ImageFormatProperties{}).FromVK(goStruct2.PNext)
+func (s *ImageFormatProperties) FromVK(pn unsafe.Pointer) *ImageFormatProperties {
+	vks := (*vkImageFormatProperties)(pn)
+	return vks.ToGo()
+}
+
 type vkImageFormatProperties = ImageFormatProperties
 
-func (s *vkImageFormatProperties) goStruct() *ImageFormatProperties {
-	rval := (*vkImageFormatProperties)(s)
+func (s *vkImageFormatProperties) ToGo() *ImageFormatProperties {
+	rval := (*ImageFormatProperties)(s)
 	return rval
 }
 
-func (s *ImageFormatProperties) vkStruct() *vkImageFormatProperties {
+func (s *ImageFormatProperties) ToVK() *vkImageFormatProperties {
 	if s == nil {
 		return nil
 	}
-	rval := (*ImageFormatProperties)(s)
+	rval := (*vkImageFormatProperties)(s)
 	return rval
 }
 
@@ -2860,6 +3106,12 @@ type InstanceCreateInfo struct {
 	PApplicationInfo        *ApplicationInfo
 	PpEnabledLayerNames     []string
 	PpEnabledExtensionNames []string
+}
+
+// eg: gostruct := (&vk.InstanceCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *InstanceCreateInfo) FromVK(pn unsafe.Pointer) *InstanceCreateInfo {
+	vks := (*vkInstanceCreateInfo)(pn)
+	return vks.ToGo()
 }
 
 type vkInstanceCreateInfo struct {
@@ -2873,7 +3125,7 @@ type vkInstanceCreateInfo struct {
 	ppEnabledExtensionNames **byte
 }
 
-func (s *vkInstanceCreateInfo) goStruct() *InstanceCreateInfo {
+func (s *vkInstanceCreateInfo) ToGo() *InstanceCreateInfo {
 	rval := &InstanceCreateInfo{
 		PNext: (unsafe.Pointer)(s.pNext),
 		Flags: (InstanceCreateFlags)(s.flags),
@@ -2884,7 +3136,7 @@ func (s *vkInstanceCreateInfo) goStruct() *InstanceCreateInfo {
 	return rval
 }
 
-func (s *InstanceCreateInfo) vkStruct() *vkInstanceCreateInfo {
+func (s *InstanceCreateInfo) ToVK() *vkInstanceCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -2908,7 +3160,7 @@ func (s *InstanceCreateInfo) vkStruct() *vkInstanceCreateInfo {
 		sType:                   STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
 		pNext:                   (unsafe.Pointer)(s.PNext),
 		flags:                   (InstanceCreateFlags)(s.Flags),
-		pApplicationInfo:        (s.PApplicationInfo.vkStruct()),
+		pApplicationInfo:        (s.PApplicationInfo.ToVK()),
 		enabledLayerCount:       uint32(len(s.PpEnabledLayerNames)),
 		ppEnabledLayerNames:     sp_PpEnabledLayerNames,
 		enabledExtensionCount:   uint32(len(s.PpEnabledExtensionNames)),
@@ -2923,18 +3175,24 @@ type MemoryHeap struct {
 	Flags MemoryHeapFlags
 }
 
+// eg: gostruct := (&vk.MemoryHeap{}).FromVK(goStruct2.PNext)
+func (s *MemoryHeap) FromVK(pn unsafe.Pointer) *MemoryHeap {
+	vks := (*vkMemoryHeap)(pn)
+	return vks.ToGo()
+}
+
 type vkMemoryHeap = MemoryHeap
 
-func (s *vkMemoryHeap) goStruct() *MemoryHeap {
-	rval := (*vkMemoryHeap)(s)
+func (s *vkMemoryHeap) ToGo() *MemoryHeap {
+	rval := (*MemoryHeap)(s)
 	return rval
 }
 
-func (s *MemoryHeap) vkStruct() *vkMemoryHeap {
+func (s *MemoryHeap) ToVK() *vkMemoryHeap {
 	if s == nil {
 		return nil
 	}
-	rval := (*MemoryHeap)(s)
+	rval := (*vkMemoryHeap)(s)
 	return rval
 }
 
@@ -2944,18 +3202,24 @@ type MemoryType struct {
 	HeapIndex     uint32
 }
 
+// eg: gostruct := (&vk.MemoryType{}).FromVK(goStruct2.PNext)
+func (s *MemoryType) FromVK(pn unsafe.Pointer) *MemoryType {
+	vks := (*vkMemoryType)(pn)
+	return vks.ToGo()
+}
+
 type vkMemoryType = MemoryType
 
-func (s *vkMemoryType) goStruct() *MemoryType {
-	rval := (*vkMemoryType)(s)
+func (s *vkMemoryType) ToGo() *MemoryType {
+	rval := (*MemoryType)(s)
 	return rval
 }
 
-func (s *MemoryType) vkStruct() *vkMemoryType {
+func (s *MemoryType) ToVK() *vkMemoryType {
 	if s == nil {
 		return nil
 	}
-	rval := (*MemoryType)(s)
+	rval := (*vkMemoryType)(s)
 	return rval
 }
 
@@ -3018,6 +3282,12 @@ type PhysicalDeviceFeatures struct {
 	InheritedQueries                        bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceFeatures{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceFeatures) FromVK(pn unsafe.Pointer) *PhysicalDeviceFeatures {
+	vks := (*vkPhysicalDeviceFeatures)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceFeatures struct {
 	robustBufferAccess                      Bool32
 	fullDrawIndexUint32                     Bool32
@@ -3076,7 +3346,7 @@ type vkPhysicalDeviceFeatures struct {
 	inheritedQueries                        Bool32
 }
 
-func (s *vkPhysicalDeviceFeatures) goStruct() *PhysicalDeviceFeatures {
+func (s *vkPhysicalDeviceFeatures) ToGo() *PhysicalDeviceFeatures {
 	rval := &PhysicalDeviceFeatures{
 		RobustBufferAccess:                      goBool32(s.robustBufferAccess),
 		FullDrawIndexUint32:                     goBool32(s.fullDrawIndexUint32),
@@ -3137,7 +3407,7 @@ func (s *vkPhysicalDeviceFeatures) goStruct() *PhysicalDeviceFeatures {
 	return rval
 }
 
-func (s *PhysicalDeviceFeatures) vkStruct() *vkPhysicalDeviceFeatures {
+func (s *PhysicalDeviceFeatures) ToVK() *vkPhysicalDeviceFeatures {
 	if s == nil {
 		return nil
 	}
@@ -3311,6 +3581,12 @@ type PhysicalDeviceLimits struct {
 	NonCoherentAtomSize                             DeviceSize
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceLimits{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceLimits) FromVK(pn unsafe.Pointer) *PhysicalDeviceLimits {
+	vks := (*vkPhysicalDeviceLimits)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceLimits struct {
 	maxImageDimension1D                             uint32
 	maxImageDimension2D                             uint32
@@ -3420,7 +3696,7 @@ type vkPhysicalDeviceLimits struct {
 	nonCoherentAtomSize                             DeviceSize
 }
 
-func (s *vkPhysicalDeviceLimits) goStruct() *PhysicalDeviceLimits {
+func (s *vkPhysicalDeviceLimits) ToGo() *PhysicalDeviceLimits {
 	rval := &PhysicalDeviceLimits{
 		MaxImageDimension1D:                             (uint32)(s.maxImageDimension1D),
 		MaxImageDimension2D:                             (uint32)(s.maxImageDimension2D),
@@ -3532,7 +3808,7 @@ func (s *vkPhysicalDeviceLimits) goStruct() *PhysicalDeviceLimits {
 	return rval
 }
 
-func (s *PhysicalDeviceLimits) vkStruct() *vkPhysicalDeviceLimits {
+func (s *PhysicalDeviceLimits) ToVK() *vkPhysicalDeviceLimits {
 	if s == nil {
 		return nil
 	}
@@ -3655,18 +3931,24 @@ type PhysicalDeviceMemoryProperties struct {
 	MemoryHeaps     [MAX_MEMORY_HEAPS]MemoryHeap
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceMemoryProperties{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceMemoryProperties) FromVK(pn unsafe.Pointer) *PhysicalDeviceMemoryProperties {
+	vks := (*vkPhysicalDeviceMemoryProperties)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceMemoryProperties = PhysicalDeviceMemoryProperties
 
-func (s *vkPhysicalDeviceMemoryProperties) goStruct() *PhysicalDeviceMemoryProperties {
-	rval := (*vkPhysicalDeviceMemoryProperties)(s)
+func (s *vkPhysicalDeviceMemoryProperties) ToGo() *PhysicalDeviceMemoryProperties {
+	rval := (*PhysicalDeviceMemoryProperties)(s)
 	return rval
 }
 
-func (s *PhysicalDeviceMemoryProperties) vkStruct() *vkPhysicalDeviceMemoryProperties {
+func (s *PhysicalDeviceMemoryProperties) ToVK() *vkPhysicalDeviceMemoryProperties {
 	if s == nil {
 		return nil
 	}
-	rval := (*PhysicalDeviceMemoryProperties)(s)
+	rval := (*vkPhysicalDeviceMemoryProperties)(s)
 	return rval
 }
 
@@ -3679,6 +3961,12 @@ type PhysicalDeviceSparseProperties struct {
 	ResidencyNonResidentStrict               bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceSparseProperties{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceSparseProperties) FromVK(pn unsafe.Pointer) *PhysicalDeviceSparseProperties {
+	vks := (*vkPhysicalDeviceSparseProperties)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceSparseProperties struct {
 	residencyStandard2DBlockShape            Bool32
 	residencyStandard2DMultisampleBlockShape Bool32
@@ -3687,7 +3975,7 @@ type vkPhysicalDeviceSparseProperties struct {
 	residencyNonResidentStrict               Bool32
 }
 
-func (s *vkPhysicalDeviceSparseProperties) goStruct() *PhysicalDeviceSparseProperties {
+func (s *vkPhysicalDeviceSparseProperties) ToGo() *PhysicalDeviceSparseProperties {
 	rval := &PhysicalDeviceSparseProperties{
 		ResidencyStandard2DBlockShape:            goBool32(s.residencyStandard2DBlockShape),
 		ResidencyStandard2DMultisampleBlockShape: goBool32(s.residencyStandard2DMultisampleBlockShape),
@@ -3698,7 +3986,7 @@ func (s *vkPhysicalDeviceSparseProperties) goStruct() *PhysicalDeviceSparsePrope
 	return rval
 }
 
-func (s *PhysicalDeviceSparseProperties) vkStruct() *vkPhysicalDeviceSparseProperties {
+func (s *PhysicalDeviceSparseProperties) ToVK() *vkPhysicalDeviceSparseProperties {
 	if s == nil {
 		return nil
 	}
@@ -3725,6 +4013,12 @@ type PhysicalDeviceProperties struct {
 	SparseProperties  PhysicalDeviceSparseProperties
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceProperties{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceProperties) FromVK(pn unsafe.Pointer) *PhysicalDeviceProperties {
+	vks := (*vkPhysicalDeviceProperties)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceProperties struct {
 	apiVersion        uint32
 	driverVersion     uint32
@@ -3737,7 +4031,7 @@ type vkPhysicalDeviceProperties struct {
 	sparseProperties  vkPhysicalDeviceSparseProperties
 }
 
-func (s *vkPhysicalDeviceProperties) goStruct() *PhysicalDeviceProperties {
+func (s *vkPhysicalDeviceProperties) ToGo() *PhysicalDeviceProperties {
 	rval := &PhysicalDeviceProperties{
 		ApiVersion:        (uint32)(s.apiVersion),
 		DriverVersion:     (uint32)(s.driverVersion),
@@ -3746,13 +4040,13 @@ func (s *vkPhysicalDeviceProperties) goStruct() *PhysicalDeviceProperties {
 		DeviceType:        (PhysicalDeviceType)(s.deviceType),
 		DeviceName:        nullTermBytesToString(s.deviceName[:]),
 		PipelineCacheUUID: ([UUID_SIZE]uint8)(s.pipelineCacheUUID),
-		Limits:            *(s.limits.goStruct()),
-		SparseProperties:  *(s.sparseProperties.goStruct()),
+		Limits:            *(s.limits.ToGo()),
+		SparseProperties:  *(s.sparseProperties.ToGo()),
 	}
 	return rval
 }
 
-func (s *PhysicalDeviceProperties) vkStruct() *vkPhysicalDeviceProperties {
+func (s *PhysicalDeviceProperties) ToVK() *vkPhysicalDeviceProperties {
 	if s == nil {
 		return nil
 	}
@@ -3764,8 +4058,8 @@ func (s *PhysicalDeviceProperties) vkStruct() *vkPhysicalDeviceProperties {
 		deviceType:    (PhysicalDeviceType)(s.DeviceType),
 		// deviceName: fixed string array not handled
 		pipelineCacheUUID: ([UUID_SIZE]uint8)(s.PipelineCacheUUID),
-		limits:            *(s.Limits.vkStruct()),
-		sparseProperties:  *(s.SparseProperties.vkStruct()),
+		limits:            *(s.Limits.ToVK()),
+		sparseProperties:  *(s.SparseProperties.ToVK()),
 	}
 	return rval
 }
@@ -3778,18 +4072,24 @@ type QueueFamilyProperties struct {
 	MinImageTransferGranularity Extent3D
 }
 
+// eg: gostruct := (&vk.QueueFamilyProperties{}).FromVK(goStruct2.PNext)
+func (s *QueueFamilyProperties) FromVK(pn unsafe.Pointer) *QueueFamilyProperties {
+	vks := (*vkQueueFamilyProperties)(pn)
+	return vks.ToGo()
+}
+
 type vkQueueFamilyProperties = QueueFamilyProperties
 
-func (s *vkQueueFamilyProperties) goStruct() *QueueFamilyProperties {
-	rval := (*vkQueueFamilyProperties)(s)
+func (s *vkQueueFamilyProperties) ToGo() *QueueFamilyProperties {
+	rval := (*QueueFamilyProperties)(s)
 	return rval
 }
 
-func (s *QueueFamilyProperties) vkStruct() *vkQueueFamilyProperties {
+func (s *QueueFamilyProperties) ToVK() *vkQueueFamilyProperties {
 	if s == nil {
 		return nil
 	}
-	rval := (*QueueFamilyProperties)(s)
+	rval := (*vkQueueFamilyProperties)(s)
 	return rval
 }
 
@@ -3801,6 +4101,12 @@ type DeviceQueueCreateInfo struct {
 	PQueuePriorities []float32
 }
 
+// eg: gostruct := (&vk.DeviceQueueCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *DeviceQueueCreateInfo) FromVK(pn unsafe.Pointer) *DeviceQueueCreateInfo {
+	vks := (*vkDeviceQueueCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkDeviceQueueCreateInfo struct {
 	sType            StructureType
 	pNext            unsafe.Pointer
@@ -3810,7 +4116,7 @@ type vkDeviceQueueCreateInfo struct {
 	pQueuePriorities *float32
 }
 
-func (s *vkDeviceQueueCreateInfo) goStruct() *DeviceQueueCreateInfo {
+func (s *vkDeviceQueueCreateInfo) ToGo() *DeviceQueueCreateInfo {
 	rval := &DeviceQueueCreateInfo{
 		PNext:            (unsafe.Pointer)(s.pNext),
 		Flags:            (DeviceQueueCreateFlags)(s.flags),
@@ -3820,7 +4126,7 @@ func (s *vkDeviceQueueCreateInfo) goStruct() *DeviceQueueCreateInfo {
 	return rval
 }
 
-func (s *DeviceQueueCreateInfo) vkStruct() *vkDeviceQueueCreateInfo {
+func (s *DeviceQueueCreateInfo) ToVK() *vkDeviceQueueCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -3849,6 +4155,12 @@ type DeviceCreateInfo struct {
 	PEnabledFeatures        *PhysicalDeviceFeatures
 }
 
+// eg: gostruct := (&vk.DeviceCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *DeviceCreateInfo) FromVK(pn unsafe.Pointer) *DeviceCreateInfo {
+	vks := (*vkDeviceCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkDeviceCreateInfo struct {
 	sType                   StructureType
 	pNext                   unsafe.Pointer
@@ -3862,7 +4174,7 @@ type vkDeviceCreateInfo struct {
 	pEnabledFeatures        *vkPhysicalDeviceFeatures
 }
 
-func (s *vkDeviceCreateInfo) goStruct() *DeviceCreateInfo {
+func (s *vkDeviceCreateInfo) ToGo() *DeviceCreateInfo {
 	rval := &DeviceCreateInfo{
 		PNext: (unsafe.Pointer)(s.pNext),
 		Flags: (DeviceCreateFlags)(s.flags),
@@ -3874,7 +4186,7 @@ func (s *vkDeviceCreateInfo) goStruct() *DeviceCreateInfo {
 	return rval
 }
 
-func (s *DeviceCreateInfo) vkStruct() *vkDeviceCreateInfo {
+func (s *DeviceCreateInfo) ToVK() *vkDeviceCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -3882,7 +4194,7 @@ func (s *DeviceCreateInfo) vkStruct() *vkDeviceCreateInfo {
 	if len(s.PQueueCreateInfos) > 0 {
 		tmp := make([]vkDeviceQueueCreateInfo, len(s.PQueueCreateInfos))
 		for i, v := range s.PQueueCreateInfos {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		sp_PQueueCreateInfos = &tmp[0]
 	}
@@ -3912,7 +4224,7 @@ func (s *DeviceCreateInfo) vkStruct() *vkDeviceCreateInfo {
 		ppEnabledLayerNames:     sp_PpEnabledLayerNames,
 		enabledExtensionCount:   uint32(len(s.PpEnabledExtensionNames)),
 		ppEnabledExtensionNames: sp_PpEnabledExtensionNames,
-		pEnabledFeatures:        (s.PEnabledFeatures.vkStruct()),
+		pEnabledFeatures:        (s.PEnabledFeatures.ToVK()),
 	}
 	return rval
 }
@@ -3923,12 +4235,18 @@ type ExtensionProperties struct {
 	SpecVersion   uint32
 }
 
+// eg: gostruct := (&vk.ExtensionProperties{}).FromVK(goStruct2.PNext)
+func (s *ExtensionProperties) FromVK(pn unsafe.Pointer) *ExtensionProperties {
+	vks := (*vkExtensionProperties)(pn)
+	return vks.ToGo()
+}
+
 type vkExtensionProperties struct {
 	extensionName [MAX_EXTENSION_NAME_SIZE]byte
 	specVersion   uint32
 }
 
-func (s *vkExtensionProperties) goStruct() *ExtensionProperties {
+func (s *vkExtensionProperties) ToGo() *ExtensionProperties {
 	rval := &ExtensionProperties{
 		ExtensionName: nullTermBytesToString(s.extensionName[:]),
 		SpecVersion:   (uint32)(s.specVersion),
@@ -3936,7 +4254,7 @@ func (s *vkExtensionProperties) goStruct() *ExtensionProperties {
 	return rval
 }
 
-func (s *ExtensionProperties) vkStruct() *vkExtensionProperties {
+func (s *ExtensionProperties) ToVK() *vkExtensionProperties {
 	if s == nil {
 		return nil
 	}
@@ -3955,6 +4273,12 @@ type LayerProperties struct {
 	Description           string
 }
 
+// eg: gostruct := (&vk.LayerProperties{}).FromVK(goStruct2.PNext)
+func (s *LayerProperties) FromVK(pn unsafe.Pointer) *LayerProperties {
+	vks := (*vkLayerProperties)(pn)
+	return vks.ToGo()
+}
+
 type vkLayerProperties struct {
 	layerName             [MAX_EXTENSION_NAME_SIZE]byte
 	specVersion           uint32
@@ -3962,7 +4286,7 @@ type vkLayerProperties struct {
 	description           [MAX_DESCRIPTION_SIZE]byte
 }
 
-func (s *vkLayerProperties) goStruct() *LayerProperties {
+func (s *vkLayerProperties) ToGo() *LayerProperties {
 	rval := &LayerProperties{
 		LayerName:             nullTermBytesToString(s.layerName[:]),
 		SpecVersion:           (uint32)(s.specVersion),
@@ -3972,7 +4296,7 @@ func (s *vkLayerProperties) goStruct() *LayerProperties {
 	return rval
 }
 
-func (s *LayerProperties) vkStruct() *vkLayerProperties {
+func (s *LayerProperties) ToVK() *vkLayerProperties {
 	if s == nil {
 		return nil
 	}
@@ -3994,6 +4318,12 @@ type SubmitInfo struct {
 	PSignalSemaphores []Semaphore
 }
 
+// eg: gostruct := (&vk.SubmitInfo{}).FromVK(goStruct2.PNext)
+func (s *SubmitInfo) FromVK(pn unsafe.Pointer) *SubmitInfo {
+	vks := (*vkSubmitInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkSubmitInfo struct {
 	sType                StructureType
 	pNext                unsafe.Pointer
@@ -4006,7 +4336,7 @@ type vkSubmitInfo struct {
 	pSignalSemaphores    *Semaphore
 }
 
-func (s *vkSubmitInfo) goStruct() *SubmitInfo {
+func (s *vkSubmitInfo) ToGo() *SubmitInfo {
 	rval := &SubmitInfo{
 		PNext: (unsafe.Pointer)(s.pNext),
 		// ignoring returned pointer type PWaitSemaphores
@@ -4017,7 +4347,7 @@ func (s *vkSubmitInfo) goStruct() *SubmitInfo {
 	return rval
 }
 
-func (s *SubmitInfo) vkStruct() *vkSubmitInfo {
+func (s *SubmitInfo) ToVK() *vkSubmitInfo {
 	if s == nil {
 		return nil
 	}
@@ -4065,6 +4395,12 @@ type MappedMemoryRange struct {
 	Size   DeviceSize
 }
 
+// eg: gostruct := (&vk.MappedMemoryRange{}).FromVK(goStruct2.PNext)
+func (s *MappedMemoryRange) FromVK(pn unsafe.Pointer) *MappedMemoryRange {
+	vks := (*vkMappedMemoryRange)(pn)
+	return vks.ToGo()
+}
+
 type vkMappedMemoryRange struct {
 	sType  StructureType
 	pNext  unsafe.Pointer
@@ -4073,7 +4409,7 @@ type vkMappedMemoryRange struct {
 	size   DeviceSize
 }
 
-func (s *vkMappedMemoryRange) goStruct() *MappedMemoryRange {
+func (s *vkMappedMemoryRange) ToGo() *MappedMemoryRange {
 	rval := &MappedMemoryRange{
 		PNext:  (unsafe.Pointer)(s.pNext),
 		Memory: (DeviceMemory)(s.memory),
@@ -4083,7 +4419,7 @@ func (s *vkMappedMemoryRange) goStruct() *MappedMemoryRange {
 	return rval
 }
 
-func (s *MappedMemoryRange) vkStruct() *vkMappedMemoryRange {
+func (s *MappedMemoryRange) ToVK() *vkMappedMemoryRange {
 	if s == nil {
 		return nil
 	}
@@ -4104,6 +4440,12 @@ type MemoryAllocateInfo struct {
 	MemoryTypeIndex uint32
 }
 
+// eg: gostruct := (&vk.MemoryAllocateInfo{}).FromVK(goStruct2.PNext)
+func (s *MemoryAllocateInfo) FromVK(pn unsafe.Pointer) *MemoryAllocateInfo {
+	vks := (*vkMemoryAllocateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkMemoryAllocateInfo struct {
 	sType           StructureType
 	pNext           unsafe.Pointer
@@ -4111,7 +4453,7 @@ type vkMemoryAllocateInfo struct {
 	memoryTypeIndex uint32
 }
 
-func (s *vkMemoryAllocateInfo) goStruct() *MemoryAllocateInfo {
+func (s *vkMemoryAllocateInfo) ToGo() *MemoryAllocateInfo {
 	rval := &MemoryAllocateInfo{
 		PNext:           (unsafe.Pointer)(s.pNext),
 		AllocationSize:  (DeviceSize)(s.allocationSize),
@@ -4120,7 +4462,7 @@ func (s *vkMemoryAllocateInfo) goStruct() *MemoryAllocateInfo {
 	return rval
 }
 
-func (s *MemoryAllocateInfo) vkStruct() *vkMemoryAllocateInfo {
+func (s *MemoryAllocateInfo) ToVK() *vkMemoryAllocateInfo {
 	if s == nil {
 		return nil
 	}
@@ -4140,18 +4482,24 @@ type MemoryRequirements struct {
 	MemoryTypeBits uint32
 }
 
+// eg: gostruct := (&vk.MemoryRequirements{}).FromVK(goStruct2.PNext)
+func (s *MemoryRequirements) FromVK(pn unsafe.Pointer) *MemoryRequirements {
+	vks := (*vkMemoryRequirements)(pn)
+	return vks.ToGo()
+}
+
 type vkMemoryRequirements = MemoryRequirements
 
-func (s *vkMemoryRequirements) goStruct() *MemoryRequirements {
-	rval := (*vkMemoryRequirements)(s)
+func (s *vkMemoryRequirements) ToGo() *MemoryRequirements {
+	rval := (*MemoryRequirements)(s)
 	return rval
 }
 
-func (s *MemoryRequirements) vkStruct() *vkMemoryRequirements {
+func (s *MemoryRequirements) ToVK() *vkMemoryRequirements {
 	if s == nil {
 		return nil
 	}
-	rval := (*MemoryRequirements)(s)
+	rval := (*vkMemoryRequirements)(s)
 	return rval
 }
 
@@ -4162,18 +4510,24 @@ type ImageSubresource struct {
 	ArrayLayer uint32
 }
 
+// eg: gostruct := (&vk.ImageSubresource{}).FromVK(goStruct2.PNext)
+func (s *ImageSubresource) FromVK(pn unsafe.Pointer) *ImageSubresource {
+	vks := (*vkImageSubresource)(pn)
+	return vks.ToGo()
+}
+
 type vkImageSubresource = ImageSubresource
 
-func (s *vkImageSubresource) goStruct() *ImageSubresource {
-	rval := (*vkImageSubresource)(s)
+func (s *vkImageSubresource) ToGo() *ImageSubresource {
+	rval := (*ImageSubresource)(s)
 	return rval
 }
 
-func (s *ImageSubresource) vkStruct() *vkImageSubresource {
+func (s *ImageSubresource) ToVK() *vkImageSubresource {
 	if s == nil {
 		return nil
 	}
-	rval := (*ImageSubresource)(s)
+	rval := (*vkImageSubresource)(s)
 	return rval
 }
 
@@ -4184,18 +4538,24 @@ type SparseImageFormatProperties struct {
 	Flags            SparseImageFormatFlags
 }
 
+// eg: gostruct := (&vk.SparseImageFormatProperties{}).FromVK(goStruct2.PNext)
+func (s *SparseImageFormatProperties) FromVK(pn unsafe.Pointer) *SparseImageFormatProperties {
+	vks := (*vkSparseImageFormatProperties)(pn)
+	return vks.ToGo()
+}
+
 type vkSparseImageFormatProperties = SparseImageFormatProperties
 
-func (s *vkSparseImageFormatProperties) goStruct() *SparseImageFormatProperties {
-	rval := (*vkSparseImageFormatProperties)(s)
+func (s *vkSparseImageFormatProperties) ToGo() *SparseImageFormatProperties {
+	rval := (*SparseImageFormatProperties)(s)
 	return rval
 }
 
-func (s *SparseImageFormatProperties) vkStruct() *vkSparseImageFormatProperties {
+func (s *SparseImageFormatProperties) ToVK() *vkSparseImageFormatProperties {
 	if s == nil {
 		return nil
 	}
-	rval := (*SparseImageFormatProperties)(s)
+	rval := (*vkSparseImageFormatProperties)(s)
 	return rval
 }
 
@@ -4209,18 +4569,24 @@ type SparseImageMemoryBind struct {
 	Flags        SparseMemoryBindFlags
 }
 
+// eg: gostruct := (&vk.SparseImageMemoryBind{}).FromVK(goStruct2.PNext)
+func (s *SparseImageMemoryBind) FromVK(pn unsafe.Pointer) *SparseImageMemoryBind {
+	vks := (*vkSparseImageMemoryBind)(pn)
+	return vks.ToGo()
+}
+
 type vkSparseImageMemoryBind = SparseImageMemoryBind
 
-func (s *vkSparseImageMemoryBind) goStruct() *SparseImageMemoryBind {
-	rval := (*vkSparseImageMemoryBind)(s)
+func (s *vkSparseImageMemoryBind) ToGo() *SparseImageMemoryBind {
+	rval := (*SparseImageMemoryBind)(s)
 	return rval
 }
 
-func (s *SparseImageMemoryBind) vkStruct() *vkSparseImageMemoryBind {
+func (s *SparseImageMemoryBind) ToVK() *vkSparseImageMemoryBind {
 	if s == nil {
 		return nil
 	}
-	rval := (*SparseImageMemoryBind)(s)
+	rval := (*vkSparseImageMemoryBind)(s)
 	return rval
 }
 
@@ -4230,13 +4596,19 @@ type SparseImageMemoryBindInfo struct {
 	PBinds []SparseImageMemoryBind
 }
 
+// eg: gostruct := (&vk.SparseImageMemoryBindInfo{}).FromVK(goStruct2.PNext)
+func (s *SparseImageMemoryBindInfo) FromVK(pn unsafe.Pointer) *SparseImageMemoryBindInfo {
+	vks := (*vkSparseImageMemoryBindInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkSparseImageMemoryBindInfo struct {
 	image     Image
 	bindCount uint32
 	pBinds    *vkSparseImageMemoryBind
 }
 
-func (s *vkSparseImageMemoryBindInfo) goStruct() *SparseImageMemoryBindInfo {
+func (s *vkSparseImageMemoryBindInfo) ToGo() *SparseImageMemoryBindInfo {
 	rval := &SparseImageMemoryBindInfo{
 		Image: (Image)(s.image),
 		// ignoring returned pointer type PBinds
@@ -4244,7 +4616,7 @@ func (s *vkSparseImageMemoryBindInfo) goStruct() *SparseImageMemoryBindInfo {
 	return rval
 }
 
-func (s *SparseImageMemoryBindInfo) vkStruct() *vkSparseImageMemoryBindInfo {
+func (s *SparseImageMemoryBindInfo) ToVK() *vkSparseImageMemoryBindInfo {
 	if s == nil {
 		return nil
 	}
@@ -4269,18 +4641,24 @@ type SparseImageMemoryRequirements struct {
 	ImageMipTailStride   DeviceSize
 }
 
+// eg: gostruct := (&vk.SparseImageMemoryRequirements{}).FromVK(goStruct2.PNext)
+func (s *SparseImageMemoryRequirements) FromVK(pn unsafe.Pointer) *SparseImageMemoryRequirements {
+	vks := (*vkSparseImageMemoryRequirements)(pn)
+	return vks.ToGo()
+}
+
 type vkSparseImageMemoryRequirements = SparseImageMemoryRequirements
 
-func (s *vkSparseImageMemoryRequirements) goStruct() *SparseImageMemoryRequirements {
-	rval := (*vkSparseImageMemoryRequirements)(s)
+func (s *vkSparseImageMemoryRequirements) ToGo() *SparseImageMemoryRequirements {
+	rval := (*SparseImageMemoryRequirements)(s)
 	return rval
 }
 
-func (s *SparseImageMemoryRequirements) vkStruct() *vkSparseImageMemoryRequirements {
+func (s *SparseImageMemoryRequirements) ToVK() *vkSparseImageMemoryRequirements {
 	if s == nil {
 		return nil
 	}
-	rval := (*SparseImageMemoryRequirements)(s)
+	rval := (*vkSparseImageMemoryRequirements)(s)
 	return rval
 }
 
@@ -4293,18 +4671,24 @@ type SparseMemoryBind struct {
 	Flags          SparseMemoryBindFlags
 }
 
+// eg: gostruct := (&vk.SparseMemoryBind{}).FromVK(goStruct2.PNext)
+func (s *SparseMemoryBind) FromVK(pn unsafe.Pointer) *SparseMemoryBind {
+	vks := (*vkSparseMemoryBind)(pn)
+	return vks.ToGo()
+}
+
 type vkSparseMemoryBind = SparseMemoryBind
 
-func (s *vkSparseMemoryBind) goStruct() *SparseMemoryBind {
-	rval := (*vkSparseMemoryBind)(s)
+func (s *vkSparseMemoryBind) ToGo() *SparseMemoryBind {
+	rval := (*SparseMemoryBind)(s)
 	return rval
 }
 
-func (s *SparseMemoryBind) vkStruct() *vkSparseMemoryBind {
+func (s *SparseMemoryBind) ToVK() *vkSparseMemoryBind {
 	if s == nil {
 		return nil
 	}
-	rval := (*SparseMemoryBind)(s)
+	rval := (*vkSparseMemoryBind)(s)
 	return rval
 }
 
@@ -4314,13 +4698,19 @@ type SparseBufferMemoryBindInfo struct {
 	PBinds []SparseMemoryBind
 }
 
+// eg: gostruct := (&vk.SparseBufferMemoryBindInfo{}).FromVK(goStruct2.PNext)
+func (s *SparseBufferMemoryBindInfo) FromVK(pn unsafe.Pointer) *SparseBufferMemoryBindInfo {
+	vks := (*vkSparseBufferMemoryBindInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkSparseBufferMemoryBindInfo struct {
 	buffer    Buffer
 	bindCount uint32
 	pBinds    *vkSparseMemoryBind
 }
 
-func (s *vkSparseBufferMemoryBindInfo) goStruct() *SparseBufferMemoryBindInfo {
+func (s *vkSparseBufferMemoryBindInfo) ToGo() *SparseBufferMemoryBindInfo {
 	rval := &SparseBufferMemoryBindInfo{
 		Buffer: (Buffer)(s.buffer),
 		// ignoring returned pointer type PBinds
@@ -4328,7 +4718,7 @@ func (s *vkSparseBufferMemoryBindInfo) goStruct() *SparseBufferMemoryBindInfo {
 	return rval
 }
 
-func (s *SparseBufferMemoryBindInfo) vkStruct() *vkSparseBufferMemoryBindInfo {
+func (s *SparseBufferMemoryBindInfo) ToVK() *vkSparseBufferMemoryBindInfo {
 	if s == nil {
 		return nil
 	}
@@ -4350,13 +4740,19 @@ type SparseImageOpaqueMemoryBindInfo struct {
 	PBinds []SparseMemoryBind
 }
 
+// eg: gostruct := (&vk.SparseImageOpaqueMemoryBindInfo{}).FromVK(goStruct2.PNext)
+func (s *SparseImageOpaqueMemoryBindInfo) FromVK(pn unsafe.Pointer) *SparseImageOpaqueMemoryBindInfo {
+	vks := (*vkSparseImageOpaqueMemoryBindInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkSparseImageOpaqueMemoryBindInfo struct {
 	image     Image
 	bindCount uint32
 	pBinds    *vkSparseMemoryBind
 }
 
-func (s *vkSparseImageOpaqueMemoryBindInfo) goStruct() *SparseImageOpaqueMemoryBindInfo {
+func (s *vkSparseImageOpaqueMemoryBindInfo) ToGo() *SparseImageOpaqueMemoryBindInfo {
 	rval := &SparseImageOpaqueMemoryBindInfo{
 		Image: (Image)(s.image),
 		// ignoring returned pointer type PBinds
@@ -4364,7 +4760,7 @@ func (s *vkSparseImageOpaqueMemoryBindInfo) goStruct() *SparseImageOpaqueMemoryB
 	return rval
 }
 
-func (s *SparseImageOpaqueMemoryBindInfo) vkStruct() *vkSparseImageOpaqueMemoryBindInfo {
+func (s *SparseImageOpaqueMemoryBindInfo) ToVK() *vkSparseImageOpaqueMemoryBindInfo {
 	if s == nil {
 		return nil
 	}
@@ -4390,6 +4786,12 @@ type BindSparseInfo struct {
 	PSignalSemaphores []Semaphore
 }
 
+// eg: gostruct := (&vk.BindSparseInfo{}).FromVK(goStruct2.PNext)
+func (s *BindSparseInfo) FromVK(pn unsafe.Pointer) *BindSparseInfo {
+	vks := (*vkBindSparseInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkBindSparseInfo struct {
 	sType                StructureType
 	pNext                unsafe.Pointer
@@ -4405,7 +4807,7 @@ type vkBindSparseInfo struct {
 	pSignalSemaphores    *Semaphore
 }
 
-func (s *vkBindSparseInfo) goStruct() *BindSparseInfo {
+func (s *vkBindSparseInfo) ToGo() *BindSparseInfo {
 	rval := &BindSparseInfo{
 		PNext: (unsafe.Pointer)(s.pNext),
 		// ignoring returned pointer type PWaitSemaphores
@@ -4417,7 +4819,7 @@ func (s *vkBindSparseInfo) goStruct() *BindSparseInfo {
 	return rval
 }
 
-func (s *BindSparseInfo) vkStruct() *vkBindSparseInfo {
+func (s *BindSparseInfo) ToVK() *vkBindSparseInfo {
 	if s == nil {
 		return nil
 	}
@@ -4429,7 +4831,7 @@ func (s *BindSparseInfo) vkStruct() *vkBindSparseInfo {
 	if len(s.PBufferBinds) > 0 {
 		tmp := make([]vkSparseBufferMemoryBindInfo, len(s.PBufferBinds))
 		for i, v := range s.PBufferBinds {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		sp_PBufferBinds = &tmp[0]
 	}
@@ -4437,7 +4839,7 @@ func (s *BindSparseInfo) vkStruct() *vkBindSparseInfo {
 	if len(s.PImageOpaqueBinds) > 0 {
 		tmp := make([]vkSparseImageOpaqueMemoryBindInfo, len(s.PImageOpaqueBinds))
 		for i, v := range s.PImageOpaqueBinds {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		sp_PImageOpaqueBinds = &tmp[0]
 	}
@@ -4445,7 +4847,7 @@ func (s *BindSparseInfo) vkStruct() *vkBindSparseInfo {
 	if len(s.PImageBinds) > 0 {
 		tmp := make([]vkSparseImageMemoryBindInfo, len(s.PImageBinds))
 		for i, v := range s.PImageBinds {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		sp_PImageBinds = &tmp[0]
 	}
@@ -4476,13 +4878,19 @@ type FenceCreateInfo struct {
 	Flags FenceCreateFlags
 }
 
+// eg: gostruct := (&vk.FenceCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *FenceCreateInfo) FromVK(pn unsafe.Pointer) *FenceCreateInfo {
+	vks := (*vkFenceCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkFenceCreateInfo struct {
 	sType StructureType
 	pNext unsafe.Pointer
 	flags FenceCreateFlags
 }
 
-func (s *vkFenceCreateInfo) goStruct() *FenceCreateInfo {
+func (s *vkFenceCreateInfo) ToGo() *FenceCreateInfo {
 	rval := &FenceCreateInfo{
 		PNext: (unsafe.Pointer)(s.pNext),
 		Flags: (FenceCreateFlags)(s.flags),
@@ -4490,7 +4898,7 @@ func (s *vkFenceCreateInfo) goStruct() *FenceCreateInfo {
 	return rval
 }
 
-func (s *FenceCreateInfo) vkStruct() *vkFenceCreateInfo {
+func (s *FenceCreateInfo) ToVK() *vkFenceCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -4508,13 +4916,19 @@ type SemaphoreCreateInfo struct {
 	Flags SemaphoreCreateFlags
 }
 
+// eg: gostruct := (&vk.SemaphoreCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *SemaphoreCreateInfo) FromVK(pn unsafe.Pointer) *SemaphoreCreateInfo {
+	vks := (*vkSemaphoreCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkSemaphoreCreateInfo struct {
 	sType StructureType
 	pNext unsafe.Pointer
 	flags SemaphoreCreateFlags
 }
 
-func (s *vkSemaphoreCreateInfo) goStruct() *SemaphoreCreateInfo {
+func (s *vkSemaphoreCreateInfo) ToGo() *SemaphoreCreateInfo {
 	rval := &SemaphoreCreateInfo{
 		PNext: (unsafe.Pointer)(s.pNext),
 		Flags: (SemaphoreCreateFlags)(s.flags),
@@ -4522,7 +4936,7 @@ func (s *vkSemaphoreCreateInfo) goStruct() *SemaphoreCreateInfo {
 	return rval
 }
 
-func (s *SemaphoreCreateInfo) vkStruct() *vkSemaphoreCreateInfo {
+func (s *SemaphoreCreateInfo) ToVK() *vkSemaphoreCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -4543,6 +4957,12 @@ type QueryPoolCreateInfo struct {
 	PipelineStatistics QueryPipelineStatisticFlags
 }
 
+// eg: gostruct := (&vk.QueryPoolCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *QueryPoolCreateInfo) FromVK(pn unsafe.Pointer) *QueryPoolCreateInfo {
+	vks := (*vkQueryPoolCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkQueryPoolCreateInfo struct {
 	sType              StructureType
 	pNext              unsafe.Pointer
@@ -4552,7 +4972,7 @@ type vkQueryPoolCreateInfo struct {
 	pipelineStatistics QueryPipelineStatisticFlags
 }
 
-func (s *vkQueryPoolCreateInfo) goStruct() *QueryPoolCreateInfo {
+func (s *vkQueryPoolCreateInfo) ToGo() *QueryPoolCreateInfo {
 	rval := &QueryPoolCreateInfo{
 		PNext:              (unsafe.Pointer)(s.pNext),
 		Flags:              (QueryPoolCreateFlags)(s.flags),
@@ -4563,7 +4983,7 @@ func (s *vkQueryPoolCreateInfo) goStruct() *QueryPoolCreateInfo {
 	return rval
 }
 
-func (s *QueryPoolCreateInfo) vkStruct() *vkQueryPoolCreateInfo {
+func (s *QueryPoolCreateInfo) ToVK() *vkQueryPoolCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -4588,6 +5008,12 @@ type BufferCreateInfo struct {
 	PQueueFamilyIndices []uint32
 }
 
+// eg: gostruct := (&vk.BufferCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *BufferCreateInfo) FromVK(pn unsafe.Pointer) *BufferCreateInfo {
+	vks := (*vkBufferCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkBufferCreateInfo struct {
 	sType                 StructureType
 	pNext                 unsafe.Pointer
@@ -4599,7 +5025,7 @@ type vkBufferCreateInfo struct {
 	pQueueFamilyIndices   *uint32
 }
 
-func (s *vkBufferCreateInfo) goStruct() *BufferCreateInfo {
+func (s *vkBufferCreateInfo) ToGo() *BufferCreateInfo {
 	rval := &BufferCreateInfo{
 		PNext:       (unsafe.Pointer)(s.pNext),
 		Flags:       (BufferCreateFlags)(s.flags),
@@ -4611,7 +5037,7 @@ func (s *vkBufferCreateInfo) goStruct() *BufferCreateInfo {
 	return rval
 }
 
-func (s *BufferCreateInfo) vkStruct() *vkBufferCreateInfo {
+func (s *BufferCreateInfo) ToVK() *vkBufferCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -4649,6 +5075,12 @@ type ImageCreateInfo struct {
 	InitialLayout       ImageLayout
 }
 
+// eg: gostruct := (&vk.ImageCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *ImageCreateInfo) FromVK(pn unsafe.Pointer) *ImageCreateInfo {
+	vks := (*vkImageCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkImageCreateInfo struct {
 	sType                 StructureType
 	pNext                 unsafe.Pointer
@@ -4667,13 +5099,13 @@ type vkImageCreateInfo struct {
 	initialLayout         ImageLayout
 }
 
-func (s *vkImageCreateInfo) goStruct() *ImageCreateInfo {
+func (s *vkImageCreateInfo) ToGo() *ImageCreateInfo {
 	rval := &ImageCreateInfo{
 		PNext:       (unsafe.Pointer)(s.pNext),
 		Flags:       (ImageCreateFlags)(s.flags),
 		ImageType:   (ImageType)(s.imageType),
 		Format:      (Format)(s.format),
-		Extent:      *(s.extent.goStruct()),
+		Extent:      *(s.extent.ToGo()),
 		MipLevels:   (uint32)(s.mipLevels),
 		ArrayLayers: (uint32)(s.arrayLayers),
 		Samples:     (SampleCountFlagBits)(s.samples),
@@ -4686,7 +5118,7 @@ func (s *vkImageCreateInfo) goStruct() *ImageCreateInfo {
 	return rval
 }
 
-func (s *ImageCreateInfo) vkStruct() *vkImageCreateInfo {
+func (s *ImageCreateInfo) ToVK() *vkImageCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -4700,7 +5132,7 @@ func (s *ImageCreateInfo) vkStruct() *vkImageCreateInfo {
 		flags:                 (ImageCreateFlags)(s.Flags),
 		imageType:             (ImageType)(s.ImageType),
 		format:                (Format)(s.Format),
-		extent:                *(s.Extent.vkStruct()),
+		extent:                *(s.Extent.ToVK()),
 		mipLevels:             (uint32)(s.MipLevels),
 		arrayLayers:           (uint32)(s.ArrayLayers),
 		samples:               (SampleCountFlagBits)(s.Samples),
@@ -4723,18 +5155,24 @@ type SubresourceLayout struct {
 	DepthPitch DeviceSize
 }
 
+// eg: gostruct := (&vk.SubresourceLayout{}).FromVK(goStruct2.PNext)
+func (s *SubresourceLayout) FromVK(pn unsafe.Pointer) *SubresourceLayout {
+	vks := (*vkSubresourceLayout)(pn)
+	return vks.ToGo()
+}
+
 type vkSubresourceLayout = SubresourceLayout
 
-func (s *vkSubresourceLayout) goStruct() *SubresourceLayout {
-	rval := (*vkSubresourceLayout)(s)
+func (s *vkSubresourceLayout) ToGo() *SubresourceLayout {
+	rval := (*SubresourceLayout)(s)
 	return rval
 }
 
-func (s *SubresourceLayout) vkStruct() *vkSubresourceLayout {
+func (s *SubresourceLayout) ToVK() *vkSubresourceLayout {
 	if s == nil {
 		return nil
 	}
-	rval := (*SubresourceLayout)(s)
+	rval := (*vkSubresourceLayout)(s)
 	return rval
 }
 
@@ -4746,18 +5184,24 @@ type ComponentMapping struct {
 	A ComponentSwizzle
 }
 
+// eg: gostruct := (&vk.ComponentMapping{}).FromVK(goStruct2.PNext)
+func (s *ComponentMapping) FromVK(pn unsafe.Pointer) *ComponentMapping {
+	vks := (*vkComponentMapping)(pn)
+	return vks.ToGo()
+}
+
 type vkComponentMapping = ComponentMapping
 
-func (s *vkComponentMapping) goStruct() *ComponentMapping {
-	rval := (*vkComponentMapping)(s)
+func (s *vkComponentMapping) ToGo() *ComponentMapping {
+	rval := (*ComponentMapping)(s)
 	return rval
 }
 
-func (s *ComponentMapping) vkStruct() *vkComponentMapping {
+func (s *ComponentMapping) ToVK() *vkComponentMapping {
 	if s == nil {
 		return nil
 	}
-	rval := (*ComponentMapping)(s)
+	rval := (*vkComponentMapping)(s)
 	return rval
 }
 
@@ -4770,18 +5214,24 @@ type ImageSubresourceRange struct {
 	LayerCount     uint32
 }
 
+// eg: gostruct := (&vk.ImageSubresourceRange{}).FromVK(goStruct2.PNext)
+func (s *ImageSubresourceRange) FromVK(pn unsafe.Pointer) *ImageSubresourceRange {
+	vks := (*vkImageSubresourceRange)(pn)
+	return vks.ToGo()
+}
+
 type vkImageSubresourceRange = ImageSubresourceRange
 
-func (s *vkImageSubresourceRange) goStruct() *ImageSubresourceRange {
-	rval := (*vkImageSubresourceRange)(s)
+func (s *vkImageSubresourceRange) ToGo() *ImageSubresourceRange {
+	rval := (*ImageSubresourceRange)(s)
 	return rval
 }
 
-func (s *ImageSubresourceRange) vkStruct() *vkImageSubresourceRange {
+func (s *ImageSubresourceRange) ToVK() *vkImageSubresourceRange {
 	if s == nil {
 		return nil
 	}
-	rval := (*ImageSubresourceRange)(s)
+	rval := (*vkImageSubresourceRange)(s)
 	return rval
 }
 
@@ -4796,6 +5246,12 @@ type ImageViewCreateInfo struct {
 	SubresourceRange ImageSubresourceRange
 }
 
+// eg: gostruct := (&vk.ImageViewCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *ImageViewCreateInfo) FromVK(pn unsafe.Pointer) *ImageViewCreateInfo {
+	vks := (*vkImageViewCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkImageViewCreateInfo struct {
 	sType            StructureType
 	pNext            unsafe.Pointer
@@ -4807,20 +5263,20 @@ type vkImageViewCreateInfo struct {
 	subresourceRange vkImageSubresourceRange
 }
 
-func (s *vkImageViewCreateInfo) goStruct() *ImageViewCreateInfo {
+func (s *vkImageViewCreateInfo) ToGo() *ImageViewCreateInfo {
 	rval := &ImageViewCreateInfo{
 		PNext:            (unsafe.Pointer)(s.pNext),
 		Flags:            (ImageViewCreateFlags)(s.flags),
 		Image:            (Image)(s.image),
 		ViewType:         (ImageViewType)(s.viewType),
 		Format:           (Format)(s.format),
-		Components:       *(s.components.goStruct()),
-		SubresourceRange: *(s.subresourceRange.goStruct()),
+		Components:       *(s.components.ToGo()),
+		SubresourceRange: *(s.subresourceRange.ToGo()),
 	}
 	return rval
 }
 
-func (s *ImageViewCreateInfo) vkStruct() *vkImageViewCreateInfo {
+func (s *ImageViewCreateInfo) ToVK() *vkImageViewCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -4831,8 +5287,8 @@ func (s *ImageViewCreateInfo) vkStruct() *vkImageViewCreateInfo {
 		image:            (Image)(s.Image),
 		viewType:         (ImageViewType)(s.ViewType),
 		format:           (Format)(s.Format),
-		components:       *(s.Components.vkStruct()),
-		subresourceRange: *(s.SubresourceRange.vkStruct()),
+		components:       *(s.Components.ToVK()),
+		subresourceRange: *(s.SubresourceRange.ToVK()),
 	}
 	return rval
 }
@@ -4844,6 +5300,12 @@ type CommandPoolCreateInfo struct {
 	QueueFamilyIndex uint32
 }
 
+// eg: gostruct := (&vk.CommandPoolCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *CommandPoolCreateInfo) FromVK(pn unsafe.Pointer) *CommandPoolCreateInfo {
+	vks := (*vkCommandPoolCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkCommandPoolCreateInfo struct {
 	sType            StructureType
 	pNext            unsafe.Pointer
@@ -4851,7 +5313,7 @@ type vkCommandPoolCreateInfo struct {
 	queueFamilyIndex uint32
 }
 
-func (s *vkCommandPoolCreateInfo) goStruct() *CommandPoolCreateInfo {
+func (s *vkCommandPoolCreateInfo) ToGo() *CommandPoolCreateInfo {
 	rval := &CommandPoolCreateInfo{
 		PNext:            (unsafe.Pointer)(s.pNext),
 		Flags:            (CommandPoolCreateFlags)(s.flags),
@@ -4860,7 +5322,7 @@ func (s *vkCommandPoolCreateInfo) goStruct() *CommandPoolCreateInfo {
 	return rval
 }
 
-func (s *CommandPoolCreateInfo) vkStruct() *vkCommandPoolCreateInfo {
+func (s *CommandPoolCreateInfo) ToVK() *vkCommandPoolCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -4881,6 +5343,12 @@ type CommandBufferAllocateInfo struct {
 	CommandBufferCount uint32
 }
 
+// eg: gostruct := (&vk.CommandBufferAllocateInfo{}).FromVK(goStruct2.PNext)
+func (s *CommandBufferAllocateInfo) FromVK(pn unsafe.Pointer) *CommandBufferAllocateInfo {
+	vks := (*vkCommandBufferAllocateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkCommandBufferAllocateInfo struct {
 	sType              StructureType
 	pNext              unsafe.Pointer
@@ -4889,7 +5357,7 @@ type vkCommandBufferAllocateInfo struct {
 	commandBufferCount uint32
 }
 
-func (s *vkCommandBufferAllocateInfo) goStruct() *CommandBufferAllocateInfo {
+func (s *vkCommandBufferAllocateInfo) ToGo() *CommandBufferAllocateInfo {
 	rval := &CommandBufferAllocateInfo{
 		PNext:              (unsafe.Pointer)(s.pNext),
 		CommandPool:        (CommandPool)(s.commandPool),
@@ -4899,7 +5367,7 @@ func (s *vkCommandBufferAllocateInfo) goStruct() *CommandBufferAllocateInfo {
 	return rval
 }
 
-func (s *CommandBufferAllocateInfo) vkStruct() *vkCommandBufferAllocateInfo {
+func (s *CommandBufferAllocateInfo) ToVK() *vkCommandBufferAllocateInfo {
 	if s == nil {
 		return nil
 	}
@@ -4924,6 +5392,12 @@ type CommandBufferInheritanceInfo struct {
 	PipelineStatistics   QueryPipelineStatisticFlags
 }
 
+// eg: gostruct := (&vk.CommandBufferInheritanceInfo{}).FromVK(goStruct2.PNext)
+func (s *CommandBufferInheritanceInfo) FromVK(pn unsafe.Pointer) *CommandBufferInheritanceInfo {
+	vks := (*vkCommandBufferInheritanceInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkCommandBufferInheritanceInfo struct {
 	sType                StructureType
 	pNext                unsafe.Pointer
@@ -4935,7 +5409,7 @@ type vkCommandBufferInheritanceInfo struct {
 	pipelineStatistics   QueryPipelineStatisticFlags
 }
 
-func (s *vkCommandBufferInheritanceInfo) goStruct() *CommandBufferInheritanceInfo {
+func (s *vkCommandBufferInheritanceInfo) ToGo() *CommandBufferInheritanceInfo {
 	rval := &CommandBufferInheritanceInfo{
 		PNext:                (unsafe.Pointer)(s.pNext),
 		RenderPass:           (RenderPass)(s.renderPass),
@@ -4948,7 +5422,7 @@ func (s *vkCommandBufferInheritanceInfo) goStruct() *CommandBufferInheritanceInf
 	return rval
 }
 
-func (s *CommandBufferInheritanceInfo) vkStruct() *vkCommandBufferInheritanceInfo {
+func (s *CommandBufferInheritanceInfo) ToVK() *vkCommandBufferInheritanceInfo {
 	if s == nil {
 		return nil
 	}
@@ -4972,6 +5446,12 @@ type CommandBufferBeginInfo struct {
 	PInheritanceInfo *CommandBufferInheritanceInfo
 }
 
+// eg: gostruct := (&vk.CommandBufferBeginInfo{}).FromVK(goStruct2.PNext)
+func (s *CommandBufferBeginInfo) FromVK(pn unsafe.Pointer) *CommandBufferBeginInfo {
+	vks := (*vkCommandBufferBeginInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkCommandBufferBeginInfo struct {
 	sType            StructureType
 	pNext            unsafe.Pointer
@@ -4979,7 +5459,7 @@ type vkCommandBufferBeginInfo struct {
 	pInheritanceInfo *vkCommandBufferInheritanceInfo
 }
 
-func (s *vkCommandBufferBeginInfo) goStruct() *CommandBufferBeginInfo {
+func (s *vkCommandBufferBeginInfo) ToGo() *CommandBufferBeginInfo {
 	rval := &CommandBufferBeginInfo{
 		PNext: (unsafe.Pointer)(s.pNext),
 		Flags: (CommandBufferUsageFlags)(s.flags),
@@ -4988,7 +5468,7 @@ func (s *vkCommandBufferBeginInfo) goStruct() *CommandBufferBeginInfo {
 	return rval
 }
 
-func (s *CommandBufferBeginInfo) vkStruct() *vkCommandBufferBeginInfo {
+func (s *CommandBufferBeginInfo) ToVK() *vkCommandBufferBeginInfo {
 	if s == nil {
 		return nil
 	}
@@ -4996,7 +5476,7 @@ func (s *CommandBufferBeginInfo) vkStruct() *vkCommandBufferBeginInfo {
 		sType:            STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
 		pNext:            (unsafe.Pointer)(s.PNext),
 		flags:            (CommandBufferUsageFlags)(s.Flags),
-		pInheritanceInfo: (s.PInheritanceInfo.vkStruct()),
+		pInheritanceInfo: (s.PInheritanceInfo.ToVK()),
 	}
 	return rval
 }
@@ -5008,18 +5488,24 @@ type BufferCopy struct {
 	Size      DeviceSize
 }
 
+// eg: gostruct := (&vk.BufferCopy{}).FromVK(goStruct2.PNext)
+func (s *BufferCopy) FromVK(pn unsafe.Pointer) *BufferCopy {
+	vks := (*vkBufferCopy)(pn)
+	return vks.ToGo()
+}
+
 type vkBufferCopy = BufferCopy
 
-func (s *vkBufferCopy) goStruct() *BufferCopy {
-	rval := (*vkBufferCopy)(s)
+func (s *vkBufferCopy) ToGo() *BufferCopy {
+	rval := (*BufferCopy)(s)
 	return rval
 }
 
-func (s *BufferCopy) vkStruct() *vkBufferCopy {
+func (s *BufferCopy) ToVK() *vkBufferCopy {
 	if s == nil {
 		return nil
 	}
-	rval := (*BufferCopy)(s)
+	rval := (*vkBufferCopy)(s)
 	return rval
 }
 
@@ -5031,18 +5517,24 @@ type ImageSubresourceLayers struct {
 	LayerCount     uint32
 }
 
+// eg: gostruct := (&vk.ImageSubresourceLayers{}).FromVK(goStruct2.PNext)
+func (s *ImageSubresourceLayers) FromVK(pn unsafe.Pointer) *ImageSubresourceLayers {
+	vks := (*vkImageSubresourceLayers)(pn)
+	return vks.ToGo()
+}
+
 type vkImageSubresourceLayers = ImageSubresourceLayers
 
-func (s *vkImageSubresourceLayers) goStruct() *ImageSubresourceLayers {
-	rval := (*vkImageSubresourceLayers)(s)
+func (s *vkImageSubresourceLayers) ToGo() *ImageSubresourceLayers {
+	rval := (*ImageSubresourceLayers)(s)
 	return rval
 }
 
-func (s *ImageSubresourceLayers) vkStruct() *vkImageSubresourceLayers {
+func (s *ImageSubresourceLayers) ToVK() *vkImageSubresourceLayers {
 	if s == nil {
 		return nil
 	}
-	rval := (*ImageSubresourceLayers)(s)
+	rval := (*vkImageSubresourceLayers)(s)
 	return rval
 }
 
@@ -5056,18 +5548,24 @@ type BufferImageCopy struct {
 	ImageExtent       Extent3D
 }
 
+// eg: gostruct := (&vk.BufferImageCopy{}).FromVK(goStruct2.PNext)
+func (s *BufferImageCopy) FromVK(pn unsafe.Pointer) *BufferImageCopy {
+	vks := (*vkBufferImageCopy)(pn)
+	return vks.ToGo()
+}
+
 type vkBufferImageCopy = BufferImageCopy
 
-func (s *vkBufferImageCopy) goStruct() *BufferImageCopy {
-	rval := (*vkBufferImageCopy)(s)
+func (s *vkBufferImageCopy) ToGo() *BufferImageCopy {
+	rval := (*BufferImageCopy)(s)
 	return rval
 }
 
-func (s *BufferImageCopy) vkStruct() *vkBufferImageCopy {
+func (s *BufferImageCopy) ToVK() *vkBufferImageCopy {
 	if s == nil {
 		return nil
 	}
-	rval := (*BufferImageCopy)(s)
+	rval := (*vkBufferImageCopy)(s)
 	return rval
 }
 
@@ -5080,18 +5578,24 @@ type ImageCopy struct {
 	Extent         Extent3D
 }
 
+// eg: gostruct := (&vk.ImageCopy{}).FromVK(goStruct2.PNext)
+func (s *ImageCopy) FromVK(pn unsafe.Pointer) *ImageCopy {
+	vks := (*vkImageCopy)(pn)
+	return vks.ToGo()
+}
+
 type vkImageCopy = ImageCopy
 
-func (s *vkImageCopy) goStruct() *ImageCopy {
-	rval := (*vkImageCopy)(s)
+func (s *vkImageCopy) ToGo() *ImageCopy {
+	rval := (*ImageCopy)(s)
 	return rval
 }
 
-func (s *ImageCopy) vkStruct() *vkImageCopy {
+func (s *ImageCopy) ToVK() *vkImageCopy {
 	if s == nil {
 		return nil
 	}
-	rval := (*ImageCopy)(s)
+	rval := (*vkImageCopy)(s)
 	return rval
 }
 
@@ -5107,6 +5611,12 @@ type BufferMemoryBarrier struct {
 	Size                DeviceSize
 }
 
+// eg: gostruct := (&vk.BufferMemoryBarrier{}).FromVK(goStruct2.PNext)
+func (s *BufferMemoryBarrier) FromVK(pn unsafe.Pointer) *BufferMemoryBarrier {
+	vks := (*vkBufferMemoryBarrier)(pn)
+	return vks.ToGo()
+}
+
 type vkBufferMemoryBarrier struct {
 	sType               StructureType
 	pNext               unsafe.Pointer
@@ -5119,7 +5629,7 @@ type vkBufferMemoryBarrier struct {
 	size                DeviceSize
 }
 
-func (s *vkBufferMemoryBarrier) goStruct() *BufferMemoryBarrier {
+func (s *vkBufferMemoryBarrier) ToGo() *BufferMemoryBarrier {
 	rval := &BufferMemoryBarrier{
 		PNext:               (unsafe.Pointer)(s.pNext),
 		SrcAccessMask:       (AccessFlags)(s.srcAccessMask),
@@ -5133,7 +5643,7 @@ func (s *vkBufferMemoryBarrier) goStruct() *BufferMemoryBarrier {
 	return rval
 }
 
-func (s *BufferMemoryBarrier) vkStruct() *vkBufferMemoryBarrier {
+func (s *BufferMemoryBarrier) ToVK() *vkBufferMemoryBarrier {
 	if s == nil {
 		return nil
 	}
@@ -5164,6 +5674,12 @@ type ImageMemoryBarrier struct {
 	SubresourceRange    ImageSubresourceRange
 }
 
+// eg: gostruct := (&vk.ImageMemoryBarrier{}).FromVK(goStruct2.PNext)
+func (s *ImageMemoryBarrier) FromVK(pn unsafe.Pointer) *ImageMemoryBarrier {
+	vks := (*vkImageMemoryBarrier)(pn)
+	return vks.ToGo()
+}
+
 type vkImageMemoryBarrier struct {
 	sType               StructureType
 	pNext               unsafe.Pointer
@@ -5177,7 +5693,7 @@ type vkImageMemoryBarrier struct {
 	subresourceRange    vkImageSubresourceRange
 }
 
-func (s *vkImageMemoryBarrier) goStruct() *ImageMemoryBarrier {
+func (s *vkImageMemoryBarrier) ToGo() *ImageMemoryBarrier {
 	rval := &ImageMemoryBarrier{
 		PNext:               (unsafe.Pointer)(s.pNext),
 		SrcAccessMask:       (AccessFlags)(s.srcAccessMask),
@@ -5187,12 +5703,12 @@ func (s *vkImageMemoryBarrier) goStruct() *ImageMemoryBarrier {
 		SrcQueueFamilyIndex: (uint32)(s.srcQueueFamilyIndex),
 		DstQueueFamilyIndex: (uint32)(s.dstQueueFamilyIndex),
 		Image:               (Image)(s.image),
-		SubresourceRange:    *(s.subresourceRange.goStruct()),
+		SubresourceRange:    *(s.subresourceRange.ToGo()),
 	}
 	return rval
 }
 
-func (s *ImageMemoryBarrier) vkStruct() *vkImageMemoryBarrier {
+func (s *ImageMemoryBarrier) ToVK() *vkImageMemoryBarrier {
 	if s == nil {
 		return nil
 	}
@@ -5206,7 +5722,7 @@ func (s *ImageMemoryBarrier) vkStruct() *vkImageMemoryBarrier {
 		srcQueueFamilyIndex: (uint32)(s.SrcQueueFamilyIndex),
 		dstQueueFamilyIndex: (uint32)(s.DstQueueFamilyIndex),
 		image:               (Image)(s.Image),
-		subresourceRange:    *(s.SubresourceRange.vkStruct()),
+		subresourceRange:    *(s.SubresourceRange.ToVK()),
 	}
 	return rval
 }
@@ -5218,6 +5734,12 @@ type MemoryBarrier struct {
 	DstAccessMask AccessFlags
 }
 
+// eg: gostruct := (&vk.MemoryBarrier{}).FromVK(goStruct2.PNext)
+func (s *MemoryBarrier) FromVK(pn unsafe.Pointer) *MemoryBarrier {
+	vks := (*vkMemoryBarrier)(pn)
+	return vks.ToGo()
+}
+
 type vkMemoryBarrier struct {
 	sType         StructureType
 	pNext         unsafe.Pointer
@@ -5225,7 +5747,7 @@ type vkMemoryBarrier struct {
 	dstAccessMask AccessFlags
 }
 
-func (s *vkMemoryBarrier) goStruct() *MemoryBarrier {
+func (s *vkMemoryBarrier) ToGo() *MemoryBarrier {
 	rval := &MemoryBarrier{
 		PNext:         (unsafe.Pointer)(s.pNext),
 		SrcAccessMask: (AccessFlags)(s.srcAccessMask),
@@ -5234,7 +5756,7 @@ func (s *vkMemoryBarrier) goStruct() *MemoryBarrier {
 	return rval
 }
 
-func (s *MemoryBarrier) vkStruct() *vkMemoryBarrier {
+func (s *MemoryBarrier) ToVK() *vkMemoryBarrier {
 	if s == nil {
 		return nil
 	}
@@ -5254,18 +5776,24 @@ type DispatchIndirectCommand struct {
 	Z uint32
 }
 
+// eg: gostruct := (&vk.DispatchIndirectCommand{}).FromVK(goStruct2.PNext)
+func (s *DispatchIndirectCommand) FromVK(pn unsafe.Pointer) *DispatchIndirectCommand {
+	vks := (*vkDispatchIndirectCommand)(pn)
+	return vks.ToGo()
+}
+
 type vkDispatchIndirectCommand = DispatchIndirectCommand
 
-func (s *vkDispatchIndirectCommand) goStruct() *DispatchIndirectCommand {
-	rval := (*vkDispatchIndirectCommand)(s)
+func (s *vkDispatchIndirectCommand) ToGo() *DispatchIndirectCommand {
+	rval := (*DispatchIndirectCommand)(s)
 	return rval
 }
 
-func (s *DispatchIndirectCommand) vkStruct() *vkDispatchIndirectCommand {
+func (s *DispatchIndirectCommand) ToVK() *vkDispatchIndirectCommand {
 	if s == nil {
 		return nil
 	}
-	rval := (*DispatchIndirectCommand)(s)
+	rval := (*vkDispatchIndirectCommand)(s)
 	return rval
 }
 
@@ -5278,18 +5806,24 @@ type PipelineCacheHeaderVersionOne struct {
 	PipelineCacheUUID [UUID_SIZE]uint8
 }
 
+// eg: gostruct := (&vk.PipelineCacheHeaderVersionOne{}).FromVK(goStruct2.PNext)
+func (s *PipelineCacheHeaderVersionOne) FromVK(pn unsafe.Pointer) *PipelineCacheHeaderVersionOne {
+	vks := (*vkPipelineCacheHeaderVersionOne)(pn)
+	return vks.ToGo()
+}
+
 type vkPipelineCacheHeaderVersionOne = PipelineCacheHeaderVersionOne
 
-func (s *vkPipelineCacheHeaderVersionOne) goStruct() *PipelineCacheHeaderVersionOne {
-	rval := (*vkPipelineCacheHeaderVersionOne)(s)
+func (s *vkPipelineCacheHeaderVersionOne) ToGo() *PipelineCacheHeaderVersionOne {
+	rval := (*PipelineCacheHeaderVersionOne)(s)
 	return rval
 }
 
-func (s *PipelineCacheHeaderVersionOne) vkStruct() *vkPipelineCacheHeaderVersionOne {
+func (s *PipelineCacheHeaderVersionOne) ToVK() *vkPipelineCacheHeaderVersionOne {
 	if s == nil {
 		return nil
 	}
-	rval := (*PipelineCacheHeaderVersionOne)(s)
+	rval := (*vkPipelineCacheHeaderVersionOne)(s)
 	return rval
 }
 
@@ -5299,13 +5833,19 @@ type EventCreateInfo struct {
 	Flags EventCreateFlags
 }
 
+// eg: gostruct := (&vk.EventCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *EventCreateInfo) FromVK(pn unsafe.Pointer) *EventCreateInfo {
+	vks := (*vkEventCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkEventCreateInfo struct {
 	sType StructureType
 	pNext unsafe.Pointer
 	flags EventCreateFlags
 }
 
-func (s *vkEventCreateInfo) goStruct() *EventCreateInfo {
+func (s *vkEventCreateInfo) ToGo() *EventCreateInfo {
 	rval := &EventCreateInfo{
 		PNext: (unsafe.Pointer)(s.pNext),
 		Flags: (EventCreateFlags)(s.flags),
@@ -5313,7 +5853,7 @@ func (s *vkEventCreateInfo) goStruct() *EventCreateInfo {
 	return rval
 }
 
-func (s *EventCreateInfo) vkStruct() *vkEventCreateInfo {
+func (s *EventCreateInfo) ToVK() *vkEventCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -5335,6 +5875,12 @@ type BufferViewCreateInfo struct {
 	Rang   DeviceSize
 }
 
+// eg: gostruct := (&vk.BufferViewCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *BufferViewCreateInfo) FromVK(pn unsafe.Pointer) *BufferViewCreateInfo {
+	vks := (*vkBufferViewCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkBufferViewCreateInfo struct {
 	sType  StructureType
 	pNext  unsafe.Pointer
@@ -5345,7 +5891,7 @@ type vkBufferViewCreateInfo struct {
 	rang   DeviceSize
 }
 
-func (s *vkBufferViewCreateInfo) goStruct() *BufferViewCreateInfo {
+func (s *vkBufferViewCreateInfo) ToGo() *BufferViewCreateInfo {
 	rval := &BufferViewCreateInfo{
 		PNext:  (unsafe.Pointer)(s.pNext),
 		Flags:  (BufferViewCreateFlags)(s.flags),
@@ -5357,7 +5903,7 @@ func (s *vkBufferViewCreateInfo) goStruct() *BufferViewCreateInfo {
 	return rval
 }
 
-func (s *BufferViewCreateInfo) vkStruct() *vkBufferViewCreateInfo {
+func (s *BufferViewCreateInfo) ToVK() *vkBufferViewCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -5381,6 +5927,12 @@ type ShaderModuleCreateInfo struct {
 	PCode    *uint32
 }
 
+// eg: gostruct := (&vk.ShaderModuleCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *ShaderModuleCreateInfo) FromVK(pn unsafe.Pointer) *ShaderModuleCreateInfo {
+	vks := (*vkShaderModuleCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkShaderModuleCreateInfo struct {
 	sType    StructureType
 	pNext    unsafe.Pointer
@@ -5389,7 +5941,7 @@ type vkShaderModuleCreateInfo struct {
 	pCode    *uint32
 }
 
-func (s *vkShaderModuleCreateInfo) goStruct() *ShaderModuleCreateInfo {
+func (s *vkShaderModuleCreateInfo) ToGo() *ShaderModuleCreateInfo {
 	rval := &ShaderModuleCreateInfo{
 		PNext:    (unsafe.Pointer)(s.pNext),
 		Flags:    (ShaderModuleCreateFlags)(s.flags),
@@ -5399,7 +5951,7 @@ func (s *vkShaderModuleCreateInfo) goStruct() *ShaderModuleCreateInfo {
 	return rval
 }
 
-func (s *ShaderModuleCreateInfo) vkStruct() *vkShaderModuleCreateInfo {
+func (s *ShaderModuleCreateInfo) ToVK() *vkShaderModuleCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -5421,6 +5973,12 @@ type PipelineCacheCreateInfo struct {
 	PInitialData    unsafe.Pointer
 }
 
+// eg: gostruct := (&vk.PipelineCacheCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *PipelineCacheCreateInfo) FromVK(pn unsafe.Pointer) *PipelineCacheCreateInfo {
+	vks := (*vkPipelineCacheCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkPipelineCacheCreateInfo struct {
 	sType           StructureType
 	pNext           unsafe.Pointer
@@ -5429,7 +5987,7 @@ type vkPipelineCacheCreateInfo struct {
 	pInitialData    unsafe.Pointer
 }
 
-func (s *vkPipelineCacheCreateInfo) goStruct() *PipelineCacheCreateInfo {
+func (s *vkPipelineCacheCreateInfo) ToGo() *PipelineCacheCreateInfo {
 	rval := &PipelineCacheCreateInfo{
 		PNext:           (unsafe.Pointer)(s.pNext),
 		Flags:           (PipelineCacheCreateFlags)(s.flags),
@@ -5439,7 +5997,7 @@ func (s *vkPipelineCacheCreateInfo) goStruct() *PipelineCacheCreateInfo {
 	return rval
 }
 
-func (s *PipelineCacheCreateInfo) vkStruct() *vkPipelineCacheCreateInfo {
+func (s *PipelineCacheCreateInfo) ToVK() *vkPipelineCacheCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -5460,18 +6018,24 @@ type SpecializationMapEntry struct {
 	Size       uintptr
 }
 
+// eg: gostruct := (&vk.SpecializationMapEntry{}).FromVK(goStruct2.PNext)
+func (s *SpecializationMapEntry) FromVK(pn unsafe.Pointer) *SpecializationMapEntry {
+	vks := (*vkSpecializationMapEntry)(pn)
+	return vks.ToGo()
+}
+
 type vkSpecializationMapEntry = SpecializationMapEntry
 
-func (s *vkSpecializationMapEntry) goStruct() *SpecializationMapEntry {
-	rval := (*vkSpecializationMapEntry)(s)
+func (s *vkSpecializationMapEntry) ToGo() *SpecializationMapEntry {
+	rval := (*SpecializationMapEntry)(s)
 	return rval
 }
 
-func (s *SpecializationMapEntry) vkStruct() *vkSpecializationMapEntry {
+func (s *SpecializationMapEntry) ToVK() *vkSpecializationMapEntry {
 	if s == nil {
 		return nil
 	}
-	rval := (*SpecializationMapEntry)(s)
+	rval := (*vkSpecializationMapEntry)(s)
 	return rval
 }
 
@@ -5482,6 +6046,12 @@ type SpecializationInfo struct {
 	PData       unsafe.Pointer
 }
 
+// eg: gostruct := (&vk.SpecializationInfo{}).FromVK(goStruct2.PNext)
+func (s *SpecializationInfo) FromVK(pn unsafe.Pointer) *SpecializationInfo {
+	vks := (*vkSpecializationInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkSpecializationInfo struct {
 	mapEntryCount uint32
 	pMapEntries   *vkSpecializationMapEntry
@@ -5489,7 +6059,7 @@ type vkSpecializationInfo struct {
 	pData         unsafe.Pointer
 }
 
-func (s *vkSpecializationInfo) goStruct() *SpecializationInfo {
+func (s *vkSpecializationInfo) ToGo() *SpecializationInfo {
 	rval := &SpecializationInfo{
 		// ignoring returned pointer type PMapEntries
 		DataSize: (uintptr)(s.dataSize),
@@ -5498,7 +6068,7 @@ func (s *vkSpecializationInfo) goStruct() *SpecializationInfo {
 	return rval
 }
 
-func (s *SpecializationInfo) vkStruct() *vkSpecializationInfo {
+func (s *SpecializationInfo) ToVK() *vkSpecializationInfo {
 	if s == nil {
 		return nil
 	}
@@ -5525,6 +6095,12 @@ type PipelineShaderStageCreateInfo struct {
 	PSpecializationInfo *SpecializationInfo
 }
 
+// eg: gostruct := (&vk.PipelineShaderStageCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *PipelineShaderStageCreateInfo) FromVK(pn unsafe.Pointer) *PipelineShaderStageCreateInfo {
+	vks := (*vkPipelineShaderStageCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkPipelineShaderStageCreateInfo struct {
 	sType               StructureType
 	pNext               unsafe.Pointer
@@ -5535,7 +6111,7 @@ type vkPipelineShaderStageCreateInfo struct {
 	pSpecializationInfo *vkSpecializationInfo
 }
 
-func (s *vkPipelineShaderStageCreateInfo) goStruct() *PipelineShaderStageCreateInfo {
+func (s *vkPipelineShaderStageCreateInfo) ToGo() *PipelineShaderStageCreateInfo {
 	rval := &PipelineShaderStageCreateInfo{
 		PNext:  (unsafe.Pointer)(s.pNext),
 		Flags:  (PipelineShaderStageCreateFlags)(s.flags),
@@ -5547,7 +6123,7 @@ func (s *vkPipelineShaderStageCreateInfo) goStruct() *PipelineShaderStageCreateI
 	return rval
 }
 
-func (s *PipelineShaderStageCreateInfo) vkStruct() *vkPipelineShaderStageCreateInfo {
+func (s *PipelineShaderStageCreateInfo) ToVK() *vkPipelineShaderStageCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -5558,7 +6134,7 @@ func (s *PipelineShaderStageCreateInfo) vkStruct() *vkPipelineShaderStageCreateI
 		stage:               (ShaderStageFlagBits)(s.Stage),
 		module:              (ShaderModule)(s.Module),
 		pName:               sysStringToBytes(s.PName),
-		pSpecializationInfo: (s.PSpecializationInfo.vkStruct()),
+		pSpecializationInfo: (s.PSpecializationInfo.ToVK()),
 	}
 	return rval
 }
@@ -5573,6 +6149,12 @@ type ComputePipelineCreateInfo struct {
 	BasePipelineIndex  int32
 }
 
+// eg: gostruct := (&vk.ComputePipelineCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *ComputePipelineCreateInfo) FromVK(pn unsafe.Pointer) *ComputePipelineCreateInfo {
+	vks := (*vkComputePipelineCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkComputePipelineCreateInfo struct {
 	sType              StructureType
 	pNext              unsafe.Pointer
@@ -5583,11 +6165,11 @@ type vkComputePipelineCreateInfo struct {
 	basePipelineIndex  int32
 }
 
-func (s *vkComputePipelineCreateInfo) goStruct() *ComputePipelineCreateInfo {
+func (s *vkComputePipelineCreateInfo) ToGo() *ComputePipelineCreateInfo {
 	rval := &ComputePipelineCreateInfo{
 		PNext:              (unsafe.Pointer)(s.pNext),
 		Flags:              (PipelineCreateFlags)(s.flags),
-		Stage:              *(s.stage.goStruct()),
+		Stage:              *(s.stage.ToGo()),
 		Layout:             (PipelineLayout)(s.layout),
 		BasePipelineHandle: (Pipeline)(s.basePipelineHandle),
 		BasePipelineIndex:  (int32)(s.basePipelineIndex),
@@ -5595,7 +6177,7 @@ func (s *vkComputePipelineCreateInfo) goStruct() *ComputePipelineCreateInfo {
 	return rval
 }
 
-func (s *ComputePipelineCreateInfo) vkStruct() *vkComputePipelineCreateInfo {
+func (s *ComputePipelineCreateInfo) ToVK() *vkComputePipelineCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -5603,7 +6185,7 @@ func (s *ComputePipelineCreateInfo) vkStruct() *vkComputePipelineCreateInfo {
 		sType:              STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
 		pNext:              (unsafe.Pointer)(s.PNext),
 		flags:              (PipelineCreateFlags)(s.Flags),
-		stage:              *(s.Stage.vkStruct()),
+		stage:              *(s.Stage.ToVK()),
 		layout:             (PipelineLayout)(s.Layout),
 		basePipelineHandle: (Pipeline)(s.BasePipelineHandle),
 		basePipelineIndex:  (int32)(s.BasePipelineIndex),
@@ -5618,18 +6200,24 @@ type PushConstantRange struct {
 	Size       uint32
 }
 
+// eg: gostruct := (&vk.PushConstantRange{}).FromVK(goStruct2.PNext)
+func (s *PushConstantRange) FromVK(pn unsafe.Pointer) *PushConstantRange {
+	vks := (*vkPushConstantRange)(pn)
+	return vks.ToGo()
+}
+
 type vkPushConstantRange = PushConstantRange
 
-func (s *vkPushConstantRange) goStruct() *PushConstantRange {
-	rval := (*vkPushConstantRange)(s)
+func (s *vkPushConstantRange) ToGo() *PushConstantRange {
+	rval := (*PushConstantRange)(s)
 	return rval
 }
 
-func (s *PushConstantRange) vkStruct() *vkPushConstantRange {
+func (s *PushConstantRange) ToVK() *vkPushConstantRange {
 	if s == nil {
 		return nil
 	}
-	rval := (*PushConstantRange)(s)
+	rval := (*vkPushConstantRange)(s)
 	return rval
 }
 
@@ -5639,6 +6227,12 @@ type PipelineLayoutCreateInfo struct {
 	Flags               PipelineLayoutCreateFlags
 	PSetLayouts         []DescriptorSetLayout
 	PPushConstantRanges []PushConstantRange
+}
+
+// eg: gostruct := (&vk.PipelineLayoutCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *PipelineLayoutCreateInfo) FromVK(pn unsafe.Pointer) *PipelineLayoutCreateInfo {
+	vks := (*vkPipelineLayoutCreateInfo)(pn)
+	return vks.ToGo()
 }
 
 type vkPipelineLayoutCreateInfo struct {
@@ -5651,7 +6245,7 @@ type vkPipelineLayoutCreateInfo struct {
 	pPushConstantRanges    *vkPushConstantRange
 }
 
-func (s *vkPipelineLayoutCreateInfo) goStruct() *PipelineLayoutCreateInfo {
+func (s *vkPipelineLayoutCreateInfo) ToGo() *PipelineLayoutCreateInfo {
 	rval := &PipelineLayoutCreateInfo{
 		PNext: (unsafe.Pointer)(s.pNext),
 		Flags: (PipelineLayoutCreateFlags)(s.flags),
@@ -5661,7 +6255,7 @@ func (s *vkPipelineLayoutCreateInfo) goStruct() *PipelineLayoutCreateInfo {
 	return rval
 }
 
-func (s *PipelineLayoutCreateInfo) vkStruct() *vkPipelineLayoutCreateInfo {
+func (s *PipelineLayoutCreateInfo) ToVK() *vkPipelineLayoutCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -5706,6 +6300,12 @@ type SamplerCreateInfo struct {
 	UnnormalizedCoordinates bool
 }
 
+// eg: gostruct := (&vk.SamplerCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *SamplerCreateInfo) FromVK(pn unsafe.Pointer) *SamplerCreateInfo {
+	vks := (*vkSamplerCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkSamplerCreateInfo struct {
 	sType                   StructureType
 	pNext                   unsafe.Pointer
@@ -5727,7 +6327,7 @@ type vkSamplerCreateInfo struct {
 	unnormalizedCoordinates Bool32
 }
 
-func (s *vkSamplerCreateInfo) goStruct() *SamplerCreateInfo {
+func (s *vkSamplerCreateInfo) ToGo() *SamplerCreateInfo {
 	rval := &SamplerCreateInfo{
 		PNext:                   (unsafe.Pointer)(s.pNext),
 		Flags:                   (SamplerCreateFlags)(s.flags),
@@ -5750,7 +6350,7 @@ func (s *vkSamplerCreateInfo) goStruct() *SamplerCreateInfo {
 	return rval
 }
 
-func (s *SamplerCreateInfo) vkStruct() *vkSamplerCreateInfo {
+func (s *SamplerCreateInfo) ToVK() *vkSamplerCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -5789,6 +6389,12 @@ type CopyDescriptorSet struct {
 	DescriptorCount uint32
 }
 
+// eg: gostruct := (&vk.CopyDescriptorSet{}).FromVK(goStruct2.PNext)
+func (s *CopyDescriptorSet) FromVK(pn unsafe.Pointer) *CopyDescriptorSet {
+	vks := (*vkCopyDescriptorSet)(pn)
+	return vks.ToGo()
+}
+
 type vkCopyDescriptorSet struct {
 	sType           StructureType
 	pNext           unsafe.Pointer
@@ -5801,7 +6407,7 @@ type vkCopyDescriptorSet struct {
 	descriptorCount uint32
 }
 
-func (s *vkCopyDescriptorSet) goStruct() *CopyDescriptorSet {
+func (s *vkCopyDescriptorSet) ToGo() *CopyDescriptorSet {
 	rval := &CopyDescriptorSet{
 		PNext:           (unsafe.Pointer)(s.pNext),
 		SrcSet:          (DescriptorSet)(s.srcSet),
@@ -5815,7 +6421,7 @@ func (s *vkCopyDescriptorSet) goStruct() *CopyDescriptorSet {
 	return rval
 }
 
-func (s *CopyDescriptorSet) vkStruct() *vkCopyDescriptorSet {
+func (s *CopyDescriptorSet) ToVK() *vkCopyDescriptorSet {
 	if s == nil {
 		return nil
 	}
@@ -5840,18 +6446,24 @@ type DescriptorBufferInfo struct {
 	Rang   DeviceSize
 }
 
+// eg: gostruct := (&vk.DescriptorBufferInfo{}).FromVK(goStruct2.PNext)
+func (s *DescriptorBufferInfo) FromVK(pn unsafe.Pointer) *DescriptorBufferInfo {
+	vks := (*vkDescriptorBufferInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkDescriptorBufferInfo = DescriptorBufferInfo
 
-func (s *vkDescriptorBufferInfo) goStruct() *DescriptorBufferInfo {
-	rval := (*vkDescriptorBufferInfo)(s)
+func (s *vkDescriptorBufferInfo) ToGo() *DescriptorBufferInfo {
+	rval := (*DescriptorBufferInfo)(s)
 	return rval
 }
 
-func (s *DescriptorBufferInfo) vkStruct() *vkDescriptorBufferInfo {
+func (s *DescriptorBufferInfo) ToVK() *vkDescriptorBufferInfo {
 	if s == nil {
 		return nil
 	}
-	rval := (*DescriptorBufferInfo)(s)
+	rval := (*vkDescriptorBufferInfo)(s)
 	return rval
 }
 
@@ -5862,18 +6474,24 @@ type DescriptorImageInfo struct {
 	ImageLayout ImageLayout
 }
 
+// eg: gostruct := (&vk.DescriptorImageInfo{}).FromVK(goStruct2.PNext)
+func (s *DescriptorImageInfo) FromVK(pn unsafe.Pointer) *DescriptorImageInfo {
+	vks := (*vkDescriptorImageInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkDescriptorImageInfo = DescriptorImageInfo
 
-func (s *vkDescriptorImageInfo) goStruct() *DescriptorImageInfo {
-	rval := (*vkDescriptorImageInfo)(s)
+func (s *vkDescriptorImageInfo) ToGo() *DescriptorImageInfo {
+	rval := (*DescriptorImageInfo)(s)
 	return rval
 }
 
-func (s *DescriptorImageInfo) vkStruct() *vkDescriptorImageInfo {
+func (s *DescriptorImageInfo) ToVK() *vkDescriptorImageInfo {
 	if s == nil {
 		return nil
 	}
-	rval := (*DescriptorImageInfo)(s)
+	rval := (*vkDescriptorImageInfo)(s)
 	return rval
 }
 
@@ -5883,18 +6501,24 @@ type DescriptorPoolSize struct {
 	DescriptorCount uint32
 }
 
+// eg: gostruct := (&vk.DescriptorPoolSize{}).FromVK(goStruct2.PNext)
+func (s *DescriptorPoolSize) FromVK(pn unsafe.Pointer) *DescriptorPoolSize {
+	vks := (*vkDescriptorPoolSize)(pn)
+	return vks.ToGo()
+}
+
 type vkDescriptorPoolSize = DescriptorPoolSize
 
-func (s *vkDescriptorPoolSize) goStruct() *DescriptorPoolSize {
-	rval := (*vkDescriptorPoolSize)(s)
+func (s *vkDescriptorPoolSize) ToGo() *DescriptorPoolSize {
+	rval := (*DescriptorPoolSize)(s)
 	return rval
 }
 
-func (s *DescriptorPoolSize) vkStruct() *vkDescriptorPoolSize {
+func (s *DescriptorPoolSize) ToVK() *vkDescriptorPoolSize {
 	if s == nil {
 		return nil
 	}
-	rval := (*DescriptorPoolSize)(s)
+	rval := (*vkDescriptorPoolSize)(s)
 	return rval
 }
 
@@ -5906,6 +6530,12 @@ type DescriptorPoolCreateInfo struct {
 	PPoolSizes []DescriptorPoolSize
 }
 
+// eg: gostruct := (&vk.DescriptorPoolCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *DescriptorPoolCreateInfo) FromVK(pn unsafe.Pointer) *DescriptorPoolCreateInfo {
+	vks := (*vkDescriptorPoolCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkDescriptorPoolCreateInfo struct {
 	sType         StructureType
 	pNext         unsafe.Pointer
@@ -5915,7 +6545,7 @@ type vkDescriptorPoolCreateInfo struct {
 	pPoolSizes    *vkDescriptorPoolSize
 }
 
-func (s *vkDescriptorPoolCreateInfo) goStruct() *DescriptorPoolCreateInfo {
+func (s *vkDescriptorPoolCreateInfo) ToGo() *DescriptorPoolCreateInfo {
 	rval := &DescriptorPoolCreateInfo{
 		PNext:   (unsafe.Pointer)(s.pNext),
 		Flags:   (DescriptorPoolCreateFlags)(s.flags),
@@ -5925,7 +6555,7 @@ func (s *vkDescriptorPoolCreateInfo) goStruct() *DescriptorPoolCreateInfo {
 	return rval
 }
 
-func (s *DescriptorPoolCreateInfo) vkStruct() *vkDescriptorPoolCreateInfo {
+func (s *DescriptorPoolCreateInfo) ToVK() *vkDescriptorPoolCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -5951,6 +6581,12 @@ type DescriptorSetAllocateInfo struct {
 	PSetLayouts    []DescriptorSetLayout
 }
 
+// eg: gostruct := (&vk.DescriptorSetAllocateInfo{}).FromVK(goStruct2.PNext)
+func (s *DescriptorSetAllocateInfo) FromVK(pn unsafe.Pointer) *DescriptorSetAllocateInfo {
+	vks := (*vkDescriptorSetAllocateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkDescriptorSetAllocateInfo struct {
 	sType              StructureType
 	pNext              unsafe.Pointer
@@ -5959,7 +6595,7 @@ type vkDescriptorSetAllocateInfo struct {
 	pSetLayouts        *DescriptorSetLayout
 }
 
-func (s *vkDescriptorSetAllocateInfo) goStruct() *DescriptorSetAllocateInfo {
+func (s *vkDescriptorSetAllocateInfo) ToGo() *DescriptorSetAllocateInfo {
 	rval := &DescriptorSetAllocateInfo{
 		PNext:          (unsafe.Pointer)(s.pNext),
 		DescriptorPool: (DescriptorPool)(s.descriptorPool),
@@ -5968,7 +6604,7 @@ func (s *vkDescriptorSetAllocateInfo) goStruct() *DescriptorSetAllocateInfo {
 	return rval
 }
 
-func (s *DescriptorSetAllocateInfo) vkStruct() *vkDescriptorSetAllocateInfo {
+func (s *DescriptorSetAllocateInfo) ToVK() *vkDescriptorSetAllocateInfo {
 	if s == nil {
 		return nil
 	}
@@ -5995,6 +6631,12 @@ type DescriptorSetLayoutBinding struct {
 	PImmutableSamplers []Sampler
 }
 
+// eg: gostruct := (&vk.DescriptorSetLayoutBinding{}).FromVK(goStruct2.PNext)
+func (s *DescriptorSetLayoutBinding) FromVK(pn unsafe.Pointer) *DescriptorSetLayoutBinding {
+	vks := (*vkDescriptorSetLayoutBinding)(pn)
+	return vks.ToGo()
+}
+
 type vkDescriptorSetLayoutBinding struct {
 	binding            uint32
 	descriptorType     DescriptorType
@@ -6003,7 +6645,7 @@ type vkDescriptorSetLayoutBinding struct {
 	pImmutableSamplers *Sampler
 }
 
-func (s *vkDescriptorSetLayoutBinding) goStruct() *DescriptorSetLayoutBinding {
+func (s *vkDescriptorSetLayoutBinding) ToGo() *DescriptorSetLayoutBinding {
 	rval := &DescriptorSetLayoutBinding{
 		Binding:        (uint32)(s.binding),
 		DescriptorType: (DescriptorType)(s.descriptorType),
@@ -6013,7 +6655,7 @@ func (s *vkDescriptorSetLayoutBinding) goStruct() *DescriptorSetLayoutBinding {
 	return rval
 }
 
-func (s *DescriptorSetLayoutBinding) vkStruct() *vkDescriptorSetLayoutBinding {
+func (s *DescriptorSetLayoutBinding) ToVK() *vkDescriptorSetLayoutBinding {
 	if s == nil {
 		return nil
 	}
@@ -6038,6 +6680,12 @@ type DescriptorSetLayoutCreateInfo struct {
 	PBindings []DescriptorSetLayoutBinding
 }
 
+// eg: gostruct := (&vk.DescriptorSetLayoutCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *DescriptorSetLayoutCreateInfo) FromVK(pn unsafe.Pointer) *DescriptorSetLayoutCreateInfo {
+	vks := (*vkDescriptorSetLayoutCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkDescriptorSetLayoutCreateInfo struct {
 	sType        StructureType
 	pNext        unsafe.Pointer
@@ -6046,7 +6694,7 @@ type vkDescriptorSetLayoutCreateInfo struct {
 	pBindings    *vkDescriptorSetLayoutBinding
 }
 
-func (s *vkDescriptorSetLayoutCreateInfo) goStruct() *DescriptorSetLayoutCreateInfo {
+func (s *vkDescriptorSetLayoutCreateInfo) ToGo() *DescriptorSetLayoutCreateInfo {
 	rval := &DescriptorSetLayoutCreateInfo{
 		PNext: (unsafe.Pointer)(s.pNext),
 		Flags: (DescriptorSetLayoutCreateFlags)(s.flags),
@@ -6055,7 +6703,7 @@ func (s *vkDescriptorSetLayoutCreateInfo) goStruct() *DescriptorSetLayoutCreateI
 	return rval
 }
 
-func (s *DescriptorSetLayoutCreateInfo) vkStruct() *vkDescriptorSetLayoutCreateInfo {
+func (s *DescriptorSetLayoutCreateInfo) ToVK() *vkDescriptorSetLayoutCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -6063,7 +6711,7 @@ func (s *DescriptorSetLayoutCreateInfo) vkStruct() *vkDescriptorSetLayoutCreateI
 	if len(s.PBindings) > 0 {
 		tmp := make([]vkDescriptorSetLayoutBinding, len(s.PBindings))
 		for i, v := range s.PBindings {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		sp_PBindings = &tmp[0]
 	}
@@ -6089,6 +6737,12 @@ type WriteDescriptorSet struct {
 	PTexelBufferView []BufferView
 }
 
+// eg: gostruct := (&vk.WriteDescriptorSet{}).FromVK(goStruct2.PNext)
+func (s *WriteDescriptorSet) FromVK(pn unsafe.Pointer) *WriteDescriptorSet {
+	vks := (*vkWriteDescriptorSet)(pn)
+	return vks.ToGo()
+}
+
 type vkWriteDescriptorSet struct {
 	sType            StructureType
 	pNext            unsafe.Pointer
@@ -6102,7 +6756,7 @@ type vkWriteDescriptorSet struct {
 	pTexelBufferView *BufferView
 }
 
-func (s *vkWriteDescriptorSet) goStruct() *WriteDescriptorSet {
+func (s *vkWriteDescriptorSet) ToGo() *WriteDescriptorSet {
 	rval := &WriteDescriptorSet{
 		PNext:           (unsafe.Pointer)(s.pNext),
 		DstSet:          (DescriptorSet)(s.dstSet),
@@ -6116,7 +6770,7 @@ func (s *vkWriteDescriptorSet) goStruct() *WriteDescriptorSet {
 	return rval
 }
 
-func (s *WriteDescriptorSet) vkStruct() *vkWriteDescriptorSet {
+func (s *WriteDescriptorSet) ToVK() *vkWriteDescriptorSet {
 	if s == nil {
 		return nil
 	}
@@ -6152,6 +6806,9 @@ func (s *WriteDescriptorSet) vkStruct() *vkWriteDescriptorSet {
 	}
 	if uint32(len(s.PTexelBufferView)) > rval.descriptorCount {
 		rval.descriptorCount = uint32(len(s.PTexelBufferView))
+	}
+	if rval.descriptorCount == 0 && rval.pNext != nil {
+		rval.descriptorCount = 1
 	}
 	return rval
 }
@@ -6189,7 +6846,7 @@ func (u *ClearColorValue) AsTypeUint32(val [4]uint32) {
 
 type vkClearColorValue [unsafe.Sizeof([4]float32{})]byte
 
-func (u *ClearColorValue) vkStruct() *vkClearColorValue {
+func (u *ClearColorValue) ToVK() *vkClearColorValue {
 	switch {
 	case u.asTypeFloat32:
 		return (*vkClearColorValue)(unsafe.Pointer(&u.TypeFloat32))
@@ -6211,18 +6868,24 @@ type DrawIndexedIndirectCommand struct {
 	FirstInstance uint32
 }
 
+// eg: gostruct := (&vk.DrawIndexedIndirectCommand{}).FromVK(goStruct2.PNext)
+func (s *DrawIndexedIndirectCommand) FromVK(pn unsafe.Pointer) *DrawIndexedIndirectCommand {
+	vks := (*vkDrawIndexedIndirectCommand)(pn)
+	return vks.ToGo()
+}
+
 type vkDrawIndexedIndirectCommand = DrawIndexedIndirectCommand
 
-func (s *vkDrawIndexedIndirectCommand) goStruct() *DrawIndexedIndirectCommand {
-	rval := (*vkDrawIndexedIndirectCommand)(s)
+func (s *vkDrawIndexedIndirectCommand) ToGo() *DrawIndexedIndirectCommand {
+	rval := (*DrawIndexedIndirectCommand)(s)
 	return rval
 }
 
-func (s *DrawIndexedIndirectCommand) vkStruct() *vkDrawIndexedIndirectCommand {
+func (s *DrawIndexedIndirectCommand) ToVK() *vkDrawIndexedIndirectCommand {
 	if s == nil {
 		return nil
 	}
-	rval := (*DrawIndexedIndirectCommand)(s)
+	rval := (*vkDrawIndexedIndirectCommand)(s)
 	return rval
 }
 
@@ -6234,18 +6897,24 @@ type DrawIndirectCommand struct {
 	FirstInstance uint32
 }
 
+// eg: gostruct := (&vk.DrawIndirectCommand{}).FromVK(goStruct2.PNext)
+func (s *DrawIndirectCommand) FromVK(pn unsafe.Pointer) *DrawIndirectCommand {
+	vks := (*vkDrawIndirectCommand)(pn)
+	return vks.ToGo()
+}
+
 type vkDrawIndirectCommand = DrawIndirectCommand
 
-func (s *vkDrawIndirectCommand) goStruct() *DrawIndirectCommand {
-	rval := (*vkDrawIndirectCommand)(s)
+func (s *vkDrawIndirectCommand) ToGo() *DrawIndirectCommand {
+	rval := (*DrawIndirectCommand)(s)
 	return rval
 }
 
-func (s *DrawIndirectCommand) vkStruct() *vkDrawIndirectCommand {
+func (s *DrawIndirectCommand) ToVK() *vkDrawIndirectCommand {
 	if s == nil {
 		return nil
 	}
-	rval := (*DrawIndirectCommand)(s)
+	rval := (*vkDrawIndirectCommand)(s)
 	return rval
 }
 
@@ -6260,18 +6929,24 @@ type StencilOpState struct {
 	Reference   uint32
 }
 
+// eg: gostruct := (&vk.StencilOpState{}).FromVK(goStruct2.PNext)
+func (s *StencilOpState) FromVK(pn unsafe.Pointer) *StencilOpState {
+	vks := (*vkStencilOpState)(pn)
+	return vks.ToGo()
+}
+
 type vkStencilOpState = StencilOpState
 
-func (s *vkStencilOpState) goStruct() *StencilOpState {
-	rval := (*vkStencilOpState)(s)
+func (s *vkStencilOpState) ToGo() *StencilOpState {
+	rval := (*StencilOpState)(s)
 	return rval
 }
 
-func (s *StencilOpState) vkStruct() *vkStencilOpState {
+func (s *StencilOpState) ToVK() *vkStencilOpState {
 	if s == nil {
 		return nil
 	}
-	rval := (*StencilOpState)(s)
+	rval := (*vkStencilOpState)(s)
 	return rval
 }
 
@@ -6283,18 +6958,24 @@ type VertexInputAttributeDescription struct {
 	Offset   uint32
 }
 
+// eg: gostruct := (&vk.VertexInputAttributeDescription{}).FromVK(goStruct2.PNext)
+func (s *VertexInputAttributeDescription) FromVK(pn unsafe.Pointer) *VertexInputAttributeDescription {
+	vks := (*vkVertexInputAttributeDescription)(pn)
+	return vks.ToGo()
+}
+
 type vkVertexInputAttributeDescription = VertexInputAttributeDescription
 
-func (s *vkVertexInputAttributeDescription) goStruct() *VertexInputAttributeDescription {
-	rval := (*vkVertexInputAttributeDescription)(s)
+func (s *vkVertexInputAttributeDescription) ToGo() *VertexInputAttributeDescription {
+	rval := (*VertexInputAttributeDescription)(s)
 	return rval
 }
 
-func (s *VertexInputAttributeDescription) vkStruct() *vkVertexInputAttributeDescription {
+func (s *VertexInputAttributeDescription) ToVK() *vkVertexInputAttributeDescription {
 	if s == nil {
 		return nil
 	}
-	rval := (*VertexInputAttributeDescription)(s)
+	rval := (*vkVertexInputAttributeDescription)(s)
 	return rval
 }
 
@@ -6305,18 +6986,24 @@ type VertexInputBindingDescription struct {
 	InputRate VertexInputRate
 }
 
+// eg: gostruct := (&vk.VertexInputBindingDescription{}).FromVK(goStruct2.PNext)
+func (s *VertexInputBindingDescription) FromVK(pn unsafe.Pointer) *VertexInputBindingDescription {
+	vks := (*vkVertexInputBindingDescription)(pn)
+	return vks.ToGo()
+}
+
 type vkVertexInputBindingDescription = VertexInputBindingDescription
 
-func (s *vkVertexInputBindingDescription) goStruct() *VertexInputBindingDescription {
-	rval := (*vkVertexInputBindingDescription)(s)
+func (s *vkVertexInputBindingDescription) ToGo() *VertexInputBindingDescription {
+	rval := (*VertexInputBindingDescription)(s)
 	return rval
 }
 
-func (s *VertexInputBindingDescription) vkStruct() *vkVertexInputBindingDescription {
+func (s *VertexInputBindingDescription) ToVK() *vkVertexInputBindingDescription {
 	if s == nil {
 		return nil
 	}
-	rval := (*VertexInputBindingDescription)(s)
+	rval := (*vkVertexInputBindingDescription)(s)
 	return rval
 }
 
@@ -6330,18 +7017,24 @@ type Viewport struct {
 	MaxDepth float32
 }
 
+// eg: gostruct := (&vk.Viewport{}).FromVK(goStruct2.PNext)
+func (s *Viewport) FromVK(pn unsafe.Pointer) *Viewport {
+	vks := (*vkViewport)(pn)
+	return vks.ToGo()
+}
+
 type vkViewport = Viewport
 
-func (s *vkViewport) goStruct() *Viewport {
-	rval := (*vkViewport)(s)
+func (s *vkViewport) ToGo() *Viewport {
+	rval := (*Viewport)(s)
 	return rval
 }
 
-func (s *Viewport) vkStruct() *vkViewport {
+func (s *Viewport) ToVK() *vkViewport {
 	if s == nil {
 		return nil
 	}
-	rval := (*Viewport)(s)
+	rval := (*vkViewport)(s)
 	return rval
 }
 
@@ -6357,6 +7050,12 @@ type PipelineColorBlendAttachmentState struct {
 	ColorWriteMask      ColorComponentFlags
 }
 
+// eg: gostruct := (&vk.PipelineColorBlendAttachmentState{}).FromVK(goStruct2.PNext)
+func (s *PipelineColorBlendAttachmentState) FromVK(pn unsafe.Pointer) *PipelineColorBlendAttachmentState {
+	vks := (*vkPipelineColorBlendAttachmentState)(pn)
+	return vks.ToGo()
+}
+
 type vkPipelineColorBlendAttachmentState struct {
 	blendEnable         Bool32
 	srcColorBlendFactor BlendFactor
@@ -6368,7 +7067,7 @@ type vkPipelineColorBlendAttachmentState struct {
 	colorWriteMask      ColorComponentFlags
 }
 
-func (s *vkPipelineColorBlendAttachmentState) goStruct() *PipelineColorBlendAttachmentState {
+func (s *vkPipelineColorBlendAttachmentState) ToGo() *PipelineColorBlendAttachmentState {
 	rval := &PipelineColorBlendAttachmentState{
 		BlendEnable:         goBool32(s.blendEnable),
 		SrcColorBlendFactor: (BlendFactor)(s.srcColorBlendFactor),
@@ -6382,7 +7081,7 @@ func (s *vkPipelineColorBlendAttachmentState) goStruct() *PipelineColorBlendAtta
 	return rval
 }
 
-func (s *PipelineColorBlendAttachmentState) vkStruct() *vkPipelineColorBlendAttachmentState {
+func (s *PipelineColorBlendAttachmentState) ToVK() *vkPipelineColorBlendAttachmentState {
 	if s == nil {
 		return nil
 	}
@@ -6409,6 +7108,12 @@ type PipelineColorBlendStateCreateInfo struct {
 	BlendConstants [4]float32
 }
 
+// eg: gostruct := (&vk.PipelineColorBlendStateCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *PipelineColorBlendStateCreateInfo) FromVK(pn unsafe.Pointer) *PipelineColorBlendStateCreateInfo {
+	vks := (*vkPipelineColorBlendStateCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkPipelineColorBlendStateCreateInfo struct {
 	sType           StructureType
 	pNext           unsafe.Pointer
@@ -6420,7 +7125,7 @@ type vkPipelineColorBlendStateCreateInfo struct {
 	blendConstants  [4]float32
 }
 
-func (s *vkPipelineColorBlendStateCreateInfo) goStruct() *PipelineColorBlendStateCreateInfo {
+func (s *vkPipelineColorBlendStateCreateInfo) ToGo() *PipelineColorBlendStateCreateInfo {
 	rval := &PipelineColorBlendStateCreateInfo{
 		PNext:         (unsafe.Pointer)(s.pNext),
 		Flags:         (PipelineColorBlendStateCreateFlags)(s.flags),
@@ -6432,7 +7137,7 @@ func (s *vkPipelineColorBlendStateCreateInfo) goStruct() *PipelineColorBlendStat
 	return rval
 }
 
-func (s *PipelineColorBlendStateCreateInfo) vkStruct() *vkPipelineColorBlendStateCreateInfo {
+func (s *PipelineColorBlendStateCreateInfo) ToVK() *vkPipelineColorBlendStateCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -6440,7 +7145,7 @@ func (s *PipelineColorBlendStateCreateInfo) vkStruct() *vkPipelineColorBlendStat
 	if len(s.PAttachments) > 0 {
 		tmp := make([]vkPipelineColorBlendAttachmentState, len(s.PAttachments))
 		for i, v := range s.PAttachments {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		sp_PAttachments = &tmp[0]
 	}
@@ -6472,6 +7177,12 @@ type PipelineDepthStencilStateCreateInfo struct {
 	MaxDepthBounds        float32
 }
 
+// eg: gostruct := (&vk.PipelineDepthStencilStateCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *PipelineDepthStencilStateCreateInfo) FromVK(pn unsafe.Pointer) *PipelineDepthStencilStateCreateInfo {
+	vks := (*vkPipelineDepthStencilStateCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkPipelineDepthStencilStateCreateInfo struct {
 	sType                 StructureType
 	pNext                 unsafe.Pointer
@@ -6487,7 +7198,7 @@ type vkPipelineDepthStencilStateCreateInfo struct {
 	maxDepthBounds        float32
 }
 
-func (s *vkPipelineDepthStencilStateCreateInfo) goStruct() *PipelineDepthStencilStateCreateInfo {
+func (s *vkPipelineDepthStencilStateCreateInfo) ToGo() *PipelineDepthStencilStateCreateInfo {
 	rval := &PipelineDepthStencilStateCreateInfo{
 		PNext:                 (unsafe.Pointer)(s.pNext),
 		Flags:                 (PipelineDepthStencilStateCreateFlags)(s.flags),
@@ -6496,15 +7207,15 @@ func (s *vkPipelineDepthStencilStateCreateInfo) goStruct() *PipelineDepthStencil
 		DepthCompareOp:        (CompareOp)(s.depthCompareOp),
 		DepthBoundsTestEnable: goBool32(s.depthBoundsTestEnable),
 		StencilTestEnable:     goBool32(s.stencilTestEnable),
-		Front:                 *(s.front.goStruct()),
-		Back:                  *(s.back.goStruct()),
+		Front:                 *(s.front.ToGo()),
+		Back:                  *(s.back.ToGo()),
 		MinDepthBounds:        (float32)(s.minDepthBounds),
 		MaxDepthBounds:        (float32)(s.maxDepthBounds),
 	}
 	return rval
 }
 
-func (s *PipelineDepthStencilStateCreateInfo) vkStruct() *vkPipelineDepthStencilStateCreateInfo {
+func (s *PipelineDepthStencilStateCreateInfo) ToVK() *vkPipelineDepthStencilStateCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -6517,8 +7228,8 @@ func (s *PipelineDepthStencilStateCreateInfo) vkStruct() *vkPipelineDepthStencil
 		depthCompareOp:        (CompareOp)(s.DepthCompareOp),
 		depthBoundsTestEnable: vkBool32(s.DepthBoundsTestEnable),
 		stencilTestEnable:     vkBool32(s.StencilTestEnable),
-		front:                 *(s.Front.vkStruct()),
-		back:                  *(s.Back.vkStruct()),
+		front:                 *(s.Front.ToVK()),
+		back:                  *(s.Back.ToVK()),
 		minDepthBounds:        (float32)(s.MinDepthBounds),
 		maxDepthBounds:        (float32)(s.MaxDepthBounds),
 	}
@@ -6532,6 +7243,12 @@ type PipelineDynamicStateCreateInfo struct {
 	PDynamicStates []DynamicState
 }
 
+// eg: gostruct := (&vk.PipelineDynamicStateCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *PipelineDynamicStateCreateInfo) FromVK(pn unsafe.Pointer) *PipelineDynamicStateCreateInfo {
+	vks := (*vkPipelineDynamicStateCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkPipelineDynamicStateCreateInfo struct {
 	sType             StructureType
 	pNext             unsafe.Pointer
@@ -6540,7 +7257,7 @@ type vkPipelineDynamicStateCreateInfo struct {
 	pDynamicStates    *DynamicState
 }
 
-func (s *vkPipelineDynamicStateCreateInfo) goStruct() *PipelineDynamicStateCreateInfo {
+func (s *vkPipelineDynamicStateCreateInfo) ToGo() *PipelineDynamicStateCreateInfo {
 	rval := &PipelineDynamicStateCreateInfo{
 		PNext: (unsafe.Pointer)(s.pNext),
 		Flags: (PipelineDynamicStateCreateFlags)(s.flags),
@@ -6549,7 +7266,7 @@ func (s *vkPipelineDynamicStateCreateInfo) goStruct() *PipelineDynamicStateCreat
 	return rval
 }
 
-func (s *PipelineDynamicStateCreateInfo) vkStruct() *vkPipelineDynamicStateCreateInfo {
+func (s *PipelineDynamicStateCreateInfo) ToVK() *vkPipelineDynamicStateCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -6575,6 +7292,12 @@ type PipelineInputAssemblyStateCreateInfo struct {
 	PrimitiveRestartEnable bool
 }
 
+// eg: gostruct := (&vk.PipelineInputAssemblyStateCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *PipelineInputAssemblyStateCreateInfo) FromVK(pn unsafe.Pointer) *PipelineInputAssemblyStateCreateInfo {
+	vks := (*vkPipelineInputAssemblyStateCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkPipelineInputAssemblyStateCreateInfo struct {
 	sType                  StructureType
 	pNext                  unsafe.Pointer
@@ -6583,7 +7306,7 @@ type vkPipelineInputAssemblyStateCreateInfo struct {
 	primitiveRestartEnable Bool32
 }
 
-func (s *vkPipelineInputAssemblyStateCreateInfo) goStruct() *PipelineInputAssemblyStateCreateInfo {
+func (s *vkPipelineInputAssemblyStateCreateInfo) ToGo() *PipelineInputAssemblyStateCreateInfo {
 	rval := &PipelineInputAssemblyStateCreateInfo{
 		PNext:                  (unsafe.Pointer)(s.pNext),
 		Flags:                  (PipelineInputAssemblyStateCreateFlags)(s.flags),
@@ -6593,7 +7316,7 @@ func (s *vkPipelineInputAssemblyStateCreateInfo) goStruct() *PipelineInputAssemb
 	return rval
 }
 
-func (s *PipelineInputAssemblyStateCreateInfo) vkStruct() *vkPipelineInputAssemblyStateCreateInfo {
+func (s *PipelineInputAssemblyStateCreateInfo) ToVK() *vkPipelineInputAssemblyStateCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -6619,6 +7342,12 @@ type PipelineMultisampleStateCreateInfo struct {
 	AlphaToOneEnable      bool
 }
 
+// eg: gostruct := (&vk.PipelineMultisampleStateCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *PipelineMultisampleStateCreateInfo) FromVK(pn unsafe.Pointer) *PipelineMultisampleStateCreateInfo {
+	vks := (*vkPipelineMultisampleStateCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkPipelineMultisampleStateCreateInfo struct {
 	sType                 StructureType
 	pNext                 unsafe.Pointer
@@ -6631,7 +7360,7 @@ type vkPipelineMultisampleStateCreateInfo struct {
 	alphaToOneEnable      Bool32
 }
 
-func (s *vkPipelineMultisampleStateCreateInfo) goStruct() *PipelineMultisampleStateCreateInfo {
+func (s *vkPipelineMultisampleStateCreateInfo) ToGo() *PipelineMultisampleStateCreateInfo {
 	rval := &PipelineMultisampleStateCreateInfo{
 		PNext:                (unsafe.Pointer)(s.pNext),
 		Flags:                (PipelineMultisampleStateCreateFlags)(s.flags),
@@ -6645,7 +7374,7 @@ func (s *vkPipelineMultisampleStateCreateInfo) goStruct() *PipelineMultisampleSt
 	return rval
 }
 
-func (s *PipelineMultisampleStateCreateInfo) vkStruct() *vkPipelineMultisampleStateCreateInfo {
+func (s *PipelineMultisampleStateCreateInfo) ToVK() *vkPipelineMultisampleStateCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -6679,6 +7408,12 @@ type PipelineRasterizationStateCreateInfo struct {
 	LineWidth               float32
 }
 
+// eg: gostruct := (&vk.PipelineRasterizationStateCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *PipelineRasterizationStateCreateInfo) FromVK(pn unsafe.Pointer) *PipelineRasterizationStateCreateInfo {
+	vks := (*vkPipelineRasterizationStateCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkPipelineRasterizationStateCreateInfo struct {
 	sType                   StructureType
 	pNext                   unsafe.Pointer
@@ -6695,7 +7430,7 @@ type vkPipelineRasterizationStateCreateInfo struct {
 	lineWidth               float32
 }
 
-func (s *vkPipelineRasterizationStateCreateInfo) goStruct() *PipelineRasterizationStateCreateInfo {
+func (s *vkPipelineRasterizationStateCreateInfo) ToGo() *PipelineRasterizationStateCreateInfo {
 	rval := &PipelineRasterizationStateCreateInfo{
 		PNext:                   (unsafe.Pointer)(s.pNext),
 		Flags:                   (PipelineRasterizationStateCreateFlags)(s.flags),
@@ -6713,7 +7448,7 @@ func (s *vkPipelineRasterizationStateCreateInfo) goStruct() *PipelineRasterizati
 	return rval
 }
 
-func (s *PipelineRasterizationStateCreateInfo) vkStruct() *vkPipelineRasterizationStateCreateInfo {
+func (s *PipelineRasterizationStateCreateInfo) ToVK() *vkPipelineRasterizationStateCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -6742,6 +7477,12 @@ type PipelineTessellationStateCreateInfo struct {
 	PatchControlPoints uint32
 }
 
+// eg: gostruct := (&vk.PipelineTessellationStateCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *PipelineTessellationStateCreateInfo) FromVK(pn unsafe.Pointer) *PipelineTessellationStateCreateInfo {
+	vks := (*vkPipelineTessellationStateCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkPipelineTessellationStateCreateInfo struct {
 	sType              StructureType
 	pNext              unsafe.Pointer
@@ -6749,7 +7490,7 @@ type vkPipelineTessellationStateCreateInfo struct {
 	patchControlPoints uint32
 }
 
-func (s *vkPipelineTessellationStateCreateInfo) goStruct() *PipelineTessellationStateCreateInfo {
+func (s *vkPipelineTessellationStateCreateInfo) ToGo() *PipelineTessellationStateCreateInfo {
 	rval := &PipelineTessellationStateCreateInfo{
 		PNext:              (unsafe.Pointer)(s.pNext),
 		Flags:              (PipelineTessellationStateCreateFlags)(s.flags),
@@ -6758,7 +7499,7 @@ func (s *vkPipelineTessellationStateCreateInfo) goStruct() *PipelineTessellation
 	return rval
 }
 
-func (s *PipelineTessellationStateCreateInfo) vkStruct() *vkPipelineTessellationStateCreateInfo {
+func (s *PipelineTessellationStateCreateInfo) ToVK() *vkPipelineTessellationStateCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -6779,6 +7520,12 @@ type PipelineVertexInputStateCreateInfo struct {
 	PVertexAttributeDescriptions []VertexInputAttributeDescription
 }
 
+// eg: gostruct := (&vk.PipelineVertexInputStateCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *PipelineVertexInputStateCreateInfo) FromVK(pn unsafe.Pointer) *PipelineVertexInputStateCreateInfo {
+	vks := (*vkPipelineVertexInputStateCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkPipelineVertexInputStateCreateInfo struct {
 	sType                           StructureType
 	pNext                           unsafe.Pointer
@@ -6789,7 +7536,7 @@ type vkPipelineVertexInputStateCreateInfo struct {
 	pVertexAttributeDescriptions    *vkVertexInputAttributeDescription
 }
 
-func (s *vkPipelineVertexInputStateCreateInfo) goStruct() *PipelineVertexInputStateCreateInfo {
+func (s *vkPipelineVertexInputStateCreateInfo) ToGo() *PipelineVertexInputStateCreateInfo {
 	rval := &PipelineVertexInputStateCreateInfo{
 		PNext: (unsafe.Pointer)(s.pNext),
 		Flags: (PipelineVertexInputStateCreateFlags)(s.flags),
@@ -6799,7 +7546,7 @@ func (s *vkPipelineVertexInputStateCreateInfo) goStruct() *PipelineVertexInputSt
 	return rval
 }
 
-func (s *PipelineVertexInputStateCreateInfo) vkStruct() *vkPipelineVertexInputStateCreateInfo {
+func (s *PipelineVertexInputStateCreateInfo) ToVK() *vkPipelineVertexInputStateCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -6831,6 +7578,12 @@ type PipelineViewportStateCreateInfo struct {
 	PScissors  []Rect2D
 }
 
+// eg: gostruct := (&vk.PipelineViewportStateCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *PipelineViewportStateCreateInfo) FromVK(pn unsafe.Pointer) *PipelineViewportStateCreateInfo {
+	vks := (*vkPipelineViewportStateCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkPipelineViewportStateCreateInfo struct {
 	sType         StructureType
 	pNext         unsafe.Pointer
@@ -6841,7 +7594,7 @@ type vkPipelineViewportStateCreateInfo struct {
 	pScissors     *vkRect2D
 }
 
-func (s *vkPipelineViewportStateCreateInfo) goStruct() *PipelineViewportStateCreateInfo {
+func (s *vkPipelineViewportStateCreateInfo) ToGo() *PipelineViewportStateCreateInfo {
 	rval := &PipelineViewportStateCreateInfo{
 		PNext: (unsafe.Pointer)(s.pNext),
 		Flags: (PipelineViewportStateCreateFlags)(s.flags),
@@ -6851,7 +7604,7 @@ func (s *vkPipelineViewportStateCreateInfo) goStruct() *PipelineViewportStateCre
 	return rval
 }
 
-func (s *PipelineViewportStateCreateInfo) vkStruct() *vkPipelineViewportStateCreateInfo {
+func (s *PipelineViewportStateCreateInfo) ToVK() *vkPipelineViewportStateCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -6896,6 +7649,12 @@ type GraphicsPipelineCreateInfo struct {
 	BasePipelineIndex   int32
 }
 
+// eg: gostruct := (&vk.GraphicsPipelineCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *GraphicsPipelineCreateInfo) FromVK(pn unsafe.Pointer) *GraphicsPipelineCreateInfo {
+	vks := (*vkGraphicsPipelineCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkGraphicsPipelineCreateInfo struct {
 	sType               StructureType
 	pNext               unsafe.Pointer
@@ -6918,7 +7677,7 @@ type vkGraphicsPipelineCreateInfo struct {
 	basePipelineIndex   int32
 }
 
-func (s *vkGraphicsPipelineCreateInfo) goStruct() *GraphicsPipelineCreateInfo {
+func (s *vkGraphicsPipelineCreateInfo) ToGo() *GraphicsPipelineCreateInfo {
 	rval := &GraphicsPipelineCreateInfo{
 		PNext: (unsafe.Pointer)(s.pNext),
 		Flags: (PipelineCreateFlags)(s.flags),
@@ -6941,7 +7700,7 @@ func (s *vkGraphicsPipelineCreateInfo) goStruct() *GraphicsPipelineCreateInfo {
 	return rval
 }
 
-func (s *GraphicsPipelineCreateInfo) vkStruct() *vkGraphicsPipelineCreateInfo {
+func (s *GraphicsPipelineCreateInfo) ToVK() *vkGraphicsPipelineCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -6949,7 +7708,7 @@ func (s *GraphicsPipelineCreateInfo) vkStruct() *vkGraphicsPipelineCreateInfo {
 	if len(s.PStages) > 0 {
 		tmp := make([]vkPipelineShaderStageCreateInfo, len(s.PStages))
 		for i, v := range s.PStages {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		sp_PStages = &tmp[0]
 	}
@@ -6959,15 +7718,15 @@ func (s *GraphicsPipelineCreateInfo) vkStruct() *vkGraphicsPipelineCreateInfo {
 		flags:               (PipelineCreateFlags)(s.Flags),
 		stageCount:          uint32(len(s.PStages)),
 		pStages:             sp_PStages,
-		pVertexInputState:   (s.PVertexInputState.vkStruct()),
-		pInputAssemblyState: (s.PInputAssemblyState.vkStruct()),
-		pTessellationState:  (s.PTessellationState.vkStruct()),
-		pViewportState:      (s.PViewportState.vkStruct()),
-		pRasterizationState: (s.PRasterizationState.vkStruct()),
-		pMultisampleState:   (s.PMultisampleState.vkStruct()),
-		pDepthStencilState:  (s.PDepthStencilState.vkStruct()),
-		pColorBlendState:    (s.PColorBlendState.vkStruct()),
-		pDynamicState:       (s.PDynamicState.vkStruct()),
+		pVertexInputState:   (s.PVertexInputState.ToVK()),
+		pInputAssemblyState: (s.PInputAssemblyState.ToVK()),
+		pTessellationState:  (s.PTessellationState.ToVK()),
+		pViewportState:      (s.PViewportState.ToVK()),
+		pRasterizationState: (s.PRasterizationState.ToVK()),
+		pMultisampleState:   (s.PMultisampleState.ToVK()),
+		pDepthStencilState:  (s.PDepthStencilState.ToVK()),
+		pColorBlendState:    (s.PColorBlendState.ToVK()),
+		pDynamicState:       (s.PDynamicState.ToVK()),
 		layout:              (PipelineLayout)(s.Layout),
 		renderPass:          (RenderPass)(s.RenderPass),
 		subpass:             (uint32)(s.Subpass),
@@ -6990,18 +7749,24 @@ type AttachmentDescription struct {
 	FinalLayout    ImageLayout
 }
 
+// eg: gostruct := (&vk.AttachmentDescription{}).FromVK(goStruct2.PNext)
+func (s *AttachmentDescription) FromVK(pn unsafe.Pointer) *AttachmentDescription {
+	vks := (*vkAttachmentDescription)(pn)
+	return vks.ToGo()
+}
+
 type vkAttachmentDescription = AttachmentDescription
 
-func (s *vkAttachmentDescription) goStruct() *AttachmentDescription {
-	rval := (*vkAttachmentDescription)(s)
+func (s *vkAttachmentDescription) ToGo() *AttachmentDescription {
+	rval := (*AttachmentDescription)(s)
 	return rval
 }
 
-func (s *AttachmentDescription) vkStruct() *vkAttachmentDescription {
+func (s *AttachmentDescription) ToVK() *vkAttachmentDescription {
 	if s == nil {
 		return nil
 	}
-	rval := (*AttachmentDescription)(s)
+	rval := (*vkAttachmentDescription)(s)
 	return rval
 }
 
@@ -7011,18 +7776,24 @@ type AttachmentReference struct {
 	Layout     ImageLayout
 }
 
+// eg: gostruct := (&vk.AttachmentReference{}).FromVK(goStruct2.PNext)
+func (s *AttachmentReference) FromVK(pn unsafe.Pointer) *AttachmentReference {
+	vks := (*vkAttachmentReference)(pn)
+	return vks.ToGo()
+}
+
 type vkAttachmentReference = AttachmentReference
 
-func (s *vkAttachmentReference) goStruct() *AttachmentReference {
-	rval := (*vkAttachmentReference)(s)
+func (s *vkAttachmentReference) ToGo() *AttachmentReference {
+	rval := (*AttachmentReference)(s)
 	return rval
 }
 
-func (s *AttachmentReference) vkStruct() *vkAttachmentReference {
+func (s *AttachmentReference) ToVK() *vkAttachmentReference {
 	if s == nil {
 		return nil
 	}
-	rval := (*AttachmentReference)(s)
+	rval := (*vkAttachmentReference)(s)
 	return rval
 }
 
@@ -7037,6 +7808,12 @@ type FramebufferCreateInfo struct {
 	Layers       uint32
 }
 
+// eg: gostruct := (&vk.FramebufferCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *FramebufferCreateInfo) FromVK(pn unsafe.Pointer) *FramebufferCreateInfo {
+	vks := (*vkFramebufferCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkFramebufferCreateInfo struct {
 	sType           StructureType
 	pNext           unsafe.Pointer
@@ -7049,7 +7826,7 @@ type vkFramebufferCreateInfo struct {
 	layers          uint32
 }
 
-func (s *vkFramebufferCreateInfo) goStruct() *FramebufferCreateInfo {
+func (s *vkFramebufferCreateInfo) ToGo() *FramebufferCreateInfo {
 	rval := &FramebufferCreateInfo{
 		PNext:      (unsafe.Pointer)(s.pNext),
 		Flags:      (FramebufferCreateFlags)(s.flags),
@@ -7062,7 +7839,7 @@ func (s *vkFramebufferCreateInfo) goStruct() *FramebufferCreateInfo {
 	return rval
 }
 
-func (s *FramebufferCreateInfo) vkStruct() *vkFramebufferCreateInfo {
+func (s *FramebufferCreateInfo) ToVK() *vkFramebufferCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -7095,18 +7872,24 @@ type SubpassDependency struct {
 	DependencyFlags DependencyFlags
 }
 
+// eg: gostruct := (&vk.SubpassDependency{}).FromVK(goStruct2.PNext)
+func (s *SubpassDependency) FromVK(pn unsafe.Pointer) *SubpassDependency {
+	vks := (*vkSubpassDependency)(pn)
+	return vks.ToGo()
+}
+
 type vkSubpassDependency = SubpassDependency
 
-func (s *vkSubpassDependency) goStruct() *SubpassDependency {
-	rval := (*vkSubpassDependency)(s)
+func (s *vkSubpassDependency) ToGo() *SubpassDependency {
+	rval := (*SubpassDependency)(s)
 	return rval
 }
 
-func (s *SubpassDependency) vkStruct() *vkSubpassDependency {
+func (s *SubpassDependency) ToVK() *vkSubpassDependency {
 	if s == nil {
 		return nil
 	}
-	rval := (*SubpassDependency)(s)
+	rval := (*vkSubpassDependency)(s)
 	return rval
 }
 
@@ -7119,6 +7902,12 @@ type SubpassDescription struct {
 	PResolveAttachments     []AttachmentReference
 	PDepthStencilAttachment *AttachmentReference
 	PPreserveAttachments    []uint32
+}
+
+// eg: gostruct := (&vk.SubpassDescription{}).FromVK(goStruct2.PNext)
+func (s *SubpassDescription) FromVK(pn unsafe.Pointer) *SubpassDescription {
+	vks := (*vkSubpassDescription)(pn)
+	return vks.ToGo()
 }
 
 type vkSubpassDescription struct {
@@ -7134,7 +7923,7 @@ type vkSubpassDescription struct {
 	pPreserveAttachments    *uint32
 }
 
-func (s *vkSubpassDescription) goStruct() *SubpassDescription {
+func (s *vkSubpassDescription) ToGo() *SubpassDescription {
 	rval := &SubpassDescription{
 		Flags:             (SubpassDescriptionFlags)(s.flags),
 		PipelineBindPoint: (PipelineBindPoint)(s.pipelineBindPoint),
@@ -7147,7 +7936,7 @@ func (s *vkSubpassDescription) goStruct() *SubpassDescription {
 	return rval
 }
 
-func (s *SubpassDescription) vkStruct() *vkSubpassDescription {
+func (s *SubpassDescription) ToVK() *vkSubpassDescription {
 	if s == nil {
 		return nil
 	}
@@ -7174,7 +7963,7 @@ func (s *SubpassDescription) vkStruct() *vkSubpassDescription {
 		pInputAttachments:       sp_PInputAttachments,
 		pColorAttachments:       sp_PColorAttachments,
 		pResolveAttachments:     sp_PResolveAttachments,
-		pDepthStencilAttachment: (s.PDepthStencilAttachment.vkStruct()),
+		pDepthStencilAttachment: (s.PDepthStencilAttachment.ToVK()),
 		preserveAttachmentCount: uint32(len(s.PPreserveAttachments)),
 		pPreserveAttachments:    sp_PPreserveAttachments,
 	}
@@ -7197,6 +7986,12 @@ type RenderPassCreateInfo struct {
 	PDependencies []SubpassDependency
 }
 
+// eg: gostruct := (&vk.RenderPassCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *RenderPassCreateInfo) FromVK(pn unsafe.Pointer) *RenderPassCreateInfo {
+	vks := (*vkRenderPassCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkRenderPassCreateInfo struct {
 	sType           StructureType
 	pNext           unsafe.Pointer
@@ -7209,7 +8004,7 @@ type vkRenderPassCreateInfo struct {
 	pDependencies   *vkSubpassDependency
 }
 
-func (s *vkRenderPassCreateInfo) goStruct() *RenderPassCreateInfo {
+func (s *vkRenderPassCreateInfo) ToGo() *RenderPassCreateInfo {
 	rval := &RenderPassCreateInfo{
 		PNext: (unsafe.Pointer)(s.pNext),
 		Flags: (RenderPassCreateFlags)(s.flags),
@@ -7220,7 +8015,7 @@ func (s *vkRenderPassCreateInfo) goStruct() *RenderPassCreateInfo {
 	return rval
 }
 
-func (s *RenderPassCreateInfo) vkStruct() *vkRenderPassCreateInfo {
+func (s *RenderPassCreateInfo) ToVK() *vkRenderPassCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -7232,7 +8027,7 @@ func (s *RenderPassCreateInfo) vkStruct() *vkRenderPassCreateInfo {
 	if len(s.PSubpasses) > 0 {
 		tmp := make([]vkSubpassDescription, len(s.PSubpasses))
 		for i, v := range s.PSubpasses {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		sp_PSubpasses = &tmp[0]
 	}
@@ -7260,18 +8055,24 @@ type ClearDepthStencilValue struct {
 	Stencil uint32
 }
 
+// eg: gostruct := (&vk.ClearDepthStencilValue{}).FromVK(goStruct2.PNext)
+func (s *ClearDepthStencilValue) FromVK(pn unsafe.Pointer) *ClearDepthStencilValue {
+	vks := (*vkClearDepthStencilValue)(pn)
+	return vks.ToGo()
+}
+
 type vkClearDepthStencilValue = ClearDepthStencilValue
 
-func (s *vkClearDepthStencilValue) goStruct() *ClearDepthStencilValue {
-	rval := (*vkClearDepthStencilValue)(s)
+func (s *vkClearDepthStencilValue) ToGo() *ClearDepthStencilValue {
+	rval := (*ClearDepthStencilValue)(s)
 	return rval
 }
 
-func (s *ClearDepthStencilValue) vkStruct() *vkClearDepthStencilValue {
+func (s *ClearDepthStencilValue) ToVK() *vkClearDepthStencilValue {
 	if s == nil {
 		return nil
 	}
-	rval := (*ClearDepthStencilValue)(s)
+	rval := (*vkClearDepthStencilValue)(s)
 	return rval
 }
 
@@ -7282,18 +8083,24 @@ type ClearRect struct {
 	LayerCount     uint32
 }
 
+// eg: gostruct := (&vk.ClearRect{}).FromVK(goStruct2.PNext)
+func (s *ClearRect) FromVK(pn unsafe.Pointer) *ClearRect {
+	vks := (*vkClearRect)(pn)
+	return vks.ToGo()
+}
+
 type vkClearRect = ClearRect
 
-func (s *vkClearRect) goStruct() *ClearRect {
-	rval := (*vkClearRect)(s)
+func (s *vkClearRect) ToGo() *ClearRect {
+	rval := (*ClearRect)(s)
 	return rval
 }
 
-func (s *ClearRect) vkStruct() *vkClearRect {
+func (s *ClearRect) ToVK() *vkClearRect {
 	if s == nil {
 		return nil
 	}
-	rval := (*ClearRect)(s)
+	rval := (*vkClearRect)(s)
 	return rval
 }
 
@@ -7319,12 +8126,12 @@ func (u *ClearValue) AsDepthStencil(val ClearDepthStencilValue) {
 
 type vkClearValue [unsafe.Sizeof(vkClearColorValue{})]byte
 
-func (u *ClearValue) vkStruct() *vkClearValue {
+func (u *ClearValue) ToVK() *vkClearValue {
 	switch {
 	case u.asColor:
-		return (*vkClearValue)(unsafe.Pointer(&u.Color))
+		return (*vkClearValue)(unsafe.Pointer(u.Color.ToVK()))
 	case u.asDepthStencil:
-		return (*vkClearValue)(unsafe.Pointer(&u.DepthStencil))
+		return (*vkClearValue)(unsafe.Pointer(u.DepthStencil.ToVK()))
 	default:
 		return &vkClearValue{}
 	}
@@ -7337,18 +8144,24 @@ type ClearAttachment struct {
 	ClearValue      ClearValue
 }
 
+// eg: gostruct := (&vk.ClearAttachment{}).FromVK(goStruct2.PNext)
+func (s *ClearAttachment) FromVK(pn unsafe.Pointer) *ClearAttachment {
+	vks := (*vkClearAttachment)(pn)
+	return vks.ToGo()
+}
+
 type vkClearAttachment = ClearAttachment
 
-func (s *vkClearAttachment) goStruct() *ClearAttachment {
-	rval := (*vkClearAttachment)(s)
+func (s *vkClearAttachment) ToGo() *ClearAttachment {
+	rval := (*ClearAttachment)(s)
 	return rval
 }
 
-func (s *ClearAttachment) vkStruct() *vkClearAttachment {
+func (s *ClearAttachment) ToVK() *vkClearAttachment {
 	if s == nil {
 		return nil
 	}
-	rval := (*ClearAttachment)(s)
+	rval := (*vkClearAttachment)(s)
 	return rval
 }
 
@@ -7360,18 +8173,24 @@ type ImageBlit struct {
 	DstOffsets     [2]Offset3D
 }
 
+// eg: gostruct := (&vk.ImageBlit{}).FromVK(goStruct2.PNext)
+func (s *ImageBlit) FromVK(pn unsafe.Pointer) *ImageBlit {
+	vks := (*vkImageBlit)(pn)
+	return vks.ToGo()
+}
+
 type vkImageBlit = ImageBlit
 
-func (s *vkImageBlit) goStruct() *ImageBlit {
-	rval := (*vkImageBlit)(s)
+func (s *vkImageBlit) ToGo() *ImageBlit {
+	rval := (*ImageBlit)(s)
 	return rval
 }
 
-func (s *ImageBlit) vkStruct() *vkImageBlit {
+func (s *ImageBlit) ToVK() *vkImageBlit {
 	if s == nil {
 		return nil
 	}
-	rval := (*ImageBlit)(s)
+	rval := (*vkImageBlit)(s)
 	return rval
 }
 
@@ -7384,18 +8203,24 @@ type ImageResolve struct {
 	Extent         Extent3D
 }
 
+// eg: gostruct := (&vk.ImageResolve{}).FromVK(goStruct2.PNext)
+func (s *ImageResolve) FromVK(pn unsafe.Pointer) *ImageResolve {
+	vks := (*vkImageResolve)(pn)
+	return vks.ToGo()
+}
+
 type vkImageResolve = ImageResolve
 
-func (s *vkImageResolve) goStruct() *ImageResolve {
-	rval := (*vkImageResolve)(s)
+func (s *vkImageResolve) ToGo() *ImageResolve {
+	rval := (*ImageResolve)(s)
 	return rval
 }
 
-func (s *ImageResolve) vkStruct() *vkImageResolve {
+func (s *ImageResolve) ToVK() *vkImageResolve {
 	if s == nil {
 		return nil
 	}
-	rval := (*ImageResolve)(s)
+	rval := (*vkImageResolve)(s)
 	return rval
 }
 
@@ -7408,6 +8233,12 @@ type RenderPassBeginInfo struct {
 	PClearValues []ClearValue
 }
 
+// eg: gostruct := (&vk.RenderPassBeginInfo{}).FromVK(goStruct2.PNext)
+func (s *RenderPassBeginInfo) FromVK(pn unsafe.Pointer) *RenderPassBeginInfo {
+	vks := (*vkRenderPassBeginInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkRenderPassBeginInfo struct {
 	sType           StructureType
 	pNext           unsafe.Pointer
@@ -7418,19 +8249,19 @@ type vkRenderPassBeginInfo struct {
 	pClearValues    *vkClearValue
 }
 
-func (s *vkRenderPassBeginInfo) goStruct() *RenderPassBeginInfo {
+func (s *vkRenderPassBeginInfo) ToGo() *RenderPassBeginInfo {
 	rval := &RenderPassBeginInfo{
 		PNext:       (unsafe.Pointer)(s.pNext),
 		RenderPass:  (RenderPass)(s.renderPass),
 		Framebuffer: (Framebuffer)(s.framebuffer),
-		RenderArea:  *(s.renderArea.goStruct()),
+		RenderArea:  *(s.renderArea.ToGo()),
 		// pClearValues: can't convert union member to go
 
 	}
 	return rval
 }
 
-func (s *RenderPassBeginInfo) vkStruct() *vkRenderPassBeginInfo {
+func (s *RenderPassBeginInfo) ToVK() *vkRenderPassBeginInfo {
 	if s == nil {
 		return nil
 	}
@@ -7438,7 +8269,7 @@ func (s *RenderPassBeginInfo) vkStruct() *vkRenderPassBeginInfo {
 	if len(s.PClearValues) > 0 {
 		tmp := make([]vkClearValue, len(s.PClearValues))
 		for i, v := range s.PClearValues {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		sp_PClearValues = &tmp[0]
 	}
@@ -7447,7 +8278,7 @@ func (s *RenderPassBeginInfo) vkStruct() *vkRenderPassBeginInfo {
 		pNext:           (unsafe.Pointer)(s.PNext),
 		renderPass:      (RenderPass)(s.RenderPass),
 		framebuffer:     (Framebuffer)(s.Framebuffer),
-		renderArea:      *(s.RenderArea.vkStruct()),
+		renderArea:      *(s.RenderArea.ToVK()),
 		clearValueCount: uint32(len(s.PClearValues)),
 		pClearValues:    sp_PClearValues,
 	}
@@ -7462,6 +8293,12 @@ type BindBufferMemoryInfo struct {
 	MemoryOffset DeviceSize
 }
 
+// eg: gostruct := (&vk.BindBufferMemoryInfo{}).FromVK(goStruct2.PNext)
+func (s *BindBufferMemoryInfo) FromVK(pn unsafe.Pointer) *BindBufferMemoryInfo {
+	vks := (*vkBindBufferMemoryInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkBindBufferMemoryInfo struct {
 	sType        StructureType
 	pNext        unsafe.Pointer
@@ -7470,7 +8307,7 @@ type vkBindBufferMemoryInfo struct {
 	memoryOffset DeviceSize
 }
 
-func (s *vkBindBufferMemoryInfo) goStruct() *BindBufferMemoryInfo {
+func (s *vkBindBufferMemoryInfo) ToGo() *BindBufferMemoryInfo {
 	rval := &BindBufferMemoryInfo{
 		PNext:        (unsafe.Pointer)(s.pNext),
 		Buffer:       (Buffer)(s.buffer),
@@ -7480,7 +8317,7 @@ func (s *vkBindBufferMemoryInfo) goStruct() *BindBufferMemoryInfo {
 	return rval
 }
 
-func (s *BindBufferMemoryInfo) vkStruct() *vkBindBufferMemoryInfo {
+func (s *BindBufferMemoryInfo) ToVK() *vkBindBufferMemoryInfo {
 	if s == nil {
 		return nil
 	}
@@ -7502,6 +8339,12 @@ type BindImageMemoryInfo struct {
 	MemoryOffset DeviceSize
 }
 
+// eg: gostruct := (&vk.BindImageMemoryInfo{}).FromVK(goStruct2.PNext)
+func (s *BindImageMemoryInfo) FromVK(pn unsafe.Pointer) *BindImageMemoryInfo {
+	vks := (*vkBindImageMemoryInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkBindImageMemoryInfo struct {
 	sType        StructureType
 	pNext        unsafe.Pointer
@@ -7510,7 +8353,7 @@ type vkBindImageMemoryInfo struct {
 	memoryOffset DeviceSize
 }
 
-func (s *vkBindImageMemoryInfo) goStruct() *BindImageMemoryInfo {
+func (s *vkBindImageMemoryInfo) ToGo() *BindImageMemoryInfo {
 	rval := &BindImageMemoryInfo{
 		PNext:        (unsafe.Pointer)(s.pNext),
 		Image:        (Image)(s.image),
@@ -7520,7 +8363,7 @@ func (s *vkBindImageMemoryInfo) goStruct() *BindImageMemoryInfo {
 	return rval
 }
 
-func (s *BindImageMemoryInfo) vkStruct() *vkBindImageMemoryInfo {
+func (s *BindImageMemoryInfo) ToVK() *vkBindImageMemoryInfo {
 	if s == nil {
 		return nil
 	}
@@ -7541,6 +8384,12 @@ type MemoryDedicatedRequirements struct {
 	RequiresDedicatedAllocation bool
 }
 
+// eg: gostruct := (&vk.MemoryDedicatedRequirements{}).FromVK(goStruct2.PNext)
+func (s *MemoryDedicatedRequirements) FromVK(pn unsafe.Pointer) *MemoryDedicatedRequirements {
+	vks := (*vkMemoryDedicatedRequirements)(pn)
+	return vks.ToGo()
+}
+
 type vkMemoryDedicatedRequirements struct {
 	sType                       StructureType
 	pNext                       unsafe.Pointer
@@ -7548,7 +8397,7 @@ type vkMemoryDedicatedRequirements struct {
 	requiresDedicatedAllocation Bool32
 }
 
-func (s *vkMemoryDedicatedRequirements) goStruct() *MemoryDedicatedRequirements {
+func (s *vkMemoryDedicatedRequirements) ToGo() *MemoryDedicatedRequirements {
 	rval := &MemoryDedicatedRequirements{
 		PNext:                       (unsafe.Pointer)(s.pNext),
 		PrefersDedicatedAllocation:  goBool32(s.prefersDedicatedAllocation),
@@ -7557,7 +8406,7 @@ func (s *vkMemoryDedicatedRequirements) goStruct() *MemoryDedicatedRequirements 
 	return rval
 }
 
-func (s *MemoryDedicatedRequirements) vkStruct() *vkMemoryDedicatedRequirements {
+func (s *MemoryDedicatedRequirements) ToVK() *vkMemoryDedicatedRequirements {
 	if s == nil {
 		return nil
 	}
@@ -7577,6 +8426,12 @@ type MemoryDedicatedAllocateInfo struct {
 	Buffer Buffer
 }
 
+// eg: gostruct := (&vk.MemoryDedicatedAllocateInfo{}).FromVK(goStruct2.PNext)
+func (s *MemoryDedicatedAllocateInfo) FromVK(pn unsafe.Pointer) *MemoryDedicatedAllocateInfo {
+	vks := (*vkMemoryDedicatedAllocateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkMemoryDedicatedAllocateInfo struct {
 	sType  StructureType
 	pNext  unsafe.Pointer
@@ -7584,7 +8439,7 @@ type vkMemoryDedicatedAllocateInfo struct {
 	buffer Buffer
 }
 
-func (s *vkMemoryDedicatedAllocateInfo) goStruct() *MemoryDedicatedAllocateInfo {
+func (s *vkMemoryDedicatedAllocateInfo) ToGo() *MemoryDedicatedAllocateInfo {
 	rval := &MemoryDedicatedAllocateInfo{
 		PNext:  (unsafe.Pointer)(s.pNext),
 		Image:  (Image)(s.image),
@@ -7593,7 +8448,7 @@ func (s *vkMemoryDedicatedAllocateInfo) goStruct() *MemoryDedicatedAllocateInfo 
 	return rval
 }
 
-func (s *MemoryDedicatedAllocateInfo) vkStruct() *vkMemoryDedicatedAllocateInfo {
+func (s *MemoryDedicatedAllocateInfo) ToVK() *vkMemoryDedicatedAllocateInfo {
 	if s == nil {
 		return nil
 	}
@@ -7613,6 +8468,12 @@ type MemoryAllocateFlagsInfo struct {
 	DeviceMask uint32
 }
 
+// eg: gostruct := (&vk.MemoryAllocateFlagsInfo{}).FromVK(goStruct2.PNext)
+func (s *MemoryAllocateFlagsInfo) FromVK(pn unsafe.Pointer) *MemoryAllocateFlagsInfo {
+	vks := (*vkMemoryAllocateFlagsInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkMemoryAllocateFlagsInfo struct {
 	sType      StructureType
 	pNext      unsafe.Pointer
@@ -7620,7 +8481,7 @@ type vkMemoryAllocateFlagsInfo struct {
 	deviceMask uint32
 }
 
-func (s *vkMemoryAllocateFlagsInfo) goStruct() *MemoryAllocateFlagsInfo {
+func (s *vkMemoryAllocateFlagsInfo) ToGo() *MemoryAllocateFlagsInfo {
 	rval := &MemoryAllocateFlagsInfo{
 		PNext:      (unsafe.Pointer)(s.pNext),
 		Flags:      (MemoryAllocateFlags)(s.flags),
@@ -7629,7 +8490,7 @@ func (s *vkMemoryAllocateFlagsInfo) goStruct() *MemoryAllocateFlagsInfo {
 	return rval
 }
 
-func (s *MemoryAllocateFlagsInfo) vkStruct() *vkMemoryAllocateFlagsInfo {
+func (s *MemoryAllocateFlagsInfo) ToVK() *vkMemoryAllocateFlagsInfo {
 	if s == nil {
 		return nil
 	}
@@ -7648,13 +8509,19 @@ type DeviceGroupCommandBufferBeginInfo struct {
 	DeviceMask uint32
 }
 
+// eg: gostruct := (&vk.DeviceGroupCommandBufferBeginInfo{}).FromVK(goStruct2.PNext)
+func (s *DeviceGroupCommandBufferBeginInfo) FromVK(pn unsafe.Pointer) *DeviceGroupCommandBufferBeginInfo {
+	vks := (*vkDeviceGroupCommandBufferBeginInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkDeviceGroupCommandBufferBeginInfo struct {
 	sType      StructureType
 	pNext      unsafe.Pointer
 	deviceMask uint32
 }
 
-func (s *vkDeviceGroupCommandBufferBeginInfo) goStruct() *DeviceGroupCommandBufferBeginInfo {
+func (s *vkDeviceGroupCommandBufferBeginInfo) ToGo() *DeviceGroupCommandBufferBeginInfo {
 	rval := &DeviceGroupCommandBufferBeginInfo{
 		PNext:      (unsafe.Pointer)(s.pNext),
 		DeviceMask: (uint32)(s.deviceMask),
@@ -7662,7 +8529,7 @@ func (s *vkDeviceGroupCommandBufferBeginInfo) goStruct() *DeviceGroupCommandBuff
 	return rval
 }
 
-func (s *DeviceGroupCommandBufferBeginInfo) vkStruct() *vkDeviceGroupCommandBufferBeginInfo {
+func (s *DeviceGroupCommandBufferBeginInfo) ToVK() *vkDeviceGroupCommandBufferBeginInfo {
 	if s == nil {
 		return nil
 	}
@@ -7682,6 +8549,12 @@ type DeviceGroupSubmitInfo struct {
 	PSignalSemaphoreDeviceIndices []uint32
 }
 
+// eg: gostruct := (&vk.DeviceGroupSubmitInfo{}).FromVK(goStruct2.PNext)
+func (s *DeviceGroupSubmitInfo) FromVK(pn unsafe.Pointer) *DeviceGroupSubmitInfo {
+	vks := (*vkDeviceGroupSubmitInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkDeviceGroupSubmitInfo struct {
 	sType                         StructureType
 	pNext                         unsafe.Pointer
@@ -7693,7 +8566,7 @@ type vkDeviceGroupSubmitInfo struct {
 	pSignalSemaphoreDeviceIndices *uint32
 }
 
-func (s *vkDeviceGroupSubmitInfo) goStruct() *DeviceGroupSubmitInfo {
+func (s *vkDeviceGroupSubmitInfo) ToGo() *DeviceGroupSubmitInfo {
 	rval := &DeviceGroupSubmitInfo{
 		PNext: (unsafe.Pointer)(s.pNext),
 		// ignoring returned pointer type PWaitSemaphoreDeviceIndices
@@ -7703,7 +8576,7 @@ func (s *vkDeviceGroupSubmitInfo) goStruct() *DeviceGroupSubmitInfo {
 	return rval
 }
 
-func (s *DeviceGroupSubmitInfo) vkStruct() *vkDeviceGroupSubmitInfo {
+func (s *DeviceGroupSubmitInfo) ToVK() *vkDeviceGroupSubmitInfo {
 	if s == nil {
 		return nil
 	}
@@ -7739,6 +8612,12 @@ type DeviceGroupBindSparseInfo struct {
 	MemoryDeviceIndex   uint32
 }
 
+// eg: gostruct := (&vk.DeviceGroupBindSparseInfo{}).FromVK(goStruct2.PNext)
+func (s *DeviceGroupBindSparseInfo) FromVK(pn unsafe.Pointer) *DeviceGroupBindSparseInfo {
+	vks := (*vkDeviceGroupBindSparseInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkDeviceGroupBindSparseInfo struct {
 	sType               StructureType
 	pNext               unsafe.Pointer
@@ -7746,7 +8625,7 @@ type vkDeviceGroupBindSparseInfo struct {
 	memoryDeviceIndex   uint32
 }
 
-func (s *vkDeviceGroupBindSparseInfo) goStruct() *DeviceGroupBindSparseInfo {
+func (s *vkDeviceGroupBindSparseInfo) ToGo() *DeviceGroupBindSparseInfo {
 	rval := &DeviceGroupBindSparseInfo{
 		PNext:               (unsafe.Pointer)(s.pNext),
 		ResourceDeviceIndex: (uint32)(s.resourceDeviceIndex),
@@ -7755,7 +8634,7 @@ func (s *vkDeviceGroupBindSparseInfo) goStruct() *DeviceGroupBindSparseInfo {
 	return rval
 }
 
-func (s *DeviceGroupBindSparseInfo) vkStruct() *vkDeviceGroupBindSparseInfo {
+func (s *DeviceGroupBindSparseInfo) ToVK() *vkDeviceGroupBindSparseInfo {
 	if s == nil {
 		return nil
 	}
@@ -7774,6 +8653,12 @@ type BindBufferMemoryDeviceGroupInfo struct {
 	PDeviceIndices []uint32
 }
 
+// eg: gostruct := (&vk.BindBufferMemoryDeviceGroupInfo{}).FromVK(goStruct2.PNext)
+func (s *BindBufferMemoryDeviceGroupInfo) FromVK(pn unsafe.Pointer) *BindBufferMemoryDeviceGroupInfo {
+	vks := (*vkBindBufferMemoryDeviceGroupInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkBindBufferMemoryDeviceGroupInfo struct {
 	sType            StructureType
 	pNext            unsafe.Pointer
@@ -7781,7 +8666,7 @@ type vkBindBufferMemoryDeviceGroupInfo struct {
 	pDeviceIndices   *uint32
 }
 
-func (s *vkBindBufferMemoryDeviceGroupInfo) goStruct() *BindBufferMemoryDeviceGroupInfo {
+func (s *vkBindBufferMemoryDeviceGroupInfo) ToGo() *BindBufferMemoryDeviceGroupInfo {
 	rval := &BindBufferMemoryDeviceGroupInfo{
 		PNext: (unsafe.Pointer)(s.pNext),
 		// ignoring returned pointer type PDeviceIndices
@@ -7789,7 +8674,7 @@ func (s *vkBindBufferMemoryDeviceGroupInfo) goStruct() *BindBufferMemoryDeviceGr
 	return rval
 }
 
-func (s *BindBufferMemoryDeviceGroupInfo) vkStruct() *vkBindBufferMemoryDeviceGroupInfo {
+func (s *BindBufferMemoryDeviceGroupInfo) ToVK() *vkBindBufferMemoryDeviceGroupInfo {
 	if s == nil {
 		return nil
 	}
@@ -7813,6 +8698,12 @@ type BindImageMemoryDeviceGroupInfo struct {
 	PSplitInstanceBindRegions []Rect2D
 }
 
+// eg: gostruct := (&vk.BindImageMemoryDeviceGroupInfo{}).FromVK(goStruct2.PNext)
+func (s *BindImageMemoryDeviceGroupInfo) FromVK(pn unsafe.Pointer) *BindImageMemoryDeviceGroupInfo {
+	vks := (*vkBindImageMemoryDeviceGroupInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkBindImageMemoryDeviceGroupInfo struct {
 	sType                        StructureType
 	pNext                        unsafe.Pointer
@@ -7822,7 +8713,7 @@ type vkBindImageMemoryDeviceGroupInfo struct {
 	pSplitInstanceBindRegions    *vkRect2D
 }
 
-func (s *vkBindImageMemoryDeviceGroupInfo) goStruct() *BindImageMemoryDeviceGroupInfo {
+func (s *vkBindImageMemoryDeviceGroupInfo) ToGo() *BindImageMemoryDeviceGroupInfo {
 	rval := &BindImageMemoryDeviceGroupInfo{
 		PNext: (unsafe.Pointer)(s.pNext),
 		// ignoring returned pointer type PDeviceIndices
@@ -7831,7 +8722,7 @@ func (s *vkBindImageMemoryDeviceGroupInfo) goStruct() *BindImageMemoryDeviceGrou
 	return rval
 }
 
-func (s *BindImageMemoryDeviceGroupInfo) vkStruct() *vkBindImageMemoryDeviceGroupInfo {
+func (s *BindImageMemoryDeviceGroupInfo) ToVK() *vkBindImageMemoryDeviceGroupInfo {
 	if s == nil {
 		return nil
 	}
@@ -7862,6 +8753,12 @@ type PhysicalDeviceGroupProperties struct {
 	SubsetAllocation    bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceGroupProperties{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceGroupProperties) FromVK(pn unsafe.Pointer) *PhysicalDeviceGroupProperties {
+	vks := (*vkPhysicalDeviceGroupProperties)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceGroupProperties struct {
 	sType               StructureType
 	pNext               unsafe.Pointer
@@ -7870,7 +8767,7 @@ type vkPhysicalDeviceGroupProperties struct {
 	subsetAllocation    Bool32
 }
 
-func (s *vkPhysicalDeviceGroupProperties) goStruct() *PhysicalDeviceGroupProperties {
+func (s *vkPhysicalDeviceGroupProperties) ToGo() *PhysicalDeviceGroupProperties {
 	rval := &PhysicalDeviceGroupProperties{
 		PNext:               (unsafe.Pointer)(s.pNext),
 		PhysicalDeviceCount: (uint32)(s.physicalDeviceCount),
@@ -7880,7 +8777,7 @@ func (s *vkPhysicalDeviceGroupProperties) goStruct() *PhysicalDeviceGroupPropert
 	return rval
 }
 
-func (s *PhysicalDeviceGroupProperties) vkStruct() *vkPhysicalDeviceGroupProperties {
+func (s *PhysicalDeviceGroupProperties) ToVK() *vkPhysicalDeviceGroupProperties {
 	if s == nil {
 		return nil
 	}
@@ -7900,6 +8797,12 @@ type DeviceGroupDeviceCreateInfo struct {
 	PPhysicalDevices []PhysicalDevice
 }
 
+// eg: gostruct := (&vk.DeviceGroupDeviceCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *DeviceGroupDeviceCreateInfo) FromVK(pn unsafe.Pointer) *DeviceGroupDeviceCreateInfo {
+	vks := (*vkDeviceGroupDeviceCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkDeviceGroupDeviceCreateInfo struct {
 	sType               StructureType
 	pNext               unsafe.Pointer
@@ -7907,7 +8810,7 @@ type vkDeviceGroupDeviceCreateInfo struct {
 	pPhysicalDevices    *PhysicalDevice
 }
 
-func (s *vkDeviceGroupDeviceCreateInfo) goStruct() *DeviceGroupDeviceCreateInfo {
+func (s *vkDeviceGroupDeviceCreateInfo) ToGo() *DeviceGroupDeviceCreateInfo {
 	rval := &DeviceGroupDeviceCreateInfo{
 		PNext: (unsafe.Pointer)(s.pNext),
 		// ignoring returned pointer type PPhysicalDevices
@@ -7915,7 +8818,7 @@ func (s *vkDeviceGroupDeviceCreateInfo) goStruct() *DeviceGroupDeviceCreateInfo 
 	return rval
 }
 
-func (s *DeviceGroupDeviceCreateInfo) vkStruct() *vkDeviceGroupDeviceCreateInfo {
+func (s *DeviceGroupDeviceCreateInfo) ToVK() *vkDeviceGroupDeviceCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -7938,13 +8841,19 @@ type BufferMemoryRequirementsInfo2 struct {
 	Buffer Buffer
 }
 
+// eg: gostruct := (&vk.BufferMemoryRequirementsInfo2{}).FromVK(goStruct2.PNext)
+func (s *BufferMemoryRequirementsInfo2) FromVK(pn unsafe.Pointer) *BufferMemoryRequirementsInfo2 {
+	vks := (*vkBufferMemoryRequirementsInfo2)(pn)
+	return vks.ToGo()
+}
+
 type vkBufferMemoryRequirementsInfo2 struct {
 	sType  StructureType
 	pNext  unsafe.Pointer
 	buffer Buffer
 }
 
-func (s *vkBufferMemoryRequirementsInfo2) goStruct() *BufferMemoryRequirementsInfo2 {
+func (s *vkBufferMemoryRequirementsInfo2) ToGo() *BufferMemoryRequirementsInfo2 {
 	rval := &BufferMemoryRequirementsInfo2{
 		PNext:  (unsafe.Pointer)(s.pNext),
 		Buffer: (Buffer)(s.buffer),
@@ -7952,7 +8861,7 @@ func (s *vkBufferMemoryRequirementsInfo2) goStruct() *BufferMemoryRequirementsIn
 	return rval
 }
 
-func (s *BufferMemoryRequirementsInfo2) vkStruct() *vkBufferMemoryRequirementsInfo2 {
+func (s *BufferMemoryRequirementsInfo2) ToVK() *vkBufferMemoryRequirementsInfo2 {
 	if s == nil {
 		return nil
 	}
@@ -7970,13 +8879,19 @@ type ImageMemoryRequirementsInfo2 struct {
 	Image Image
 }
 
+// eg: gostruct := (&vk.ImageMemoryRequirementsInfo2{}).FromVK(goStruct2.PNext)
+func (s *ImageMemoryRequirementsInfo2) FromVK(pn unsafe.Pointer) *ImageMemoryRequirementsInfo2 {
+	vks := (*vkImageMemoryRequirementsInfo2)(pn)
+	return vks.ToGo()
+}
+
 type vkImageMemoryRequirementsInfo2 struct {
 	sType StructureType
 	pNext unsafe.Pointer
 	image Image
 }
 
-func (s *vkImageMemoryRequirementsInfo2) goStruct() *ImageMemoryRequirementsInfo2 {
+func (s *vkImageMemoryRequirementsInfo2) ToGo() *ImageMemoryRequirementsInfo2 {
 	rval := &ImageMemoryRequirementsInfo2{
 		PNext: (unsafe.Pointer)(s.pNext),
 		Image: (Image)(s.image),
@@ -7984,7 +8899,7 @@ func (s *vkImageMemoryRequirementsInfo2) goStruct() *ImageMemoryRequirementsInfo
 	return rval
 }
 
-func (s *ImageMemoryRequirementsInfo2) vkStruct() *vkImageMemoryRequirementsInfo2 {
+func (s *ImageMemoryRequirementsInfo2) ToVK() *vkImageMemoryRequirementsInfo2 {
 	if s == nil {
 		return nil
 	}
@@ -8002,13 +8917,19 @@ type ImageSparseMemoryRequirementsInfo2 struct {
 	Image Image
 }
 
+// eg: gostruct := (&vk.ImageSparseMemoryRequirementsInfo2{}).FromVK(goStruct2.PNext)
+func (s *ImageSparseMemoryRequirementsInfo2) FromVK(pn unsafe.Pointer) *ImageSparseMemoryRequirementsInfo2 {
+	vks := (*vkImageSparseMemoryRequirementsInfo2)(pn)
+	return vks.ToGo()
+}
+
 type vkImageSparseMemoryRequirementsInfo2 struct {
 	sType StructureType
 	pNext unsafe.Pointer
 	image Image
 }
 
-func (s *vkImageSparseMemoryRequirementsInfo2) goStruct() *ImageSparseMemoryRequirementsInfo2 {
+func (s *vkImageSparseMemoryRequirementsInfo2) ToGo() *ImageSparseMemoryRequirementsInfo2 {
 	rval := &ImageSparseMemoryRequirementsInfo2{
 		PNext: (unsafe.Pointer)(s.pNext),
 		Image: (Image)(s.image),
@@ -8016,7 +8937,7 @@ func (s *vkImageSparseMemoryRequirementsInfo2) goStruct() *ImageSparseMemoryRequ
 	return rval
 }
 
-func (s *ImageSparseMemoryRequirementsInfo2) vkStruct() *vkImageSparseMemoryRequirementsInfo2 {
+func (s *ImageSparseMemoryRequirementsInfo2) ToVK() *vkImageSparseMemoryRequirementsInfo2 {
 	if s == nil {
 		return nil
 	}
@@ -8034,28 +8955,34 @@ type MemoryRequirements2 struct {
 	MemoryRequirements MemoryRequirements
 }
 
+// eg: gostruct := (&vk.MemoryRequirements2{}).FromVK(goStruct2.PNext)
+func (s *MemoryRequirements2) FromVK(pn unsafe.Pointer) *MemoryRequirements2 {
+	vks := (*vkMemoryRequirements2)(pn)
+	return vks.ToGo()
+}
+
 type vkMemoryRequirements2 struct {
 	sType              StructureType
 	pNext              unsafe.Pointer
 	memoryRequirements vkMemoryRequirements
 }
 
-func (s *vkMemoryRequirements2) goStruct() *MemoryRequirements2 {
+func (s *vkMemoryRequirements2) ToGo() *MemoryRequirements2 {
 	rval := &MemoryRequirements2{
 		PNext:              (unsafe.Pointer)(s.pNext),
-		MemoryRequirements: *(s.memoryRequirements.goStruct()),
+		MemoryRequirements: *(s.memoryRequirements.ToGo()),
 	}
 	return rval
 }
 
-func (s *MemoryRequirements2) vkStruct() *vkMemoryRequirements2 {
+func (s *MemoryRequirements2) ToVK() *vkMemoryRequirements2 {
 	if s == nil {
 		return nil
 	}
 	rval := &vkMemoryRequirements2{
 		sType:              STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2,
 		pNext:              (unsafe.Pointer)(s.PNext),
-		memoryRequirements: *(s.MemoryRequirements.vkStruct()),
+		memoryRequirements: *(s.MemoryRequirements.ToVK()),
 	}
 	return rval
 }
@@ -8066,28 +8993,34 @@ type SparseImageMemoryRequirements2 struct {
 	MemoryRequirements SparseImageMemoryRequirements
 }
 
+// eg: gostruct := (&vk.SparseImageMemoryRequirements2{}).FromVK(goStruct2.PNext)
+func (s *SparseImageMemoryRequirements2) FromVK(pn unsafe.Pointer) *SparseImageMemoryRequirements2 {
+	vks := (*vkSparseImageMemoryRequirements2)(pn)
+	return vks.ToGo()
+}
+
 type vkSparseImageMemoryRequirements2 struct {
 	sType              StructureType
 	pNext              unsafe.Pointer
 	memoryRequirements vkSparseImageMemoryRequirements
 }
 
-func (s *vkSparseImageMemoryRequirements2) goStruct() *SparseImageMemoryRequirements2 {
+func (s *vkSparseImageMemoryRequirements2) ToGo() *SparseImageMemoryRequirements2 {
 	rval := &SparseImageMemoryRequirements2{
 		PNext:              (unsafe.Pointer)(s.pNext),
-		MemoryRequirements: *(s.memoryRequirements.goStruct()),
+		MemoryRequirements: *(s.memoryRequirements.ToGo()),
 	}
 	return rval
 }
 
-func (s *SparseImageMemoryRequirements2) vkStruct() *vkSparseImageMemoryRequirements2 {
+func (s *SparseImageMemoryRequirements2) ToVK() *vkSparseImageMemoryRequirements2 {
 	if s == nil {
 		return nil
 	}
 	rval := &vkSparseImageMemoryRequirements2{
 		sType:              STRUCTURE_TYPE_SPARSE_IMAGE_MEMORY_REQUIREMENTS_2,
 		pNext:              (unsafe.Pointer)(s.PNext),
-		memoryRequirements: *(s.MemoryRequirements.vkStruct()),
+		memoryRequirements: *(s.MemoryRequirements.ToVK()),
 	}
 	return rval
 }
@@ -8098,28 +9031,34 @@ type PhysicalDeviceFeatures2 struct {
 	Features PhysicalDeviceFeatures
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceFeatures2{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceFeatures2) FromVK(pn unsafe.Pointer) *PhysicalDeviceFeatures2 {
+	vks := (*vkPhysicalDeviceFeatures2)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceFeatures2 struct {
 	sType    StructureType
 	pNext    unsafe.Pointer
 	features vkPhysicalDeviceFeatures
 }
 
-func (s *vkPhysicalDeviceFeatures2) goStruct() *PhysicalDeviceFeatures2 {
+func (s *vkPhysicalDeviceFeatures2) ToGo() *PhysicalDeviceFeatures2 {
 	rval := &PhysicalDeviceFeatures2{
 		PNext:    (unsafe.Pointer)(s.pNext),
-		Features: *(s.features.goStruct()),
+		Features: *(s.features.ToGo()),
 	}
 	return rval
 }
 
-func (s *PhysicalDeviceFeatures2) vkStruct() *vkPhysicalDeviceFeatures2 {
+func (s *PhysicalDeviceFeatures2) ToVK() *vkPhysicalDeviceFeatures2 {
 	if s == nil {
 		return nil
 	}
 	rval := &vkPhysicalDeviceFeatures2{
 		sType:    STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
 		pNext:    (unsafe.Pointer)(s.PNext),
-		features: *(s.Features.vkStruct()),
+		features: *(s.Features.ToVK()),
 	}
 	return rval
 }
@@ -8130,28 +9069,34 @@ type PhysicalDeviceProperties2 struct {
 	Properties PhysicalDeviceProperties
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceProperties2{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceProperties2) FromVK(pn unsafe.Pointer) *PhysicalDeviceProperties2 {
+	vks := (*vkPhysicalDeviceProperties2)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceProperties2 struct {
 	sType      StructureType
 	pNext      unsafe.Pointer
 	properties vkPhysicalDeviceProperties
 }
 
-func (s *vkPhysicalDeviceProperties2) goStruct() *PhysicalDeviceProperties2 {
+func (s *vkPhysicalDeviceProperties2) ToGo() *PhysicalDeviceProperties2 {
 	rval := &PhysicalDeviceProperties2{
 		PNext:      (unsafe.Pointer)(s.pNext),
-		Properties: *(s.properties.goStruct()),
+		Properties: *(s.properties.ToGo()),
 	}
 	return rval
 }
 
-func (s *PhysicalDeviceProperties2) vkStruct() *vkPhysicalDeviceProperties2 {
+func (s *PhysicalDeviceProperties2) ToVK() *vkPhysicalDeviceProperties2 {
 	if s == nil {
 		return nil
 	}
 	rval := &vkPhysicalDeviceProperties2{
 		sType:      STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
 		pNext:      (unsafe.Pointer)(s.PNext),
-		properties: *(s.Properties.vkStruct()),
+		properties: *(s.Properties.ToVK()),
 	}
 	return rval
 }
@@ -8162,28 +9107,34 @@ type FormatProperties2 struct {
 	FormatProperties FormatProperties
 }
 
+// eg: gostruct := (&vk.FormatProperties2{}).FromVK(goStruct2.PNext)
+func (s *FormatProperties2) FromVK(pn unsafe.Pointer) *FormatProperties2 {
+	vks := (*vkFormatProperties2)(pn)
+	return vks.ToGo()
+}
+
 type vkFormatProperties2 struct {
 	sType            StructureType
 	pNext            unsafe.Pointer
 	formatProperties vkFormatProperties
 }
 
-func (s *vkFormatProperties2) goStruct() *FormatProperties2 {
+func (s *vkFormatProperties2) ToGo() *FormatProperties2 {
 	rval := &FormatProperties2{
 		PNext:            (unsafe.Pointer)(s.pNext),
-		FormatProperties: *(s.formatProperties.goStruct()),
+		FormatProperties: *(s.formatProperties.ToGo()),
 	}
 	return rval
 }
 
-func (s *FormatProperties2) vkStruct() *vkFormatProperties2 {
+func (s *FormatProperties2) ToVK() *vkFormatProperties2 {
 	if s == nil {
 		return nil
 	}
 	rval := &vkFormatProperties2{
 		sType:            STRUCTURE_TYPE_FORMAT_PROPERTIES_2,
 		pNext:            (unsafe.Pointer)(s.PNext),
-		formatProperties: *(s.FormatProperties.vkStruct()),
+		formatProperties: *(s.FormatProperties.ToVK()),
 	}
 	return rval
 }
@@ -8194,28 +9145,34 @@ type ImageFormatProperties2 struct {
 	ImageFormatProperties ImageFormatProperties
 }
 
+// eg: gostruct := (&vk.ImageFormatProperties2{}).FromVK(goStruct2.PNext)
+func (s *ImageFormatProperties2) FromVK(pn unsafe.Pointer) *ImageFormatProperties2 {
+	vks := (*vkImageFormatProperties2)(pn)
+	return vks.ToGo()
+}
+
 type vkImageFormatProperties2 struct {
 	sType                 StructureType
 	pNext                 unsafe.Pointer
 	imageFormatProperties vkImageFormatProperties
 }
 
-func (s *vkImageFormatProperties2) goStruct() *ImageFormatProperties2 {
+func (s *vkImageFormatProperties2) ToGo() *ImageFormatProperties2 {
 	rval := &ImageFormatProperties2{
 		PNext:                 (unsafe.Pointer)(s.pNext),
-		ImageFormatProperties: *(s.imageFormatProperties.goStruct()),
+		ImageFormatProperties: *(s.imageFormatProperties.ToGo()),
 	}
 	return rval
 }
 
-func (s *ImageFormatProperties2) vkStruct() *vkImageFormatProperties2 {
+func (s *ImageFormatProperties2) ToVK() *vkImageFormatProperties2 {
 	if s == nil {
 		return nil
 	}
 	rval := &vkImageFormatProperties2{
 		sType:                 STRUCTURE_TYPE_IMAGE_FORMAT_PROPERTIES_2,
 		pNext:                 (unsafe.Pointer)(s.PNext),
-		imageFormatProperties: *(s.ImageFormatProperties.vkStruct()),
+		imageFormatProperties: *(s.ImageFormatProperties.ToVK()),
 	}
 	return rval
 }
@@ -8230,6 +9187,12 @@ type PhysicalDeviceImageFormatInfo2 struct {
 	Flags  ImageCreateFlags
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceImageFormatInfo2{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceImageFormatInfo2) FromVK(pn unsafe.Pointer) *PhysicalDeviceImageFormatInfo2 {
+	vks := (*vkPhysicalDeviceImageFormatInfo2)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceImageFormatInfo2 struct {
 	sType  StructureType
 	pNext  unsafe.Pointer
@@ -8240,7 +9203,7 @@ type vkPhysicalDeviceImageFormatInfo2 struct {
 	flags  ImageCreateFlags
 }
 
-func (s *vkPhysicalDeviceImageFormatInfo2) goStruct() *PhysicalDeviceImageFormatInfo2 {
+func (s *vkPhysicalDeviceImageFormatInfo2) ToGo() *PhysicalDeviceImageFormatInfo2 {
 	rval := &PhysicalDeviceImageFormatInfo2{
 		PNext:  (unsafe.Pointer)(s.pNext),
 		Format: (Format)(s.format),
@@ -8252,7 +9215,7 @@ func (s *vkPhysicalDeviceImageFormatInfo2) goStruct() *PhysicalDeviceImageFormat
 	return rval
 }
 
-func (s *PhysicalDeviceImageFormatInfo2) vkStruct() *vkPhysicalDeviceImageFormatInfo2 {
+func (s *PhysicalDeviceImageFormatInfo2) ToVK() *vkPhysicalDeviceImageFormatInfo2 {
 	if s == nil {
 		return nil
 	}
@@ -8274,28 +9237,34 @@ type QueueFamilyProperties2 struct {
 	QueueFamilyProperties QueueFamilyProperties
 }
 
+// eg: gostruct := (&vk.QueueFamilyProperties2{}).FromVK(goStruct2.PNext)
+func (s *QueueFamilyProperties2) FromVK(pn unsafe.Pointer) *QueueFamilyProperties2 {
+	vks := (*vkQueueFamilyProperties2)(pn)
+	return vks.ToGo()
+}
+
 type vkQueueFamilyProperties2 struct {
 	sType                 StructureType
 	pNext                 unsafe.Pointer
 	queueFamilyProperties vkQueueFamilyProperties
 }
 
-func (s *vkQueueFamilyProperties2) goStruct() *QueueFamilyProperties2 {
+func (s *vkQueueFamilyProperties2) ToGo() *QueueFamilyProperties2 {
 	rval := &QueueFamilyProperties2{
 		PNext:                 (unsafe.Pointer)(s.pNext),
-		QueueFamilyProperties: *(s.queueFamilyProperties.goStruct()),
+		QueueFamilyProperties: *(s.queueFamilyProperties.ToGo()),
 	}
 	return rval
 }
 
-func (s *QueueFamilyProperties2) vkStruct() *vkQueueFamilyProperties2 {
+func (s *QueueFamilyProperties2) ToVK() *vkQueueFamilyProperties2 {
 	if s == nil {
 		return nil
 	}
 	rval := &vkQueueFamilyProperties2{
 		sType:                 STRUCTURE_TYPE_QUEUE_FAMILY_PROPERTIES_2,
 		pNext:                 (unsafe.Pointer)(s.PNext),
-		queueFamilyProperties: *(s.QueueFamilyProperties.vkStruct()),
+		queueFamilyProperties: *(s.QueueFamilyProperties.ToVK()),
 	}
 	return rval
 }
@@ -8306,28 +9275,34 @@ type PhysicalDeviceMemoryProperties2 struct {
 	MemoryProperties PhysicalDeviceMemoryProperties
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceMemoryProperties2{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceMemoryProperties2) FromVK(pn unsafe.Pointer) *PhysicalDeviceMemoryProperties2 {
+	vks := (*vkPhysicalDeviceMemoryProperties2)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceMemoryProperties2 struct {
 	sType            StructureType
 	pNext            unsafe.Pointer
 	memoryProperties vkPhysicalDeviceMemoryProperties
 }
 
-func (s *vkPhysicalDeviceMemoryProperties2) goStruct() *PhysicalDeviceMemoryProperties2 {
+func (s *vkPhysicalDeviceMemoryProperties2) ToGo() *PhysicalDeviceMemoryProperties2 {
 	rval := &PhysicalDeviceMemoryProperties2{
 		PNext:            (unsafe.Pointer)(s.pNext),
-		MemoryProperties: *(s.memoryProperties.goStruct()),
+		MemoryProperties: *(s.memoryProperties.ToGo()),
 	}
 	return rval
 }
 
-func (s *PhysicalDeviceMemoryProperties2) vkStruct() *vkPhysicalDeviceMemoryProperties2 {
+func (s *PhysicalDeviceMemoryProperties2) ToVK() *vkPhysicalDeviceMemoryProperties2 {
 	if s == nil {
 		return nil
 	}
 	rval := &vkPhysicalDeviceMemoryProperties2{
 		sType:            STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_PROPERTIES_2,
 		pNext:            (unsafe.Pointer)(s.PNext),
-		memoryProperties: *(s.MemoryProperties.vkStruct()),
+		memoryProperties: *(s.MemoryProperties.ToVK()),
 	}
 	return rval
 }
@@ -8338,28 +9313,34 @@ type SparseImageFormatProperties2 struct {
 	Properties SparseImageFormatProperties
 }
 
+// eg: gostruct := (&vk.SparseImageFormatProperties2{}).FromVK(goStruct2.PNext)
+func (s *SparseImageFormatProperties2) FromVK(pn unsafe.Pointer) *SparseImageFormatProperties2 {
+	vks := (*vkSparseImageFormatProperties2)(pn)
+	return vks.ToGo()
+}
+
 type vkSparseImageFormatProperties2 struct {
 	sType      StructureType
 	pNext      unsafe.Pointer
 	properties vkSparseImageFormatProperties
 }
 
-func (s *vkSparseImageFormatProperties2) goStruct() *SparseImageFormatProperties2 {
+func (s *vkSparseImageFormatProperties2) ToGo() *SparseImageFormatProperties2 {
 	rval := &SparseImageFormatProperties2{
 		PNext:      (unsafe.Pointer)(s.pNext),
-		Properties: *(s.properties.goStruct()),
+		Properties: *(s.properties.ToGo()),
 	}
 	return rval
 }
 
-func (s *SparseImageFormatProperties2) vkStruct() *vkSparseImageFormatProperties2 {
+func (s *SparseImageFormatProperties2) ToVK() *vkSparseImageFormatProperties2 {
 	if s == nil {
 		return nil
 	}
 	rval := &vkSparseImageFormatProperties2{
 		sType:      STRUCTURE_TYPE_SPARSE_IMAGE_FORMAT_PROPERTIES_2,
 		pNext:      (unsafe.Pointer)(s.PNext),
-		properties: *(s.Properties.vkStruct()),
+		properties: *(s.Properties.ToVK()),
 	}
 	return rval
 }
@@ -8374,6 +9355,12 @@ type PhysicalDeviceSparseImageFormatInfo2 struct {
 	Tiling  ImageTiling
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceSparseImageFormatInfo2{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceSparseImageFormatInfo2) FromVK(pn unsafe.Pointer) *PhysicalDeviceSparseImageFormatInfo2 {
+	vks := (*vkPhysicalDeviceSparseImageFormatInfo2)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceSparseImageFormatInfo2 struct {
 	sType   StructureType
 	pNext   unsafe.Pointer
@@ -8384,7 +9371,7 @@ type vkPhysicalDeviceSparseImageFormatInfo2 struct {
 	tiling  ImageTiling
 }
 
-func (s *vkPhysicalDeviceSparseImageFormatInfo2) goStruct() *PhysicalDeviceSparseImageFormatInfo2 {
+func (s *vkPhysicalDeviceSparseImageFormatInfo2) ToGo() *PhysicalDeviceSparseImageFormatInfo2 {
 	rval := &PhysicalDeviceSparseImageFormatInfo2{
 		PNext:   (unsafe.Pointer)(s.pNext),
 		Format:  (Format)(s.format),
@@ -8396,7 +9383,7 @@ func (s *vkPhysicalDeviceSparseImageFormatInfo2) goStruct() *PhysicalDeviceSpars
 	return rval
 }
 
-func (s *PhysicalDeviceSparseImageFormatInfo2) vkStruct() *vkPhysicalDeviceSparseImageFormatInfo2 {
+func (s *PhysicalDeviceSparseImageFormatInfo2) ToVK() *vkPhysicalDeviceSparseImageFormatInfo2 {
 	if s == nil {
 		return nil
 	}
@@ -8418,13 +9405,19 @@ type ImageViewUsageCreateInfo struct {
 	Usage ImageUsageFlags
 }
 
+// eg: gostruct := (&vk.ImageViewUsageCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *ImageViewUsageCreateInfo) FromVK(pn unsafe.Pointer) *ImageViewUsageCreateInfo {
+	vks := (*vkImageViewUsageCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkImageViewUsageCreateInfo struct {
 	sType StructureType
 	pNext unsafe.Pointer
 	usage ImageUsageFlags
 }
 
-func (s *vkImageViewUsageCreateInfo) goStruct() *ImageViewUsageCreateInfo {
+func (s *vkImageViewUsageCreateInfo) ToGo() *ImageViewUsageCreateInfo {
 	rval := &ImageViewUsageCreateInfo{
 		PNext: (unsafe.Pointer)(s.pNext),
 		Usage: (ImageUsageFlags)(s.usage),
@@ -8432,7 +9425,7 @@ func (s *vkImageViewUsageCreateInfo) goStruct() *ImageViewUsageCreateInfo {
 	return rval
 }
 
-func (s *ImageViewUsageCreateInfo) vkStruct() *vkImageViewUsageCreateInfo {
+func (s *ImageViewUsageCreateInfo) ToVK() *vkImageViewUsageCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -8450,13 +9443,19 @@ type PhysicalDeviceProtectedMemoryFeatures struct {
 	ProtectedMemory bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceProtectedMemoryFeatures{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceProtectedMemoryFeatures) FromVK(pn unsafe.Pointer) *PhysicalDeviceProtectedMemoryFeatures {
+	vks := (*vkPhysicalDeviceProtectedMemoryFeatures)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceProtectedMemoryFeatures struct {
 	sType           StructureType
 	pNext           unsafe.Pointer
 	protectedMemory Bool32
 }
 
-func (s *vkPhysicalDeviceProtectedMemoryFeatures) goStruct() *PhysicalDeviceProtectedMemoryFeatures {
+func (s *vkPhysicalDeviceProtectedMemoryFeatures) ToGo() *PhysicalDeviceProtectedMemoryFeatures {
 	rval := &PhysicalDeviceProtectedMemoryFeatures{
 		PNext:           (unsafe.Pointer)(s.pNext),
 		ProtectedMemory: goBool32(s.protectedMemory),
@@ -8464,7 +9463,7 @@ func (s *vkPhysicalDeviceProtectedMemoryFeatures) goStruct() *PhysicalDeviceProt
 	return rval
 }
 
-func (s *PhysicalDeviceProtectedMemoryFeatures) vkStruct() *vkPhysicalDeviceProtectedMemoryFeatures {
+func (s *PhysicalDeviceProtectedMemoryFeatures) ToVK() *vkPhysicalDeviceProtectedMemoryFeatures {
 	if s == nil {
 		return nil
 	}
@@ -8482,13 +9481,19 @@ type PhysicalDeviceProtectedMemoryProperties struct {
 	ProtectedNoFault bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceProtectedMemoryProperties{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceProtectedMemoryProperties) FromVK(pn unsafe.Pointer) *PhysicalDeviceProtectedMemoryProperties {
+	vks := (*vkPhysicalDeviceProtectedMemoryProperties)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceProtectedMemoryProperties struct {
 	sType            StructureType
 	pNext            unsafe.Pointer
 	protectedNoFault Bool32
 }
 
-func (s *vkPhysicalDeviceProtectedMemoryProperties) goStruct() *PhysicalDeviceProtectedMemoryProperties {
+func (s *vkPhysicalDeviceProtectedMemoryProperties) ToGo() *PhysicalDeviceProtectedMemoryProperties {
 	rval := &PhysicalDeviceProtectedMemoryProperties{
 		PNext:            (unsafe.Pointer)(s.pNext),
 		ProtectedNoFault: goBool32(s.protectedNoFault),
@@ -8496,7 +9501,7 @@ func (s *vkPhysicalDeviceProtectedMemoryProperties) goStruct() *PhysicalDevicePr
 	return rval
 }
 
-func (s *PhysicalDeviceProtectedMemoryProperties) vkStruct() *vkPhysicalDeviceProtectedMemoryProperties {
+func (s *PhysicalDeviceProtectedMemoryProperties) ToVK() *vkPhysicalDeviceProtectedMemoryProperties {
 	if s == nil {
 		return nil
 	}
@@ -8516,6 +9521,12 @@ type DeviceQueueInfo2 struct {
 	QueueIndex       uint32
 }
 
+// eg: gostruct := (&vk.DeviceQueueInfo2{}).FromVK(goStruct2.PNext)
+func (s *DeviceQueueInfo2) FromVK(pn unsafe.Pointer) *DeviceQueueInfo2 {
+	vks := (*vkDeviceQueueInfo2)(pn)
+	return vks.ToGo()
+}
+
 type vkDeviceQueueInfo2 struct {
 	sType            StructureType
 	pNext            unsafe.Pointer
@@ -8524,7 +9535,7 @@ type vkDeviceQueueInfo2 struct {
 	queueIndex       uint32
 }
 
-func (s *vkDeviceQueueInfo2) goStruct() *DeviceQueueInfo2 {
+func (s *vkDeviceQueueInfo2) ToGo() *DeviceQueueInfo2 {
 	rval := &DeviceQueueInfo2{
 		PNext:            (unsafe.Pointer)(s.pNext),
 		Flags:            (DeviceQueueCreateFlags)(s.flags),
@@ -8534,7 +9545,7 @@ func (s *vkDeviceQueueInfo2) goStruct() *DeviceQueueInfo2 {
 	return rval
 }
 
-func (s *DeviceQueueInfo2) vkStruct() *vkDeviceQueueInfo2 {
+func (s *DeviceQueueInfo2) ToVK() *vkDeviceQueueInfo2 {
 	if s == nil {
 		return nil
 	}
@@ -8554,13 +9565,19 @@ type ProtectedSubmitInfo struct {
 	ProtectedSubmit bool
 }
 
+// eg: gostruct := (&vk.ProtectedSubmitInfo{}).FromVK(goStruct2.PNext)
+func (s *ProtectedSubmitInfo) FromVK(pn unsafe.Pointer) *ProtectedSubmitInfo {
+	vks := (*vkProtectedSubmitInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkProtectedSubmitInfo struct {
 	sType           StructureType
 	pNext           unsafe.Pointer
 	protectedSubmit Bool32
 }
 
-func (s *vkProtectedSubmitInfo) goStruct() *ProtectedSubmitInfo {
+func (s *vkProtectedSubmitInfo) ToGo() *ProtectedSubmitInfo {
 	rval := &ProtectedSubmitInfo{
 		PNext:           (unsafe.Pointer)(s.pNext),
 		ProtectedSubmit: goBool32(s.protectedSubmit),
@@ -8568,7 +9585,7 @@ func (s *vkProtectedSubmitInfo) goStruct() *ProtectedSubmitInfo {
 	return rval
 }
 
-func (s *ProtectedSubmitInfo) vkStruct() *vkProtectedSubmitInfo {
+func (s *ProtectedSubmitInfo) ToVK() *vkProtectedSubmitInfo {
 	if s == nil {
 		return nil
 	}
@@ -8586,13 +9603,19 @@ type BindImagePlaneMemoryInfo struct {
 	PlaneAspect ImageAspectFlagBits
 }
 
+// eg: gostruct := (&vk.BindImagePlaneMemoryInfo{}).FromVK(goStruct2.PNext)
+func (s *BindImagePlaneMemoryInfo) FromVK(pn unsafe.Pointer) *BindImagePlaneMemoryInfo {
+	vks := (*vkBindImagePlaneMemoryInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkBindImagePlaneMemoryInfo struct {
 	sType       StructureType
 	pNext       unsafe.Pointer
 	planeAspect ImageAspectFlagBits
 }
 
-func (s *vkBindImagePlaneMemoryInfo) goStruct() *BindImagePlaneMemoryInfo {
+func (s *vkBindImagePlaneMemoryInfo) ToGo() *BindImagePlaneMemoryInfo {
 	rval := &BindImagePlaneMemoryInfo{
 		PNext:       (unsafe.Pointer)(s.pNext),
 		PlaneAspect: (ImageAspectFlagBits)(s.planeAspect),
@@ -8600,7 +9623,7 @@ func (s *vkBindImagePlaneMemoryInfo) goStruct() *BindImagePlaneMemoryInfo {
 	return rval
 }
 
-func (s *BindImagePlaneMemoryInfo) vkStruct() *vkBindImagePlaneMemoryInfo {
+func (s *BindImagePlaneMemoryInfo) ToVK() *vkBindImagePlaneMemoryInfo {
 	if s == nil {
 		return nil
 	}
@@ -8618,13 +9641,19 @@ type ImagePlaneMemoryRequirementsInfo struct {
 	PlaneAspect ImageAspectFlagBits
 }
 
+// eg: gostruct := (&vk.ImagePlaneMemoryRequirementsInfo{}).FromVK(goStruct2.PNext)
+func (s *ImagePlaneMemoryRequirementsInfo) FromVK(pn unsafe.Pointer) *ImagePlaneMemoryRequirementsInfo {
+	vks := (*vkImagePlaneMemoryRequirementsInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkImagePlaneMemoryRequirementsInfo struct {
 	sType       StructureType
 	pNext       unsafe.Pointer
 	planeAspect ImageAspectFlagBits
 }
 
-func (s *vkImagePlaneMemoryRequirementsInfo) goStruct() *ImagePlaneMemoryRequirementsInfo {
+func (s *vkImagePlaneMemoryRequirementsInfo) ToGo() *ImagePlaneMemoryRequirementsInfo {
 	rval := &ImagePlaneMemoryRequirementsInfo{
 		PNext:       (unsafe.Pointer)(s.pNext),
 		PlaneAspect: (ImageAspectFlagBits)(s.planeAspect),
@@ -8632,7 +9661,7 @@ func (s *vkImagePlaneMemoryRequirementsInfo) goStruct() *ImagePlaneMemoryRequire
 	return rval
 }
 
-func (s *ImagePlaneMemoryRequirementsInfo) vkStruct() *vkImagePlaneMemoryRequirementsInfo {
+func (s *ImagePlaneMemoryRequirementsInfo) ToVK() *vkImagePlaneMemoryRequirementsInfo {
 	if s == nil {
 		return nil
 	}
@@ -8651,18 +9680,24 @@ type ExternalMemoryProperties struct {
 	CompatibleHandleTypes         ExternalMemoryHandleTypeFlags
 }
 
+// eg: gostruct := (&vk.ExternalMemoryProperties{}).FromVK(goStruct2.PNext)
+func (s *ExternalMemoryProperties) FromVK(pn unsafe.Pointer) *ExternalMemoryProperties {
+	vks := (*vkExternalMemoryProperties)(pn)
+	return vks.ToGo()
+}
+
 type vkExternalMemoryProperties = ExternalMemoryProperties
 
-func (s *vkExternalMemoryProperties) goStruct() *ExternalMemoryProperties {
-	rval := (*vkExternalMemoryProperties)(s)
+func (s *vkExternalMemoryProperties) ToGo() *ExternalMemoryProperties {
+	rval := (*ExternalMemoryProperties)(s)
 	return rval
 }
 
-func (s *ExternalMemoryProperties) vkStruct() *vkExternalMemoryProperties {
+func (s *ExternalMemoryProperties) ToVK() *vkExternalMemoryProperties {
 	if s == nil {
 		return nil
 	}
-	rval := (*ExternalMemoryProperties)(s)
+	rval := (*vkExternalMemoryProperties)(s)
 	return rval
 }
 
@@ -8672,13 +9707,19 @@ type PhysicalDeviceExternalImageFormatInfo struct {
 	HandleType ExternalMemoryHandleTypeFlagBits
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceExternalImageFormatInfo{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceExternalImageFormatInfo) FromVK(pn unsafe.Pointer) *PhysicalDeviceExternalImageFormatInfo {
+	vks := (*vkPhysicalDeviceExternalImageFormatInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceExternalImageFormatInfo struct {
 	sType      StructureType
 	pNext      unsafe.Pointer
 	handleType ExternalMemoryHandleTypeFlagBits
 }
 
-func (s *vkPhysicalDeviceExternalImageFormatInfo) goStruct() *PhysicalDeviceExternalImageFormatInfo {
+func (s *vkPhysicalDeviceExternalImageFormatInfo) ToGo() *PhysicalDeviceExternalImageFormatInfo {
 	rval := &PhysicalDeviceExternalImageFormatInfo{
 		PNext:      (unsafe.Pointer)(s.pNext),
 		HandleType: (ExternalMemoryHandleTypeFlagBits)(s.handleType),
@@ -8686,7 +9727,7 @@ func (s *vkPhysicalDeviceExternalImageFormatInfo) goStruct() *PhysicalDeviceExte
 	return rval
 }
 
-func (s *PhysicalDeviceExternalImageFormatInfo) vkStruct() *vkPhysicalDeviceExternalImageFormatInfo {
+func (s *PhysicalDeviceExternalImageFormatInfo) ToVK() *vkPhysicalDeviceExternalImageFormatInfo {
 	if s == nil {
 		return nil
 	}
@@ -8704,28 +9745,34 @@ type ExternalImageFormatProperties struct {
 	ExternalMemoryProperties ExternalMemoryProperties
 }
 
+// eg: gostruct := (&vk.ExternalImageFormatProperties{}).FromVK(goStruct2.PNext)
+func (s *ExternalImageFormatProperties) FromVK(pn unsafe.Pointer) *ExternalImageFormatProperties {
+	vks := (*vkExternalImageFormatProperties)(pn)
+	return vks.ToGo()
+}
+
 type vkExternalImageFormatProperties struct {
 	sType                    StructureType
 	pNext                    unsafe.Pointer
 	externalMemoryProperties vkExternalMemoryProperties
 }
 
-func (s *vkExternalImageFormatProperties) goStruct() *ExternalImageFormatProperties {
+func (s *vkExternalImageFormatProperties) ToGo() *ExternalImageFormatProperties {
 	rval := &ExternalImageFormatProperties{
 		PNext:                    (unsafe.Pointer)(s.pNext),
-		ExternalMemoryProperties: *(s.externalMemoryProperties.goStruct()),
+		ExternalMemoryProperties: *(s.externalMemoryProperties.ToGo()),
 	}
 	return rval
 }
 
-func (s *ExternalImageFormatProperties) vkStruct() *vkExternalImageFormatProperties {
+func (s *ExternalImageFormatProperties) ToVK() *vkExternalImageFormatProperties {
 	if s == nil {
 		return nil
 	}
 	rval := &vkExternalImageFormatProperties{
 		sType:                    STRUCTURE_TYPE_EXTERNAL_IMAGE_FORMAT_PROPERTIES,
 		pNext:                    (unsafe.Pointer)(s.PNext),
-		externalMemoryProperties: *(s.ExternalMemoryProperties.vkStruct()),
+		externalMemoryProperties: *(s.ExternalMemoryProperties.ToVK()),
 	}
 	return rval
 }
@@ -8738,6 +9785,12 @@ type PhysicalDeviceExternalBufferInfo struct {
 	HandleType ExternalMemoryHandleTypeFlagBits
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceExternalBufferInfo{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceExternalBufferInfo) FromVK(pn unsafe.Pointer) *PhysicalDeviceExternalBufferInfo {
+	vks := (*vkPhysicalDeviceExternalBufferInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceExternalBufferInfo struct {
 	sType      StructureType
 	pNext      unsafe.Pointer
@@ -8746,7 +9799,7 @@ type vkPhysicalDeviceExternalBufferInfo struct {
 	handleType ExternalMemoryHandleTypeFlagBits
 }
 
-func (s *vkPhysicalDeviceExternalBufferInfo) goStruct() *PhysicalDeviceExternalBufferInfo {
+func (s *vkPhysicalDeviceExternalBufferInfo) ToGo() *PhysicalDeviceExternalBufferInfo {
 	rval := &PhysicalDeviceExternalBufferInfo{
 		PNext:      (unsafe.Pointer)(s.pNext),
 		Flags:      (BufferCreateFlags)(s.flags),
@@ -8756,7 +9809,7 @@ func (s *vkPhysicalDeviceExternalBufferInfo) goStruct() *PhysicalDeviceExternalB
 	return rval
 }
 
-func (s *PhysicalDeviceExternalBufferInfo) vkStruct() *vkPhysicalDeviceExternalBufferInfo {
+func (s *PhysicalDeviceExternalBufferInfo) ToVK() *vkPhysicalDeviceExternalBufferInfo {
 	if s == nil {
 		return nil
 	}
@@ -8776,28 +9829,34 @@ type ExternalBufferProperties struct {
 	ExternalMemoryProperties ExternalMemoryProperties
 }
 
+// eg: gostruct := (&vk.ExternalBufferProperties{}).FromVK(goStruct2.PNext)
+func (s *ExternalBufferProperties) FromVK(pn unsafe.Pointer) *ExternalBufferProperties {
+	vks := (*vkExternalBufferProperties)(pn)
+	return vks.ToGo()
+}
+
 type vkExternalBufferProperties struct {
 	sType                    StructureType
 	pNext                    unsafe.Pointer
 	externalMemoryProperties vkExternalMemoryProperties
 }
 
-func (s *vkExternalBufferProperties) goStruct() *ExternalBufferProperties {
+func (s *vkExternalBufferProperties) ToGo() *ExternalBufferProperties {
 	rval := &ExternalBufferProperties{
 		PNext:                    (unsafe.Pointer)(s.pNext),
-		ExternalMemoryProperties: *(s.externalMemoryProperties.goStruct()),
+		ExternalMemoryProperties: *(s.externalMemoryProperties.ToGo()),
 	}
 	return rval
 }
 
-func (s *ExternalBufferProperties) vkStruct() *vkExternalBufferProperties {
+func (s *ExternalBufferProperties) ToVK() *vkExternalBufferProperties {
 	if s == nil {
 		return nil
 	}
 	rval := &vkExternalBufferProperties{
 		sType:                    STRUCTURE_TYPE_EXTERNAL_BUFFER_PROPERTIES,
 		pNext:                    (unsafe.Pointer)(s.PNext),
-		externalMemoryProperties: *(s.ExternalMemoryProperties.vkStruct()),
+		externalMemoryProperties: *(s.ExternalMemoryProperties.ToVK()),
 	}
 	return rval
 }
@@ -8812,6 +9871,12 @@ type PhysicalDeviceIDProperties struct {
 	DeviceLUIDValid bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceIDProperties{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceIDProperties) FromVK(pn unsafe.Pointer) *PhysicalDeviceIDProperties {
+	vks := (*vkPhysicalDeviceIDProperties)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceIDProperties struct {
 	sType           StructureType
 	pNext           unsafe.Pointer
@@ -8822,7 +9887,7 @@ type vkPhysicalDeviceIDProperties struct {
 	deviceLUIDValid Bool32
 }
 
-func (s *vkPhysicalDeviceIDProperties) goStruct() *PhysicalDeviceIDProperties {
+func (s *vkPhysicalDeviceIDProperties) ToGo() *PhysicalDeviceIDProperties {
 	rval := &PhysicalDeviceIDProperties{
 		PNext:           (unsafe.Pointer)(s.pNext),
 		DeviceUUID:      ([UUID_SIZE]uint8)(s.deviceUUID),
@@ -8834,7 +9899,7 @@ func (s *vkPhysicalDeviceIDProperties) goStruct() *PhysicalDeviceIDProperties {
 	return rval
 }
 
-func (s *PhysicalDeviceIDProperties) vkStruct() *vkPhysicalDeviceIDProperties {
+func (s *PhysicalDeviceIDProperties) ToVK() *vkPhysicalDeviceIDProperties {
 	if s == nil {
 		return nil
 	}
@@ -8856,13 +9921,19 @@ type ExternalMemoryImageCreateInfo struct {
 	HandleTypes ExternalMemoryHandleTypeFlags
 }
 
+// eg: gostruct := (&vk.ExternalMemoryImageCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *ExternalMemoryImageCreateInfo) FromVK(pn unsafe.Pointer) *ExternalMemoryImageCreateInfo {
+	vks := (*vkExternalMemoryImageCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkExternalMemoryImageCreateInfo struct {
 	sType       StructureType
 	pNext       unsafe.Pointer
 	handleTypes ExternalMemoryHandleTypeFlags
 }
 
-func (s *vkExternalMemoryImageCreateInfo) goStruct() *ExternalMemoryImageCreateInfo {
+func (s *vkExternalMemoryImageCreateInfo) ToGo() *ExternalMemoryImageCreateInfo {
 	rval := &ExternalMemoryImageCreateInfo{
 		PNext:       (unsafe.Pointer)(s.pNext),
 		HandleTypes: (ExternalMemoryHandleTypeFlags)(s.handleTypes),
@@ -8870,7 +9941,7 @@ func (s *vkExternalMemoryImageCreateInfo) goStruct() *ExternalMemoryImageCreateI
 	return rval
 }
 
-func (s *ExternalMemoryImageCreateInfo) vkStruct() *vkExternalMemoryImageCreateInfo {
+func (s *ExternalMemoryImageCreateInfo) ToVK() *vkExternalMemoryImageCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -8888,13 +9959,19 @@ type ExternalMemoryBufferCreateInfo struct {
 	HandleTypes ExternalMemoryHandleTypeFlags
 }
 
+// eg: gostruct := (&vk.ExternalMemoryBufferCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *ExternalMemoryBufferCreateInfo) FromVK(pn unsafe.Pointer) *ExternalMemoryBufferCreateInfo {
+	vks := (*vkExternalMemoryBufferCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkExternalMemoryBufferCreateInfo struct {
 	sType       StructureType
 	pNext       unsafe.Pointer
 	handleTypes ExternalMemoryHandleTypeFlags
 }
 
-func (s *vkExternalMemoryBufferCreateInfo) goStruct() *ExternalMemoryBufferCreateInfo {
+func (s *vkExternalMemoryBufferCreateInfo) ToGo() *ExternalMemoryBufferCreateInfo {
 	rval := &ExternalMemoryBufferCreateInfo{
 		PNext:       (unsafe.Pointer)(s.pNext),
 		HandleTypes: (ExternalMemoryHandleTypeFlags)(s.handleTypes),
@@ -8902,7 +9979,7 @@ func (s *vkExternalMemoryBufferCreateInfo) goStruct() *ExternalMemoryBufferCreat
 	return rval
 }
 
-func (s *ExternalMemoryBufferCreateInfo) vkStruct() *vkExternalMemoryBufferCreateInfo {
+func (s *ExternalMemoryBufferCreateInfo) ToVK() *vkExternalMemoryBufferCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -8920,13 +9997,19 @@ type ExportMemoryAllocateInfo struct {
 	HandleTypes ExternalMemoryHandleTypeFlags
 }
 
+// eg: gostruct := (&vk.ExportMemoryAllocateInfo{}).FromVK(goStruct2.PNext)
+func (s *ExportMemoryAllocateInfo) FromVK(pn unsafe.Pointer) *ExportMemoryAllocateInfo {
+	vks := (*vkExportMemoryAllocateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkExportMemoryAllocateInfo struct {
 	sType       StructureType
 	pNext       unsafe.Pointer
 	handleTypes ExternalMemoryHandleTypeFlags
 }
 
-func (s *vkExportMemoryAllocateInfo) goStruct() *ExportMemoryAllocateInfo {
+func (s *vkExportMemoryAllocateInfo) ToGo() *ExportMemoryAllocateInfo {
 	rval := &ExportMemoryAllocateInfo{
 		PNext:       (unsafe.Pointer)(s.pNext),
 		HandleTypes: (ExternalMemoryHandleTypeFlags)(s.handleTypes),
@@ -8934,7 +10017,7 @@ func (s *vkExportMemoryAllocateInfo) goStruct() *ExportMemoryAllocateInfo {
 	return rval
 }
 
-func (s *ExportMemoryAllocateInfo) vkStruct() *vkExportMemoryAllocateInfo {
+func (s *ExportMemoryAllocateInfo) ToVK() *vkExportMemoryAllocateInfo {
 	if s == nil {
 		return nil
 	}
@@ -8952,13 +10035,19 @@ type PhysicalDeviceExternalFenceInfo struct {
 	HandleType ExternalFenceHandleTypeFlagBits
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceExternalFenceInfo{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceExternalFenceInfo) FromVK(pn unsafe.Pointer) *PhysicalDeviceExternalFenceInfo {
+	vks := (*vkPhysicalDeviceExternalFenceInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceExternalFenceInfo struct {
 	sType      StructureType
 	pNext      unsafe.Pointer
 	handleType ExternalFenceHandleTypeFlagBits
 }
 
-func (s *vkPhysicalDeviceExternalFenceInfo) goStruct() *PhysicalDeviceExternalFenceInfo {
+func (s *vkPhysicalDeviceExternalFenceInfo) ToGo() *PhysicalDeviceExternalFenceInfo {
 	rval := &PhysicalDeviceExternalFenceInfo{
 		PNext:      (unsafe.Pointer)(s.pNext),
 		HandleType: (ExternalFenceHandleTypeFlagBits)(s.handleType),
@@ -8966,7 +10055,7 @@ func (s *vkPhysicalDeviceExternalFenceInfo) goStruct() *PhysicalDeviceExternalFe
 	return rval
 }
 
-func (s *PhysicalDeviceExternalFenceInfo) vkStruct() *vkPhysicalDeviceExternalFenceInfo {
+func (s *PhysicalDeviceExternalFenceInfo) ToVK() *vkPhysicalDeviceExternalFenceInfo {
 	if s == nil {
 		return nil
 	}
@@ -8986,6 +10075,12 @@ type ExternalFenceProperties struct {
 	ExternalFenceFeatures         ExternalFenceFeatureFlags
 }
 
+// eg: gostruct := (&vk.ExternalFenceProperties{}).FromVK(goStruct2.PNext)
+func (s *ExternalFenceProperties) FromVK(pn unsafe.Pointer) *ExternalFenceProperties {
+	vks := (*vkExternalFenceProperties)(pn)
+	return vks.ToGo()
+}
+
 type vkExternalFenceProperties struct {
 	sType                         StructureType
 	pNext                         unsafe.Pointer
@@ -8994,7 +10089,7 @@ type vkExternalFenceProperties struct {
 	externalFenceFeatures         ExternalFenceFeatureFlags
 }
 
-func (s *vkExternalFenceProperties) goStruct() *ExternalFenceProperties {
+func (s *vkExternalFenceProperties) ToGo() *ExternalFenceProperties {
 	rval := &ExternalFenceProperties{
 		PNext:                         (unsafe.Pointer)(s.pNext),
 		ExportFromImportedHandleTypes: (ExternalFenceHandleTypeFlags)(s.exportFromImportedHandleTypes),
@@ -9004,7 +10099,7 @@ func (s *vkExternalFenceProperties) goStruct() *ExternalFenceProperties {
 	return rval
 }
 
-func (s *ExternalFenceProperties) vkStruct() *vkExternalFenceProperties {
+func (s *ExternalFenceProperties) ToVK() *vkExternalFenceProperties {
 	if s == nil {
 		return nil
 	}
@@ -9024,13 +10119,19 @@ type ExportFenceCreateInfo struct {
 	HandleTypes ExternalFenceHandleTypeFlags
 }
 
+// eg: gostruct := (&vk.ExportFenceCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *ExportFenceCreateInfo) FromVK(pn unsafe.Pointer) *ExportFenceCreateInfo {
+	vks := (*vkExportFenceCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkExportFenceCreateInfo struct {
 	sType       StructureType
 	pNext       unsafe.Pointer
 	handleTypes ExternalFenceHandleTypeFlags
 }
 
-func (s *vkExportFenceCreateInfo) goStruct() *ExportFenceCreateInfo {
+func (s *vkExportFenceCreateInfo) ToGo() *ExportFenceCreateInfo {
 	rval := &ExportFenceCreateInfo{
 		PNext:       (unsafe.Pointer)(s.pNext),
 		HandleTypes: (ExternalFenceHandleTypeFlags)(s.handleTypes),
@@ -9038,7 +10139,7 @@ func (s *vkExportFenceCreateInfo) goStruct() *ExportFenceCreateInfo {
 	return rval
 }
 
-func (s *ExportFenceCreateInfo) vkStruct() *vkExportFenceCreateInfo {
+func (s *ExportFenceCreateInfo) ToVK() *vkExportFenceCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -9056,13 +10157,19 @@ type ExportSemaphoreCreateInfo struct {
 	HandleTypes ExternalSemaphoreHandleTypeFlags
 }
 
+// eg: gostruct := (&vk.ExportSemaphoreCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *ExportSemaphoreCreateInfo) FromVK(pn unsafe.Pointer) *ExportSemaphoreCreateInfo {
+	vks := (*vkExportSemaphoreCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkExportSemaphoreCreateInfo struct {
 	sType       StructureType
 	pNext       unsafe.Pointer
 	handleTypes ExternalSemaphoreHandleTypeFlags
 }
 
-func (s *vkExportSemaphoreCreateInfo) goStruct() *ExportSemaphoreCreateInfo {
+func (s *vkExportSemaphoreCreateInfo) ToGo() *ExportSemaphoreCreateInfo {
 	rval := &ExportSemaphoreCreateInfo{
 		PNext:       (unsafe.Pointer)(s.pNext),
 		HandleTypes: (ExternalSemaphoreHandleTypeFlags)(s.handleTypes),
@@ -9070,7 +10177,7 @@ func (s *vkExportSemaphoreCreateInfo) goStruct() *ExportSemaphoreCreateInfo {
 	return rval
 }
 
-func (s *ExportSemaphoreCreateInfo) vkStruct() *vkExportSemaphoreCreateInfo {
+func (s *ExportSemaphoreCreateInfo) ToVK() *vkExportSemaphoreCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -9088,13 +10195,19 @@ type PhysicalDeviceExternalSemaphoreInfo struct {
 	HandleType ExternalSemaphoreHandleTypeFlagBits
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceExternalSemaphoreInfo{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceExternalSemaphoreInfo) FromVK(pn unsafe.Pointer) *PhysicalDeviceExternalSemaphoreInfo {
+	vks := (*vkPhysicalDeviceExternalSemaphoreInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceExternalSemaphoreInfo struct {
 	sType      StructureType
 	pNext      unsafe.Pointer
 	handleType ExternalSemaphoreHandleTypeFlagBits
 }
 
-func (s *vkPhysicalDeviceExternalSemaphoreInfo) goStruct() *PhysicalDeviceExternalSemaphoreInfo {
+func (s *vkPhysicalDeviceExternalSemaphoreInfo) ToGo() *PhysicalDeviceExternalSemaphoreInfo {
 	rval := &PhysicalDeviceExternalSemaphoreInfo{
 		PNext:      (unsafe.Pointer)(s.pNext),
 		HandleType: (ExternalSemaphoreHandleTypeFlagBits)(s.handleType),
@@ -9102,7 +10215,7 @@ func (s *vkPhysicalDeviceExternalSemaphoreInfo) goStruct() *PhysicalDeviceExtern
 	return rval
 }
 
-func (s *PhysicalDeviceExternalSemaphoreInfo) vkStruct() *vkPhysicalDeviceExternalSemaphoreInfo {
+func (s *PhysicalDeviceExternalSemaphoreInfo) ToVK() *vkPhysicalDeviceExternalSemaphoreInfo {
 	if s == nil {
 		return nil
 	}
@@ -9122,6 +10235,12 @@ type ExternalSemaphoreProperties struct {
 	ExternalSemaphoreFeatures     ExternalSemaphoreFeatureFlags
 }
 
+// eg: gostruct := (&vk.ExternalSemaphoreProperties{}).FromVK(goStruct2.PNext)
+func (s *ExternalSemaphoreProperties) FromVK(pn unsafe.Pointer) *ExternalSemaphoreProperties {
+	vks := (*vkExternalSemaphoreProperties)(pn)
+	return vks.ToGo()
+}
+
 type vkExternalSemaphoreProperties struct {
 	sType                         StructureType
 	pNext                         unsafe.Pointer
@@ -9130,7 +10249,7 @@ type vkExternalSemaphoreProperties struct {
 	externalSemaphoreFeatures     ExternalSemaphoreFeatureFlags
 }
 
-func (s *vkExternalSemaphoreProperties) goStruct() *ExternalSemaphoreProperties {
+func (s *vkExternalSemaphoreProperties) ToGo() *ExternalSemaphoreProperties {
 	rval := &ExternalSemaphoreProperties{
 		PNext:                         (unsafe.Pointer)(s.pNext),
 		ExportFromImportedHandleTypes: (ExternalSemaphoreHandleTypeFlags)(s.exportFromImportedHandleTypes),
@@ -9140,7 +10259,7 @@ func (s *vkExternalSemaphoreProperties) goStruct() *ExternalSemaphoreProperties 
 	return rval
 }
 
-func (s *ExternalSemaphoreProperties) vkStruct() *vkExternalSemaphoreProperties {
+func (s *ExternalSemaphoreProperties) ToVK() *vkExternalSemaphoreProperties {
 	if s == nil {
 		return nil
 	}
@@ -9163,6 +10282,12 @@ type PhysicalDeviceSubgroupProperties struct {
 	QuadOperationsInAllStages bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceSubgroupProperties{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceSubgroupProperties) FromVK(pn unsafe.Pointer) *PhysicalDeviceSubgroupProperties {
+	vks := (*vkPhysicalDeviceSubgroupProperties)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceSubgroupProperties struct {
 	sType                     StructureType
 	pNext                     unsafe.Pointer
@@ -9172,7 +10297,7 @@ type vkPhysicalDeviceSubgroupProperties struct {
 	quadOperationsInAllStages Bool32
 }
 
-func (s *vkPhysicalDeviceSubgroupProperties) goStruct() *PhysicalDeviceSubgroupProperties {
+func (s *vkPhysicalDeviceSubgroupProperties) ToGo() *PhysicalDeviceSubgroupProperties {
 	rval := &PhysicalDeviceSubgroupProperties{
 		PNext:                     (unsafe.Pointer)(s.pNext),
 		SubgroupSize:              (uint32)(s.subgroupSize),
@@ -9183,7 +10308,7 @@ func (s *vkPhysicalDeviceSubgroupProperties) goStruct() *PhysicalDeviceSubgroupP
 	return rval
 }
 
-func (s *PhysicalDeviceSubgroupProperties) vkStruct() *vkPhysicalDeviceSubgroupProperties {
+func (s *PhysicalDeviceSubgroupProperties) ToVK() *vkPhysicalDeviceSubgroupProperties {
 	if s == nil {
 		return nil
 	}
@@ -9207,6 +10332,12 @@ type PhysicalDevice16BitStorageFeatures struct {
 	StorageInputOutput16               bool
 }
 
+// eg: gostruct := (&vk.PhysicalDevice16BitStorageFeatures{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDevice16BitStorageFeatures) FromVK(pn unsafe.Pointer) *PhysicalDevice16BitStorageFeatures {
+	vks := (*vkPhysicalDevice16BitStorageFeatures)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDevice16BitStorageFeatures struct {
 	sType                              StructureType
 	pNext                              unsafe.Pointer
@@ -9216,7 +10347,7 @@ type vkPhysicalDevice16BitStorageFeatures struct {
 	storageInputOutput16               Bool32
 }
 
-func (s *vkPhysicalDevice16BitStorageFeatures) goStruct() *PhysicalDevice16BitStorageFeatures {
+func (s *vkPhysicalDevice16BitStorageFeatures) ToGo() *PhysicalDevice16BitStorageFeatures {
 	rval := &PhysicalDevice16BitStorageFeatures{
 		PNext:                              (unsafe.Pointer)(s.pNext),
 		StorageBuffer16BitAccess:           goBool32(s.storageBuffer16BitAccess),
@@ -9227,7 +10358,7 @@ func (s *vkPhysicalDevice16BitStorageFeatures) goStruct() *PhysicalDevice16BitSt
 	return rval
 }
 
-func (s *PhysicalDevice16BitStorageFeatures) vkStruct() *vkPhysicalDevice16BitStorageFeatures {
+func (s *PhysicalDevice16BitStorageFeatures) ToVK() *vkPhysicalDevice16BitStorageFeatures {
 	if s == nil {
 		return nil
 	}
@@ -9249,6 +10380,12 @@ type PhysicalDeviceVariablePointersFeatures struct {
 	VariablePointers              bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceVariablePointersFeatures{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceVariablePointersFeatures) FromVK(pn unsafe.Pointer) *PhysicalDeviceVariablePointersFeatures {
+	vks := (*vkPhysicalDeviceVariablePointersFeatures)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceVariablePointersFeatures struct {
 	sType                         StructureType
 	pNext                         unsafe.Pointer
@@ -9256,7 +10393,7 @@ type vkPhysicalDeviceVariablePointersFeatures struct {
 	variablePointers              Bool32
 }
 
-func (s *vkPhysicalDeviceVariablePointersFeatures) goStruct() *PhysicalDeviceVariablePointersFeatures {
+func (s *vkPhysicalDeviceVariablePointersFeatures) ToGo() *PhysicalDeviceVariablePointersFeatures {
 	rval := &PhysicalDeviceVariablePointersFeatures{
 		PNext:                         (unsafe.Pointer)(s.pNext),
 		VariablePointersStorageBuffer: goBool32(s.variablePointersStorageBuffer),
@@ -9265,7 +10402,7 @@ func (s *vkPhysicalDeviceVariablePointersFeatures) goStruct() *PhysicalDeviceVar
 	return rval
 }
 
-func (s *PhysicalDeviceVariablePointersFeatures) vkStruct() *vkPhysicalDeviceVariablePointersFeatures {
+func (s *PhysicalDeviceVariablePointersFeatures) ToVK() *vkPhysicalDeviceVariablePointersFeatures {
 	if s == nil {
 		return nil
 	}
@@ -9290,18 +10427,24 @@ type DescriptorUpdateTemplateEntry struct {
 	Stride          uintptr
 }
 
+// eg: gostruct := (&vk.DescriptorUpdateTemplateEntry{}).FromVK(goStruct2.PNext)
+func (s *DescriptorUpdateTemplateEntry) FromVK(pn unsafe.Pointer) *DescriptorUpdateTemplateEntry {
+	vks := (*vkDescriptorUpdateTemplateEntry)(pn)
+	return vks.ToGo()
+}
+
 type vkDescriptorUpdateTemplateEntry = DescriptorUpdateTemplateEntry
 
-func (s *vkDescriptorUpdateTemplateEntry) goStruct() *DescriptorUpdateTemplateEntry {
-	rval := (*vkDescriptorUpdateTemplateEntry)(s)
+func (s *vkDescriptorUpdateTemplateEntry) ToGo() *DescriptorUpdateTemplateEntry {
+	rval := (*DescriptorUpdateTemplateEntry)(s)
 	return rval
 }
 
-func (s *DescriptorUpdateTemplateEntry) vkStruct() *vkDescriptorUpdateTemplateEntry {
+func (s *DescriptorUpdateTemplateEntry) ToVK() *vkDescriptorUpdateTemplateEntry {
 	if s == nil {
 		return nil
 	}
-	rval := (*DescriptorUpdateTemplateEntry)(s)
+	rval := (*vkDescriptorUpdateTemplateEntry)(s)
 	return rval
 }
 
@@ -9317,6 +10460,12 @@ type DescriptorUpdateTemplateCreateInfo struct {
 	Set                      uint32
 }
 
+// eg: gostruct := (&vk.DescriptorUpdateTemplateCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *DescriptorUpdateTemplateCreateInfo) FromVK(pn unsafe.Pointer) *DescriptorUpdateTemplateCreateInfo {
+	vks := (*vkDescriptorUpdateTemplateCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkDescriptorUpdateTemplateCreateInfo struct {
 	sType                      StructureType
 	pNext                      unsafe.Pointer
@@ -9330,7 +10479,7 @@ type vkDescriptorUpdateTemplateCreateInfo struct {
 	set                        uint32
 }
 
-func (s *vkDescriptorUpdateTemplateCreateInfo) goStruct() *DescriptorUpdateTemplateCreateInfo {
+func (s *vkDescriptorUpdateTemplateCreateInfo) ToGo() *DescriptorUpdateTemplateCreateInfo {
 	rval := &DescriptorUpdateTemplateCreateInfo{
 		PNext: (unsafe.Pointer)(s.pNext),
 		Flags: (DescriptorUpdateTemplateCreateFlags)(s.flags),
@@ -9344,7 +10493,7 @@ func (s *vkDescriptorUpdateTemplateCreateInfo) goStruct() *DescriptorUpdateTempl
 	return rval
 }
 
-func (s *DescriptorUpdateTemplateCreateInfo) vkStruct() *vkDescriptorUpdateTemplateCreateInfo {
+func (s *DescriptorUpdateTemplateCreateInfo) ToVK() *vkDescriptorUpdateTemplateCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -9374,6 +10523,12 @@ type PhysicalDeviceMaintenance3Properties struct {
 	MaxMemoryAllocationSize DeviceSize
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceMaintenance3Properties{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceMaintenance3Properties) FromVK(pn unsafe.Pointer) *PhysicalDeviceMaintenance3Properties {
+	vks := (*vkPhysicalDeviceMaintenance3Properties)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceMaintenance3Properties struct {
 	sType                   StructureType
 	pNext                   unsafe.Pointer
@@ -9381,7 +10536,7 @@ type vkPhysicalDeviceMaintenance3Properties struct {
 	maxMemoryAllocationSize DeviceSize
 }
 
-func (s *vkPhysicalDeviceMaintenance3Properties) goStruct() *PhysicalDeviceMaintenance3Properties {
+func (s *vkPhysicalDeviceMaintenance3Properties) ToGo() *PhysicalDeviceMaintenance3Properties {
 	rval := &PhysicalDeviceMaintenance3Properties{
 		PNext:                   (unsafe.Pointer)(s.pNext),
 		MaxPerSetDescriptors:    (uint32)(s.maxPerSetDescriptors),
@@ -9390,7 +10545,7 @@ func (s *vkPhysicalDeviceMaintenance3Properties) goStruct() *PhysicalDeviceMaint
 	return rval
 }
 
-func (s *PhysicalDeviceMaintenance3Properties) vkStruct() *vkPhysicalDeviceMaintenance3Properties {
+func (s *PhysicalDeviceMaintenance3Properties) ToVK() *vkPhysicalDeviceMaintenance3Properties {
 	if s == nil {
 		return nil
 	}
@@ -9409,13 +10564,19 @@ type DescriptorSetLayoutSupport struct {
 	Supported bool
 }
 
+// eg: gostruct := (&vk.DescriptorSetLayoutSupport{}).FromVK(goStruct2.PNext)
+func (s *DescriptorSetLayoutSupport) FromVK(pn unsafe.Pointer) *DescriptorSetLayoutSupport {
+	vks := (*vkDescriptorSetLayoutSupport)(pn)
+	return vks.ToGo()
+}
+
 type vkDescriptorSetLayoutSupport struct {
 	sType     StructureType
 	pNext     unsafe.Pointer
 	supported Bool32
 }
 
-func (s *vkDescriptorSetLayoutSupport) goStruct() *DescriptorSetLayoutSupport {
+func (s *vkDescriptorSetLayoutSupport) ToGo() *DescriptorSetLayoutSupport {
 	rval := &DescriptorSetLayoutSupport{
 		PNext:     (unsafe.Pointer)(s.pNext),
 		Supported: goBool32(s.supported),
@@ -9423,7 +10584,7 @@ func (s *vkDescriptorSetLayoutSupport) goStruct() *DescriptorSetLayoutSupport {
 	return rval
 }
 
-func (s *DescriptorSetLayoutSupport) vkStruct() *vkDescriptorSetLayoutSupport {
+func (s *DescriptorSetLayoutSupport) ToVK() *vkDescriptorSetLayoutSupport {
 	if s == nil {
 		return nil
 	}
@@ -9448,6 +10609,12 @@ type SamplerYcbcrConversionCreateInfo struct {
 	ForceExplicitReconstruction bool
 }
 
+// eg: gostruct := (&vk.SamplerYcbcrConversionCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *SamplerYcbcrConversionCreateInfo) FromVK(pn unsafe.Pointer) *SamplerYcbcrConversionCreateInfo {
+	vks := (*vkSamplerYcbcrConversionCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkSamplerYcbcrConversionCreateInfo struct {
 	sType                       StructureType
 	pNext                       unsafe.Pointer
@@ -9461,13 +10628,13 @@ type vkSamplerYcbcrConversionCreateInfo struct {
 	forceExplicitReconstruction Bool32
 }
 
-func (s *vkSamplerYcbcrConversionCreateInfo) goStruct() *SamplerYcbcrConversionCreateInfo {
+func (s *vkSamplerYcbcrConversionCreateInfo) ToGo() *SamplerYcbcrConversionCreateInfo {
 	rval := &SamplerYcbcrConversionCreateInfo{
 		PNext:                       (unsafe.Pointer)(s.pNext),
 		Format:                      (Format)(s.format),
 		YcbcrModel:                  (SamplerYcbcrModelConversion)(s.ycbcrModel),
 		YcbcrRange:                  (SamplerYcbcrRange)(s.ycbcrRange),
-		Components:                  *(s.components.goStruct()),
+		Components:                  *(s.components.ToGo()),
 		XChromaOffset:               (ChromaLocation)(s.xChromaOffset),
 		YChromaOffset:               (ChromaLocation)(s.yChromaOffset),
 		ChromaFilter:                (Filter)(s.chromaFilter),
@@ -9476,7 +10643,7 @@ func (s *vkSamplerYcbcrConversionCreateInfo) goStruct() *SamplerYcbcrConversionC
 	return rval
 }
 
-func (s *SamplerYcbcrConversionCreateInfo) vkStruct() *vkSamplerYcbcrConversionCreateInfo {
+func (s *SamplerYcbcrConversionCreateInfo) ToVK() *vkSamplerYcbcrConversionCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -9486,7 +10653,7 @@ func (s *SamplerYcbcrConversionCreateInfo) vkStruct() *vkSamplerYcbcrConversionC
 		format:                      (Format)(s.Format),
 		ycbcrModel:                  (SamplerYcbcrModelConversion)(s.YcbcrModel),
 		ycbcrRange:                  (SamplerYcbcrRange)(s.YcbcrRange),
-		components:                  *(s.Components.vkStruct()),
+		components:                  *(s.Components.ToVK()),
 		xChromaOffset:               (ChromaLocation)(s.XChromaOffset),
 		yChromaOffset:               (ChromaLocation)(s.YChromaOffset),
 		chromaFilter:                (Filter)(s.ChromaFilter),
@@ -9501,13 +10668,19 @@ type SamplerYcbcrConversionInfo struct {
 	Conversion SamplerYcbcrConversion
 }
 
+// eg: gostruct := (&vk.SamplerYcbcrConversionInfo{}).FromVK(goStruct2.PNext)
+func (s *SamplerYcbcrConversionInfo) FromVK(pn unsafe.Pointer) *SamplerYcbcrConversionInfo {
+	vks := (*vkSamplerYcbcrConversionInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkSamplerYcbcrConversionInfo struct {
 	sType      StructureType
 	pNext      unsafe.Pointer
 	conversion SamplerYcbcrConversion
 }
 
-func (s *vkSamplerYcbcrConversionInfo) goStruct() *SamplerYcbcrConversionInfo {
+func (s *vkSamplerYcbcrConversionInfo) ToGo() *SamplerYcbcrConversionInfo {
 	rval := &SamplerYcbcrConversionInfo{
 		PNext:      (unsafe.Pointer)(s.pNext),
 		Conversion: (SamplerYcbcrConversion)(s.conversion),
@@ -9515,7 +10688,7 @@ func (s *vkSamplerYcbcrConversionInfo) goStruct() *SamplerYcbcrConversionInfo {
 	return rval
 }
 
-func (s *SamplerYcbcrConversionInfo) vkStruct() *vkSamplerYcbcrConversionInfo {
+func (s *SamplerYcbcrConversionInfo) ToVK() *vkSamplerYcbcrConversionInfo {
 	if s == nil {
 		return nil
 	}
@@ -9533,13 +10706,19 @@ type PhysicalDeviceSamplerYcbcrConversionFeatures struct {
 	SamplerYcbcrConversion bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceSamplerYcbcrConversionFeatures{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceSamplerYcbcrConversionFeatures) FromVK(pn unsafe.Pointer) *PhysicalDeviceSamplerYcbcrConversionFeatures {
+	vks := (*vkPhysicalDeviceSamplerYcbcrConversionFeatures)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceSamplerYcbcrConversionFeatures struct {
 	sType                  StructureType
 	pNext                  unsafe.Pointer
 	samplerYcbcrConversion Bool32
 }
 
-func (s *vkPhysicalDeviceSamplerYcbcrConversionFeatures) goStruct() *PhysicalDeviceSamplerYcbcrConversionFeatures {
+func (s *vkPhysicalDeviceSamplerYcbcrConversionFeatures) ToGo() *PhysicalDeviceSamplerYcbcrConversionFeatures {
 	rval := &PhysicalDeviceSamplerYcbcrConversionFeatures{
 		PNext:                  (unsafe.Pointer)(s.pNext),
 		SamplerYcbcrConversion: goBool32(s.samplerYcbcrConversion),
@@ -9547,7 +10726,7 @@ func (s *vkPhysicalDeviceSamplerYcbcrConversionFeatures) goStruct() *PhysicalDev
 	return rval
 }
 
-func (s *PhysicalDeviceSamplerYcbcrConversionFeatures) vkStruct() *vkPhysicalDeviceSamplerYcbcrConversionFeatures {
+func (s *PhysicalDeviceSamplerYcbcrConversionFeatures) ToVK() *vkPhysicalDeviceSamplerYcbcrConversionFeatures {
 	if s == nil {
 		return nil
 	}
@@ -9565,13 +10744,19 @@ type SamplerYcbcrConversionImageFormatProperties struct {
 	CombinedImageSamplerDescriptorCount uint32
 }
 
+// eg: gostruct := (&vk.SamplerYcbcrConversionImageFormatProperties{}).FromVK(goStruct2.PNext)
+func (s *SamplerYcbcrConversionImageFormatProperties) FromVK(pn unsafe.Pointer) *SamplerYcbcrConversionImageFormatProperties {
+	vks := (*vkSamplerYcbcrConversionImageFormatProperties)(pn)
+	return vks.ToGo()
+}
+
 type vkSamplerYcbcrConversionImageFormatProperties struct {
 	sType                               StructureType
 	pNext                               unsafe.Pointer
 	combinedImageSamplerDescriptorCount uint32
 }
 
-func (s *vkSamplerYcbcrConversionImageFormatProperties) goStruct() *SamplerYcbcrConversionImageFormatProperties {
+func (s *vkSamplerYcbcrConversionImageFormatProperties) ToGo() *SamplerYcbcrConversionImageFormatProperties {
 	rval := &SamplerYcbcrConversionImageFormatProperties{
 		PNext:                               (unsafe.Pointer)(s.pNext),
 		CombinedImageSamplerDescriptorCount: (uint32)(s.combinedImageSamplerDescriptorCount),
@@ -9579,7 +10764,7 @@ func (s *vkSamplerYcbcrConversionImageFormatProperties) goStruct() *SamplerYcbcr
 	return rval
 }
 
-func (s *SamplerYcbcrConversionImageFormatProperties) vkStruct() *vkSamplerYcbcrConversionImageFormatProperties {
+func (s *SamplerYcbcrConversionImageFormatProperties) ToVK() *vkSamplerYcbcrConversionImageFormatProperties {
 	if s == nil {
 		return nil
 	}
@@ -9598,6 +10783,12 @@ type DeviceGroupRenderPassBeginInfo struct {
 	PDeviceRenderAreas []Rect2D
 }
 
+// eg: gostruct := (&vk.DeviceGroupRenderPassBeginInfo{}).FromVK(goStruct2.PNext)
+func (s *DeviceGroupRenderPassBeginInfo) FromVK(pn unsafe.Pointer) *DeviceGroupRenderPassBeginInfo {
+	vks := (*vkDeviceGroupRenderPassBeginInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkDeviceGroupRenderPassBeginInfo struct {
 	sType                 StructureType
 	pNext                 unsafe.Pointer
@@ -9606,7 +10797,7 @@ type vkDeviceGroupRenderPassBeginInfo struct {
 	pDeviceRenderAreas    *vkRect2D
 }
 
-func (s *vkDeviceGroupRenderPassBeginInfo) goStruct() *DeviceGroupRenderPassBeginInfo {
+func (s *vkDeviceGroupRenderPassBeginInfo) ToGo() *DeviceGroupRenderPassBeginInfo {
 	rval := &DeviceGroupRenderPassBeginInfo{
 		PNext:      (unsafe.Pointer)(s.pNext),
 		DeviceMask: (uint32)(s.deviceMask),
@@ -9615,7 +10806,7 @@ func (s *vkDeviceGroupRenderPassBeginInfo) goStruct() *DeviceGroupRenderPassBegi
 	return rval
 }
 
-func (s *DeviceGroupRenderPassBeginInfo) vkStruct() *vkDeviceGroupRenderPassBeginInfo {
+func (s *DeviceGroupRenderPassBeginInfo) ToVK() *vkDeviceGroupRenderPassBeginInfo {
 	if s == nil {
 		return nil
 	}
@@ -9639,13 +10830,19 @@ type PhysicalDevicePointClippingProperties struct {
 	PointClippingBehavior PointClippingBehavior
 }
 
+// eg: gostruct := (&vk.PhysicalDevicePointClippingProperties{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDevicePointClippingProperties) FromVK(pn unsafe.Pointer) *PhysicalDevicePointClippingProperties {
+	vks := (*vkPhysicalDevicePointClippingProperties)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDevicePointClippingProperties struct {
 	sType                 StructureType
 	pNext                 unsafe.Pointer
 	pointClippingBehavior PointClippingBehavior
 }
 
-func (s *vkPhysicalDevicePointClippingProperties) goStruct() *PhysicalDevicePointClippingProperties {
+func (s *vkPhysicalDevicePointClippingProperties) ToGo() *PhysicalDevicePointClippingProperties {
 	rval := &PhysicalDevicePointClippingProperties{
 		PNext:                 (unsafe.Pointer)(s.pNext),
 		PointClippingBehavior: (PointClippingBehavior)(s.pointClippingBehavior),
@@ -9653,7 +10850,7 @@ func (s *vkPhysicalDevicePointClippingProperties) goStruct() *PhysicalDevicePoin
 	return rval
 }
 
-func (s *PhysicalDevicePointClippingProperties) vkStruct() *vkPhysicalDevicePointClippingProperties {
+func (s *PhysicalDevicePointClippingProperties) ToVK() *vkPhysicalDevicePointClippingProperties {
 	if s == nil {
 		return nil
 	}
@@ -9672,18 +10869,24 @@ type InputAttachmentAspectReference struct {
 	AspectMask           ImageAspectFlags
 }
 
+// eg: gostruct := (&vk.InputAttachmentAspectReference{}).FromVK(goStruct2.PNext)
+func (s *InputAttachmentAspectReference) FromVK(pn unsafe.Pointer) *InputAttachmentAspectReference {
+	vks := (*vkInputAttachmentAspectReference)(pn)
+	return vks.ToGo()
+}
+
 type vkInputAttachmentAspectReference = InputAttachmentAspectReference
 
-func (s *vkInputAttachmentAspectReference) goStruct() *InputAttachmentAspectReference {
-	rval := (*vkInputAttachmentAspectReference)(s)
+func (s *vkInputAttachmentAspectReference) ToGo() *InputAttachmentAspectReference {
+	rval := (*InputAttachmentAspectReference)(s)
 	return rval
 }
 
-func (s *InputAttachmentAspectReference) vkStruct() *vkInputAttachmentAspectReference {
+func (s *InputAttachmentAspectReference) ToVK() *vkInputAttachmentAspectReference {
 	if s == nil {
 		return nil
 	}
-	rval := (*InputAttachmentAspectReference)(s)
+	rval := (*vkInputAttachmentAspectReference)(s)
 	return rval
 }
 
@@ -9693,6 +10896,12 @@ type RenderPassInputAttachmentAspectCreateInfo struct {
 	PAspectReferences []InputAttachmentAspectReference
 }
 
+// eg: gostruct := (&vk.RenderPassInputAttachmentAspectCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *RenderPassInputAttachmentAspectCreateInfo) FromVK(pn unsafe.Pointer) *RenderPassInputAttachmentAspectCreateInfo {
+	vks := (*vkRenderPassInputAttachmentAspectCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkRenderPassInputAttachmentAspectCreateInfo struct {
 	sType                StructureType
 	pNext                unsafe.Pointer
@@ -9700,7 +10909,7 @@ type vkRenderPassInputAttachmentAspectCreateInfo struct {
 	pAspectReferences    *vkInputAttachmentAspectReference
 }
 
-func (s *vkRenderPassInputAttachmentAspectCreateInfo) goStruct() *RenderPassInputAttachmentAspectCreateInfo {
+func (s *vkRenderPassInputAttachmentAspectCreateInfo) ToGo() *RenderPassInputAttachmentAspectCreateInfo {
 	rval := &RenderPassInputAttachmentAspectCreateInfo{
 		PNext: (unsafe.Pointer)(s.pNext),
 		// ignoring returned pointer type PAspectReferences
@@ -9708,7 +10917,7 @@ func (s *vkRenderPassInputAttachmentAspectCreateInfo) goStruct() *RenderPassInpu
 	return rval
 }
 
-func (s *RenderPassInputAttachmentAspectCreateInfo) vkStruct() *vkRenderPassInputAttachmentAspectCreateInfo {
+func (s *RenderPassInputAttachmentAspectCreateInfo) ToVK() *vkRenderPassInputAttachmentAspectCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -9731,13 +10940,19 @@ type PipelineTessellationDomainOriginStateCreateInfo struct {
 	DomainOrigin TessellationDomainOrigin
 }
 
+// eg: gostruct := (&vk.PipelineTessellationDomainOriginStateCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *PipelineTessellationDomainOriginStateCreateInfo) FromVK(pn unsafe.Pointer) *PipelineTessellationDomainOriginStateCreateInfo {
+	vks := (*vkPipelineTessellationDomainOriginStateCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkPipelineTessellationDomainOriginStateCreateInfo struct {
 	sType        StructureType
 	pNext        unsafe.Pointer
 	domainOrigin TessellationDomainOrigin
 }
 
-func (s *vkPipelineTessellationDomainOriginStateCreateInfo) goStruct() *PipelineTessellationDomainOriginStateCreateInfo {
+func (s *vkPipelineTessellationDomainOriginStateCreateInfo) ToGo() *PipelineTessellationDomainOriginStateCreateInfo {
 	rval := &PipelineTessellationDomainOriginStateCreateInfo{
 		PNext:        (unsafe.Pointer)(s.pNext),
 		DomainOrigin: (TessellationDomainOrigin)(s.domainOrigin),
@@ -9745,7 +10960,7 @@ func (s *vkPipelineTessellationDomainOriginStateCreateInfo) goStruct() *Pipeline
 	return rval
 }
 
-func (s *PipelineTessellationDomainOriginStateCreateInfo) vkStruct() *vkPipelineTessellationDomainOriginStateCreateInfo {
+func (s *PipelineTessellationDomainOriginStateCreateInfo) ToVK() *vkPipelineTessellationDomainOriginStateCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -9765,6 +10980,12 @@ type RenderPassMultiviewCreateInfo struct {
 	PCorrelationMasks []uint32
 }
 
+// eg: gostruct := (&vk.RenderPassMultiviewCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *RenderPassMultiviewCreateInfo) FromVK(pn unsafe.Pointer) *RenderPassMultiviewCreateInfo {
+	vks := (*vkRenderPassMultiviewCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkRenderPassMultiviewCreateInfo struct {
 	sType                StructureType
 	pNext                unsafe.Pointer
@@ -9776,7 +10997,7 @@ type vkRenderPassMultiviewCreateInfo struct {
 	pCorrelationMasks    *uint32
 }
 
-func (s *vkRenderPassMultiviewCreateInfo) goStruct() *RenderPassMultiviewCreateInfo {
+func (s *vkRenderPassMultiviewCreateInfo) ToGo() *RenderPassMultiviewCreateInfo {
 	rval := &RenderPassMultiviewCreateInfo{
 		PNext: (unsafe.Pointer)(s.pNext),
 		// ignoring returned pointer type PViewMasks
@@ -9786,7 +11007,7 @@ func (s *vkRenderPassMultiviewCreateInfo) goStruct() *RenderPassMultiviewCreateI
 	return rval
 }
 
-func (s *RenderPassMultiviewCreateInfo) vkStruct() *vkRenderPassMultiviewCreateInfo {
+func (s *RenderPassMultiviewCreateInfo) ToVK() *vkRenderPassMultiviewCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -9823,6 +11044,12 @@ type PhysicalDeviceMultiviewFeatures struct {
 	MultiviewTessellationShader bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceMultiviewFeatures{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceMultiviewFeatures) FromVK(pn unsafe.Pointer) *PhysicalDeviceMultiviewFeatures {
+	vks := (*vkPhysicalDeviceMultiviewFeatures)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceMultiviewFeatures struct {
 	sType                       StructureType
 	pNext                       unsafe.Pointer
@@ -9831,7 +11058,7 @@ type vkPhysicalDeviceMultiviewFeatures struct {
 	multiviewTessellationShader Bool32
 }
 
-func (s *vkPhysicalDeviceMultiviewFeatures) goStruct() *PhysicalDeviceMultiviewFeatures {
+func (s *vkPhysicalDeviceMultiviewFeatures) ToGo() *PhysicalDeviceMultiviewFeatures {
 	rval := &PhysicalDeviceMultiviewFeatures{
 		PNext:                       (unsafe.Pointer)(s.pNext),
 		Multiview:                   goBool32(s.multiview),
@@ -9841,7 +11068,7 @@ func (s *vkPhysicalDeviceMultiviewFeatures) goStruct() *PhysicalDeviceMultiviewF
 	return rval
 }
 
-func (s *PhysicalDeviceMultiviewFeatures) vkStruct() *vkPhysicalDeviceMultiviewFeatures {
+func (s *PhysicalDeviceMultiviewFeatures) ToVK() *vkPhysicalDeviceMultiviewFeatures {
 	if s == nil {
 		return nil
 	}
@@ -9862,6 +11089,12 @@ type PhysicalDeviceMultiviewProperties struct {
 	MaxMultiviewInstanceIndex uint32
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceMultiviewProperties{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceMultiviewProperties) FromVK(pn unsafe.Pointer) *PhysicalDeviceMultiviewProperties {
+	vks := (*vkPhysicalDeviceMultiviewProperties)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceMultiviewProperties struct {
 	sType                     StructureType
 	pNext                     unsafe.Pointer
@@ -9869,7 +11102,7 @@ type vkPhysicalDeviceMultiviewProperties struct {
 	maxMultiviewInstanceIndex uint32
 }
 
-func (s *vkPhysicalDeviceMultiviewProperties) goStruct() *PhysicalDeviceMultiviewProperties {
+func (s *vkPhysicalDeviceMultiviewProperties) ToGo() *PhysicalDeviceMultiviewProperties {
 	rval := &PhysicalDeviceMultiviewProperties{
 		PNext:                     (unsafe.Pointer)(s.pNext),
 		MaxMultiviewViewCount:     (uint32)(s.maxMultiviewViewCount),
@@ -9878,7 +11111,7 @@ func (s *vkPhysicalDeviceMultiviewProperties) goStruct() *PhysicalDeviceMultivie
 	return rval
 }
 
-func (s *PhysicalDeviceMultiviewProperties) vkStruct() *vkPhysicalDeviceMultiviewProperties {
+func (s *PhysicalDeviceMultiviewProperties) ToVK() *vkPhysicalDeviceMultiviewProperties {
 	if s == nil {
 		return nil
 	}
@@ -9897,13 +11130,19 @@ type PhysicalDeviceShaderDrawParametersFeatures struct {
 	ShaderDrawParameters bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceShaderDrawParametersFeatures{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceShaderDrawParametersFeatures) FromVK(pn unsafe.Pointer) *PhysicalDeviceShaderDrawParametersFeatures {
+	vks := (*vkPhysicalDeviceShaderDrawParametersFeatures)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceShaderDrawParametersFeatures struct {
 	sType                StructureType
 	pNext                unsafe.Pointer
 	shaderDrawParameters Bool32
 }
 
-func (s *vkPhysicalDeviceShaderDrawParametersFeatures) goStruct() *PhysicalDeviceShaderDrawParametersFeatures {
+func (s *vkPhysicalDeviceShaderDrawParametersFeatures) ToGo() *PhysicalDeviceShaderDrawParametersFeatures {
 	rval := &PhysicalDeviceShaderDrawParametersFeatures{
 		PNext:                (unsafe.Pointer)(s.pNext),
 		ShaderDrawParameters: goBool32(s.shaderDrawParameters),
@@ -9911,7 +11150,7 @@ func (s *vkPhysicalDeviceShaderDrawParametersFeatures) goStruct() *PhysicalDevic
 	return rval
 }
 
-func (s *PhysicalDeviceShaderDrawParametersFeatures) vkStruct() *vkPhysicalDeviceShaderDrawParametersFeatures {
+func (s *PhysicalDeviceShaderDrawParametersFeatures) ToVK() *vkPhysicalDeviceShaderDrawParametersFeatures {
 	if s == nil {
 		return nil
 	}
@@ -9933,18 +11172,24 @@ type ConformanceVersion struct {
 	Patch    uint8
 }
 
+// eg: gostruct := (&vk.ConformanceVersion{}).FromVK(goStruct2.PNext)
+func (s *ConformanceVersion) FromVK(pn unsafe.Pointer) *ConformanceVersion {
+	vks := (*vkConformanceVersion)(pn)
+	return vks.ToGo()
+}
+
 type vkConformanceVersion = ConformanceVersion
 
-func (s *vkConformanceVersion) goStruct() *ConformanceVersion {
-	rval := (*vkConformanceVersion)(s)
+func (s *vkConformanceVersion) ToGo() *ConformanceVersion {
+	rval := (*ConformanceVersion)(s)
 	return rval
 }
 
-func (s *ConformanceVersion) vkStruct() *vkConformanceVersion {
+func (s *ConformanceVersion) ToVK() *vkConformanceVersion {
 	if s == nil {
 		return nil
 	}
-	rval := (*ConformanceVersion)(s)
+	rval := (*vkConformanceVersion)(s)
 	return rval
 }
 
@@ -9957,6 +11202,12 @@ type PhysicalDeviceDriverProperties struct {
 	ConformanceVersion ConformanceVersion
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceDriverProperties{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceDriverProperties) FromVK(pn unsafe.Pointer) *PhysicalDeviceDriverProperties {
+	vks := (*vkPhysicalDeviceDriverProperties)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceDriverProperties struct {
 	sType              StructureType
 	pNext              unsafe.Pointer
@@ -9966,18 +11217,18 @@ type vkPhysicalDeviceDriverProperties struct {
 	conformanceVersion vkConformanceVersion
 }
 
-func (s *vkPhysicalDeviceDriverProperties) goStruct() *PhysicalDeviceDriverProperties {
+func (s *vkPhysicalDeviceDriverProperties) ToGo() *PhysicalDeviceDriverProperties {
 	rval := &PhysicalDeviceDriverProperties{
 		PNext:              (unsafe.Pointer)(s.pNext),
 		DriverID:           (DriverId)(s.driverID),
 		DriverName:         nullTermBytesToString(s.driverName[:]),
 		DriverInfo:         nullTermBytesToString(s.driverInfo[:]),
-		ConformanceVersion: *(s.conformanceVersion.goStruct()),
+		ConformanceVersion: *(s.conformanceVersion.ToGo()),
 	}
 	return rval
 }
 
-func (s *PhysicalDeviceDriverProperties) vkStruct() *vkPhysicalDeviceDriverProperties {
+func (s *PhysicalDeviceDriverProperties) ToVK() *vkPhysicalDeviceDriverProperties {
 	if s == nil {
 		return nil
 	}
@@ -9987,7 +11238,7 @@ func (s *PhysicalDeviceDriverProperties) vkStruct() *vkPhysicalDeviceDriverPrope
 		driverID: (DriverId)(s.DriverID),
 		// driverName: fixed string array not handled
 		// driverInfo: fixed string array not handled
-		conformanceVersion: *(s.ConformanceVersion.vkStruct()),
+		conformanceVersion: *(s.ConformanceVersion.ToVK()),
 	}
 	return rval
 }
@@ -10009,6 +11260,12 @@ type PhysicalDeviceVulkan11Features struct {
 	ShaderDrawParameters               bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceVulkan11Features{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceVulkan11Features) FromVK(pn unsafe.Pointer) *PhysicalDeviceVulkan11Features {
+	vks := (*vkPhysicalDeviceVulkan11Features)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceVulkan11Features struct {
 	sType                              StructureType
 	pNext                              unsafe.Pointer
@@ -10026,7 +11283,7 @@ type vkPhysicalDeviceVulkan11Features struct {
 	shaderDrawParameters               Bool32
 }
 
-func (s *vkPhysicalDeviceVulkan11Features) goStruct() *PhysicalDeviceVulkan11Features {
+func (s *vkPhysicalDeviceVulkan11Features) ToGo() *PhysicalDeviceVulkan11Features {
 	rval := &PhysicalDeviceVulkan11Features{
 		PNext:                              (unsafe.Pointer)(s.pNext),
 		StorageBuffer16BitAccess:           goBool32(s.storageBuffer16BitAccess),
@@ -10045,7 +11302,7 @@ func (s *vkPhysicalDeviceVulkan11Features) goStruct() *PhysicalDeviceVulkan11Fea
 	return rval
 }
 
-func (s *PhysicalDeviceVulkan11Features) vkStruct() *vkPhysicalDeviceVulkan11Features {
+func (s *PhysicalDeviceVulkan11Features) ToVK() *vkPhysicalDeviceVulkan11Features {
 	if s == nil {
 		return nil
 	}
@@ -10088,6 +11345,12 @@ type PhysicalDeviceVulkan11Properties struct {
 	MaxMemoryAllocationSize           DeviceSize
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceVulkan11Properties{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceVulkan11Properties) FromVK(pn unsafe.Pointer) *PhysicalDeviceVulkan11Properties {
+	vks := (*vkPhysicalDeviceVulkan11Properties)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceVulkan11Properties struct {
 	sType                             StructureType
 	pNext                             unsafe.Pointer
@@ -10108,7 +11371,7 @@ type vkPhysicalDeviceVulkan11Properties struct {
 	maxMemoryAllocationSize           DeviceSize
 }
 
-func (s *vkPhysicalDeviceVulkan11Properties) goStruct() *PhysicalDeviceVulkan11Properties {
+func (s *vkPhysicalDeviceVulkan11Properties) ToGo() *PhysicalDeviceVulkan11Properties {
 	rval := &PhysicalDeviceVulkan11Properties{
 		PNext:                             (unsafe.Pointer)(s.pNext),
 		DeviceUUID:                        ([UUID_SIZE]uint8)(s.deviceUUID),
@@ -10130,7 +11393,7 @@ func (s *vkPhysicalDeviceVulkan11Properties) goStruct() *PhysicalDeviceVulkan11P
 	return rval
 }
 
-func (s *PhysicalDeviceVulkan11Properties) vkStruct() *vkPhysicalDeviceVulkan11Properties {
+func (s *PhysicalDeviceVulkan11Properties) ToVK() *vkPhysicalDeviceVulkan11Properties {
 	if s == nil {
 		return nil
 	}
@@ -10208,6 +11471,12 @@ type PhysicalDeviceVulkan12Features struct {
 	SubgroupBroadcastDynamicId                         bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceVulkan12Features{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceVulkan12Features) FromVK(pn unsafe.Pointer) *PhysicalDeviceVulkan12Features {
+	vks := (*vkPhysicalDeviceVulkan12Features)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceVulkan12Features struct {
 	sType                                              StructureType
 	pNext                                              unsafe.Pointer
@@ -10260,7 +11529,7 @@ type vkPhysicalDeviceVulkan12Features struct {
 	subgroupBroadcastDynamicId                         Bool32
 }
 
-func (s *vkPhysicalDeviceVulkan12Features) goStruct() *PhysicalDeviceVulkan12Features {
+func (s *vkPhysicalDeviceVulkan12Features) ToGo() *PhysicalDeviceVulkan12Features {
 	rval := &PhysicalDeviceVulkan12Features{
 		PNext:                                              (unsafe.Pointer)(s.pNext),
 		SamplerMirrorClampToEdge:                           goBool32(s.samplerMirrorClampToEdge),
@@ -10314,7 +11583,7 @@ func (s *vkPhysicalDeviceVulkan12Features) goStruct() *PhysicalDeviceVulkan12Fea
 	return rval
 }
 
-func (s *PhysicalDeviceVulkan12Features) vkStruct() *vkPhysicalDeviceVulkan12Features {
+func (s *PhysicalDeviceVulkan12Features) ToVK() *vkPhysicalDeviceVulkan12Features {
 	if s == nil {
 		return nil
 	}
@@ -10429,6 +11698,12 @@ type PhysicalDeviceVulkan12Properties struct {
 	FramebufferIntegerColorSampleCounts                  SampleCountFlags
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceVulkan12Properties{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceVulkan12Properties) FromVK(pn unsafe.Pointer) *PhysicalDeviceVulkan12Properties {
+	vks := (*vkPhysicalDeviceVulkan12Properties)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceVulkan12Properties struct {
 	sType                                                StructureType
 	pNext                                                unsafe.Pointer
@@ -10486,13 +11761,13 @@ type vkPhysicalDeviceVulkan12Properties struct {
 	framebufferIntegerColorSampleCounts                  SampleCountFlags
 }
 
-func (s *vkPhysicalDeviceVulkan12Properties) goStruct() *PhysicalDeviceVulkan12Properties {
+func (s *vkPhysicalDeviceVulkan12Properties) ToGo() *PhysicalDeviceVulkan12Properties {
 	rval := &PhysicalDeviceVulkan12Properties{
 		PNext:                                                (unsafe.Pointer)(s.pNext),
 		DriverID:                                             (DriverId)(s.driverID),
 		DriverName:                                           nullTermBytesToString(s.driverName[:]),
 		DriverInfo:                                           nullTermBytesToString(s.driverInfo[:]),
-		ConformanceVersion:                                   *(s.conformanceVersion.goStruct()),
+		ConformanceVersion:                                   *(s.conformanceVersion.ToGo()),
 		DenormBehaviorIndependence:                           (ShaderFloatControlsIndependence)(s.denormBehaviorIndependence),
 		RoundingModeIndependence:                             (ShaderFloatControlsIndependence)(s.roundingModeIndependence),
 		ShaderSignedZeroInfNanPreserveFloat16:                goBool32(s.shaderSignedZeroInfNanPreserveFloat16),
@@ -10545,7 +11820,7 @@ func (s *vkPhysicalDeviceVulkan12Properties) goStruct() *PhysicalDeviceVulkan12P
 	return rval
 }
 
-func (s *PhysicalDeviceVulkan12Properties) vkStruct() *vkPhysicalDeviceVulkan12Properties {
+func (s *PhysicalDeviceVulkan12Properties) ToVK() *vkPhysicalDeviceVulkan12Properties {
 	if s == nil {
 		return nil
 	}
@@ -10555,7 +11830,7 @@ func (s *PhysicalDeviceVulkan12Properties) vkStruct() *vkPhysicalDeviceVulkan12P
 		driverID: (DriverId)(s.DriverID),
 		// driverName: fixed string array not handled
 		// driverInfo: fixed string array not handled
-		conformanceVersion:                                   *(s.ConformanceVersion.vkStruct()),
+		conformanceVersion:                                   *(s.ConformanceVersion.ToVK()),
 		denormBehaviorIndependence:                           (ShaderFloatControlsIndependence)(s.DenormBehaviorIndependence),
 		roundingModeIndependence:                             (ShaderFloatControlsIndependence)(s.RoundingModeIndependence),
 		shaderSignedZeroInfNanPreserveFloat16:                vkBool32(s.ShaderSignedZeroInfNanPreserveFloat16),
@@ -10614,6 +11889,12 @@ type ImageFormatListCreateInfo struct {
 	PViewFormats []Format
 }
 
+// eg: gostruct := (&vk.ImageFormatListCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *ImageFormatListCreateInfo) FromVK(pn unsafe.Pointer) *ImageFormatListCreateInfo {
+	vks := (*vkImageFormatListCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkImageFormatListCreateInfo struct {
 	sType           StructureType
 	pNext           unsafe.Pointer
@@ -10621,7 +11902,7 @@ type vkImageFormatListCreateInfo struct {
 	pViewFormats    *Format
 }
 
-func (s *vkImageFormatListCreateInfo) goStruct() *ImageFormatListCreateInfo {
+func (s *vkImageFormatListCreateInfo) ToGo() *ImageFormatListCreateInfo {
 	rval := &ImageFormatListCreateInfo{
 		PNext: (unsafe.Pointer)(s.pNext),
 		// ignoring returned pointer type PViewFormats
@@ -10629,7 +11910,7 @@ func (s *vkImageFormatListCreateInfo) goStruct() *ImageFormatListCreateInfo {
 	return rval
 }
 
-func (s *ImageFormatListCreateInfo) vkStruct() *vkImageFormatListCreateInfo {
+func (s *ImageFormatListCreateInfo) ToVK() *vkImageFormatListCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -10654,6 +11935,12 @@ type PhysicalDeviceVulkanMemoryModelFeatures struct {
 	VulkanMemoryModelAvailabilityVisibilityChains bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceVulkanMemoryModelFeatures{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceVulkanMemoryModelFeatures) FromVK(pn unsafe.Pointer) *PhysicalDeviceVulkanMemoryModelFeatures {
+	vks := (*vkPhysicalDeviceVulkanMemoryModelFeatures)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceVulkanMemoryModelFeatures struct {
 	sType                                         StructureType
 	pNext                                         unsafe.Pointer
@@ -10662,7 +11949,7 @@ type vkPhysicalDeviceVulkanMemoryModelFeatures struct {
 	vulkanMemoryModelAvailabilityVisibilityChains Bool32
 }
 
-func (s *vkPhysicalDeviceVulkanMemoryModelFeatures) goStruct() *PhysicalDeviceVulkanMemoryModelFeatures {
+func (s *vkPhysicalDeviceVulkanMemoryModelFeatures) ToGo() *PhysicalDeviceVulkanMemoryModelFeatures {
 	rval := &PhysicalDeviceVulkanMemoryModelFeatures{
 		PNext:                        (unsafe.Pointer)(s.pNext),
 		VulkanMemoryModel:            goBool32(s.vulkanMemoryModel),
@@ -10672,7 +11959,7 @@ func (s *vkPhysicalDeviceVulkanMemoryModelFeatures) goStruct() *PhysicalDeviceVu
 	return rval
 }
 
-func (s *PhysicalDeviceVulkanMemoryModelFeatures) vkStruct() *vkPhysicalDeviceVulkanMemoryModelFeatures {
+func (s *PhysicalDeviceVulkanMemoryModelFeatures) ToVK() *vkPhysicalDeviceVulkanMemoryModelFeatures {
 	if s == nil {
 		return nil
 	}
@@ -10692,13 +11979,19 @@ type PhysicalDeviceHostQueryResetFeatures struct {
 	HostQueryReset bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceHostQueryResetFeatures{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceHostQueryResetFeatures) FromVK(pn unsafe.Pointer) *PhysicalDeviceHostQueryResetFeatures {
+	vks := (*vkPhysicalDeviceHostQueryResetFeatures)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceHostQueryResetFeatures struct {
 	sType          StructureType
 	pNext          unsafe.Pointer
 	hostQueryReset Bool32
 }
 
-func (s *vkPhysicalDeviceHostQueryResetFeatures) goStruct() *PhysicalDeviceHostQueryResetFeatures {
+func (s *vkPhysicalDeviceHostQueryResetFeatures) ToGo() *PhysicalDeviceHostQueryResetFeatures {
 	rval := &PhysicalDeviceHostQueryResetFeatures{
 		PNext:          (unsafe.Pointer)(s.pNext),
 		HostQueryReset: goBool32(s.hostQueryReset),
@@ -10706,7 +11999,7 @@ func (s *vkPhysicalDeviceHostQueryResetFeatures) goStruct() *PhysicalDeviceHostQ
 	return rval
 }
 
-func (s *PhysicalDeviceHostQueryResetFeatures) vkStruct() *vkPhysicalDeviceHostQueryResetFeatures {
+func (s *PhysicalDeviceHostQueryResetFeatures) ToVK() *vkPhysicalDeviceHostQueryResetFeatures {
 	if s == nil {
 		return nil
 	}
@@ -10724,13 +12017,19 @@ type PhysicalDeviceTimelineSemaphoreFeatures struct {
 	TimelineSemaphore bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceTimelineSemaphoreFeatures{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceTimelineSemaphoreFeatures) FromVK(pn unsafe.Pointer) *PhysicalDeviceTimelineSemaphoreFeatures {
+	vks := (*vkPhysicalDeviceTimelineSemaphoreFeatures)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceTimelineSemaphoreFeatures struct {
 	sType             StructureType
 	pNext             unsafe.Pointer
 	timelineSemaphore Bool32
 }
 
-func (s *vkPhysicalDeviceTimelineSemaphoreFeatures) goStruct() *PhysicalDeviceTimelineSemaphoreFeatures {
+func (s *vkPhysicalDeviceTimelineSemaphoreFeatures) ToGo() *PhysicalDeviceTimelineSemaphoreFeatures {
 	rval := &PhysicalDeviceTimelineSemaphoreFeatures{
 		PNext:             (unsafe.Pointer)(s.pNext),
 		TimelineSemaphore: goBool32(s.timelineSemaphore),
@@ -10738,7 +12037,7 @@ func (s *vkPhysicalDeviceTimelineSemaphoreFeatures) goStruct() *PhysicalDeviceTi
 	return rval
 }
 
-func (s *PhysicalDeviceTimelineSemaphoreFeatures) vkStruct() *vkPhysicalDeviceTimelineSemaphoreFeatures {
+func (s *PhysicalDeviceTimelineSemaphoreFeatures) ToVK() *vkPhysicalDeviceTimelineSemaphoreFeatures {
 	if s == nil {
 		return nil
 	}
@@ -10756,13 +12055,19 @@ type PhysicalDeviceTimelineSemaphoreProperties struct {
 	MaxTimelineSemaphoreValueDifference uint64
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceTimelineSemaphoreProperties{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceTimelineSemaphoreProperties) FromVK(pn unsafe.Pointer) *PhysicalDeviceTimelineSemaphoreProperties {
+	vks := (*vkPhysicalDeviceTimelineSemaphoreProperties)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceTimelineSemaphoreProperties struct {
 	sType                               StructureType
 	pNext                               unsafe.Pointer
 	maxTimelineSemaphoreValueDifference uint64
 }
 
-func (s *vkPhysicalDeviceTimelineSemaphoreProperties) goStruct() *PhysicalDeviceTimelineSemaphoreProperties {
+func (s *vkPhysicalDeviceTimelineSemaphoreProperties) ToGo() *PhysicalDeviceTimelineSemaphoreProperties {
 	rval := &PhysicalDeviceTimelineSemaphoreProperties{
 		PNext:                               (unsafe.Pointer)(s.pNext),
 		MaxTimelineSemaphoreValueDifference: (uint64)(s.maxTimelineSemaphoreValueDifference),
@@ -10770,7 +12075,7 @@ func (s *vkPhysicalDeviceTimelineSemaphoreProperties) goStruct() *PhysicalDevice
 	return rval
 }
 
-func (s *PhysicalDeviceTimelineSemaphoreProperties) vkStruct() *vkPhysicalDeviceTimelineSemaphoreProperties {
+func (s *PhysicalDeviceTimelineSemaphoreProperties) ToVK() *vkPhysicalDeviceTimelineSemaphoreProperties {
 	if s == nil {
 		return nil
 	}
@@ -10789,6 +12094,12 @@ type SemaphoreTypeCreateInfo struct {
 	InitialValue  uint64
 }
 
+// eg: gostruct := (&vk.SemaphoreTypeCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *SemaphoreTypeCreateInfo) FromVK(pn unsafe.Pointer) *SemaphoreTypeCreateInfo {
+	vks := (*vkSemaphoreTypeCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkSemaphoreTypeCreateInfo struct {
 	sType         StructureType
 	pNext         unsafe.Pointer
@@ -10796,7 +12107,7 @@ type vkSemaphoreTypeCreateInfo struct {
 	initialValue  uint64
 }
 
-func (s *vkSemaphoreTypeCreateInfo) goStruct() *SemaphoreTypeCreateInfo {
+func (s *vkSemaphoreTypeCreateInfo) ToGo() *SemaphoreTypeCreateInfo {
 	rval := &SemaphoreTypeCreateInfo{
 		PNext:         (unsafe.Pointer)(s.pNext),
 		SemaphoreType: (SemaphoreType)(s.semaphoreType),
@@ -10805,7 +12116,7 @@ func (s *vkSemaphoreTypeCreateInfo) goStruct() *SemaphoreTypeCreateInfo {
 	return rval
 }
 
-func (s *SemaphoreTypeCreateInfo) vkStruct() *vkSemaphoreTypeCreateInfo {
+func (s *SemaphoreTypeCreateInfo) ToVK() *vkSemaphoreTypeCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -10825,6 +12136,12 @@ type TimelineSemaphoreSubmitInfo struct {
 	PSignalSemaphoreValues []uint64
 }
 
+// eg: gostruct := (&vk.TimelineSemaphoreSubmitInfo{}).FromVK(goStruct2.PNext)
+func (s *TimelineSemaphoreSubmitInfo) FromVK(pn unsafe.Pointer) *TimelineSemaphoreSubmitInfo {
+	vks := (*vkTimelineSemaphoreSubmitInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkTimelineSemaphoreSubmitInfo struct {
 	sType                     StructureType
 	pNext                     unsafe.Pointer
@@ -10834,7 +12151,7 @@ type vkTimelineSemaphoreSubmitInfo struct {
 	pSignalSemaphoreValues    *uint64
 }
 
-func (s *vkTimelineSemaphoreSubmitInfo) goStruct() *TimelineSemaphoreSubmitInfo {
+func (s *vkTimelineSemaphoreSubmitInfo) ToGo() *TimelineSemaphoreSubmitInfo {
 	rval := &TimelineSemaphoreSubmitInfo{
 		PNext: (unsafe.Pointer)(s.pNext),
 		// ignoring returned pointer type PWaitSemaphoreValues
@@ -10843,7 +12160,7 @@ func (s *vkTimelineSemaphoreSubmitInfo) goStruct() *TimelineSemaphoreSubmitInfo 
 	return rval
 }
 
-func (s *TimelineSemaphoreSubmitInfo) vkStruct() *vkTimelineSemaphoreSubmitInfo {
+func (s *TimelineSemaphoreSubmitInfo) ToVK() *vkTimelineSemaphoreSubmitInfo {
 	if s == nil {
 		return nil
 	}
@@ -10874,6 +12191,12 @@ type SemaphoreWaitInfo struct {
 	PValues     []uint64
 }
 
+// eg: gostruct := (&vk.SemaphoreWaitInfo{}).FromVK(goStruct2.PNext)
+func (s *SemaphoreWaitInfo) FromVK(pn unsafe.Pointer) *SemaphoreWaitInfo {
+	vks := (*vkSemaphoreWaitInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkSemaphoreWaitInfo struct {
 	sType          StructureType
 	pNext          unsafe.Pointer
@@ -10883,7 +12206,7 @@ type vkSemaphoreWaitInfo struct {
 	pValues        *uint64
 }
 
-func (s *vkSemaphoreWaitInfo) goStruct() *SemaphoreWaitInfo {
+func (s *vkSemaphoreWaitInfo) ToGo() *SemaphoreWaitInfo {
 	rval := &SemaphoreWaitInfo{
 		PNext: (unsafe.Pointer)(s.pNext),
 		Flags: (SemaphoreWaitFlags)(s.flags),
@@ -10893,7 +12216,7 @@ func (s *vkSemaphoreWaitInfo) goStruct() *SemaphoreWaitInfo {
 	return rval
 }
 
-func (s *SemaphoreWaitInfo) vkStruct() *vkSemaphoreWaitInfo {
+func (s *SemaphoreWaitInfo) ToVK() *vkSemaphoreWaitInfo {
 	if s == nil {
 		return nil
 	}
@@ -10929,6 +12252,12 @@ type SemaphoreSignalInfo struct {
 	Value     uint64
 }
 
+// eg: gostruct := (&vk.SemaphoreSignalInfo{}).FromVK(goStruct2.PNext)
+func (s *SemaphoreSignalInfo) FromVK(pn unsafe.Pointer) *SemaphoreSignalInfo {
+	vks := (*vkSemaphoreSignalInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkSemaphoreSignalInfo struct {
 	sType     StructureType
 	pNext     unsafe.Pointer
@@ -10936,7 +12265,7 @@ type vkSemaphoreSignalInfo struct {
 	value     uint64
 }
 
-func (s *vkSemaphoreSignalInfo) goStruct() *SemaphoreSignalInfo {
+func (s *vkSemaphoreSignalInfo) ToGo() *SemaphoreSignalInfo {
 	rval := &SemaphoreSignalInfo{
 		PNext:     (unsafe.Pointer)(s.pNext),
 		Semaphore: (Semaphore)(s.semaphore),
@@ -10945,7 +12274,7 @@ func (s *vkSemaphoreSignalInfo) goStruct() *SemaphoreSignalInfo {
 	return rval
 }
 
-func (s *SemaphoreSignalInfo) vkStruct() *vkSemaphoreSignalInfo {
+func (s *SemaphoreSignalInfo) ToVK() *vkSemaphoreSignalInfo {
 	if s == nil {
 		return nil
 	}
@@ -10966,6 +12295,12 @@ type PhysicalDeviceBufferDeviceAddressFeatures struct {
 	BufferDeviceAddressMultiDevice   bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceBufferDeviceAddressFeatures{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceBufferDeviceAddressFeatures) FromVK(pn unsafe.Pointer) *PhysicalDeviceBufferDeviceAddressFeatures {
+	vks := (*vkPhysicalDeviceBufferDeviceAddressFeatures)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceBufferDeviceAddressFeatures struct {
 	sType                            StructureType
 	pNext                            unsafe.Pointer
@@ -10974,7 +12309,7 @@ type vkPhysicalDeviceBufferDeviceAddressFeatures struct {
 	bufferDeviceAddressMultiDevice   Bool32
 }
 
-func (s *vkPhysicalDeviceBufferDeviceAddressFeatures) goStruct() *PhysicalDeviceBufferDeviceAddressFeatures {
+func (s *vkPhysicalDeviceBufferDeviceAddressFeatures) ToGo() *PhysicalDeviceBufferDeviceAddressFeatures {
 	rval := &PhysicalDeviceBufferDeviceAddressFeatures{
 		PNext:                            (unsafe.Pointer)(s.pNext),
 		BufferDeviceAddress:              goBool32(s.bufferDeviceAddress),
@@ -10984,7 +12319,7 @@ func (s *vkPhysicalDeviceBufferDeviceAddressFeatures) goStruct() *PhysicalDevice
 	return rval
 }
 
-func (s *PhysicalDeviceBufferDeviceAddressFeatures) vkStruct() *vkPhysicalDeviceBufferDeviceAddressFeatures {
+func (s *PhysicalDeviceBufferDeviceAddressFeatures) ToVK() *vkPhysicalDeviceBufferDeviceAddressFeatures {
 	if s == nil {
 		return nil
 	}
@@ -11004,13 +12339,19 @@ type BufferDeviceAddressInfo struct {
 	Buffer Buffer
 }
 
+// eg: gostruct := (&vk.BufferDeviceAddressInfo{}).FromVK(goStruct2.PNext)
+func (s *BufferDeviceAddressInfo) FromVK(pn unsafe.Pointer) *BufferDeviceAddressInfo {
+	vks := (*vkBufferDeviceAddressInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkBufferDeviceAddressInfo struct {
 	sType  StructureType
 	pNext  unsafe.Pointer
 	buffer Buffer
 }
 
-func (s *vkBufferDeviceAddressInfo) goStruct() *BufferDeviceAddressInfo {
+func (s *vkBufferDeviceAddressInfo) ToGo() *BufferDeviceAddressInfo {
 	rval := &BufferDeviceAddressInfo{
 		PNext:  (unsafe.Pointer)(s.pNext),
 		Buffer: (Buffer)(s.buffer),
@@ -11018,7 +12359,7 @@ func (s *vkBufferDeviceAddressInfo) goStruct() *BufferDeviceAddressInfo {
 	return rval
 }
 
-func (s *BufferDeviceAddressInfo) vkStruct() *vkBufferDeviceAddressInfo {
+func (s *BufferDeviceAddressInfo) ToVK() *vkBufferDeviceAddressInfo {
 	if s == nil {
 		return nil
 	}
@@ -11036,13 +12377,19 @@ type BufferOpaqueCaptureAddressCreateInfo struct {
 	OpaqueCaptureAddress uint64
 }
 
+// eg: gostruct := (&vk.BufferOpaqueCaptureAddressCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *BufferOpaqueCaptureAddressCreateInfo) FromVK(pn unsafe.Pointer) *BufferOpaqueCaptureAddressCreateInfo {
+	vks := (*vkBufferOpaqueCaptureAddressCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkBufferOpaqueCaptureAddressCreateInfo struct {
 	sType                StructureType
 	pNext                unsafe.Pointer
 	opaqueCaptureAddress uint64
 }
 
-func (s *vkBufferOpaqueCaptureAddressCreateInfo) goStruct() *BufferOpaqueCaptureAddressCreateInfo {
+func (s *vkBufferOpaqueCaptureAddressCreateInfo) ToGo() *BufferOpaqueCaptureAddressCreateInfo {
 	rval := &BufferOpaqueCaptureAddressCreateInfo{
 		PNext:                (unsafe.Pointer)(s.pNext),
 		OpaqueCaptureAddress: (uint64)(s.opaqueCaptureAddress),
@@ -11050,7 +12397,7 @@ func (s *vkBufferOpaqueCaptureAddressCreateInfo) goStruct() *BufferOpaqueCapture
 	return rval
 }
 
-func (s *BufferOpaqueCaptureAddressCreateInfo) vkStruct() *vkBufferOpaqueCaptureAddressCreateInfo {
+func (s *BufferOpaqueCaptureAddressCreateInfo) ToVK() *vkBufferOpaqueCaptureAddressCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -11068,13 +12415,19 @@ type MemoryOpaqueCaptureAddressAllocateInfo struct {
 	OpaqueCaptureAddress uint64
 }
 
+// eg: gostruct := (&vk.MemoryOpaqueCaptureAddressAllocateInfo{}).FromVK(goStruct2.PNext)
+func (s *MemoryOpaqueCaptureAddressAllocateInfo) FromVK(pn unsafe.Pointer) *MemoryOpaqueCaptureAddressAllocateInfo {
+	vks := (*vkMemoryOpaqueCaptureAddressAllocateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkMemoryOpaqueCaptureAddressAllocateInfo struct {
 	sType                StructureType
 	pNext                unsafe.Pointer
 	opaqueCaptureAddress uint64
 }
 
-func (s *vkMemoryOpaqueCaptureAddressAllocateInfo) goStruct() *MemoryOpaqueCaptureAddressAllocateInfo {
+func (s *vkMemoryOpaqueCaptureAddressAllocateInfo) ToGo() *MemoryOpaqueCaptureAddressAllocateInfo {
 	rval := &MemoryOpaqueCaptureAddressAllocateInfo{
 		PNext:                (unsafe.Pointer)(s.pNext),
 		OpaqueCaptureAddress: (uint64)(s.opaqueCaptureAddress),
@@ -11082,7 +12435,7 @@ func (s *vkMemoryOpaqueCaptureAddressAllocateInfo) goStruct() *MemoryOpaqueCaptu
 	return rval
 }
 
-func (s *MemoryOpaqueCaptureAddressAllocateInfo) vkStruct() *vkMemoryOpaqueCaptureAddressAllocateInfo {
+func (s *MemoryOpaqueCaptureAddressAllocateInfo) ToVK() *vkMemoryOpaqueCaptureAddressAllocateInfo {
 	if s == nil {
 		return nil
 	}
@@ -11100,13 +12453,19 @@ type DeviceMemoryOpaqueCaptureAddressInfo struct {
 	Memory DeviceMemory
 }
 
+// eg: gostruct := (&vk.DeviceMemoryOpaqueCaptureAddressInfo{}).FromVK(goStruct2.PNext)
+func (s *DeviceMemoryOpaqueCaptureAddressInfo) FromVK(pn unsafe.Pointer) *DeviceMemoryOpaqueCaptureAddressInfo {
+	vks := (*vkDeviceMemoryOpaqueCaptureAddressInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkDeviceMemoryOpaqueCaptureAddressInfo struct {
 	sType  StructureType
 	pNext  unsafe.Pointer
 	memory DeviceMemory
 }
 
-func (s *vkDeviceMemoryOpaqueCaptureAddressInfo) goStruct() *DeviceMemoryOpaqueCaptureAddressInfo {
+func (s *vkDeviceMemoryOpaqueCaptureAddressInfo) ToGo() *DeviceMemoryOpaqueCaptureAddressInfo {
 	rval := &DeviceMemoryOpaqueCaptureAddressInfo{
 		PNext:  (unsafe.Pointer)(s.pNext),
 		Memory: (DeviceMemory)(s.memory),
@@ -11114,7 +12473,7 @@ func (s *vkDeviceMemoryOpaqueCaptureAddressInfo) goStruct() *DeviceMemoryOpaqueC
 	return rval
 }
 
-func (s *DeviceMemoryOpaqueCaptureAddressInfo) vkStruct() *vkDeviceMemoryOpaqueCaptureAddressInfo {
+func (s *DeviceMemoryOpaqueCaptureAddressInfo) ToVK() *vkDeviceMemoryOpaqueCaptureAddressInfo {
 	if s == nil {
 		return nil
 	}
@@ -11134,6 +12493,12 @@ type PhysicalDevice8BitStorageFeatures struct {
 	StoragePushConstant8              bool
 }
 
+// eg: gostruct := (&vk.PhysicalDevice8BitStorageFeatures{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDevice8BitStorageFeatures) FromVK(pn unsafe.Pointer) *PhysicalDevice8BitStorageFeatures {
+	vks := (*vkPhysicalDevice8BitStorageFeatures)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDevice8BitStorageFeatures struct {
 	sType                             StructureType
 	pNext                             unsafe.Pointer
@@ -11142,7 +12507,7 @@ type vkPhysicalDevice8BitStorageFeatures struct {
 	storagePushConstant8              Bool32
 }
 
-func (s *vkPhysicalDevice8BitStorageFeatures) goStruct() *PhysicalDevice8BitStorageFeatures {
+func (s *vkPhysicalDevice8BitStorageFeatures) ToGo() *PhysicalDevice8BitStorageFeatures {
 	rval := &PhysicalDevice8BitStorageFeatures{
 		PNext:                             (unsafe.Pointer)(s.pNext),
 		StorageBuffer8BitAccess:           goBool32(s.storageBuffer8BitAccess),
@@ -11152,7 +12517,7 @@ func (s *vkPhysicalDevice8BitStorageFeatures) goStruct() *PhysicalDevice8BitStor
 	return rval
 }
 
-func (s *PhysicalDevice8BitStorageFeatures) vkStruct() *vkPhysicalDevice8BitStorageFeatures {
+func (s *PhysicalDevice8BitStorageFeatures) ToVK() *vkPhysicalDevice8BitStorageFeatures {
 	if s == nil {
 		return nil
 	}
@@ -11173,6 +12538,12 @@ type PhysicalDeviceShaderAtomicInt64Features struct {
 	ShaderSharedInt64Atomics bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceShaderAtomicInt64Features{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceShaderAtomicInt64Features) FromVK(pn unsafe.Pointer) *PhysicalDeviceShaderAtomicInt64Features {
+	vks := (*vkPhysicalDeviceShaderAtomicInt64Features)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceShaderAtomicInt64Features struct {
 	sType                    StructureType
 	pNext                    unsafe.Pointer
@@ -11180,7 +12551,7 @@ type vkPhysicalDeviceShaderAtomicInt64Features struct {
 	shaderSharedInt64Atomics Bool32
 }
 
-func (s *vkPhysicalDeviceShaderAtomicInt64Features) goStruct() *PhysicalDeviceShaderAtomicInt64Features {
+func (s *vkPhysicalDeviceShaderAtomicInt64Features) ToGo() *PhysicalDeviceShaderAtomicInt64Features {
 	rval := &PhysicalDeviceShaderAtomicInt64Features{
 		PNext:                    (unsafe.Pointer)(s.pNext),
 		ShaderBufferInt64Atomics: goBool32(s.shaderBufferInt64Atomics),
@@ -11189,7 +12560,7 @@ func (s *vkPhysicalDeviceShaderAtomicInt64Features) goStruct() *PhysicalDeviceSh
 	return rval
 }
 
-func (s *PhysicalDeviceShaderAtomicInt64Features) vkStruct() *vkPhysicalDeviceShaderAtomicInt64Features {
+func (s *PhysicalDeviceShaderAtomicInt64Features) ToVK() *vkPhysicalDeviceShaderAtomicInt64Features {
 	if s == nil {
 		return nil
 	}
@@ -11209,6 +12580,12 @@ type PhysicalDeviceShaderFloat16Int8Features struct {
 	ShaderInt8    bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceShaderFloat16Int8Features{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceShaderFloat16Int8Features) FromVK(pn unsafe.Pointer) *PhysicalDeviceShaderFloat16Int8Features {
+	vks := (*vkPhysicalDeviceShaderFloat16Int8Features)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceShaderFloat16Int8Features struct {
 	sType         StructureType
 	pNext         unsafe.Pointer
@@ -11216,7 +12593,7 @@ type vkPhysicalDeviceShaderFloat16Int8Features struct {
 	shaderInt8    Bool32
 }
 
-func (s *vkPhysicalDeviceShaderFloat16Int8Features) goStruct() *PhysicalDeviceShaderFloat16Int8Features {
+func (s *vkPhysicalDeviceShaderFloat16Int8Features) ToGo() *PhysicalDeviceShaderFloat16Int8Features {
 	rval := &PhysicalDeviceShaderFloat16Int8Features{
 		PNext:         (unsafe.Pointer)(s.pNext),
 		ShaderFloat16: goBool32(s.shaderFloat16),
@@ -11225,7 +12602,7 @@ func (s *vkPhysicalDeviceShaderFloat16Int8Features) goStruct() *PhysicalDeviceSh
 	return rval
 }
 
-func (s *PhysicalDeviceShaderFloat16Int8Features) vkStruct() *vkPhysicalDeviceShaderFloat16Int8Features {
+func (s *PhysicalDeviceShaderFloat16Int8Features) ToVK() *vkPhysicalDeviceShaderFloat16Int8Features {
 	if s == nil {
 		return nil
 	}
@@ -11260,6 +12637,12 @@ type PhysicalDeviceFloatControlsProperties struct {
 	ShaderRoundingModeRTZFloat64          bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceFloatControlsProperties{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceFloatControlsProperties) FromVK(pn unsafe.Pointer) *PhysicalDeviceFloatControlsProperties {
+	vks := (*vkPhysicalDeviceFloatControlsProperties)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceFloatControlsProperties struct {
 	sType                                 StructureType
 	pNext                                 unsafe.Pointer
@@ -11282,7 +12665,7 @@ type vkPhysicalDeviceFloatControlsProperties struct {
 	shaderRoundingModeRTZFloat64          Bool32
 }
 
-func (s *vkPhysicalDeviceFloatControlsProperties) goStruct() *PhysicalDeviceFloatControlsProperties {
+func (s *vkPhysicalDeviceFloatControlsProperties) ToGo() *PhysicalDeviceFloatControlsProperties {
 	rval := &PhysicalDeviceFloatControlsProperties{
 		PNext:                                 (unsafe.Pointer)(s.pNext),
 		DenormBehaviorIndependence:            (ShaderFloatControlsIndependence)(s.denormBehaviorIndependence),
@@ -11306,7 +12689,7 @@ func (s *vkPhysicalDeviceFloatControlsProperties) goStruct() *PhysicalDeviceFloa
 	return rval
 }
 
-func (s *PhysicalDeviceFloatControlsProperties) vkStruct() *vkPhysicalDeviceFloatControlsProperties {
+func (s *PhysicalDeviceFloatControlsProperties) ToVK() *vkPhysicalDeviceFloatControlsProperties {
 	if s == nil {
 		return nil
 	}
@@ -11340,6 +12723,12 @@ type DescriptorSetLayoutBindingFlagsCreateInfo struct {
 	PBindingFlags []DescriptorBindingFlags
 }
 
+// eg: gostruct := (&vk.DescriptorSetLayoutBindingFlagsCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *DescriptorSetLayoutBindingFlagsCreateInfo) FromVK(pn unsafe.Pointer) *DescriptorSetLayoutBindingFlagsCreateInfo {
+	vks := (*vkDescriptorSetLayoutBindingFlagsCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkDescriptorSetLayoutBindingFlagsCreateInfo struct {
 	sType         StructureType
 	pNext         unsafe.Pointer
@@ -11347,7 +12736,7 @@ type vkDescriptorSetLayoutBindingFlagsCreateInfo struct {
 	pBindingFlags *DescriptorBindingFlags
 }
 
-func (s *vkDescriptorSetLayoutBindingFlagsCreateInfo) goStruct() *DescriptorSetLayoutBindingFlagsCreateInfo {
+func (s *vkDescriptorSetLayoutBindingFlagsCreateInfo) ToGo() *DescriptorSetLayoutBindingFlagsCreateInfo {
 	rval := &DescriptorSetLayoutBindingFlagsCreateInfo{
 		PNext: (unsafe.Pointer)(s.pNext),
 		// ignoring returned pointer type PBindingFlags
@@ -11355,7 +12744,7 @@ func (s *vkDescriptorSetLayoutBindingFlagsCreateInfo) goStruct() *DescriptorSetL
 	return rval
 }
 
-func (s *DescriptorSetLayoutBindingFlagsCreateInfo) vkStruct() *vkDescriptorSetLayoutBindingFlagsCreateInfo {
+func (s *DescriptorSetLayoutBindingFlagsCreateInfo) ToVK() *vkDescriptorSetLayoutBindingFlagsCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -11397,6 +12786,12 @@ type PhysicalDeviceDescriptorIndexingFeatures struct {
 	RuntimeDescriptorArray                             bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceDescriptorIndexingFeatures{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceDescriptorIndexingFeatures) FromVK(pn unsafe.Pointer) *PhysicalDeviceDescriptorIndexingFeatures {
+	vks := (*vkPhysicalDeviceDescriptorIndexingFeatures)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceDescriptorIndexingFeatures struct {
 	sType                                              StructureType
 	pNext                                              unsafe.Pointer
@@ -11422,7 +12817,7 @@ type vkPhysicalDeviceDescriptorIndexingFeatures struct {
 	runtimeDescriptorArray                             Bool32
 }
 
-func (s *vkPhysicalDeviceDescriptorIndexingFeatures) goStruct() *PhysicalDeviceDescriptorIndexingFeatures {
+func (s *vkPhysicalDeviceDescriptorIndexingFeatures) ToGo() *PhysicalDeviceDescriptorIndexingFeatures {
 	rval := &PhysicalDeviceDescriptorIndexingFeatures{
 		PNext: (unsafe.Pointer)(s.pNext),
 		ShaderInputAttachmentArrayDynamicIndexing:          goBool32(s.shaderInputAttachmentArrayDynamicIndexing),
@@ -11449,7 +12844,7 @@ func (s *vkPhysicalDeviceDescriptorIndexingFeatures) goStruct() *PhysicalDeviceD
 	return rval
 }
 
-func (s *PhysicalDeviceDescriptorIndexingFeatures) vkStruct() *vkPhysicalDeviceDescriptorIndexingFeatures {
+func (s *PhysicalDeviceDescriptorIndexingFeatures) ToVK() *vkPhysicalDeviceDescriptorIndexingFeatures {
 	if s == nil {
 		return nil
 	}
@@ -11508,6 +12903,12 @@ type PhysicalDeviceDescriptorIndexingProperties struct {
 	MaxDescriptorSetUpdateAfterBindInputAttachments      uint32
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceDescriptorIndexingProperties{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceDescriptorIndexingProperties) FromVK(pn unsafe.Pointer) *PhysicalDeviceDescriptorIndexingProperties {
+	vks := (*vkPhysicalDeviceDescriptorIndexingProperties)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceDescriptorIndexingProperties struct {
 	sType                                                StructureType
 	pNext                                                unsafe.Pointer
@@ -11536,7 +12937,7 @@ type vkPhysicalDeviceDescriptorIndexingProperties struct {
 	maxDescriptorSetUpdateAfterBindInputAttachments      uint32
 }
 
-func (s *vkPhysicalDeviceDescriptorIndexingProperties) goStruct() *PhysicalDeviceDescriptorIndexingProperties {
+func (s *vkPhysicalDeviceDescriptorIndexingProperties) ToGo() *PhysicalDeviceDescriptorIndexingProperties {
 	rval := &PhysicalDeviceDescriptorIndexingProperties{
 		PNext:                                   (unsafe.Pointer)(s.pNext),
 		MaxUpdateAfterBindDescriptorsInAllPools: (uint32)(s.maxUpdateAfterBindDescriptorsInAllPools),
@@ -11566,7 +12967,7 @@ func (s *vkPhysicalDeviceDescriptorIndexingProperties) goStruct() *PhysicalDevic
 	return rval
 }
 
-func (s *PhysicalDeviceDescriptorIndexingProperties) vkStruct() *vkPhysicalDeviceDescriptorIndexingProperties {
+func (s *PhysicalDeviceDescriptorIndexingProperties) ToVK() *vkPhysicalDeviceDescriptorIndexingProperties {
 	if s == nil {
 		return nil
 	}
@@ -11606,6 +13007,12 @@ type DescriptorSetVariableDescriptorCountAllocateInfo struct {
 	PDescriptorCounts []uint32
 }
 
+// eg: gostruct := (&vk.DescriptorSetVariableDescriptorCountAllocateInfo{}).FromVK(goStruct2.PNext)
+func (s *DescriptorSetVariableDescriptorCountAllocateInfo) FromVK(pn unsafe.Pointer) *DescriptorSetVariableDescriptorCountAllocateInfo {
+	vks := (*vkDescriptorSetVariableDescriptorCountAllocateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkDescriptorSetVariableDescriptorCountAllocateInfo struct {
 	sType              StructureType
 	pNext              unsafe.Pointer
@@ -11613,7 +13020,7 @@ type vkDescriptorSetVariableDescriptorCountAllocateInfo struct {
 	pDescriptorCounts  *uint32
 }
 
-func (s *vkDescriptorSetVariableDescriptorCountAllocateInfo) goStruct() *DescriptorSetVariableDescriptorCountAllocateInfo {
+func (s *vkDescriptorSetVariableDescriptorCountAllocateInfo) ToGo() *DescriptorSetVariableDescriptorCountAllocateInfo {
 	rval := &DescriptorSetVariableDescriptorCountAllocateInfo{
 		PNext: (unsafe.Pointer)(s.pNext),
 		// ignoring returned pointer type PDescriptorCounts
@@ -11621,7 +13028,7 @@ func (s *vkDescriptorSetVariableDescriptorCountAllocateInfo) goStruct() *Descrip
 	return rval
 }
 
-func (s *DescriptorSetVariableDescriptorCountAllocateInfo) vkStruct() *vkDescriptorSetVariableDescriptorCountAllocateInfo {
+func (s *DescriptorSetVariableDescriptorCountAllocateInfo) ToVK() *vkDescriptorSetVariableDescriptorCountAllocateInfo {
 	if s == nil {
 		return nil
 	}
@@ -11644,13 +13051,19 @@ type DescriptorSetVariableDescriptorCountLayoutSupport struct {
 	MaxVariableDescriptorCount uint32
 }
 
+// eg: gostruct := (&vk.DescriptorSetVariableDescriptorCountLayoutSupport{}).FromVK(goStruct2.PNext)
+func (s *DescriptorSetVariableDescriptorCountLayoutSupport) FromVK(pn unsafe.Pointer) *DescriptorSetVariableDescriptorCountLayoutSupport {
+	vks := (*vkDescriptorSetVariableDescriptorCountLayoutSupport)(pn)
+	return vks.ToGo()
+}
+
 type vkDescriptorSetVariableDescriptorCountLayoutSupport struct {
 	sType                      StructureType
 	pNext                      unsafe.Pointer
 	maxVariableDescriptorCount uint32
 }
 
-func (s *vkDescriptorSetVariableDescriptorCountLayoutSupport) goStruct() *DescriptorSetVariableDescriptorCountLayoutSupport {
+func (s *vkDescriptorSetVariableDescriptorCountLayoutSupport) ToGo() *DescriptorSetVariableDescriptorCountLayoutSupport {
 	rval := &DescriptorSetVariableDescriptorCountLayoutSupport{
 		PNext:                      (unsafe.Pointer)(s.pNext),
 		MaxVariableDescriptorCount: (uint32)(s.maxVariableDescriptorCount),
@@ -11658,7 +13071,7 @@ func (s *vkDescriptorSetVariableDescriptorCountLayoutSupport) goStruct() *Descri
 	return rval
 }
 
-func (s *DescriptorSetVariableDescriptorCountLayoutSupport) vkStruct() *vkDescriptorSetVariableDescriptorCountLayoutSupport {
+func (s *DescriptorSetVariableDescriptorCountLayoutSupport) ToVK() *vkDescriptorSetVariableDescriptorCountLayoutSupport {
 	if s == nil {
 		return nil
 	}
@@ -11676,13 +13089,19 @@ type PhysicalDeviceScalarBlockLayoutFeatures struct {
 	ScalarBlockLayout bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceScalarBlockLayoutFeatures{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceScalarBlockLayoutFeatures) FromVK(pn unsafe.Pointer) *PhysicalDeviceScalarBlockLayoutFeatures {
+	vks := (*vkPhysicalDeviceScalarBlockLayoutFeatures)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceScalarBlockLayoutFeatures struct {
 	sType             StructureType
 	pNext             unsafe.Pointer
 	scalarBlockLayout Bool32
 }
 
-func (s *vkPhysicalDeviceScalarBlockLayoutFeatures) goStruct() *PhysicalDeviceScalarBlockLayoutFeatures {
+func (s *vkPhysicalDeviceScalarBlockLayoutFeatures) ToGo() *PhysicalDeviceScalarBlockLayoutFeatures {
 	rval := &PhysicalDeviceScalarBlockLayoutFeatures{
 		PNext:             (unsafe.Pointer)(s.pNext),
 		ScalarBlockLayout: goBool32(s.scalarBlockLayout),
@@ -11690,7 +13109,7 @@ func (s *vkPhysicalDeviceScalarBlockLayoutFeatures) goStruct() *PhysicalDeviceSc
 	return rval
 }
 
-func (s *PhysicalDeviceScalarBlockLayoutFeatures) vkStruct() *vkPhysicalDeviceScalarBlockLayoutFeatures {
+func (s *PhysicalDeviceScalarBlockLayoutFeatures) ToVK() *vkPhysicalDeviceScalarBlockLayoutFeatures {
 	if s == nil {
 		return nil
 	}
@@ -11708,13 +13127,19 @@ type SamplerReductionModeCreateInfo struct {
 	ReductionMode SamplerReductionMode
 }
 
+// eg: gostruct := (&vk.SamplerReductionModeCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *SamplerReductionModeCreateInfo) FromVK(pn unsafe.Pointer) *SamplerReductionModeCreateInfo {
+	vks := (*vkSamplerReductionModeCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkSamplerReductionModeCreateInfo struct {
 	sType         StructureType
 	pNext         unsafe.Pointer
 	reductionMode SamplerReductionMode
 }
 
-func (s *vkSamplerReductionModeCreateInfo) goStruct() *SamplerReductionModeCreateInfo {
+func (s *vkSamplerReductionModeCreateInfo) ToGo() *SamplerReductionModeCreateInfo {
 	rval := &SamplerReductionModeCreateInfo{
 		PNext:         (unsafe.Pointer)(s.pNext),
 		ReductionMode: (SamplerReductionMode)(s.reductionMode),
@@ -11722,7 +13147,7 @@ func (s *vkSamplerReductionModeCreateInfo) goStruct() *SamplerReductionModeCreat
 	return rval
 }
 
-func (s *SamplerReductionModeCreateInfo) vkStruct() *vkSamplerReductionModeCreateInfo {
+func (s *SamplerReductionModeCreateInfo) ToVK() *vkSamplerReductionModeCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -11741,6 +13166,12 @@ type PhysicalDeviceSamplerFilterMinmaxProperties struct {
 	FilterMinmaxImageComponentMapping  bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceSamplerFilterMinmaxProperties{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceSamplerFilterMinmaxProperties) FromVK(pn unsafe.Pointer) *PhysicalDeviceSamplerFilterMinmaxProperties {
+	vks := (*vkPhysicalDeviceSamplerFilterMinmaxProperties)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceSamplerFilterMinmaxProperties struct {
 	sType                              StructureType
 	pNext                              unsafe.Pointer
@@ -11748,7 +13179,7 @@ type vkPhysicalDeviceSamplerFilterMinmaxProperties struct {
 	filterMinmaxImageComponentMapping  Bool32
 }
 
-func (s *vkPhysicalDeviceSamplerFilterMinmaxProperties) goStruct() *PhysicalDeviceSamplerFilterMinmaxProperties {
+func (s *vkPhysicalDeviceSamplerFilterMinmaxProperties) ToGo() *PhysicalDeviceSamplerFilterMinmaxProperties {
 	rval := &PhysicalDeviceSamplerFilterMinmaxProperties{
 		PNext:                              (unsafe.Pointer)(s.pNext),
 		FilterMinmaxSingleComponentFormats: goBool32(s.filterMinmaxSingleComponentFormats),
@@ -11757,7 +13188,7 @@ func (s *vkPhysicalDeviceSamplerFilterMinmaxProperties) goStruct() *PhysicalDevi
 	return rval
 }
 
-func (s *PhysicalDeviceSamplerFilterMinmaxProperties) vkStruct() *vkPhysicalDeviceSamplerFilterMinmaxProperties {
+func (s *PhysicalDeviceSamplerFilterMinmaxProperties) ToVK() *vkPhysicalDeviceSamplerFilterMinmaxProperties {
 	if s == nil {
 		return nil
 	}
@@ -11776,13 +13207,19 @@ type PhysicalDeviceUniformBufferStandardLayoutFeatures struct {
 	UniformBufferStandardLayout bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceUniformBufferStandardLayoutFeatures{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceUniformBufferStandardLayoutFeatures) FromVK(pn unsafe.Pointer) *PhysicalDeviceUniformBufferStandardLayoutFeatures {
+	vks := (*vkPhysicalDeviceUniformBufferStandardLayoutFeatures)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceUniformBufferStandardLayoutFeatures struct {
 	sType                       StructureType
 	pNext                       unsafe.Pointer
 	uniformBufferStandardLayout Bool32
 }
 
-func (s *vkPhysicalDeviceUniformBufferStandardLayoutFeatures) goStruct() *PhysicalDeviceUniformBufferStandardLayoutFeatures {
+func (s *vkPhysicalDeviceUniformBufferStandardLayoutFeatures) ToGo() *PhysicalDeviceUniformBufferStandardLayoutFeatures {
 	rval := &PhysicalDeviceUniformBufferStandardLayoutFeatures{
 		PNext:                       (unsafe.Pointer)(s.pNext),
 		UniformBufferStandardLayout: goBool32(s.uniformBufferStandardLayout),
@@ -11790,7 +13227,7 @@ func (s *vkPhysicalDeviceUniformBufferStandardLayoutFeatures) goStruct() *Physic
 	return rval
 }
 
-func (s *PhysicalDeviceUniformBufferStandardLayoutFeatures) vkStruct() *vkPhysicalDeviceUniformBufferStandardLayoutFeatures {
+func (s *PhysicalDeviceUniformBufferStandardLayoutFeatures) ToVK() *vkPhysicalDeviceUniformBufferStandardLayoutFeatures {
 	if s == nil {
 		return nil
 	}
@@ -11808,13 +13245,19 @@ type PhysicalDeviceShaderSubgroupExtendedTypesFeatures struct {
 	ShaderSubgroupExtendedTypes bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceShaderSubgroupExtendedTypesFeatures{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceShaderSubgroupExtendedTypesFeatures) FromVK(pn unsafe.Pointer) *PhysicalDeviceShaderSubgroupExtendedTypesFeatures {
+	vks := (*vkPhysicalDeviceShaderSubgroupExtendedTypesFeatures)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceShaderSubgroupExtendedTypesFeatures struct {
 	sType                       StructureType
 	pNext                       unsafe.Pointer
 	shaderSubgroupExtendedTypes Bool32
 }
 
-func (s *vkPhysicalDeviceShaderSubgroupExtendedTypesFeatures) goStruct() *PhysicalDeviceShaderSubgroupExtendedTypesFeatures {
+func (s *vkPhysicalDeviceShaderSubgroupExtendedTypesFeatures) ToGo() *PhysicalDeviceShaderSubgroupExtendedTypesFeatures {
 	rval := &PhysicalDeviceShaderSubgroupExtendedTypesFeatures{
 		PNext:                       (unsafe.Pointer)(s.pNext),
 		ShaderSubgroupExtendedTypes: goBool32(s.shaderSubgroupExtendedTypes),
@@ -11822,7 +13265,7 @@ func (s *vkPhysicalDeviceShaderSubgroupExtendedTypesFeatures) goStruct() *Physic
 	return rval
 }
 
-func (s *PhysicalDeviceShaderSubgroupExtendedTypesFeatures) vkStruct() *vkPhysicalDeviceShaderSubgroupExtendedTypesFeatures {
+func (s *PhysicalDeviceShaderSubgroupExtendedTypesFeatures) ToVK() *vkPhysicalDeviceShaderSubgroupExtendedTypesFeatures {
 	if s == nil {
 		return nil
 	}
@@ -11848,6 +13291,12 @@ type AttachmentDescription2 struct {
 	FinalLayout    ImageLayout
 }
 
+// eg: gostruct := (&vk.AttachmentDescription2{}).FromVK(goStruct2.PNext)
+func (s *AttachmentDescription2) FromVK(pn unsafe.Pointer) *AttachmentDescription2 {
+	vks := (*vkAttachmentDescription2)(pn)
+	return vks.ToGo()
+}
+
 type vkAttachmentDescription2 struct {
 	sType          StructureType
 	pNext          unsafe.Pointer
@@ -11862,7 +13311,7 @@ type vkAttachmentDescription2 struct {
 	finalLayout    ImageLayout
 }
 
-func (s *vkAttachmentDescription2) goStruct() *AttachmentDescription2 {
+func (s *vkAttachmentDescription2) ToGo() *AttachmentDescription2 {
 	rval := &AttachmentDescription2{
 		PNext:          (unsafe.Pointer)(s.pNext),
 		Flags:          (AttachmentDescriptionFlags)(s.flags),
@@ -11878,7 +13327,7 @@ func (s *vkAttachmentDescription2) goStruct() *AttachmentDescription2 {
 	return rval
 }
 
-func (s *AttachmentDescription2) vkStruct() *vkAttachmentDescription2 {
+func (s *AttachmentDescription2) ToVK() *vkAttachmentDescription2 {
 	if s == nil {
 		return nil
 	}
@@ -11906,6 +13355,12 @@ type AttachmentReference2 struct {
 	AspectMask ImageAspectFlags
 }
 
+// eg: gostruct := (&vk.AttachmentReference2{}).FromVK(goStruct2.PNext)
+func (s *AttachmentReference2) FromVK(pn unsafe.Pointer) *AttachmentReference2 {
+	vks := (*vkAttachmentReference2)(pn)
+	return vks.ToGo()
+}
+
 type vkAttachmentReference2 struct {
 	sType      StructureType
 	pNext      unsafe.Pointer
@@ -11914,7 +13369,7 @@ type vkAttachmentReference2 struct {
 	aspectMask ImageAspectFlags
 }
 
-func (s *vkAttachmentReference2) goStruct() *AttachmentReference2 {
+func (s *vkAttachmentReference2) ToGo() *AttachmentReference2 {
 	rval := &AttachmentReference2{
 		PNext:      (unsafe.Pointer)(s.pNext),
 		Attachment: (uint32)(s.attachment),
@@ -11924,7 +13379,7 @@ func (s *vkAttachmentReference2) goStruct() *AttachmentReference2 {
 	return rval
 }
 
-func (s *AttachmentReference2) vkStruct() *vkAttachmentReference2 {
+func (s *AttachmentReference2) ToVK() *vkAttachmentReference2 {
 	if s == nil {
 		return nil
 	}
@@ -11951,6 +13406,12 @@ type SubpassDescription2 struct {
 	PPreserveAttachments    []uint32
 }
 
+// eg: gostruct := (&vk.SubpassDescription2{}).FromVK(goStruct2.PNext)
+func (s *SubpassDescription2) FromVK(pn unsafe.Pointer) *SubpassDescription2 {
+	vks := (*vkSubpassDescription2)(pn)
+	return vks.ToGo()
+}
+
 type vkSubpassDescription2 struct {
 	sType                   StructureType
 	pNext                   unsafe.Pointer
@@ -11967,7 +13428,7 @@ type vkSubpassDescription2 struct {
 	pPreserveAttachments    *uint32
 }
 
-func (s *vkSubpassDescription2) goStruct() *SubpassDescription2 {
+func (s *vkSubpassDescription2) ToGo() *SubpassDescription2 {
 	rval := &SubpassDescription2{
 		PNext:             (unsafe.Pointer)(s.pNext),
 		Flags:             (SubpassDescriptionFlags)(s.flags),
@@ -11982,7 +13443,7 @@ func (s *vkSubpassDescription2) goStruct() *SubpassDescription2 {
 	return rval
 }
 
-func (s *SubpassDescription2) vkStruct() *vkSubpassDescription2 {
+func (s *SubpassDescription2) ToVK() *vkSubpassDescription2 {
 	if s == nil {
 		return nil
 	}
@@ -11990,7 +13451,7 @@ func (s *SubpassDescription2) vkStruct() *vkSubpassDescription2 {
 	if len(s.PInputAttachments) > 0 {
 		tmp := make([]vkAttachmentReference2, len(s.PInputAttachments))
 		for i, v := range s.PInputAttachments {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		sp_PInputAttachments = &tmp[0]
 	}
@@ -11998,7 +13459,7 @@ func (s *SubpassDescription2) vkStruct() *vkSubpassDescription2 {
 	if len(s.PColorAttachments) > 0 {
 		tmp := make([]vkAttachmentReference2, len(s.PColorAttachments))
 		for i, v := range s.PColorAttachments {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		sp_PColorAttachments = &tmp[0]
 	}
@@ -12006,7 +13467,7 @@ func (s *SubpassDescription2) vkStruct() *vkSubpassDescription2 {
 	if len(s.PResolveAttachments) > 0 {
 		tmp := make([]vkAttachmentReference2, len(s.PResolveAttachments))
 		for i, v := range s.PResolveAttachments {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		sp_PResolveAttachments = &tmp[0]
 	}
@@ -12024,7 +13485,7 @@ func (s *SubpassDescription2) vkStruct() *vkSubpassDescription2 {
 		pInputAttachments:       sp_PInputAttachments,
 		pColorAttachments:       sp_PColorAttachments,
 		pResolveAttachments:     sp_PResolveAttachments,
-		pDepthStencilAttachment: (s.PDepthStencilAttachment.vkStruct()),
+		pDepthStencilAttachment: (s.PDepthStencilAttachment.ToVK()),
 		preserveAttachmentCount: uint32(len(s.PPreserveAttachments)),
 		pPreserveAttachments:    sp_PPreserveAttachments,
 	}
@@ -12051,6 +13512,12 @@ type SubpassDependency2 struct {
 	ViewOffset      int32
 }
 
+// eg: gostruct := (&vk.SubpassDependency2{}).FromVK(goStruct2.PNext)
+func (s *SubpassDependency2) FromVK(pn unsafe.Pointer) *SubpassDependency2 {
+	vks := (*vkSubpassDependency2)(pn)
+	return vks.ToGo()
+}
+
 type vkSubpassDependency2 struct {
 	sType           StructureType
 	pNext           unsafe.Pointer
@@ -12064,7 +13531,7 @@ type vkSubpassDependency2 struct {
 	viewOffset      int32
 }
 
-func (s *vkSubpassDependency2) goStruct() *SubpassDependency2 {
+func (s *vkSubpassDependency2) ToGo() *SubpassDependency2 {
 	rval := &SubpassDependency2{
 		PNext:           (unsafe.Pointer)(s.pNext),
 		SrcSubpass:      (uint32)(s.srcSubpass),
@@ -12079,7 +13546,7 @@ func (s *vkSubpassDependency2) goStruct() *SubpassDependency2 {
 	return rval
 }
 
-func (s *SubpassDependency2) vkStruct() *vkSubpassDependency2 {
+func (s *SubpassDependency2) ToVK() *vkSubpassDependency2 {
 	if s == nil {
 		return nil
 	}
@@ -12104,13 +13571,19 @@ type SubpassBeginInfo struct {
 	Contents SubpassContents
 }
 
+// eg: gostruct := (&vk.SubpassBeginInfo{}).FromVK(goStruct2.PNext)
+func (s *SubpassBeginInfo) FromVK(pn unsafe.Pointer) *SubpassBeginInfo {
+	vks := (*vkSubpassBeginInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkSubpassBeginInfo struct {
 	sType    StructureType
 	pNext    unsafe.Pointer
 	contents SubpassContents
 }
 
-func (s *vkSubpassBeginInfo) goStruct() *SubpassBeginInfo {
+func (s *vkSubpassBeginInfo) ToGo() *SubpassBeginInfo {
 	rval := &SubpassBeginInfo{
 		PNext:    (unsafe.Pointer)(s.pNext),
 		Contents: (SubpassContents)(s.contents),
@@ -12118,7 +13591,7 @@ func (s *vkSubpassBeginInfo) goStruct() *SubpassBeginInfo {
 	return rval
 }
 
-func (s *SubpassBeginInfo) vkStruct() *vkSubpassBeginInfo {
+func (s *SubpassBeginInfo) ToVK() *vkSubpassBeginInfo {
 	if s == nil {
 		return nil
 	}
@@ -12135,19 +13608,25 @@ type SubpassEndInfo struct {
 	PNext unsafe.Pointer
 }
 
+// eg: gostruct := (&vk.SubpassEndInfo{}).FromVK(goStruct2.PNext)
+func (s *SubpassEndInfo) FromVK(pn unsafe.Pointer) *SubpassEndInfo {
+	vks := (*vkSubpassEndInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkSubpassEndInfo struct {
 	sType StructureType
 	pNext unsafe.Pointer
 }
 
-func (s *vkSubpassEndInfo) goStruct() *SubpassEndInfo {
+func (s *vkSubpassEndInfo) ToGo() *SubpassEndInfo {
 	rval := &SubpassEndInfo{
 		PNext: (unsafe.Pointer)(s.pNext),
 	}
 	return rval
 }
 
-func (s *SubpassEndInfo) vkStruct() *vkSubpassEndInfo {
+func (s *SubpassEndInfo) ToVK() *vkSubpassEndInfo {
 	if s == nil {
 		return nil
 	}
@@ -12168,6 +13647,12 @@ type RenderPassCreateInfo2 struct {
 	PCorrelatedViewMasks []uint32
 }
 
+// eg: gostruct := (&vk.RenderPassCreateInfo2{}).FromVK(goStruct2.PNext)
+func (s *RenderPassCreateInfo2) FromVK(pn unsafe.Pointer) *RenderPassCreateInfo2 {
+	vks := (*vkRenderPassCreateInfo2)(pn)
+	return vks.ToGo()
+}
+
 type vkRenderPassCreateInfo2 struct {
 	sType                   StructureType
 	pNext                   unsafe.Pointer
@@ -12182,7 +13667,7 @@ type vkRenderPassCreateInfo2 struct {
 	pCorrelatedViewMasks    *uint32
 }
 
-func (s *vkRenderPassCreateInfo2) goStruct() *RenderPassCreateInfo2 {
+func (s *vkRenderPassCreateInfo2) ToGo() *RenderPassCreateInfo2 {
 	rval := &RenderPassCreateInfo2{
 		PNext: (unsafe.Pointer)(s.pNext),
 		Flags: (RenderPassCreateFlags)(s.flags),
@@ -12194,7 +13679,7 @@ func (s *vkRenderPassCreateInfo2) goStruct() *RenderPassCreateInfo2 {
 	return rval
 }
 
-func (s *RenderPassCreateInfo2) vkStruct() *vkRenderPassCreateInfo2 {
+func (s *RenderPassCreateInfo2) ToVK() *vkRenderPassCreateInfo2 {
 	if s == nil {
 		return nil
 	}
@@ -12202,7 +13687,7 @@ func (s *RenderPassCreateInfo2) vkStruct() *vkRenderPassCreateInfo2 {
 	if len(s.PAttachments) > 0 {
 		tmp := make([]vkAttachmentDescription2, len(s.PAttachments))
 		for i, v := range s.PAttachments {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		sp_PAttachments = &tmp[0]
 	}
@@ -12210,7 +13695,7 @@ func (s *RenderPassCreateInfo2) vkStruct() *vkRenderPassCreateInfo2 {
 	if len(s.PSubpasses) > 0 {
 		tmp := make([]vkSubpassDescription2, len(s.PSubpasses))
 		for i, v := range s.PSubpasses {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		sp_PSubpasses = &tmp[0]
 	}
@@ -12218,7 +13703,7 @@ func (s *RenderPassCreateInfo2) vkStruct() *vkRenderPassCreateInfo2 {
 	if len(s.PDependencies) > 0 {
 		tmp := make([]vkSubpassDependency2, len(s.PDependencies))
 		for i, v := range s.PDependencies {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		sp_PDependencies = &tmp[0]
 	}
@@ -12250,6 +13735,12 @@ type SubpassDescriptionDepthStencilResolve struct {
 	PDepthStencilResolveAttachment *AttachmentReference2
 }
 
+// eg: gostruct := (&vk.SubpassDescriptionDepthStencilResolve{}).FromVK(goStruct2.PNext)
+func (s *SubpassDescriptionDepthStencilResolve) FromVK(pn unsafe.Pointer) *SubpassDescriptionDepthStencilResolve {
+	vks := (*vkSubpassDescriptionDepthStencilResolve)(pn)
+	return vks.ToGo()
+}
+
 type vkSubpassDescriptionDepthStencilResolve struct {
 	sType                          StructureType
 	pNext                          unsafe.Pointer
@@ -12258,7 +13749,7 @@ type vkSubpassDescriptionDepthStencilResolve struct {
 	pDepthStencilResolveAttachment *vkAttachmentReference2
 }
 
-func (s *vkSubpassDescriptionDepthStencilResolve) goStruct() *SubpassDescriptionDepthStencilResolve {
+func (s *vkSubpassDescriptionDepthStencilResolve) ToGo() *SubpassDescriptionDepthStencilResolve {
 	rval := &SubpassDescriptionDepthStencilResolve{
 		PNext:              (unsafe.Pointer)(s.pNext),
 		DepthResolveMode:   (ResolveModeFlagBits)(s.depthResolveMode),
@@ -12268,7 +13759,7 @@ func (s *vkSubpassDescriptionDepthStencilResolve) goStruct() *SubpassDescription
 	return rval
 }
 
-func (s *SubpassDescriptionDepthStencilResolve) vkStruct() *vkSubpassDescriptionDepthStencilResolve {
+func (s *SubpassDescriptionDepthStencilResolve) ToVK() *vkSubpassDescriptionDepthStencilResolve {
 	if s == nil {
 		return nil
 	}
@@ -12277,7 +13768,7 @@ func (s *SubpassDescriptionDepthStencilResolve) vkStruct() *vkSubpassDescription
 		pNext:                          (unsafe.Pointer)(s.PNext),
 		depthResolveMode:               (ResolveModeFlagBits)(s.DepthResolveMode),
 		stencilResolveMode:             (ResolveModeFlagBits)(s.StencilResolveMode),
-		pDepthStencilResolveAttachment: (s.PDepthStencilResolveAttachment.vkStruct()),
+		pDepthStencilResolveAttachment: (s.PDepthStencilResolveAttachment.ToVK()),
 	}
 	return rval
 }
@@ -12291,6 +13782,12 @@ type PhysicalDeviceDepthStencilResolveProperties struct {
 	IndependentResolve           bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceDepthStencilResolveProperties{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceDepthStencilResolveProperties) FromVK(pn unsafe.Pointer) *PhysicalDeviceDepthStencilResolveProperties {
+	vks := (*vkPhysicalDeviceDepthStencilResolveProperties)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceDepthStencilResolveProperties struct {
 	sType                        StructureType
 	pNext                        unsafe.Pointer
@@ -12300,7 +13797,7 @@ type vkPhysicalDeviceDepthStencilResolveProperties struct {
 	independentResolve           Bool32
 }
 
-func (s *vkPhysicalDeviceDepthStencilResolveProperties) goStruct() *PhysicalDeviceDepthStencilResolveProperties {
+func (s *vkPhysicalDeviceDepthStencilResolveProperties) ToGo() *PhysicalDeviceDepthStencilResolveProperties {
 	rval := &PhysicalDeviceDepthStencilResolveProperties{
 		PNext:                        (unsafe.Pointer)(s.pNext),
 		SupportedDepthResolveModes:   (ResolveModeFlags)(s.supportedDepthResolveModes),
@@ -12311,7 +13808,7 @@ func (s *vkPhysicalDeviceDepthStencilResolveProperties) goStruct() *PhysicalDevi
 	return rval
 }
 
-func (s *PhysicalDeviceDepthStencilResolveProperties) vkStruct() *vkPhysicalDeviceDepthStencilResolveProperties {
+func (s *PhysicalDeviceDepthStencilResolveProperties) ToVK() *vkPhysicalDeviceDepthStencilResolveProperties {
 	if s == nil {
 		return nil
 	}
@@ -12332,13 +13829,19 @@ type ImageStencilUsageCreateInfo struct {
 	StencilUsage ImageUsageFlags
 }
 
+// eg: gostruct := (&vk.ImageStencilUsageCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *ImageStencilUsageCreateInfo) FromVK(pn unsafe.Pointer) *ImageStencilUsageCreateInfo {
+	vks := (*vkImageStencilUsageCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkImageStencilUsageCreateInfo struct {
 	sType        StructureType
 	pNext        unsafe.Pointer
 	stencilUsage ImageUsageFlags
 }
 
-func (s *vkImageStencilUsageCreateInfo) goStruct() *ImageStencilUsageCreateInfo {
+func (s *vkImageStencilUsageCreateInfo) ToGo() *ImageStencilUsageCreateInfo {
 	rval := &ImageStencilUsageCreateInfo{
 		PNext:        (unsafe.Pointer)(s.pNext),
 		StencilUsage: (ImageUsageFlags)(s.stencilUsage),
@@ -12346,7 +13849,7 @@ func (s *vkImageStencilUsageCreateInfo) goStruct() *ImageStencilUsageCreateInfo 
 	return rval
 }
 
-func (s *ImageStencilUsageCreateInfo) vkStruct() *vkImageStencilUsageCreateInfo {
+func (s *ImageStencilUsageCreateInfo) ToVK() *vkImageStencilUsageCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -12364,13 +13867,19 @@ type PhysicalDeviceImagelessFramebufferFeatures struct {
 	ImagelessFramebuffer bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceImagelessFramebufferFeatures{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceImagelessFramebufferFeatures) FromVK(pn unsafe.Pointer) *PhysicalDeviceImagelessFramebufferFeatures {
+	vks := (*vkPhysicalDeviceImagelessFramebufferFeatures)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceImagelessFramebufferFeatures struct {
 	sType                StructureType
 	pNext                unsafe.Pointer
 	imagelessFramebuffer Bool32
 }
 
-func (s *vkPhysicalDeviceImagelessFramebufferFeatures) goStruct() *PhysicalDeviceImagelessFramebufferFeatures {
+func (s *vkPhysicalDeviceImagelessFramebufferFeatures) ToGo() *PhysicalDeviceImagelessFramebufferFeatures {
 	rval := &PhysicalDeviceImagelessFramebufferFeatures{
 		PNext:                (unsafe.Pointer)(s.pNext),
 		ImagelessFramebuffer: goBool32(s.imagelessFramebuffer),
@@ -12378,7 +13887,7 @@ func (s *vkPhysicalDeviceImagelessFramebufferFeatures) goStruct() *PhysicalDevic
 	return rval
 }
 
-func (s *PhysicalDeviceImagelessFramebufferFeatures) vkStruct() *vkPhysicalDeviceImagelessFramebufferFeatures {
+func (s *PhysicalDeviceImagelessFramebufferFeatures) ToVK() *vkPhysicalDeviceImagelessFramebufferFeatures {
 	if s == nil {
 		return nil
 	}
@@ -12401,6 +13910,12 @@ type FramebufferAttachmentImageInfo struct {
 	PViewFormats []Format
 }
 
+// eg: gostruct := (&vk.FramebufferAttachmentImageInfo{}).FromVK(goStruct2.PNext)
+func (s *FramebufferAttachmentImageInfo) FromVK(pn unsafe.Pointer) *FramebufferAttachmentImageInfo {
+	vks := (*vkFramebufferAttachmentImageInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkFramebufferAttachmentImageInfo struct {
 	sType           StructureType
 	pNext           unsafe.Pointer
@@ -12413,7 +13928,7 @@ type vkFramebufferAttachmentImageInfo struct {
 	pViewFormats    *Format
 }
 
-func (s *vkFramebufferAttachmentImageInfo) goStruct() *FramebufferAttachmentImageInfo {
+func (s *vkFramebufferAttachmentImageInfo) ToGo() *FramebufferAttachmentImageInfo {
 	rval := &FramebufferAttachmentImageInfo{
 		PNext:      (unsafe.Pointer)(s.pNext),
 		Flags:      (ImageCreateFlags)(s.flags),
@@ -12426,7 +13941,7 @@ func (s *vkFramebufferAttachmentImageInfo) goStruct() *FramebufferAttachmentImag
 	return rval
 }
 
-func (s *FramebufferAttachmentImageInfo) vkStruct() *vkFramebufferAttachmentImageInfo {
+func (s *FramebufferAttachmentImageInfo) ToVK() *vkFramebufferAttachmentImageInfo {
 	if s == nil {
 		return nil
 	}
@@ -12454,6 +13969,12 @@ type RenderPassAttachmentBeginInfo struct {
 	PAttachments []ImageView
 }
 
+// eg: gostruct := (&vk.RenderPassAttachmentBeginInfo{}).FromVK(goStruct2.PNext)
+func (s *RenderPassAttachmentBeginInfo) FromVK(pn unsafe.Pointer) *RenderPassAttachmentBeginInfo {
+	vks := (*vkRenderPassAttachmentBeginInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkRenderPassAttachmentBeginInfo struct {
 	sType           StructureType
 	pNext           unsafe.Pointer
@@ -12461,7 +13982,7 @@ type vkRenderPassAttachmentBeginInfo struct {
 	pAttachments    *ImageView
 }
 
-func (s *vkRenderPassAttachmentBeginInfo) goStruct() *RenderPassAttachmentBeginInfo {
+func (s *vkRenderPassAttachmentBeginInfo) ToGo() *RenderPassAttachmentBeginInfo {
 	rval := &RenderPassAttachmentBeginInfo{
 		PNext: (unsafe.Pointer)(s.pNext),
 		// ignoring returned pointer type PAttachments
@@ -12469,7 +13990,7 @@ func (s *vkRenderPassAttachmentBeginInfo) goStruct() *RenderPassAttachmentBeginI
 	return rval
 }
 
-func (s *RenderPassAttachmentBeginInfo) vkStruct() *vkRenderPassAttachmentBeginInfo {
+func (s *RenderPassAttachmentBeginInfo) ToVK() *vkRenderPassAttachmentBeginInfo {
 	if s == nil {
 		return nil
 	}
@@ -12492,6 +14013,12 @@ type FramebufferAttachmentsCreateInfo struct {
 	PAttachmentImageInfos []FramebufferAttachmentImageInfo
 }
 
+// eg: gostruct := (&vk.FramebufferAttachmentsCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *FramebufferAttachmentsCreateInfo) FromVK(pn unsafe.Pointer) *FramebufferAttachmentsCreateInfo {
+	vks := (*vkFramebufferAttachmentsCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkFramebufferAttachmentsCreateInfo struct {
 	sType                    StructureType
 	pNext                    unsafe.Pointer
@@ -12499,7 +14026,7 @@ type vkFramebufferAttachmentsCreateInfo struct {
 	pAttachmentImageInfos    *vkFramebufferAttachmentImageInfo
 }
 
-func (s *vkFramebufferAttachmentsCreateInfo) goStruct() *FramebufferAttachmentsCreateInfo {
+func (s *vkFramebufferAttachmentsCreateInfo) ToGo() *FramebufferAttachmentsCreateInfo {
 	rval := &FramebufferAttachmentsCreateInfo{
 		PNext: (unsafe.Pointer)(s.pNext),
 		// ignoring returned pointer type PAttachmentImageInfos
@@ -12507,7 +14034,7 @@ func (s *vkFramebufferAttachmentsCreateInfo) goStruct() *FramebufferAttachmentsC
 	return rval
 }
 
-func (s *FramebufferAttachmentsCreateInfo) vkStruct() *vkFramebufferAttachmentsCreateInfo {
+func (s *FramebufferAttachmentsCreateInfo) ToVK() *vkFramebufferAttachmentsCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -12515,7 +14042,7 @@ func (s *FramebufferAttachmentsCreateInfo) vkStruct() *vkFramebufferAttachmentsC
 	if len(s.PAttachmentImageInfos) > 0 {
 		tmp := make([]vkFramebufferAttachmentImageInfo, len(s.PAttachmentImageInfos))
 		for i, v := range s.PAttachmentImageInfos {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		sp_PAttachmentImageInfos = &tmp[0]
 	}
@@ -12534,13 +14061,19 @@ type PhysicalDeviceSeparateDepthStencilLayoutsFeatures struct {
 	SeparateDepthStencilLayouts bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceSeparateDepthStencilLayoutsFeatures{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceSeparateDepthStencilLayoutsFeatures) FromVK(pn unsafe.Pointer) *PhysicalDeviceSeparateDepthStencilLayoutsFeatures {
+	vks := (*vkPhysicalDeviceSeparateDepthStencilLayoutsFeatures)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceSeparateDepthStencilLayoutsFeatures struct {
 	sType                       StructureType
 	pNext                       unsafe.Pointer
 	separateDepthStencilLayouts Bool32
 }
 
-func (s *vkPhysicalDeviceSeparateDepthStencilLayoutsFeatures) goStruct() *PhysicalDeviceSeparateDepthStencilLayoutsFeatures {
+func (s *vkPhysicalDeviceSeparateDepthStencilLayoutsFeatures) ToGo() *PhysicalDeviceSeparateDepthStencilLayoutsFeatures {
 	rval := &PhysicalDeviceSeparateDepthStencilLayoutsFeatures{
 		PNext:                       (unsafe.Pointer)(s.pNext),
 		SeparateDepthStencilLayouts: goBool32(s.separateDepthStencilLayouts),
@@ -12548,7 +14081,7 @@ func (s *vkPhysicalDeviceSeparateDepthStencilLayoutsFeatures) goStruct() *Physic
 	return rval
 }
 
-func (s *PhysicalDeviceSeparateDepthStencilLayoutsFeatures) vkStruct() *vkPhysicalDeviceSeparateDepthStencilLayoutsFeatures {
+func (s *PhysicalDeviceSeparateDepthStencilLayoutsFeatures) ToVK() *vkPhysicalDeviceSeparateDepthStencilLayoutsFeatures {
 	if s == nil {
 		return nil
 	}
@@ -12566,13 +14099,19 @@ type AttachmentReferenceStencilLayout struct {
 	StencilLayout ImageLayout
 }
 
+// eg: gostruct := (&vk.AttachmentReferenceStencilLayout{}).FromVK(goStruct2.PNext)
+func (s *AttachmentReferenceStencilLayout) FromVK(pn unsafe.Pointer) *AttachmentReferenceStencilLayout {
+	vks := (*vkAttachmentReferenceStencilLayout)(pn)
+	return vks.ToGo()
+}
+
 type vkAttachmentReferenceStencilLayout struct {
 	sType         StructureType
 	pNext         unsafe.Pointer
 	stencilLayout ImageLayout
 }
 
-func (s *vkAttachmentReferenceStencilLayout) goStruct() *AttachmentReferenceStencilLayout {
+func (s *vkAttachmentReferenceStencilLayout) ToGo() *AttachmentReferenceStencilLayout {
 	rval := &AttachmentReferenceStencilLayout{
 		PNext:         (unsafe.Pointer)(s.pNext),
 		StencilLayout: (ImageLayout)(s.stencilLayout),
@@ -12580,7 +14119,7 @@ func (s *vkAttachmentReferenceStencilLayout) goStruct() *AttachmentReferenceSten
 	return rval
 }
 
-func (s *AttachmentReferenceStencilLayout) vkStruct() *vkAttachmentReferenceStencilLayout {
+func (s *AttachmentReferenceStencilLayout) ToVK() *vkAttachmentReferenceStencilLayout {
 	if s == nil {
 		return nil
 	}
@@ -12599,6 +14138,12 @@ type AttachmentDescriptionStencilLayout struct {
 	StencilFinalLayout   ImageLayout
 }
 
+// eg: gostruct := (&vk.AttachmentDescriptionStencilLayout{}).FromVK(goStruct2.PNext)
+func (s *AttachmentDescriptionStencilLayout) FromVK(pn unsafe.Pointer) *AttachmentDescriptionStencilLayout {
+	vks := (*vkAttachmentDescriptionStencilLayout)(pn)
+	return vks.ToGo()
+}
+
 type vkAttachmentDescriptionStencilLayout struct {
 	sType                StructureType
 	pNext                unsafe.Pointer
@@ -12606,7 +14151,7 @@ type vkAttachmentDescriptionStencilLayout struct {
 	stencilFinalLayout   ImageLayout
 }
 
-func (s *vkAttachmentDescriptionStencilLayout) goStruct() *AttachmentDescriptionStencilLayout {
+func (s *vkAttachmentDescriptionStencilLayout) ToGo() *AttachmentDescriptionStencilLayout {
 	rval := &AttachmentDescriptionStencilLayout{
 		PNext:                (unsafe.Pointer)(s.pNext),
 		StencilInitialLayout: (ImageLayout)(s.stencilInitialLayout),
@@ -12615,7 +14160,7 @@ func (s *vkAttachmentDescriptionStencilLayout) goStruct() *AttachmentDescription
 	return rval
 }
 
-func (s *AttachmentDescriptionStencilLayout) vkStruct() *vkAttachmentDescriptionStencilLayout {
+func (s *AttachmentDescriptionStencilLayout) ToVK() *vkAttachmentDescriptionStencilLayout {
 	if s == nil {
 		return nil
 	}
@@ -12648,6 +14193,12 @@ type PhysicalDeviceVulkan13Features struct {
 	Maintenance4                                       bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceVulkan13Features{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceVulkan13Features) FromVK(pn unsafe.Pointer) *PhysicalDeviceVulkan13Features {
+	vks := (*vkPhysicalDeviceVulkan13Features)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceVulkan13Features struct {
 	sType                                              StructureType
 	pNext                                              unsafe.Pointer
@@ -12668,7 +14219,7 @@ type vkPhysicalDeviceVulkan13Features struct {
 	maintenance4                                       Bool32
 }
 
-func (s *vkPhysicalDeviceVulkan13Features) goStruct() *PhysicalDeviceVulkan13Features {
+func (s *vkPhysicalDeviceVulkan13Features) ToGo() *PhysicalDeviceVulkan13Features {
 	rval := &PhysicalDeviceVulkan13Features{
 		PNext:              (unsafe.Pointer)(s.pNext),
 		RobustImageAccess:  goBool32(s.robustImageAccess),
@@ -12690,7 +14241,7 @@ func (s *vkPhysicalDeviceVulkan13Features) goStruct() *PhysicalDeviceVulkan13Fea
 	return rval
 }
 
-func (s *PhysicalDeviceVulkan13Features) vkStruct() *vkPhysicalDeviceVulkan13Features {
+func (s *PhysicalDeviceVulkan13Features) ToVK() *vkPhysicalDeviceVulkan13Features {
 	if s == nil {
 		return nil
 	}
@@ -12766,6 +14317,12 @@ type PhysicalDeviceVulkan13Properties struct {
 	MaxBufferSize                                                                 DeviceSize
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceVulkan13Properties{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceVulkan13Properties) FromVK(pn unsafe.Pointer) *PhysicalDeviceVulkan13Properties {
+	vks := (*vkPhysicalDeviceVulkan13Properties)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceVulkan13Properties struct {
 	sType                                                                         StructureType
 	pNext                                                                         unsafe.Pointer
@@ -12816,7 +14373,7 @@ type vkPhysicalDeviceVulkan13Properties struct {
 	maxBufferSize                                                                 DeviceSize
 }
 
-func (s *vkPhysicalDeviceVulkan13Properties) goStruct() *PhysicalDeviceVulkan13Properties {
+func (s *vkPhysicalDeviceVulkan13Properties) ToGo() *PhysicalDeviceVulkan13Properties {
 	rval := &PhysicalDeviceVulkan13Properties{
 		PNext:                                    (unsafe.Pointer)(s.pNext),
 		MinSubgroupSize:                          (uint32)(s.minSubgroupSize),
@@ -12868,7 +14425,7 @@ func (s *vkPhysicalDeviceVulkan13Properties) goStruct() *PhysicalDeviceVulkan13P
 	return rval
 }
 
-func (s *PhysicalDeviceVulkan13Properties) vkStruct() *vkPhysicalDeviceVulkan13Properties {
+func (s *PhysicalDeviceVulkan13Properties) ToVK() *vkPhysicalDeviceVulkan13Properties {
 	if s == nil {
 		return nil
 	}
@@ -12934,6 +14491,12 @@ type PhysicalDeviceToolProperties struct {
 	Layer       string
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceToolProperties{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceToolProperties) FromVK(pn unsafe.Pointer) *PhysicalDeviceToolProperties {
+	vks := (*vkPhysicalDeviceToolProperties)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceToolProperties struct {
 	sType       StructureType
 	pNext       unsafe.Pointer
@@ -12944,7 +14507,7 @@ type vkPhysicalDeviceToolProperties struct {
 	layer       [MAX_EXTENSION_NAME_SIZE]byte
 }
 
-func (s *vkPhysicalDeviceToolProperties) goStruct() *PhysicalDeviceToolProperties {
+func (s *vkPhysicalDeviceToolProperties) ToGo() *PhysicalDeviceToolProperties {
 	rval := &PhysicalDeviceToolProperties{
 		PNext:       (unsafe.Pointer)(s.pNext),
 		Name:        nullTermBytesToString(s.name[:]),
@@ -12956,7 +14519,7 @@ func (s *vkPhysicalDeviceToolProperties) goStruct() *PhysicalDeviceToolPropertie
 	return rval
 }
 
-func (s *PhysicalDeviceToolProperties) vkStruct() *vkPhysicalDeviceToolProperties {
+func (s *PhysicalDeviceToolProperties) ToVK() *vkPhysicalDeviceToolProperties {
 	if s == nil {
 		return nil
 	}
@@ -12978,13 +14541,19 @@ type PhysicalDevicePrivateDataFeatures struct {
 	PrivateData bool
 }
 
+// eg: gostruct := (&vk.PhysicalDevicePrivateDataFeatures{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDevicePrivateDataFeatures) FromVK(pn unsafe.Pointer) *PhysicalDevicePrivateDataFeatures {
+	vks := (*vkPhysicalDevicePrivateDataFeatures)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDevicePrivateDataFeatures struct {
 	sType       StructureType
 	pNext       unsafe.Pointer
 	privateData Bool32
 }
 
-func (s *vkPhysicalDevicePrivateDataFeatures) goStruct() *PhysicalDevicePrivateDataFeatures {
+func (s *vkPhysicalDevicePrivateDataFeatures) ToGo() *PhysicalDevicePrivateDataFeatures {
 	rval := &PhysicalDevicePrivateDataFeatures{
 		PNext:       (unsafe.Pointer)(s.pNext),
 		PrivateData: goBool32(s.privateData),
@@ -12992,7 +14561,7 @@ func (s *vkPhysicalDevicePrivateDataFeatures) goStruct() *PhysicalDevicePrivateD
 	return rval
 }
 
-func (s *PhysicalDevicePrivateDataFeatures) vkStruct() *vkPhysicalDevicePrivateDataFeatures {
+func (s *PhysicalDevicePrivateDataFeatures) ToVK() *vkPhysicalDevicePrivateDataFeatures {
 	if s == nil {
 		return nil
 	}
@@ -13010,13 +14579,19 @@ type DevicePrivateDataCreateInfo struct {
 	PrivateDataSlotRequestCount uint32
 }
 
+// eg: gostruct := (&vk.DevicePrivateDataCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *DevicePrivateDataCreateInfo) FromVK(pn unsafe.Pointer) *DevicePrivateDataCreateInfo {
+	vks := (*vkDevicePrivateDataCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkDevicePrivateDataCreateInfo struct {
 	sType                       StructureType
 	pNext                       unsafe.Pointer
 	privateDataSlotRequestCount uint32
 }
 
-func (s *vkDevicePrivateDataCreateInfo) goStruct() *DevicePrivateDataCreateInfo {
+func (s *vkDevicePrivateDataCreateInfo) ToGo() *DevicePrivateDataCreateInfo {
 	rval := &DevicePrivateDataCreateInfo{
 		PNext:                       (unsafe.Pointer)(s.pNext),
 		PrivateDataSlotRequestCount: (uint32)(s.privateDataSlotRequestCount),
@@ -13024,7 +14599,7 @@ func (s *vkDevicePrivateDataCreateInfo) goStruct() *DevicePrivateDataCreateInfo 
 	return rval
 }
 
-func (s *DevicePrivateDataCreateInfo) vkStruct() *vkDevicePrivateDataCreateInfo {
+func (s *DevicePrivateDataCreateInfo) ToVK() *vkDevicePrivateDataCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -13042,13 +14617,19 @@ type PrivateDataSlotCreateInfo struct {
 	Flags PrivateDataSlotCreateFlags
 }
 
+// eg: gostruct := (&vk.PrivateDataSlotCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *PrivateDataSlotCreateInfo) FromVK(pn unsafe.Pointer) *PrivateDataSlotCreateInfo {
+	vks := (*vkPrivateDataSlotCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkPrivateDataSlotCreateInfo struct {
 	sType StructureType
 	pNext unsafe.Pointer
 	flags PrivateDataSlotCreateFlags
 }
 
-func (s *vkPrivateDataSlotCreateInfo) goStruct() *PrivateDataSlotCreateInfo {
+func (s *vkPrivateDataSlotCreateInfo) ToGo() *PrivateDataSlotCreateInfo {
 	rval := &PrivateDataSlotCreateInfo{
 		PNext: (unsafe.Pointer)(s.pNext),
 		Flags: (PrivateDataSlotCreateFlags)(s.flags),
@@ -13056,7 +14637,7 @@ func (s *vkPrivateDataSlotCreateInfo) goStruct() *PrivateDataSlotCreateInfo {
 	return rval
 }
 
-func (s *PrivateDataSlotCreateInfo) vkStruct() *vkPrivateDataSlotCreateInfo {
+func (s *PrivateDataSlotCreateInfo) ToVK() *vkPrivateDataSlotCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -13077,6 +14658,12 @@ type MemoryBarrier2 struct {
 	DstAccessMask AccessFlags2
 }
 
+// eg: gostruct := (&vk.MemoryBarrier2{}).FromVK(goStruct2.PNext)
+func (s *MemoryBarrier2) FromVK(pn unsafe.Pointer) *MemoryBarrier2 {
+	vks := (*vkMemoryBarrier2)(pn)
+	return vks.ToGo()
+}
+
 type vkMemoryBarrier2 struct {
 	sType         StructureType
 	pNext         unsafe.Pointer
@@ -13086,7 +14673,7 @@ type vkMemoryBarrier2 struct {
 	dstAccessMask AccessFlags2
 }
 
-func (s *vkMemoryBarrier2) goStruct() *MemoryBarrier2 {
+func (s *vkMemoryBarrier2) ToGo() *MemoryBarrier2 {
 	rval := &MemoryBarrier2{
 		PNext:         (unsafe.Pointer)(s.pNext),
 		SrcStageMask:  (PipelineStageFlags2)(s.srcStageMask),
@@ -13097,7 +14684,7 @@ func (s *vkMemoryBarrier2) goStruct() *MemoryBarrier2 {
 	return rval
 }
 
-func (s *MemoryBarrier2) vkStruct() *vkMemoryBarrier2 {
+func (s *MemoryBarrier2) ToVK() *vkMemoryBarrier2 {
 	if s == nil {
 		return nil
 	}
@@ -13126,6 +14713,12 @@ type BufferMemoryBarrier2 struct {
 	Size                DeviceSize
 }
 
+// eg: gostruct := (&vk.BufferMemoryBarrier2{}).FromVK(goStruct2.PNext)
+func (s *BufferMemoryBarrier2) FromVK(pn unsafe.Pointer) *BufferMemoryBarrier2 {
+	vks := (*vkBufferMemoryBarrier2)(pn)
+	return vks.ToGo()
+}
+
 type vkBufferMemoryBarrier2 struct {
 	sType               StructureType
 	pNext               unsafe.Pointer
@@ -13140,7 +14733,7 @@ type vkBufferMemoryBarrier2 struct {
 	size                DeviceSize
 }
 
-func (s *vkBufferMemoryBarrier2) goStruct() *BufferMemoryBarrier2 {
+func (s *vkBufferMemoryBarrier2) ToGo() *BufferMemoryBarrier2 {
 	rval := &BufferMemoryBarrier2{
 		PNext:               (unsafe.Pointer)(s.pNext),
 		SrcStageMask:        (PipelineStageFlags2)(s.srcStageMask),
@@ -13156,7 +14749,7 @@ func (s *vkBufferMemoryBarrier2) goStruct() *BufferMemoryBarrier2 {
 	return rval
 }
 
-func (s *BufferMemoryBarrier2) vkStruct() *vkBufferMemoryBarrier2 {
+func (s *BufferMemoryBarrier2) ToVK() *vkBufferMemoryBarrier2 {
 	if s == nil {
 		return nil
 	}
@@ -13191,6 +14784,12 @@ type ImageMemoryBarrier2 struct {
 	SubresourceRange    ImageSubresourceRange
 }
 
+// eg: gostruct := (&vk.ImageMemoryBarrier2{}).FromVK(goStruct2.PNext)
+func (s *ImageMemoryBarrier2) FromVK(pn unsafe.Pointer) *ImageMemoryBarrier2 {
+	vks := (*vkImageMemoryBarrier2)(pn)
+	return vks.ToGo()
+}
+
 type vkImageMemoryBarrier2 struct {
 	sType               StructureType
 	pNext               unsafe.Pointer
@@ -13206,7 +14805,7 @@ type vkImageMemoryBarrier2 struct {
 	subresourceRange    vkImageSubresourceRange
 }
 
-func (s *vkImageMemoryBarrier2) goStruct() *ImageMemoryBarrier2 {
+func (s *vkImageMemoryBarrier2) ToGo() *ImageMemoryBarrier2 {
 	rval := &ImageMemoryBarrier2{
 		PNext:               (unsafe.Pointer)(s.pNext),
 		SrcStageMask:        (PipelineStageFlags2)(s.srcStageMask),
@@ -13218,12 +14817,12 @@ func (s *vkImageMemoryBarrier2) goStruct() *ImageMemoryBarrier2 {
 		SrcQueueFamilyIndex: (uint32)(s.srcQueueFamilyIndex),
 		DstQueueFamilyIndex: (uint32)(s.dstQueueFamilyIndex),
 		Image:               (Image)(s.image),
-		SubresourceRange:    *(s.subresourceRange.goStruct()),
+		SubresourceRange:    *(s.subresourceRange.ToGo()),
 	}
 	return rval
 }
 
-func (s *ImageMemoryBarrier2) vkStruct() *vkImageMemoryBarrier2 {
+func (s *ImageMemoryBarrier2) ToVK() *vkImageMemoryBarrier2 {
 	if s == nil {
 		return nil
 	}
@@ -13239,7 +14838,7 @@ func (s *ImageMemoryBarrier2) vkStruct() *vkImageMemoryBarrier2 {
 		srcQueueFamilyIndex: (uint32)(s.SrcQueueFamilyIndex),
 		dstQueueFamilyIndex: (uint32)(s.DstQueueFamilyIndex),
 		image:               (Image)(s.Image),
-		subresourceRange:    *(s.SubresourceRange.vkStruct()),
+		subresourceRange:    *(s.SubresourceRange.ToVK()),
 	}
 	return rval
 }
@@ -13251,6 +14850,12 @@ type DependencyInfo struct {
 	PMemoryBarriers       []MemoryBarrier2
 	PBufferMemoryBarriers []BufferMemoryBarrier2
 	PImageMemoryBarriers  []ImageMemoryBarrier2
+}
+
+// eg: gostruct := (&vk.DependencyInfo{}).FromVK(goStruct2.PNext)
+func (s *DependencyInfo) FromVK(pn unsafe.Pointer) *DependencyInfo {
+	vks := (*vkDependencyInfo)(pn)
+	return vks.ToGo()
 }
 
 type vkDependencyInfo struct {
@@ -13265,7 +14870,7 @@ type vkDependencyInfo struct {
 	pImageMemoryBarriers     *vkImageMemoryBarrier2
 }
 
-func (s *vkDependencyInfo) goStruct() *DependencyInfo {
+func (s *vkDependencyInfo) ToGo() *DependencyInfo {
 	rval := &DependencyInfo{
 		PNext:           (unsafe.Pointer)(s.pNext),
 		DependencyFlags: (DependencyFlags)(s.dependencyFlags),
@@ -13276,7 +14881,7 @@ func (s *vkDependencyInfo) goStruct() *DependencyInfo {
 	return rval
 }
 
-func (s *DependencyInfo) vkStruct() *vkDependencyInfo {
+func (s *DependencyInfo) ToVK() *vkDependencyInfo {
 	if s == nil {
 		return nil
 	}
@@ -13284,7 +14889,7 @@ func (s *DependencyInfo) vkStruct() *vkDependencyInfo {
 	if len(s.PMemoryBarriers) > 0 {
 		tmp := make([]vkMemoryBarrier2, len(s.PMemoryBarriers))
 		for i, v := range s.PMemoryBarriers {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		sp_PMemoryBarriers = &tmp[0]
 	}
@@ -13292,7 +14897,7 @@ func (s *DependencyInfo) vkStruct() *vkDependencyInfo {
 	if len(s.PBufferMemoryBarriers) > 0 {
 		tmp := make([]vkBufferMemoryBarrier2, len(s.PBufferMemoryBarriers))
 		for i, v := range s.PBufferMemoryBarriers {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		sp_PBufferMemoryBarriers = &tmp[0]
 	}
@@ -13300,7 +14905,7 @@ func (s *DependencyInfo) vkStruct() *vkDependencyInfo {
 	if len(s.PImageMemoryBarriers) > 0 {
 		tmp := make([]vkImageMemoryBarrier2, len(s.PImageMemoryBarriers))
 		for i, v := range s.PImageMemoryBarriers {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		sp_PImageMemoryBarriers = &tmp[0]
 	}
@@ -13327,6 +14932,12 @@ type SemaphoreSubmitInfo struct {
 	DeviceIndex uint32
 }
 
+// eg: gostruct := (&vk.SemaphoreSubmitInfo{}).FromVK(goStruct2.PNext)
+func (s *SemaphoreSubmitInfo) FromVK(pn unsafe.Pointer) *SemaphoreSubmitInfo {
+	vks := (*vkSemaphoreSubmitInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkSemaphoreSubmitInfo struct {
 	sType       StructureType
 	pNext       unsafe.Pointer
@@ -13336,7 +14947,7 @@ type vkSemaphoreSubmitInfo struct {
 	deviceIndex uint32
 }
 
-func (s *vkSemaphoreSubmitInfo) goStruct() *SemaphoreSubmitInfo {
+func (s *vkSemaphoreSubmitInfo) ToGo() *SemaphoreSubmitInfo {
 	rval := &SemaphoreSubmitInfo{
 		PNext:       (unsafe.Pointer)(s.pNext),
 		Semaphore:   (Semaphore)(s.semaphore),
@@ -13347,7 +14958,7 @@ func (s *vkSemaphoreSubmitInfo) goStruct() *SemaphoreSubmitInfo {
 	return rval
 }
 
-func (s *SemaphoreSubmitInfo) vkStruct() *vkSemaphoreSubmitInfo {
+func (s *SemaphoreSubmitInfo) ToVK() *vkSemaphoreSubmitInfo {
 	if s == nil {
 		return nil
 	}
@@ -13369,6 +14980,12 @@ type CommandBufferSubmitInfo struct {
 	DeviceMask    uint32
 }
 
+// eg: gostruct := (&vk.CommandBufferSubmitInfo{}).FromVK(goStruct2.PNext)
+func (s *CommandBufferSubmitInfo) FromVK(pn unsafe.Pointer) *CommandBufferSubmitInfo {
+	vks := (*vkCommandBufferSubmitInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkCommandBufferSubmitInfo struct {
 	sType         StructureType
 	pNext         unsafe.Pointer
@@ -13376,7 +14993,7 @@ type vkCommandBufferSubmitInfo struct {
 	deviceMask    uint32
 }
 
-func (s *vkCommandBufferSubmitInfo) goStruct() *CommandBufferSubmitInfo {
+func (s *vkCommandBufferSubmitInfo) ToGo() *CommandBufferSubmitInfo {
 	rval := &CommandBufferSubmitInfo{
 		PNext:         (unsafe.Pointer)(s.pNext),
 		CommandBuffer: (CommandBuffer)(s.commandBuffer),
@@ -13385,7 +15002,7 @@ func (s *vkCommandBufferSubmitInfo) goStruct() *CommandBufferSubmitInfo {
 	return rval
 }
 
-func (s *CommandBufferSubmitInfo) vkStruct() *vkCommandBufferSubmitInfo {
+func (s *CommandBufferSubmitInfo) ToVK() *vkCommandBufferSubmitInfo {
 	if s == nil {
 		return nil
 	}
@@ -13407,6 +15024,12 @@ type SubmitInfo2 struct {
 	PSignalSemaphoreInfos []SemaphoreSubmitInfo
 }
 
+// eg: gostruct := (&vk.SubmitInfo2{}).FromVK(goStruct2.PNext)
+func (s *SubmitInfo2) FromVK(pn unsafe.Pointer) *SubmitInfo2 {
+	vks := (*vkSubmitInfo2)(pn)
+	return vks.ToGo()
+}
+
 type vkSubmitInfo2 struct {
 	sType                    StructureType
 	pNext                    unsafe.Pointer
@@ -13419,7 +15042,7 @@ type vkSubmitInfo2 struct {
 	pSignalSemaphoreInfos    *vkSemaphoreSubmitInfo
 }
 
-func (s *vkSubmitInfo2) goStruct() *SubmitInfo2 {
+func (s *vkSubmitInfo2) ToGo() *SubmitInfo2 {
 	rval := &SubmitInfo2{
 		PNext: (unsafe.Pointer)(s.pNext),
 		Flags: (SubmitFlags)(s.flags),
@@ -13430,7 +15053,7 @@ func (s *vkSubmitInfo2) goStruct() *SubmitInfo2 {
 	return rval
 }
 
-func (s *SubmitInfo2) vkStruct() *vkSubmitInfo2 {
+func (s *SubmitInfo2) ToVK() *vkSubmitInfo2 {
 	if s == nil {
 		return nil
 	}
@@ -13438,7 +15061,7 @@ func (s *SubmitInfo2) vkStruct() *vkSubmitInfo2 {
 	if len(s.PWaitSemaphoreInfos) > 0 {
 		tmp := make([]vkSemaphoreSubmitInfo, len(s.PWaitSemaphoreInfos))
 		for i, v := range s.PWaitSemaphoreInfos {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		sp_PWaitSemaphoreInfos = &tmp[0]
 	}
@@ -13446,7 +15069,7 @@ func (s *SubmitInfo2) vkStruct() *vkSubmitInfo2 {
 	if len(s.PCommandBufferInfos) > 0 {
 		tmp := make([]vkCommandBufferSubmitInfo, len(s.PCommandBufferInfos))
 		for i, v := range s.PCommandBufferInfos {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		sp_PCommandBufferInfos = &tmp[0]
 	}
@@ -13454,7 +15077,7 @@ func (s *SubmitInfo2) vkStruct() *vkSubmitInfo2 {
 	if len(s.PSignalSemaphoreInfos) > 0 {
 		tmp := make([]vkSemaphoreSubmitInfo, len(s.PSignalSemaphoreInfos))
 		for i, v := range s.PSignalSemaphoreInfos {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		sp_PSignalSemaphoreInfos = &tmp[0]
 	}
@@ -13478,13 +15101,19 @@ type PhysicalDeviceSynchronization2Features struct {
 	Synchronization2 bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceSynchronization2Features{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceSynchronization2Features) FromVK(pn unsafe.Pointer) *PhysicalDeviceSynchronization2Features {
+	vks := (*vkPhysicalDeviceSynchronization2Features)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceSynchronization2Features struct {
 	sType            StructureType
 	pNext            unsafe.Pointer
 	synchronization2 Bool32
 }
 
-func (s *vkPhysicalDeviceSynchronization2Features) goStruct() *PhysicalDeviceSynchronization2Features {
+func (s *vkPhysicalDeviceSynchronization2Features) ToGo() *PhysicalDeviceSynchronization2Features {
 	rval := &PhysicalDeviceSynchronization2Features{
 		PNext:            (unsafe.Pointer)(s.pNext),
 		Synchronization2: goBool32(s.synchronization2),
@@ -13492,7 +15121,7 @@ func (s *vkPhysicalDeviceSynchronization2Features) goStruct() *PhysicalDeviceSyn
 	return rval
 }
 
-func (s *PhysicalDeviceSynchronization2Features) vkStruct() *vkPhysicalDeviceSynchronization2Features {
+func (s *PhysicalDeviceSynchronization2Features) ToVK() *vkPhysicalDeviceSynchronization2Features {
 	if s == nil {
 		return nil
 	}
@@ -13512,6 +15141,12 @@ type BufferCopy2 struct {
 	Size      DeviceSize
 }
 
+// eg: gostruct := (&vk.BufferCopy2{}).FromVK(goStruct2.PNext)
+func (s *BufferCopy2) FromVK(pn unsafe.Pointer) *BufferCopy2 {
+	vks := (*vkBufferCopy2)(pn)
+	return vks.ToGo()
+}
+
 type vkBufferCopy2 struct {
 	sType     StructureType
 	pNext     unsafe.Pointer
@@ -13520,7 +15155,7 @@ type vkBufferCopy2 struct {
 	size      DeviceSize
 }
 
-func (s *vkBufferCopy2) goStruct() *BufferCopy2 {
+func (s *vkBufferCopy2) ToGo() *BufferCopy2 {
 	rval := &BufferCopy2{
 		PNext:     (unsafe.Pointer)(s.pNext),
 		SrcOffset: (DeviceSize)(s.srcOffset),
@@ -13530,7 +15165,7 @@ func (s *vkBufferCopy2) goStruct() *BufferCopy2 {
 	return rval
 }
 
-func (s *BufferCopy2) vkStruct() *vkBufferCopy2 {
+func (s *BufferCopy2) ToVK() *vkBufferCopy2 {
 	if s == nil {
 		return nil
 	}
@@ -13552,6 +15187,12 @@ type CopyBufferInfo2 struct {
 	PRegions  []BufferCopy2
 }
 
+// eg: gostruct := (&vk.CopyBufferInfo2{}).FromVK(goStruct2.PNext)
+func (s *CopyBufferInfo2) FromVK(pn unsafe.Pointer) *CopyBufferInfo2 {
+	vks := (*vkCopyBufferInfo2)(pn)
+	return vks.ToGo()
+}
+
 type vkCopyBufferInfo2 struct {
 	sType       StructureType
 	pNext       unsafe.Pointer
@@ -13561,7 +15202,7 @@ type vkCopyBufferInfo2 struct {
 	pRegions    *vkBufferCopy2
 }
 
-func (s *vkCopyBufferInfo2) goStruct() *CopyBufferInfo2 {
+func (s *vkCopyBufferInfo2) ToGo() *CopyBufferInfo2 {
 	rval := &CopyBufferInfo2{
 		PNext:     (unsafe.Pointer)(s.pNext),
 		SrcBuffer: (Buffer)(s.srcBuffer),
@@ -13571,7 +15212,7 @@ func (s *vkCopyBufferInfo2) goStruct() *CopyBufferInfo2 {
 	return rval
 }
 
-func (s *CopyBufferInfo2) vkStruct() *vkCopyBufferInfo2 {
+func (s *CopyBufferInfo2) ToVK() *vkCopyBufferInfo2 {
 	if s == nil {
 		return nil
 	}
@@ -13579,7 +15220,7 @@ func (s *CopyBufferInfo2) vkStruct() *vkCopyBufferInfo2 {
 	if len(s.PRegions) > 0 {
 		tmp := make([]vkBufferCopy2, len(s.PRegions))
 		for i, v := range s.PRegions {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		sp_PRegions = &tmp[0]
 	}
@@ -13604,6 +15245,12 @@ type ImageCopy2 struct {
 	Extent         Extent3D
 }
 
+// eg: gostruct := (&vk.ImageCopy2{}).FromVK(goStruct2.PNext)
+func (s *ImageCopy2) FromVK(pn unsafe.Pointer) *ImageCopy2 {
+	vks := (*vkImageCopy2)(pn)
+	return vks.ToGo()
+}
+
 type vkImageCopy2 struct {
 	sType          StructureType
 	pNext          unsafe.Pointer
@@ -13614,30 +15261,30 @@ type vkImageCopy2 struct {
 	extent         vkExtent3D
 }
 
-func (s *vkImageCopy2) goStruct() *ImageCopy2 {
+func (s *vkImageCopy2) ToGo() *ImageCopy2 {
 	rval := &ImageCopy2{
 		PNext:          (unsafe.Pointer)(s.pNext),
-		SrcSubresource: *(s.srcSubresource.goStruct()),
-		SrcOffset:      *(s.srcOffset.goStruct()),
-		DstSubresource: *(s.dstSubresource.goStruct()),
-		DstOffset:      *(s.dstOffset.goStruct()),
-		Extent:         *(s.extent.goStruct()),
+		SrcSubresource: *(s.srcSubresource.ToGo()),
+		SrcOffset:      *(s.srcOffset.ToGo()),
+		DstSubresource: *(s.dstSubresource.ToGo()),
+		DstOffset:      *(s.dstOffset.ToGo()),
+		Extent:         *(s.extent.ToGo()),
 	}
 	return rval
 }
 
-func (s *ImageCopy2) vkStruct() *vkImageCopy2 {
+func (s *ImageCopy2) ToVK() *vkImageCopy2 {
 	if s == nil {
 		return nil
 	}
 	rval := &vkImageCopy2{
 		sType:          STRUCTURE_TYPE_IMAGE_COPY_2,
 		pNext:          (unsafe.Pointer)(s.PNext),
-		srcSubresource: *(s.SrcSubresource.vkStruct()),
-		srcOffset:      *(s.SrcOffset.vkStruct()),
-		dstSubresource: *(s.DstSubresource.vkStruct()),
-		dstOffset:      *(s.DstOffset.vkStruct()),
-		extent:         *(s.Extent.vkStruct()),
+		srcSubresource: *(s.SrcSubresource.ToVK()),
+		srcOffset:      *(s.SrcOffset.ToVK()),
+		dstSubresource: *(s.DstSubresource.ToVK()),
+		dstOffset:      *(s.DstOffset.ToVK()),
+		extent:         *(s.Extent.ToVK()),
 	}
 	return rval
 }
@@ -13652,6 +15299,12 @@ type CopyImageInfo2 struct {
 	PRegions       []ImageCopy2
 }
 
+// eg: gostruct := (&vk.CopyImageInfo2{}).FromVK(goStruct2.PNext)
+func (s *CopyImageInfo2) FromVK(pn unsafe.Pointer) *CopyImageInfo2 {
+	vks := (*vkCopyImageInfo2)(pn)
+	return vks.ToGo()
+}
+
 type vkCopyImageInfo2 struct {
 	sType          StructureType
 	pNext          unsafe.Pointer
@@ -13663,7 +15316,7 @@ type vkCopyImageInfo2 struct {
 	pRegions       *vkImageCopy2
 }
 
-func (s *vkCopyImageInfo2) goStruct() *CopyImageInfo2 {
+func (s *vkCopyImageInfo2) ToGo() *CopyImageInfo2 {
 	rval := &CopyImageInfo2{
 		PNext:          (unsafe.Pointer)(s.pNext),
 		SrcImage:       (Image)(s.srcImage),
@@ -13675,7 +15328,7 @@ func (s *vkCopyImageInfo2) goStruct() *CopyImageInfo2 {
 	return rval
 }
 
-func (s *CopyImageInfo2) vkStruct() *vkCopyImageInfo2 {
+func (s *CopyImageInfo2) ToVK() *vkCopyImageInfo2 {
 	if s == nil {
 		return nil
 	}
@@ -13683,7 +15336,7 @@ func (s *CopyImageInfo2) vkStruct() *vkCopyImageInfo2 {
 	if len(s.PRegions) > 0 {
 		tmp := make([]vkImageCopy2, len(s.PRegions))
 		for i, v := range s.PRegions {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		sp_PRegions = &tmp[0]
 	}
@@ -13711,6 +15364,12 @@ type BufferImageCopy2 struct {
 	ImageExtent       Extent3D
 }
 
+// eg: gostruct := (&vk.BufferImageCopy2{}).FromVK(goStruct2.PNext)
+func (s *BufferImageCopy2) FromVK(pn unsafe.Pointer) *BufferImageCopy2 {
+	vks := (*vkBufferImageCopy2)(pn)
+	return vks.ToGo()
+}
+
 type vkBufferImageCopy2 struct {
 	sType             StructureType
 	pNext             unsafe.Pointer
@@ -13722,20 +15381,20 @@ type vkBufferImageCopy2 struct {
 	imageExtent       vkExtent3D
 }
 
-func (s *vkBufferImageCopy2) goStruct() *BufferImageCopy2 {
+func (s *vkBufferImageCopy2) ToGo() *BufferImageCopy2 {
 	rval := &BufferImageCopy2{
 		PNext:             (unsafe.Pointer)(s.pNext),
 		BufferOffset:      (DeviceSize)(s.bufferOffset),
 		BufferRowLength:   (uint32)(s.bufferRowLength),
 		BufferImageHeight: (uint32)(s.bufferImageHeight),
-		ImageSubresource:  *(s.imageSubresource.goStruct()),
-		ImageOffset:       *(s.imageOffset.goStruct()),
-		ImageExtent:       *(s.imageExtent.goStruct()),
+		ImageSubresource:  *(s.imageSubresource.ToGo()),
+		ImageOffset:       *(s.imageOffset.ToGo()),
+		ImageExtent:       *(s.imageExtent.ToGo()),
 	}
 	return rval
 }
 
-func (s *BufferImageCopy2) vkStruct() *vkBufferImageCopy2 {
+func (s *BufferImageCopy2) ToVK() *vkBufferImageCopy2 {
 	if s == nil {
 		return nil
 	}
@@ -13745,9 +15404,9 @@ func (s *BufferImageCopy2) vkStruct() *vkBufferImageCopy2 {
 		bufferOffset:      (DeviceSize)(s.BufferOffset),
 		bufferRowLength:   (uint32)(s.BufferRowLength),
 		bufferImageHeight: (uint32)(s.BufferImageHeight),
-		imageSubresource:  *(s.ImageSubresource.vkStruct()),
-		imageOffset:       *(s.ImageOffset.vkStruct()),
-		imageExtent:       *(s.ImageExtent.vkStruct()),
+		imageSubresource:  *(s.ImageSubresource.ToVK()),
+		imageOffset:       *(s.ImageOffset.ToVK()),
+		imageExtent:       *(s.ImageExtent.ToVK()),
 	}
 	return rval
 }
@@ -13761,6 +15420,12 @@ type CopyBufferToImageInfo2 struct {
 	PRegions       []BufferImageCopy2
 }
 
+// eg: gostruct := (&vk.CopyBufferToImageInfo2{}).FromVK(goStruct2.PNext)
+func (s *CopyBufferToImageInfo2) FromVK(pn unsafe.Pointer) *CopyBufferToImageInfo2 {
+	vks := (*vkCopyBufferToImageInfo2)(pn)
+	return vks.ToGo()
+}
+
 type vkCopyBufferToImageInfo2 struct {
 	sType          StructureType
 	pNext          unsafe.Pointer
@@ -13771,7 +15436,7 @@ type vkCopyBufferToImageInfo2 struct {
 	pRegions       *vkBufferImageCopy2
 }
 
-func (s *vkCopyBufferToImageInfo2) goStruct() *CopyBufferToImageInfo2 {
+func (s *vkCopyBufferToImageInfo2) ToGo() *CopyBufferToImageInfo2 {
 	rval := &CopyBufferToImageInfo2{
 		PNext:          (unsafe.Pointer)(s.pNext),
 		SrcBuffer:      (Buffer)(s.srcBuffer),
@@ -13782,7 +15447,7 @@ func (s *vkCopyBufferToImageInfo2) goStruct() *CopyBufferToImageInfo2 {
 	return rval
 }
 
-func (s *CopyBufferToImageInfo2) vkStruct() *vkCopyBufferToImageInfo2 {
+func (s *CopyBufferToImageInfo2) ToVK() *vkCopyBufferToImageInfo2 {
 	if s == nil {
 		return nil
 	}
@@ -13790,7 +15455,7 @@ func (s *CopyBufferToImageInfo2) vkStruct() *vkCopyBufferToImageInfo2 {
 	if len(s.PRegions) > 0 {
 		tmp := make([]vkBufferImageCopy2, len(s.PRegions))
 		for i, v := range s.PRegions {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		sp_PRegions = &tmp[0]
 	}
@@ -13815,6 +15480,12 @@ type CopyImageToBufferInfo2 struct {
 	PRegions       []BufferImageCopy2
 }
 
+// eg: gostruct := (&vk.CopyImageToBufferInfo2{}).FromVK(goStruct2.PNext)
+func (s *CopyImageToBufferInfo2) FromVK(pn unsafe.Pointer) *CopyImageToBufferInfo2 {
+	vks := (*vkCopyImageToBufferInfo2)(pn)
+	return vks.ToGo()
+}
+
 type vkCopyImageToBufferInfo2 struct {
 	sType          StructureType
 	pNext          unsafe.Pointer
@@ -13825,7 +15496,7 @@ type vkCopyImageToBufferInfo2 struct {
 	pRegions       *vkBufferImageCopy2
 }
 
-func (s *vkCopyImageToBufferInfo2) goStruct() *CopyImageToBufferInfo2 {
+func (s *vkCopyImageToBufferInfo2) ToGo() *CopyImageToBufferInfo2 {
 	rval := &CopyImageToBufferInfo2{
 		PNext:          (unsafe.Pointer)(s.pNext),
 		SrcImage:       (Image)(s.srcImage),
@@ -13836,7 +15507,7 @@ func (s *vkCopyImageToBufferInfo2) goStruct() *CopyImageToBufferInfo2 {
 	return rval
 }
 
-func (s *CopyImageToBufferInfo2) vkStruct() *vkCopyImageToBufferInfo2 {
+func (s *CopyImageToBufferInfo2) ToVK() *vkCopyImageToBufferInfo2 {
 	if s == nil {
 		return nil
 	}
@@ -13844,7 +15515,7 @@ func (s *CopyImageToBufferInfo2) vkStruct() *vkCopyImageToBufferInfo2 {
 	if len(s.PRegions) > 0 {
 		tmp := make([]vkBufferImageCopy2, len(s.PRegions))
 		for i, v := range s.PRegions {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		sp_PRegions = &tmp[0]
 	}
@@ -13866,13 +15537,19 @@ type PhysicalDeviceTextureCompressionASTCHDRFeatures struct {
 	TextureCompressionASTC_HDR bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceTextureCompressionASTCHDRFeatures{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceTextureCompressionASTCHDRFeatures) FromVK(pn unsafe.Pointer) *PhysicalDeviceTextureCompressionASTCHDRFeatures {
+	vks := (*vkPhysicalDeviceTextureCompressionASTCHDRFeatures)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceTextureCompressionASTCHDRFeatures struct {
 	sType                      StructureType
 	pNext                      unsafe.Pointer
 	textureCompressionASTC_HDR Bool32
 }
 
-func (s *vkPhysicalDeviceTextureCompressionASTCHDRFeatures) goStruct() *PhysicalDeviceTextureCompressionASTCHDRFeatures {
+func (s *vkPhysicalDeviceTextureCompressionASTCHDRFeatures) ToGo() *PhysicalDeviceTextureCompressionASTCHDRFeatures {
 	rval := &PhysicalDeviceTextureCompressionASTCHDRFeatures{
 		PNext:                      (unsafe.Pointer)(s.pNext),
 		TextureCompressionASTC_HDR: goBool32(s.textureCompressionASTC_HDR),
@@ -13880,7 +15557,7 @@ func (s *vkPhysicalDeviceTextureCompressionASTCHDRFeatures) goStruct() *Physical
 	return rval
 }
 
-func (s *PhysicalDeviceTextureCompressionASTCHDRFeatures) vkStruct() *vkPhysicalDeviceTextureCompressionASTCHDRFeatures {
+func (s *PhysicalDeviceTextureCompressionASTCHDRFeatures) ToVK() *vkPhysicalDeviceTextureCompressionASTCHDRFeatures {
 	if s == nil {
 		return nil
 	}
@@ -13900,6 +15577,12 @@ type FormatProperties3 struct {
 	BufferFeatures        FormatFeatureFlags2
 }
 
+// eg: gostruct := (&vk.FormatProperties3{}).FromVK(goStruct2.PNext)
+func (s *FormatProperties3) FromVK(pn unsafe.Pointer) *FormatProperties3 {
+	vks := (*vkFormatProperties3)(pn)
+	return vks.ToGo()
+}
+
 type vkFormatProperties3 struct {
 	sType                 StructureType
 	pNext                 unsafe.Pointer
@@ -13908,7 +15591,7 @@ type vkFormatProperties3 struct {
 	bufferFeatures        FormatFeatureFlags2
 }
 
-func (s *vkFormatProperties3) goStruct() *FormatProperties3 {
+func (s *vkFormatProperties3) ToGo() *FormatProperties3 {
 	rval := &FormatProperties3{
 		PNext:                 (unsafe.Pointer)(s.pNext),
 		LinearTilingFeatures:  (FormatFeatureFlags2)(s.linearTilingFeatures),
@@ -13918,7 +15601,7 @@ func (s *vkFormatProperties3) goStruct() *FormatProperties3 {
 	return rval
 }
 
-func (s *FormatProperties3) vkStruct() *vkFormatProperties3 {
+func (s *FormatProperties3) ToVK() *vkFormatProperties3 {
 	if s == nil {
 		return nil
 	}
@@ -13938,13 +15621,19 @@ type PhysicalDeviceMaintenance4Features struct {
 	Maintenance4 bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceMaintenance4Features{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceMaintenance4Features) FromVK(pn unsafe.Pointer) *PhysicalDeviceMaintenance4Features {
+	vks := (*vkPhysicalDeviceMaintenance4Features)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceMaintenance4Features struct {
 	sType        StructureType
 	pNext        unsafe.Pointer
 	maintenance4 Bool32
 }
 
-func (s *vkPhysicalDeviceMaintenance4Features) goStruct() *PhysicalDeviceMaintenance4Features {
+func (s *vkPhysicalDeviceMaintenance4Features) ToGo() *PhysicalDeviceMaintenance4Features {
 	rval := &PhysicalDeviceMaintenance4Features{
 		PNext:        (unsafe.Pointer)(s.pNext),
 		Maintenance4: goBool32(s.maintenance4),
@@ -13952,7 +15641,7 @@ func (s *vkPhysicalDeviceMaintenance4Features) goStruct() *PhysicalDeviceMainten
 	return rval
 }
 
-func (s *PhysicalDeviceMaintenance4Features) vkStruct() *vkPhysicalDeviceMaintenance4Features {
+func (s *PhysicalDeviceMaintenance4Features) ToVK() *vkPhysicalDeviceMaintenance4Features {
 	if s == nil {
 		return nil
 	}
@@ -13970,13 +15659,19 @@ type PhysicalDeviceMaintenance4Properties struct {
 	MaxBufferSize DeviceSize
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceMaintenance4Properties{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceMaintenance4Properties) FromVK(pn unsafe.Pointer) *PhysicalDeviceMaintenance4Properties {
+	vks := (*vkPhysicalDeviceMaintenance4Properties)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceMaintenance4Properties struct {
 	sType         StructureType
 	pNext         unsafe.Pointer
 	maxBufferSize DeviceSize
 }
 
-func (s *vkPhysicalDeviceMaintenance4Properties) goStruct() *PhysicalDeviceMaintenance4Properties {
+func (s *vkPhysicalDeviceMaintenance4Properties) ToGo() *PhysicalDeviceMaintenance4Properties {
 	rval := &PhysicalDeviceMaintenance4Properties{
 		PNext:         (unsafe.Pointer)(s.pNext),
 		MaxBufferSize: (DeviceSize)(s.maxBufferSize),
@@ -13984,7 +15679,7 @@ func (s *vkPhysicalDeviceMaintenance4Properties) goStruct() *PhysicalDeviceMaint
 	return rval
 }
 
-func (s *PhysicalDeviceMaintenance4Properties) vkStruct() *vkPhysicalDeviceMaintenance4Properties {
+func (s *PhysicalDeviceMaintenance4Properties) ToVK() *vkPhysicalDeviceMaintenance4Properties {
 	if s == nil {
 		return nil
 	}
@@ -14002,13 +15697,19 @@ type DeviceBufferMemoryRequirements struct {
 	PCreateInfo *BufferCreateInfo
 }
 
+// eg: gostruct := (&vk.DeviceBufferMemoryRequirements{}).FromVK(goStruct2.PNext)
+func (s *DeviceBufferMemoryRequirements) FromVK(pn unsafe.Pointer) *DeviceBufferMemoryRequirements {
+	vks := (*vkDeviceBufferMemoryRequirements)(pn)
+	return vks.ToGo()
+}
+
 type vkDeviceBufferMemoryRequirements struct {
 	sType       StructureType
 	pNext       unsafe.Pointer
 	pCreateInfo *vkBufferCreateInfo
 }
 
-func (s *vkDeviceBufferMemoryRequirements) goStruct() *DeviceBufferMemoryRequirements {
+func (s *vkDeviceBufferMemoryRequirements) ToGo() *DeviceBufferMemoryRequirements {
 	rval := &DeviceBufferMemoryRequirements{
 		PNext: (unsafe.Pointer)(s.pNext),
 		// ignoring returned pointer type PCreateInfo
@@ -14016,14 +15717,14 @@ func (s *vkDeviceBufferMemoryRequirements) goStruct() *DeviceBufferMemoryRequire
 	return rval
 }
 
-func (s *DeviceBufferMemoryRequirements) vkStruct() *vkDeviceBufferMemoryRequirements {
+func (s *DeviceBufferMemoryRequirements) ToVK() *vkDeviceBufferMemoryRequirements {
 	if s == nil {
 		return nil
 	}
 	rval := &vkDeviceBufferMemoryRequirements{
 		sType:       STRUCTURE_TYPE_DEVICE_BUFFER_MEMORY_REQUIREMENTS,
 		pNext:       (unsafe.Pointer)(s.PNext),
-		pCreateInfo: (s.PCreateInfo.vkStruct()),
+		pCreateInfo: (s.PCreateInfo.ToVK()),
 	}
 	return rval
 }
@@ -14035,6 +15736,12 @@ type DeviceImageMemoryRequirements struct {
 	PlaneAspect ImageAspectFlagBits
 }
 
+// eg: gostruct := (&vk.DeviceImageMemoryRequirements{}).FromVK(goStruct2.PNext)
+func (s *DeviceImageMemoryRequirements) FromVK(pn unsafe.Pointer) *DeviceImageMemoryRequirements {
+	vks := (*vkDeviceImageMemoryRequirements)(pn)
+	return vks.ToGo()
+}
+
 type vkDeviceImageMemoryRequirements struct {
 	sType       StructureType
 	pNext       unsafe.Pointer
@@ -14042,7 +15749,7 @@ type vkDeviceImageMemoryRequirements struct {
 	planeAspect ImageAspectFlagBits
 }
 
-func (s *vkDeviceImageMemoryRequirements) goStruct() *DeviceImageMemoryRequirements {
+func (s *vkDeviceImageMemoryRequirements) ToGo() *DeviceImageMemoryRequirements {
 	rval := &DeviceImageMemoryRequirements{
 		PNext: (unsafe.Pointer)(s.pNext),
 		// ignoring returned pointer type PCreateInfo
@@ -14051,14 +15758,14 @@ func (s *vkDeviceImageMemoryRequirements) goStruct() *DeviceImageMemoryRequireme
 	return rval
 }
 
-func (s *DeviceImageMemoryRequirements) vkStruct() *vkDeviceImageMemoryRequirements {
+func (s *DeviceImageMemoryRequirements) ToVK() *vkDeviceImageMemoryRequirements {
 	if s == nil {
 		return nil
 	}
 	rval := &vkDeviceImageMemoryRequirements{
 		sType:       STRUCTURE_TYPE_DEVICE_IMAGE_MEMORY_REQUIREMENTS,
 		pNext:       (unsafe.Pointer)(s.PNext),
-		pCreateInfo: (s.PCreateInfo.vkStruct()),
+		pCreateInfo: (s.PCreateInfo.ToVK()),
 		planeAspect: (ImageAspectFlagBits)(s.PlaneAspect),
 	}
 	return rval
@@ -14070,18 +15777,24 @@ type PipelineCreationFeedback struct {
 	Duration uint64
 }
 
+// eg: gostruct := (&vk.PipelineCreationFeedback{}).FromVK(goStruct2.PNext)
+func (s *PipelineCreationFeedback) FromVK(pn unsafe.Pointer) *PipelineCreationFeedback {
+	vks := (*vkPipelineCreationFeedback)(pn)
+	return vks.ToGo()
+}
+
 type vkPipelineCreationFeedback = PipelineCreationFeedback
 
-func (s *vkPipelineCreationFeedback) goStruct() *PipelineCreationFeedback {
-	rval := (*vkPipelineCreationFeedback)(s)
+func (s *vkPipelineCreationFeedback) ToGo() *PipelineCreationFeedback {
+	rval := (*PipelineCreationFeedback)(s)
 	return rval
 }
 
-func (s *PipelineCreationFeedback) vkStruct() *vkPipelineCreationFeedback {
+func (s *PipelineCreationFeedback) ToVK() *vkPipelineCreationFeedback {
 	if s == nil {
 		return nil
 	}
-	rval := (*PipelineCreationFeedback)(s)
+	rval := (*vkPipelineCreationFeedback)(s)
 	return rval
 }
 
@@ -14092,6 +15805,12 @@ type PipelineCreationFeedbackCreateInfo struct {
 	PPipelineStageCreationFeedbacks []PipelineCreationFeedback
 }
 
+// eg: gostruct := (&vk.PipelineCreationFeedbackCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *PipelineCreationFeedbackCreateInfo) FromVK(pn unsafe.Pointer) *PipelineCreationFeedbackCreateInfo {
+	vks := (*vkPipelineCreationFeedbackCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkPipelineCreationFeedbackCreateInfo struct {
 	sType                              StructureType
 	pNext                              unsafe.Pointer
@@ -14100,7 +15819,7 @@ type vkPipelineCreationFeedbackCreateInfo struct {
 	pPipelineStageCreationFeedbacks    *vkPipelineCreationFeedback
 }
 
-func (s *vkPipelineCreationFeedbackCreateInfo) goStruct() *PipelineCreationFeedbackCreateInfo {
+func (s *vkPipelineCreationFeedbackCreateInfo) ToGo() *PipelineCreationFeedbackCreateInfo {
 	rval := &PipelineCreationFeedbackCreateInfo{
 		PNext: (unsafe.Pointer)(s.pNext),
 		// ignoring returned pointer type PPipelineCreationFeedback
@@ -14109,7 +15828,7 @@ func (s *vkPipelineCreationFeedbackCreateInfo) goStruct() *PipelineCreationFeedb
 	return rval
 }
 
-func (s *PipelineCreationFeedbackCreateInfo) vkStruct() *vkPipelineCreationFeedbackCreateInfo {
+func (s *PipelineCreationFeedbackCreateInfo) ToVK() *vkPipelineCreationFeedbackCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -14120,7 +15839,7 @@ func (s *PipelineCreationFeedbackCreateInfo) vkStruct() *vkPipelineCreationFeedb
 	rval := &vkPipelineCreationFeedbackCreateInfo{
 		sType:                              STRUCTURE_TYPE_PIPELINE_CREATION_FEEDBACK_CREATE_INFO,
 		pNext:                              (unsafe.Pointer)(s.PNext),
-		pPipelineCreationFeedback:          (s.PPipelineCreationFeedback.vkStruct()),
+		pPipelineCreationFeedback:          (s.PPipelineCreationFeedback.ToVK()),
 		pipelineStageCreationFeedbackCount: uint32(len(s.PPipelineStageCreationFeedbacks)),
 		pPipelineStageCreationFeedbacks:    sp_PPipelineStageCreationFeedbacks,
 	}
@@ -14133,13 +15852,19 @@ type PhysicalDeviceShaderTerminateInvocationFeatures struct {
 	ShaderTerminateInvocation bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceShaderTerminateInvocationFeatures{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceShaderTerminateInvocationFeatures) FromVK(pn unsafe.Pointer) *PhysicalDeviceShaderTerminateInvocationFeatures {
+	vks := (*vkPhysicalDeviceShaderTerminateInvocationFeatures)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceShaderTerminateInvocationFeatures struct {
 	sType                     StructureType
 	pNext                     unsafe.Pointer
 	shaderTerminateInvocation Bool32
 }
 
-func (s *vkPhysicalDeviceShaderTerminateInvocationFeatures) goStruct() *PhysicalDeviceShaderTerminateInvocationFeatures {
+func (s *vkPhysicalDeviceShaderTerminateInvocationFeatures) ToGo() *PhysicalDeviceShaderTerminateInvocationFeatures {
 	rval := &PhysicalDeviceShaderTerminateInvocationFeatures{
 		PNext:                     (unsafe.Pointer)(s.pNext),
 		ShaderTerminateInvocation: goBool32(s.shaderTerminateInvocation),
@@ -14147,7 +15872,7 @@ func (s *vkPhysicalDeviceShaderTerminateInvocationFeatures) goStruct() *Physical
 	return rval
 }
 
-func (s *PhysicalDeviceShaderTerminateInvocationFeatures) vkStruct() *vkPhysicalDeviceShaderTerminateInvocationFeatures {
+func (s *PhysicalDeviceShaderTerminateInvocationFeatures) ToVK() *vkPhysicalDeviceShaderTerminateInvocationFeatures {
 	if s == nil {
 		return nil
 	}
@@ -14165,13 +15890,19 @@ type PhysicalDeviceShaderDemoteToHelperInvocationFeatures struct {
 	ShaderDemoteToHelperInvocation bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceShaderDemoteToHelperInvocationFeatures{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceShaderDemoteToHelperInvocationFeatures) FromVK(pn unsafe.Pointer) *PhysicalDeviceShaderDemoteToHelperInvocationFeatures {
+	vks := (*vkPhysicalDeviceShaderDemoteToHelperInvocationFeatures)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceShaderDemoteToHelperInvocationFeatures struct {
 	sType                          StructureType
 	pNext                          unsafe.Pointer
 	shaderDemoteToHelperInvocation Bool32
 }
 
-func (s *vkPhysicalDeviceShaderDemoteToHelperInvocationFeatures) goStruct() *PhysicalDeviceShaderDemoteToHelperInvocationFeatures {
+func (s *vkPhysicalDeviceShaderDemoteToHelperInvocationFeatures) ToGo() *PhysicalDeviceShaderDemoteToHelperInvocationFeatures {
 	rval := &PhysicalDeviceShaderDemoteToHelperInvocationFeatures{
 		PNext:                          (unsafe.Pointer)(s.pNext),
 		ShaderDemoteToHelperInvocation: goBool32(s.shaderDemoteToHelperInvocation),
@@ -14179,7 +15910,7 @@ func (s *vkPhysicalDeviceShaderDemoteToHelperInvocationFeatures) goStruct() *Phy
 	return rval
 }
 
-func (s *PhysicalDeviceShaderDemoteToHelperInvocationFeatures) vkStruct() *vkPhysicalDeviceShaderDemoteToHelperInvocationFeatures {
+func (s *PhysicalDeviceShaderDemoteToHelperInvocationFeatures) ToVK() *vkPhysicalDeviceShaderDemoteToHelperInvocationFeatures {
 	if s == nil {
 		return nil
 	}
@@ -14197,13 +15928,19 @@ type PhysicalDevicePipelineCreationCacheControlFeatures struct {
 	PipelineCreationCacheControl bool
 }
 
+// eg: gostruct := (&vk.PhysicalDevicePipelineCreationCacheControlFeatures{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDevicePipelineCreationCacheControlFeatures) FromVK(pn unsafe.Pointer) *PhysicalDevicePipelineCreationCacheControlFeatures {
+	vks := (*vkPhysicalDevicePipelineCreationCacheControlFeatures)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDevicePipelineCreationCacheControlFeatures struct {
 	sType                        StructureType
 	pNext                        unsafe.Pointer
 	pipelineCreationCacheControl Bool32
 }
 
-func (s *vkPhysicalDevicePipelineCreationCacheControlFeatures) goStruct() *PhysicalDevicePipelineCreationCacheControlFeatures {
+func (s *vkPhysicalDevicePipelineCreationCacheControlFeatures) ToGo() *PhysicalDevicePipelineCreationCacheControlFeatures {
 	rval := &PhysicalDevicePipelineCreationCacheControlFeatures{
 		PNext:                        (unsafe.Pointer)(s.pNext),
 		PipelineCreationCacheControl: goBool32(s.pipelineCreationCacheControl),
@@ -14211,7 +15948,7 @@ func (s *vkPhysicalDevicePipelineCreationCacheControlFeatures) goStruct() *Physi
 	return rval
 }
 
-func (s *PhysicalDevicePipelineCreationCacheControlFeatures) vkStruct() *vkPhysicalDevicePipelineCreationCacheControlFeatures {
+func (s *PhysicalDevicePipelineCreationCacheControlFeatures) ToVK() *vkPhysicalDevicePipelineCreationCacheControlFeatures {
 	if s == nil {
 		return nil
 	}
@@ -14229,13 +15966,19 @@ type PhysicalDeviceZeroInitializeWorkgroupMemoryFeatures struct {
 	ShaderZeroInitializeWorkgroupMemory bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceZeroInitializeWorkgroupMemoryFeatures{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceZeroInitializeWorkgroupMemoryFeatures) FromVK(pn unsafe.Pointer) *PhysicalDeviceZeroInitializeWorkgroupMemoryFeatures {
+	vks := (*vkPhysicalDeviceZeroInitializeWorkgroupMemoryFeatures)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceZeroInitializeWorkgroupMemoryFeatures struct {
 	sType                               StructureType
 	pNext                               unsafe.Pointer
 	shaderZeroInitializeWorkgroupMemory Bool32
 }
 
-func (s *vkPhysicalDeviceZeroInitializeWorkgroupMemoryFeatures) goStruct() *PhysicalDeviceZeroInitializeWorkgroupMemoryFeatures {
+func (s *vkPhysicalDeviceZeroInitializeWorkgroupMemoryFeatures) ToGo() *PhysicalDeviceZeroInitializeWorkgroupMemoryFeatures {
 	rval := &PhysicalDeviceZeroInitializeWorkgroupMemoryFeatures{
 		PNext:                               (unsafe.Pointer)(s.pNext),
 		ShaderZeroInitializeWorkgroupMemory: goBool32(s.shaderZeroInitializeWorkgroupMemory),
@@ -14243,7 +15986,7 @@ func (s *vkPhysicalDeviceZeroInitializeWorkgroupMemoryFeatures) goStruct() *Phys
 	return rval
 }
 
-func (s *PhysicalDeviceZeroInitializeWorkgroupMemoryFeatures) vkStruct() *vkPhysicalDeviceZeroInitializeWorkgroupMemoryFeatures {
+func (s *PhysicalDeviceZeroInitializeWorkgroupMemoryFeatures) ToVK() *vkPhysicalDeviceZeroInitializeWorkgroupMemoryFeatures {
 	if s == nil {
 		return nil
 	}
@@ -14261,13 +16004,19 @@ type PhysicalDeviceImageRobustnessFeatures struct {
 	RobustImageAccess bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceImageRobustnessFeatures{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceImageRobustnessFeatures) FromVK(pn unsafe.Pointer) *PhysicalDeviceImageRobustnessFeatures {
+	vks := (*vkPhysicalDeviceImageRobustnessFeatures)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceImageRobustnessFeatures struct {
 	sType             StructureType
 	pNext             unsafe.Pointer
 	robustImageAccess Bool32
 }
 
-func (s *vkPhysicalDeviceImageRobustnessFeatures) goStruct() *PhysicalDeviceImageRobustnessFeatures {
+func (s *vkPhysicalDeviceImageRobustnessFeatures) ToGo() *PhysicalDeviceImageRobustnessFeatures {
 	rval := &PhysicalDeviceImageRobustnessFeatures{
 		PNext:             (unsafe.Pointer)(s.pNext),
 		RobustImageAccess: goBool32(s.robustImageAccess),
@@ -14275,7 +16024,7 @@ func (s *vkPhysicalDeviceImageRobustnessFeatures) goStruct() *PhysicalDeviceImag
 	return rval
 }
 
-func (s *PhysicalDeviceImageRobustnessFeatures) vkStruct() *vkPhysicalDeviceImageRobustnessFeatures {
+func (s *PhysicalDeviceImageRobustnessFeatures) ToVK() *vkPhysicalDeviceImageRobustnessFeatures {
 	if s == nil {
 		return nil
 	}
@@ -14294,6 +16043,12 @@ type PhysicalDeviceSubgroupSizeControlFeatures struct {
 	ComputeFullSubgroups bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceSubgroupSizeControlFeatures{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceSubgroupSizeControlFeatures) FromVK(pn unsafe.Pointer) *PhysicalDeviceSubgroupSizeControlFeatures {
+	vks := (*vkPhysicalDeviceSubgroupSizeControlFeatures)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceSubgroupSizeControlFeatures struct {
 	sType                StructureType
 	pNext                unsafe.Pointer
@@ -14301,7 +16056,7 @@ type vkPhysicalDeviceSubgroupSizeControlFeatures struct {
 	computeFullSubgroups Bool32
 }
 
-func (s *vkPhysicalDeviceSubgroupSizeControlFeatures) goStruct() *PhysicalDeviceSubgroupSizeControlFeatures {
+func (s *vkPhysicalDeviceSubgroupSizeControlFeatures) ToGo() *PhysicalDeviceSubgroupSizeControlFeatures {
 	rval := &PhysicalDeviceSubgroupSizeControlFeatures{
 		PNext:                (unsafe.Pointer)(s.pNext),
 		SubgroupSizeControl:  goBool32(s.subgroupSizeControl),
@@ -14310,7 +16065,7 @@ func (s *vkPhysicalDeviceSubgroupSizeControlFeatures) goStruct() *PhysicalDevice
 	return rval
 }
 
-func (s *PhysicalDeviceSubgroupSizeControlFeatures) vkStruct() *vkPhysicalDeviceSubgroupSizeControlFeatures {
+func (s *PhysicalDeviceSubgroupSizeControlFeatures) ToVK() *vkPhysicalDeviceSubgroupSizeControlFeatures {
 	if s == nil {
 		return nil
 	}
@@ -14332,6 +16087,12 @@ type PhysicalDeviceSubgroupSizeControlProperties struct {
 	RequiredSubgroupSizeStages   ShaderStageFlags
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceSubgroupSizeControlProperties{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceSubgroupSizeControlProperties) FromVK(pn unsafe.Pointer) *PhysicalDeviceSubgroupSizeControlProperties {
+	vks := (*vkPhysicalDeviceSubgroupSizeControlProperties)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceSubgroupSizeControlProperties struct {
 	sType                        StructureType
 	pNext                        unsafe.Pointer
@@ -14341,7 +16102,7 @@ type vkPhysicalDeviceSubgroupSizeControlProperties struct {
 	requiredSubgroupSizeStages   ShaderStageFlags
 }
 
-func (s *vkPhysicalDeviceSubgroupSizeControlProperties) goStruct() *PhysicalDeviceSubgroupSizeControlProperties {
+func (s *vkPhysicalDeviceSubgroupSizeControlProperties) ToGo() *PhysicalDeviceSubgroupSizeControlProperties {
 	rval := &PhysicalDeviceSubgroupSizeControlProperties{
 		PNext:                        (unsafe.Pointer)(s.pNext),
 		MinSubgroupSize:              (uint32)(s.minSubgroupSize),
@@ -14352,7 +16113,7 @@ func (s *vkPhysicalDeviceSubgroupSizeControlProperties) goStruct() *PhysicalDevi
 	return rval
 }
 
-func (s *PhysicalDeviceSubgroupSizeControlProperties) vkStruct() *vkPhysicalDeviceSubgroupSizeControlProperties {
+func (s *PhysicalDeviceSubgroupSizeControlProperties) ToVK() *vkPhysicalDeviceSubgroupSizeControlProperties {
 	if s == nil {
 		return nil
 	}
@@ -14373,13 +16134,19 @@ type PipelineShaderStageRequiredSubgroupSizeCreateInfo struct {
 	RequiredSubgroupSize uint32
 }
 
+// eg: gostruct := (&vk.PipelineShaderStageRequiredSubgroupSizeCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *PipelineShaderStageRequiredSubgroupSizeCreateInfo) FromVK(pn unsafe.Pointer) *PipelineShaderStageRequiredSubgroupSizeCreateInfo {
+	vks := (*vkPipelineShaderStageRequiredSubgroupSizeCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkPipelineShaderStageRequiredSubgroupSizeCreateInfo struct {
 	sType                StructureType
 	pNext                unsafe.Pointer
 	requiredSubgroupSize uint32
 }
 
-func (s *vkPipelineShaderStageRequiredSubgroupSizeCreateInfo) goStruct() *PipelineShaderStageRequiredSubgroupSizeCreateInfo {
+func (s *vkPipelineShaderStageRequiredSubgroupSizeCreateInfo) ToGo() *PipelineShaderStageRequiredSubgroupSizeCreateInfo {
 	rval := &PipelineShaderStageRequiredSubgroupSizeCreateInfo{
 		PNext:                (unsafe.Pointer)(s.pNext),
 		RequiredSubgroupSize: (uint32)(s.requiredSubgroupSize),
@@ -14387,7 +16154,7 @@ func (s *vkPipelineShaderStageRequiredSubgroupSizeCreateInfo) goStruct() *Pipeli
 	return rval
 }
 
-func (s *PipelineShaderStageRequiredSubgroupSizeCreateInfo) vkStruct() *vkPipelineShaderStageRequiredSubgroupSizeCreateInfo {
+func (s *PipelineShaderStageRequiredSubgroupSizeCreateInfo) ToVK() *vkPipelineShaderStageRequiredSubgroupSizeCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -14406,6 +16173,12 @@ type PhysicalDeviceInlineUniformBlockFeatures struct {
 	DescriptorBindingInlineUniformBlockUpdateAfterBind bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceInlineUniformBlockFeatures{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceInlineUniformBlockFeatures) FromVK(pn unsafe.Pointer) *PhysicalDeviceInlineUniformBlockFeatures {
+	vks := (*vkPhysicalDeviceInlineUniformBlockFeatures)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceInlineUniformBlockFeatures struct {
 	sType                                              StructureType
 	pNext                                              unsafe.Pointer
@@ -14413,7 +16186,7 @@ type vkPhysicalDeviceInlineUniformBlockFeatures struct {
 	descriptorBindingInlineUniformBlockUpdateAfterBind Bool32
 }
 
-func (s *vkPhysicalDeviceInlineUniformBlockFeatures) goStruct() *PhysicalDeviceInlineUniformBlockFeatures {
+func (s *vkPhysicalDeviceInlineUniformBlockFeatures) ToGo() *PhysicalDeviceInlineUniformBlockFeatures {
 	rval := &PhysicalDeviceInlineUniformBlockFeatures{
 		PNext:              (unsafe.Pointer)(s.pNext),
 		InlineUniformBlock: goBool32(s.inlineUniformBlock),
@@ -14422,7 +16195,7 @@ func (s *vkPhysicalDeviceInlineUniformBlockFeatures) goStruct() *PhysicalDeviceI
 	return rval
 }
 
-func (s *PhysicalDeviceInlineUniformBlockFeatures) vkStruct() *vkPhysicalDeviceInlineUniformBlockFeatures {
+func (s *PhysicalDeviceInlineUniformBlockFeatures) ToVK() *vkPhysicalDeviceInlineUniformBlockFeatures {
 	if s == nil {
 		return nil
 	}
@@ -14445,6 +16218,12 @@ type PhysicalDeviceInlineUniformBlockProperties struct {
 	MaxDescriptorSetUpdateAfterBindInlineUniformBlocks      uint32
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceInlineUniformBlockProperties{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceInlineUniformBlockProperties) FromVK(pn unsafe.Pointer) *PhysicalDeviceInlineUniformBlockProperties {
+	vks := (*vkPhysicalDeviceInlineUniformBlockProperties)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceInlineUniformBlockProperties struct {
 	sType                                                   StructureType
 	pNext                                                   unsafe.Pointer
@@ -14455,7 +16234,7 @@ type vkPhysicalDeviceInlineUniformBlockProperties struct {
 	maxDescriptorSetUpdateAfterBindInlineUniformBlocks      uint32
 }
 
-func (s *vkPhysicalDeviceInlineUniformBlockProperties) goStruct() *PhysicalDeviceInlineUniformBlockProperties {
+func (s *vkPhysicalDeviceInlineUniformBlockProperties) ToGo() *PhysicalDeviceInlineUniformBlockProperties {
 	rval := &PhysicalDeviceInlineUniformBlockProperties{
 		PNext:                                    (unsafe.Pointer)(s.pNext),
 		MaxInlineUniformBlockSize:                (uint32)(s.maxInlineUniformBlockSize),
@@ -14467,7 +16246,7 @@ func (s *vkPhysicalDeviceInlineUniformBlockProperties) goStruct() *PhysicalDevic
 	return rval
 }
 
-func (s *PhysicalDeviceInlineUniformBlockProperties) vkStruct() *vkPhysicalDeviceInlineUniformBlockProperties {
+func (s *PhysicalDeviceInlineUniformBlockProperties) ToVK() *vkPhysicalDeviceInlineUniformBlockProperties {
 	if s == nil {
 		return nil
 	}
@@ -14490,6 +16269,12 @@ type WriteDescriptorSetInlineUniformBlock struct {
 	PData    unsafe.Pointer
 }
 
+// eg: gostruct := (&vk.WriteDescriptorSetInlineUniformBlock{}).FromVK(goStruct2.PNext)
+func (s *WriteDescriptorSetInlineUniformBlock) FromVK(pn unsafe.Pointer) *WriteDescriptorSetInlineUniformBlock {
+	vks := (*vkWriteDescriptorSetInlineUniformBlock)(pn)
+	return vks.ToGo()
+}
+
 type vkWriteDescriptorSetInlineUniformBlock struct {
 	sType    StructureType
 	pNext    unsafe.Pointer
@@ -14497,7 +16282,7 @@ type vkWriteDescriptorSetInlineUniformBlock struct {
 	pData    unsafe.Pointer
 }
 
-func (s *vkWriteDescriptorSetInlineUniformBlock) goStruct() *WriteDescriptorSetInlineUniformBlock {
+func (s *vkWriteDescriptorSetInlineUniformBlock) ToGo() *WriteDescriptorSetInlineUniformBlock {
 	rval := &WriteDescriptorSetInlineUniformBlock{
 		PNext:    (unsafe.Pointer)(s.pNext),
 		DataSize: (uint32)(s.dataSize),
@@ -14506,7 +16291,7 @@ func (s *vkWriteDescriptorSetInlineUniformBlock) goStruct() *WriteDescriptorSetI
 	return rval
 }
 
-func (s *WriteDescriptorSetInlineUniformBlock) vkStruct() *vkWriteDescriptorSetInlineUniformBlock {
+func (s *WriteDescriptorSetInlineUniformBlock) ToVK() *vkWriteDescriptorSetInlineUniformBlock {
 	if s == nil {
 		return nil
 	}
@@ -14525,13 +16310,19 @@ type DescriptorPoolInlineUniformBlockCreateInfo struct {
 	MaxInlineUniformBlockBindings uint32
 }
 
+// eg: gostruct := (&vk.DescriptorPoolInlineUniformBlockCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *DescriptorPoolInlineUniformBlockCreateInfo) FromVK(pn unsafe.Pointer) *DescriptorPoolInlineUniformBlockCreateInfo {
+	vks := (*vkDescriptorPoolInlineUniformBlockCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkDescriptorPoolInlineUniformBlockCreateInfo struct {
 	sType                         StructureType
 	pNext                         unsafe.Pointer
 	maxInlineUniformBlockBindings uint32
 }
 
-func (s *vkDescriptorPoolInlineUniformBlockCreateInfo) goStruct() *DescriptorPoolInlineUniformBlockCreateInfo {
+func (s *vkDescriptorPoolInlineUniformBlockCreateInfo) ToGo() *DescriptorPoolInlineUniformBlockCreateInfo {
 	rval := &DescriptorPoolInlineUniformBlockCreateInfo{
 		PNext:                         (unsafe.Pointer)(s.pNext),
 		MaxInlineUniformBlockBindings: (uint32)(s.maxInlineUniformBlockBindings),
@@ -14539,7 +16330,7 @@ func (s *vkDescriptorPoolInlineUniformBlockCreateInfo) goStruct() *DescriptorPoo
 	return rval
 }
 
-func (s *DescriptorPoolInlineUniformBlockCreateInfo) vkStruct() *vkDescriptorPoolInlineUniformBlockCreateInfo {
+func (s *DescriptorPoolInlineUniformBlockCreateInfo) ToVK() *vkDescriptorPoolInlineUniformBlockCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -14557,13 +16348,19 @@ type PhysicalDeviceShaderIntegerDotProductFeatures struct {
 	ShaderIntegerDotProduct bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceShaderIntegerDotProductFeatures{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceShaderIntegerDotProductFeatures) FromVK(pn unsafe.Pointer) *PhysicalDeviceShaderIntegerDotProductFeatures {
+	vks := (*vkPhysicalDeviceShaderIntegerDotProductFeatures)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceShaderIntegerDotProductFeatures struct {
 	sType                   StructureType
 	pNext                   unsafe.Pointer
 	shaderIntegerDotProduct Bool32
 }
 
-func (s *vkPhysicalDeviceShaderIntegerDotProductFeatures) goStruct() *PhysicalDeviceShaderIntegerDotProductFeatures {
+func (s *vkPhysicalDeviceShaderIntegerDotProductFeatures) ToGo() *PhysicalDeviceShaderIntegerDotProductFeatures {
 	rval := &PhysicalDeviceShaderIntegerDotProductFeatures{
 		PNext:                   (unsafe.Pointer)(s.pNext),
 		ShaderIntegerDotProduct: goBool32(s.shaderIntegerDotProduct),
@@ -14571,7 +16368,7 @@ func (s *vkPhysicalDeviceShaderIntegerDotProductFeatures) goStruct() *PhysicalDe
 	return rval
 }
 
-func (s *PhysicalDeviceShaderIntegerDotProductFeatures) vkStruct() *vkPhysicalDeviceShaderIntegerDotProductFeatures {
+func (s *PhysicalDeviceShaderIntegerDotProductFeatures) ToVK() *vkPhysicalDeviceShaderIntegerDotProductFeatures {
 	if s == nil {
 		return nil
 	}
@@ -14618,6 +16415,12 @@ type PhysicalDeviceShaderIntegerDotProductProperties struct {
 	IntegerDotProductAccumulatingSaturating64BitMixedSignednessAccelerated        bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceShaderIntegerDotProductProperties{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceShaderIntegerDotProductProperties) FromVK(pn unsafe.Pointer) *PhysicalDeviceShaderIntegerDotProductProperties {
+	vks := (*vkPhysicalDeviceShaderIntegerDotProductProperties)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceShaderIntegerDotProductProperties struct {
 	sType                                                                         StructureType
 	pNext                                                                         unsafe.Pointer
@@ -14653,7 +16456,7 @@ type vkPhysicalDeviceShaderIntegerDotProductProperties struct {
 	integerDotProductAccumulatingSaturating64BitMixedSignednessAccelerated        Bool32
 }
 
-func (s *vkPhysicalDeviceShaderIntegerDotProductProperties) goStruct() *PhysicalDeviceShaderIntegerDotProductProperties {
+func (s *vkPhysicalDeviceShaderIntegerDotProductProperties) ToGo() *PhysicalDeviceShaderIntegerDotProductProperties {
 	rval := &PhysicalDeviceShaderIntegerDotProductProperties{
 		PNext:                                                                         (unsafe.Pointer)(s.pNext),
 		IntegerDotProduct8BitUnsignedAccelerated:                                      goBool32(s.integerDotProduct8BitUnsignedAccelerated),
@@ -14690,7 +16493,7 @@ func (s *vkPhysicalDeviceShaderIntegerDotProductProperties) goStruct() *Physical
 	return rval
 }
 
-func (s *PhysicalDeviceShaderIntegerDotProductProperties) vkStruct() *vkPhysicalDeviceShaderIntegerDotProductProperties {
+func (s *PhysicalDeviceShaderIntegerDotProductProperties) ToVK() *vkPhysicalDeviceShaderIntegerDotProductProperties {
 	if s == nil {
 		return nil
 	}
@@ -14740,6 +16543,12 @@ type PhysicalDeviceTexelBufferAlignmentProperties struct {
 	UniformTexelBufferOffsetSingleTexelAlignment bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceTexelBufferAlignmentProperties{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceTexelBufferAlignmentProperties) FromVK(pn unsafe.Pointer) *PhysicalDeviceTexelBufferAlignmentProperties {
+	vks := (*vkPhysicalDeviceTexelBufferAlignmentProperties)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceTexelBufferAlignmentProperties struct {
 	sType                                        StructureType
 	pNext                                        unsafe.Pointer
@@ -14749,7 +16558,7 @@ type vkPhysicalDeviceTexelBufferAlignmentProperties struct {
 	uniformTexelBufferOffsetSingleTexelAlignment Bool32
 }
 
-func (s *vkPhysicalDeviceTexelBufferAlignmentProperties) goStruct() *PhysicalDeviceTexelBufferAlignmentProperties {
+func (s *vkPhysicalDeviceTexelBufferAlignmentProperties) ToGo() *PhysicalDeviceTexelBufferAlignmentProperties {
 	rval := &PhysicalDeviceTexelBufferAlignmentProperties{
 		PNext:                                  (unsafe.Pointer)(s.pNext),
 		StorageTexelBufferOffsetAlignmentBytes: (DeviceSize)(s.storageTexelBufferOffsetAlignmentBytes),
@@ -14760,7 +16569,7 @@ func (s *vkPhysicalDeviceTexelBufferAlignmentProperties) goStruct() *PhysicalDev
 	return rval
 }
 
-func (s *PhysicalDeviceTexelBufferAlignmentProperties) vkStruct() *vkPhysicalDeviceTexelBufferAlignmentProperties {
+func (s *PhysicalDeviceTexelBufferAlignmentProperties) ToVK() *vkPhysicalDeviceTexelBufferAlignmentProperties {
 	if s == nil {
 		return nil
 	}
@@ -14784,6 +16593,12 @@ type ImageBlit2 struct {
 	DstOffsets     [2]Offset3D
 }
 
+// eg: gostruct := (&vk.ImageBlit2{}).FromVK(goStruct2.PNext)
+func (s *ImageBlit2) FromVK(pn unsafe.Pointer) *ImageBlit2 {
+	vks := (*vkImageBlit2)(pn)
+	return vks.ToGo()
+}
+
 type vkImageBlit2 struct {
 	sType          StructureType
 	pNext          unsafe.Pointer
@@ -14793,27 +16608,27 @@ type vkImageBlit2 struct {
 	dstOffsets     [2]vkOffset3D
 }
 
-func (s *vkImageBlit2) goStruct() *ImageBlit2 {
+func (s *vkImageBlit2) ToGo() *ImageBlit2 {
 	rval := &ImageBlit2{
 		PNext:          (unsafe.Pointer)(s.pNext),
-		SrcSubresource: *(s.srcSubresource.goStruct()),
+		SrcSubresource: *(s.srcSubresource.ToGo()),
 		SrcOffsets:     ([2]Offset3D)(s.srcOffsets),
-		DstSubresource: *(s.dstSubresource.goStruct()),
+		DstSubresource: *(s.dstSubresource.ToGo()),
 		DstOffsets:     ([2]Offset3D)(s.dstOffsets),
 	}
 	return rval
 }
 
-func (s *ImageBlit2) vkStruct() *vkImageBlit2 {
+func (s *ImageBlit2) ToVK() *vkImageBlit2 {
 	if s == nil {
 		return nil
 	}
 	rval := &vkImageBlit2{
 		sType:          STRUCTURE_TYPE_IMAGE_BLIT_2,
 		pNext:          (unsafe.Pointer)(s.PNext),
-		srcSubresource: *(s.SrcSubresource.vkStruct()),
+		srcSubresource: *(s.SrcSubresource.ToVK()),
 		srcOffsets:     ([2]vkOffset3D)(s.SrcOffsets),
-		dstSubresource: *(s.DstSubresource.vkStruct()),
+		dstSubresource: *(s.DstSubresource.ToVK()),
 		dstOffsets:     ([2]vkOffset3D)(s.DstOffsets),
 	}
 	return rval
@@ -14830,6 +16645,12 @@ type BlitImageInfo2 struct {
 	Filter         Filter
 }
 
+// eg: gostruct := (&vk.BlitImageInfo2{}).FromVK(goStruct2.PNext)
+func (s *BlitImageInfo2) FromVK(pn unsafe.Pointer) *BlitImageInfo2 {
+	vks := (*vkBlitImageInfo2)(pn)
+	return vks.ToGo()
+}
+
 type vkBlitImageInfo2 struct {
 	sType          StructureType
 	pNext          unsafe.Pointer
@@ -14842,7 +16663,7 @@ type vkBlitImageInfo2 struct {
 	filter         Filter
 }
 
-func (s *vkBlitImageInfo2) goStruct() *BlitImageInfo2 {
+func (s *vkBlitImageInfo2) ToGo() *BlitImageInfo2 {
 	rval := &BlitImageInfo2{
 		PNext:          (unsafe.Pointer)(s.pNext),
 		SrcImage:       (Image)(s.srcImage),
@@ -14855,7 +16676,7 @@ func (s *vkBlitImageInfo2) goStruct() *BlitImageInfo2 {
 	return rval
 }
 
-func (s *BlitImageInfo2) vkStruct() *vkBlitImageInfo2 {
+func (s *BlitImageInfo2) ToVK() *vkBlitImageInfo2 {
 	if s == nil {
 		return nil
 	}
@@ -14863,7 +16684,7 @@ func (s *BlitImageInfo2) vkStruct() *vkBlitImageInfo2 {
 	if len(s.PRegions) > 0 {
 		tmp := make([]vkImageBlit2, len(s.PRegions))
 		for i, v := range s.PRegions {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		sp_PRegions = &tmp[0]
 	}
@@ -14891,6 +16712,12 @@ type ImageResolve2 struct {
 	Extent         Extent3D
 }
 
+// eg: gostruct := (&vk.ImageResolve2{}).FromVK(goStruct2.PNext)
+func (s *ImageResolve2) FromVK(pn unsafe.Pointer) *ImageResolve2 {
+	vks := (*vkImageResolve2)(pn)
+	return vks.ToGo()
+}
+
 type vkImageResolve2 struct {
 	sType          StructureType
 	pNext          unsafe.Pointer
@@ -14901,30 +16728,30 @@ type vkImageResolve2 struct {
 	extent         vkExtent3D
 }
 
-func (s *vkImageResolve2) goStruct() *ImageResolve2 {
+func (s *vkImageResolve2) ToGo() *ImageResolve2 {
 	rval := &ImageResolve2{
 		PNext:          (unsafe.Pointer)(s.pNext),
-		SrcSubresource: *(s.srcSubresource.goStruct()),
-		SrcOffset:      *(s.srcOffset.goStruct()),
-		DstSubresource: *(s.dstSubresource.goStruct()),
-		DstOffset:      *(s.dstOffset.goStruct()),
-		Extent:         *(s.extent.goStruct()),
+		SrcSubresource: *(s.srcSubresource.ToGo()),
+		SrcOffset:      *(s.srcOffset.ToGo()),
+		DstSubresource: *(s.dstSubresource.ToGo()),
+		DstOffset:      *(s.dstOffset.ToGo()),
+		Extent:         *(s.extent.ToGo()),
 	}
 	return rval
 }
 
-func (s *ImageResolve2) vkStruct() *vkImageResolve2 {
+func (s *ImageResolve2) ToVK() *vkImageResolve2 {
 	if s == nil {
 		return nil
 	}
 	rval := &vkImageResolve2{
 		sType:          STRUCTURE_TYPE_IMAGE_RESOLVE_2,
 		pNext:          (unsafe.Pointer)(s.PNext),
-		srcSubresource: *(s.SrcSubresource.vkStruct()),
-		srcOffset:      *(s.SrcOffset.vkStruct()),
-		dstSubresource: *(s.DstSubresource.vkStruct()),
-		dstOffset:      *(s.DstOffset.vkStruct()),
-		extent:         *(s.Extent.vkStruct()),
+		srcSubresource: *(s.SrcSubresource.ToVK()),
+		srcOffset:      *(s.SrcOffset.ToVK()),
+		dstSubresource: *(s.DstSubresource.ToVK()),
+		dstOffset:      *(s.DstOffset.ToVK()),
+		extent:         *(s.Extent.ToVK()),
 	}
 	return rval
 }
@@ -14939,6 +16766,12 @@ type ResolveImageInfo2 struct {
 	PRegions       []ImageResolve2
 }
 
+// eg: gostruct := (&vk.ResolveImageInfo2{}).FromVK(goStruct2.PNext)
+func (s *ResolveImageInfo2) FromVK(pn unsafe.Pointer) *ResolveImageInfo2 {
+	vks := (*vkResolveImageInfo2)(pn)
+	return vks.ToGo()
+}
+
 type vkResolveImageInfo2 struct {
 	sType          StructureType
 	pNext          unsafe.Pointer
@@ -14950,7 +16783,7 @@ type vkResolveImageInfo2 struct {
 	pRegions       *vkImageResolve2
 }
 
-func (s *vkResolveImageInfo2) goStruct() *ResolveImageInfo2 {
+func (s *vkResolveImageInfo2) ToGo() *ResolveImageInfo2 {
 	rval := &ResolveImageInfo2{
 		PNext:          (unsafe.Pointer)(s.pNext),
 		SrcImage:       (Image)(s.srcImage),
@@ -14962,7 +16795,7 @@ func (s *vkResolveImageInfo2) goStruct() *ResolveImageInfo2 {
 	return rval
 }
 
-func (s *ResolveImageInfo2) vkStruct() *vkResolveImageInfo2 {
+func (s *ResolveImageInfo2) ToVK() *vkResolveImageInfo2 {
 	if s == nil {
 		return nil
 	}
@@ -14970,7 +16803,7 @@ func (s *ResolveImageInfo2) vkStruct() *vkResolveImageInfo2 {
 	if len(s.PRegions) > 0 {
 		tmp := make([]vkImageResolve2, len(s.PRegions))
 		for i, v := range s.PRegions {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		sp_PRegions = &tmp[0]
 	}
@@ -15000,6 +16833,12 @@ type RenderingAttachmentInfo struct {
 	ClearValue         ClearValue
 }
 
+// eg: gostruct := (&vk.RenderingAttachmentInfo{}).FromVK(goStruct2.PNext)
+func (s *RenderingAttachmentInfo) FromVK(pn unsafe.Pointer) *RenderingAttachmentInfo {
+	vks := (*vkRenderingAttachmentInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkRenderingAttachmentInfo struct {
 	sType              StructureType
 	pNext              unsafe.Pointer
@@ -15013,7 +16852,7 @@ type vkRenderingAttachmentInfo struct {
 	clearValue         vkClearValue
 }
 
-func (s *vkRenderingAttachmentInfo) goStruct() *RenderingAttachmentInfo {
+func (s *vkRenderingAttachmentInfo) ToGo() *RenderingAttachmentInfo {
 	rval := &RenderingAttachmentInfo{
 		PNext:              (unsafe.Pointer)(s.pNext),
 		ImageView:          (ImageView)(s.imageView),
@@ -15029,7 +16868,7 @@ func (s *vkRenderingAttachmentInfo) goStruct() *RenderingAttachmentInfo {
 	return rval
 }
 
-func (s *RenderingAttachmentInfo) vkStruct() *vkRenderingAttachmentInfo {
+func (s *RenderingAttachmentInfo) ToVK() *vkRenderingAttachmentInfo {
 	if s == nil {
 		return nil
 	}
@@ -15043,7 +16882,7 @@ func (s *RenderingAttachmentInfo) vkStruct() *vkRenderingAttachmentInfo {
 		resolveImageLayout: (ImageLayout)(s.ResolveImageLayout),
 		loadOp:             (AttachmentLoadOp)(s.LoadOp),
 		storeOp:            (AttachmentStoreOp)(s.StoreOp),
-		clearValue:         *(s.ClearValue.vkStruct()),
+		clearValue:         *(s.ClearValue.ToVK()),
 	}
 	return rval
 }
@@ -15060,6 +16899,12 @@ type RenderingInfo struct {
 	PStencilAttachment *RenderingAttachmentInfo
 }
 
+// eg: gostruct := (&vk.RenderingInfo{}).FromVK(goStruct2.PNext)
+func (s *RenderingInfo) FromVK(pn unsafe.Pointer) *RenderingInfo {
+	vks := (*vkRenderingInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkRenderingInfo struct {
 	sType                StructureType
 	pNext                unsafe.Pointer
@@ -15073,11 +16918,11 @@ type vkRenderingInfo struct {
 	pStencilAttachment   *vkRenderingAttachmentInfo
 }
 
-func (s *vkRenderingInfo) goStruct() *RenderingInfo {
+func (s *vkRenderingInfo) ToGo() *RenderingInfo {
 	rval := &RenderingInfo{
 		PNext:      (unsafe.Pointer)(s.pNext),
 		Flags:      (RenderingFlags)(s.flags),
-		RenderArea: *(s.renderArea.goStruct()),
+		RenderArea: *(s.renderArea.ToGo()),
 		LayerCount: (uint32)(s.layerCount),
 		ViewMask:   (uint32)(s.viewMask),
 		// ignoring returned pointer type PColorAttachments
@@ -15087,7 +16932,7 @@ func (s *vkRenderingInfo) goStruct() *RenderingInfo {
 	return rval
 }
 
-func (s *RenderingInfo) vkStruct() *vkRenderingInfo {
+func (s *RenderingInfo) ToVK() *vkRenderingInfo {
 	if s == nil {
 		return nil
 	}
@@ -15095,7 +16940,7 @@ func (s *RenderingInfo) vkStruct() *vkRenderingInfo {
 	if len(s.PColorAttachments) > 0 {
 		tmp := make([]vkRenderingAttachmentInfo, len(s.PColorAttachments))
 		for i, v := range s.PColorAttachments {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		sp_PColorAttachments = &tmp[0]
 	}
@@ -15103,13 +16948,13 @@ func (s *RenderingInfo) vkStruct() *vkRenderingInfo {
 		sType:                STRUCTURE_TYPE_RENDERING_INFO,
 		pNext:                (unsafe.Pointer)(s.PNext),
 		flags:                (RenderingFlags)(s.Flags),
-		renderArea:           *(s.RenderArea.vkStruct()),
+		renderArea:           *(s.RenderArea.ToVK()),
 		layerCount:           (uint32)(s.LayerCount),
 		viewMask:             (uint32)(s.ViewMask),
 		colorAttachmentCount: uint32(len(s.PColorAttachments)),
 		pColorAttachments:    sp_PColorAttachments,
-		pDepthAttachment:     (s.PDepthAttachment.vkStruct()),
-		pStencilAttachment:   (s.PStencilAttachment.vkStruct()),
+		pDepthAttachment:     (s.PDepthAttachment.ToVK()),
+		pStencilAttachment:   (s.PStencilAttachment.ToVK()),
 	}
 	return rval
 }
@@ -15123,6 +16968,12 @@ type PipelineRenderingCreateInfo struct {
 	StencilAttachmentFormat Format
 }
 
+// eg: gostruct := (&vk.PipelineRenderingCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *PipelineRenderingCreateInfo) FromVK(pn unsafe.Pointer) *PipelineRenderingCreateInfo {
+	vks := (*vkPipelineRenderingCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkPipelineRenderingCreateInfo struct {
 	sType                   StructureType
 	pNext                   unsafe.Pointer
@@ -15133,7 +16984,7 @@ type vkPipelineRenderingCreateInfo struct {
 	stencilAttachmentFormat Format
 }
 
-func (s *vkPipelineRenderingCreateInfo) goStruct() *PipelineRenderingCreateInfo {
+func (s *vkPipelineRenderingCreateInfo) ToGo() *PipelineRenderingCreateInfo {
 	rval := &PipelineRenderingCreateInfo{
 		PNext:    (unsafe.Pointer)(s.pNext),
 		ViewMask: (uint32)(s.viewMask),
@@ -15144,7 +16995,7 @@ func (s *vkPipelineRenderingCreateInfo) goStruct() *PipelineRenderingCreateInfo 
 	return rval
 }
 
-func (s *PipelineRenderingCreateInfo) vkStruct() *vkPipelineRenderingCreateInfo {
+func (s *PipelineRenderingCreateInfo) ToVK() *vkPipelineRenderingCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -15170,13 +17021,19 @@ type PhysicalDeviceDynamicRenderingFeatures struct {
 	DynamicRendering bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceDynamicRenderingFeatures{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceDynamicRenderingFeatures) FromVK(pn unsafe.Pointer) *PhysicalDeviceDynamicRenderingFeatures {
+	vks := (*vkPhysicalDeviceDynamicRenderingFeatures)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceDynamicRenderingFeatures struct {
 	sType            StructureType
 	pNext            unsafe.Pointer
 	dynamicRendering Bool32
 }
 
-func (s *vkPhysicalDeviceDynamicRenderingFeatures) goStruct() *PhysicalDeviceDynamicRenderingFeatures {
+func (s *vkPhysicalDeviceDynamicRenderingFeatures) ToGo() *PhysicalDeviceDynamicRenderingFeatures {
 	rval := &PhysicalDeviceDynamicRenderingFeatures{
 		PNext:            (unsafe.Pointer)(s.pNext),
 		DynamicRendering: goBool32(s.dynamicRendering),
@@ -15184,7 +17041,7 @@ func (s *vkPhysicalDeviceDynamicRenderingFeatures) goStruct() *PhysicalDeviceDyn
 	return rval
 }
 
-func (s *PhysicalDeviceDynamicRenderingFeatures) vkStruct() *vkPhysicalDeviceDynamicRenderingFeatures {
+func (s *PhysicalDeviceDynamicRenderingFeatures) ToVK() *vkPhysicalDeviceDynamicRenderingFeatures {
 	if s == nil {
 		return nil
 	}
@@ -15207,6 +17064,12 @@ type CommandBufferInheritanceRenderingInfo struct {
 	RasterizationSamples    SampleCountFlagBits
 }
 
+// eg: gostruct := (&vk.CommandBufferInheritanceRenderingInfo{}).FromVK(goStruct2.PNext)
+func (s *CommandBufferInheritanceRenderingInfo) FromVK(pn unsafe.Pointer) *CommandBufferInheritanceRenderingInfo {
+	vks := (*vkCommandBufferInheritanceRenderingInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkCommandBufferInheritanceRenderingInfo struct {
 	sType                   StructureType
 	pNext                   unsafe.Pointer
@@ -15219,7 +17082,7 @@ type vkCommandBufferInheritanceRenderingInfo struct {
 	rasterizationSamples    SampleCountFlagBits
 }
 
-func (s *vkCommandBufferInheritanceRenderingInfo) goStruct() *CommandBufferInheritanceRenderingInfo {
+func (s *vkCommandBufferInheritanceRenderingInfo) ToGo() *CommandBufferInheritanceRenderingInfo {
 	rval := &CommandBufferInheritanceRenderingInfo{
 		PNext:    (unsafe.Pointer)(s.pNext),
 		Flags:    (RenderingFlags)(s.flags),
@@ -15232,7 +17095,7 @@ func (s *vkCommandBufferInheritanceRenderingInfo) goStruct() *CommandBufferInher
 	return rval
 }
 
-func (s *CommandBufferInheritanceRenderingInfo) vkStruct() *vkCommandBufferInheritanceRenderingInfo {
+func (s *CommandBufferInheritanceRenderingInfo) ToVK() *vkCommandBufferInheritanceRenderingInfo {
 	if s == nil {
 		return nil
 	}
@@ -15280,6 +17143,12 @@ type PhysicalDeviceVulkan14Features struct {
 	PushDescriptor                         bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceVulkan14Features{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceVulkan14Features) FromVK(pn unsafe.Pointer) *PhysicalDeviceVulkan14Features {
+	vks := (*vkPhysicalDeviceVulkan14Features)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceVulkan14Features struct {
 	sType                                  StructureType
 	pNext                                  unsafe.Pointer
@@ -15306,7 +17175,7 @@ type vkPhysicalDeviceVulkan14Features struct {
 	pushDescriptor                         Bool32
 }
 
-func (s *vkPhysicalDeviceVulkan14Features) goStruct() *PhysicalDeviceVulkan14Features {
+func (s *vkPhysicalDeviceVulkan14Features) ToGo() *PhysicalDeviceVulkan14Features {
 	rval := &PhysicalDeviceVulkan14Features{
 		PNext:                                  (unsafe.Pointer)(s.pNext),
 		GlobalPriorityQuery:                    goBool32(s.globalPriorityQuery),
@@ -15334,7 +17203,7 @@ func (s *vkPhysicalDeviceVulkan14Features) goStruct() *PhysicalDeviceVulkan14Fea
 	return rval
 }
 
-func (s *PhysicalDeviceVulkan14Features) vkStruct() *vkPhysicalDeviceVulkan14Features {
+func (s *PhysicalDeviceVulkan14Features) ToVK() *vkPhysicalDeviceVulkan14Features {
 	if s == nil {
 		return nil
 	}
@@ -15394,6 +17263,12 @@ type PhysicalDeviceVulkan14Properties struct {
 	IdenticalMemoryTypeRequirements                     bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceVulkan14Properties{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceVulkan14Properties) FromVK(pn unsafe.Pointer) *PhysicalDeviceVulkan14Properties {
+	vks := (*vkPhysicalDeviceVulkan14Properties)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceVulkan14Properties struct {
 	sType                                               StructureType
 	pNext                                               unsafe.Pointer
@@ -15424,7 +17299,7 @@ type vkPhysicalDeviceVulkan14Properties struct {
 	identicalMemoryTypeRequirements                     Bool32
 }
 
-func (s *vkPhysicalDeviceVulkan14Properties) goStruct() *PhysicalDeviceVulkan14Properties {
+func (s *vkPhysicalDeviceVulkan14Properties) ToGo() *PhysicalDeviceVulkan14Properties {
 	rval := &PhysicalDeviceVulkan14Properties{
 		PNext:                        (unsafe.Pointer)(s.pNext),
 		LineSubPixelPrecisionBits:    (uint32)(s.lineSubPixelPrecisionBits),
@@ -15454,7 +17329,7 @@ func (s *vkPhysicalDeviceVulkan14Properties) goStruct() *PhysicalDeviceVulkan14P
 	return rval
 }
 
-func (s *PhysicalDeviceVulkan14Properties) vkStruct() *vkPhysicalDeviceVulkan14Properties {
+func (s *PhysicalDeviceVulkan14Properties) ToVK() *vkPhysicalDeviceVulkan14Properties {
 	if s == nil {
 		return nil
 	}
@@ -15504,13 +17379,19 @@ type DeviceQueueGlobalPriorityCreateInfo struct {
 	GlobalPriority QueueGlobalPriority
 }
 
+// eg: gostruct := (&vk.DeviceQueueGlobalPriorityCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *DeviceQueueGlobalPriorityCreateInfo) FromVK(pn unsafe.Pointer) *DeviceQueueGlobalPriorityCreateInfo {
+	vks := (*vkDeviceQueueGlobalPriorityCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkDeviceQueueGlobalPriorityCreateInfo struct {
 	sType          StructureType
 	pNext          unsafe.Pointer
 	globalPriority QueueGlobalPriority
 }
 
-func (s *vkDeviceQueueGlobalPriorityCreateInfo) goStruct() *DeviceQueueGlobalPriorityCreateInfo {
+func (s *vkDeviceQueueGlobalPriorityCreateInfo) ToGo() *DeviceQueueGlobalPriorityCreateInfo {
 	rval := &DeviceQueueGlobalPriorityCreateInfo{
 		PNext:          (unsafe.Pointer)(s.pNext),
 		GlobalPriority: (QueueGlobalPriority)(s.globalPriority),
@@ -15518,7 +17399,7 @@ func (s *vkDeviceQueueGlobalPriorityCreateInfo) goStruct() *DeviceQueueGlobalPri
 	return rval
 }
 
-func (s *DeviceQueueGlobalPriorityCreateInfo) vkStruct() *vkDeviceQueueGlobalPriorityCreateInfo {
+func (s *DeviceQueueGlobalPriorityCreateInfo) ToVK() *vkDeviceQueueGlobalPriorityCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -15536,13 +17417,19 @@ type PhysicalDeviceGlobalPriorityQueryFeatures struct {
 	GlobalPriorityQuery bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceGlobalPriorityQueryFeatures{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceGlobalPriorityQueryFeatures) FromVK(pn unsafe.Pointer) *PhysicalDeviceGlobalPriorityQueryFeatures {
+	vks := (*vkPhysicalDeviceGlobalPriorityQueryFeatures)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceGlobalPriorityQueryFeatures struct {
 	sType               StructureType
 	pNext               unsafe.Pointer
 	globalPriorityQuery Bool32
 }
 
-func (s *vkPhysicalDeviceGlobalPriorityQueryFeatures) goStruct() *PhysicalDeviceGlobalPriorityQueryFeatures {
+func (s *vkPhysicalDeviceGlobalPriorityQueryFeatures) ToGo() *PhysicalDeviceGlobalPriorityQueryFeatures {
 	rval := &PhysicalDeviceGlobalPriorityQueryFeatures{
 		PNext:               (unsafe.Pointer)(s.pNext),
 		GlobalPriorityQuery: goBool32(s.globalPriorityQuery),
@@ -15550,7 +17437,7 @@ func (s *vkPhysicalDeviceGlobalPriorityQueryFeatures) goStruct() *PhysicalDevice
 	return rval
 }
 
-func (s *PhysicalDeviceGlobalPriorityQueryFeatures) vkStruct() *vkPhysicalDeviceGlobalPriorityQueryFeatures {
+func (s *PhysicalDeviceGlobalPriorityQueryFeatures) ToVK() *vkPhysicalDeviceGlobalPriorityQueryFeatures {
 	if s == nil {
 		return nil
 	}
@@ -15569,6 +17456,12 @@ type QueueFamilyGlobalPriorityProperties struct {
 	Priorities    [MAX_GLOBAL_PRIORITY_SIZE]QueueGlobalPriority
 }
 
+// eg: gostruct := (&vk.QueueFamilyGlobalPriorityProperties{}).FromVK(goStruct2.PNext)
+func (s *QueueFamilyGlobalPriorityProperties) FromVK(pn unsafe.Pointer) *QueueFamilyGlobalPriorityProperties {
+	vks := (*vkQueueFamilyGlobalPriorityProperties)(pn)
+	return vks.ToGo()
+}
+
 type vkQueueFamilyGlobalPriorityProperties struct {
 	sType         StructureType
 	pNext         unsafe.Pointer
@@ -15576,7 +17469,7 @@ type vkQueueFamilyGlobalPriorityProperties struct {
 	priorities    [MAX_GLOBAL_PRIORITY_SIZE]QueueGlobalPriority
 }
 
-func (s *vkQueueFamilyGlobalPriorityProperties) goStruct() *QueueFamilyGlobalPriorityProperties {
+func (s *vkQueueFamilyGlobalPriorityProperties) ToGo() *QueueFamilyGlobalPriorityProperties {
 	rval := &QueueFamilyGlobalPriorityProperties{
 		PNext:         (unsafe.Pointer)(s.pNext),
 		PriorityCount: (uint32)(s.priorityCount),
@@ -15585,7 +17478,7 @@ func (s *vkQueueFamilyGlobalPriorityProperties) goStruct() *QueueFamilyGlobalPri
 	return rval
 }
 
-func (s *QueueFamilyGlobalPriorityProperties) vkStruct() *vkQueueFamilyGlobalPriorityProperties {
+func (s *QueueFamilyGlobalPriorityProperties) ToVK() *vkQueueFamilyGlobalPriorityProperties {
 	if s == nil {
 		return nil
 	}
@@ -15604,13 +17497,19 @@ type PhysicalDeviceIndexTypeUint8Features struct {
 	IndexTypeUint8 bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceIndexTypeUint8Features{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceIndexTypeUint8Features) FromVK(pn unsafe.Pointer) *PhysicalDeviceIndexTypeUint8Features {
+	vks := (*vkPhysicalDeviceIndexTypeUint8Features)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceIndexTypeUint8Features struct {
 	sType          StructureType
 	pNext          unsafe.Pointer
 	indexTypeUint8 Bool32
 }
 
-func (s *vkPhysicalDeviceIndexTypeUint8Features) goStruct() *PhysicalDeviceIndexTypeUint8Features {
+func (s *vkPhysicalDeviceIndexTypeUint8Features) ToGo() *PhysicalDeviceIndexTypeUint8Features {
 	rval := &PhysicalDeviceIndexTypeUint8Features{
 		PNext:          (unsafe.Pointer)(s.pNext),
 		IndexTypeUint8: goBool32(s.indexTypeUint8),
@@ -15618,7 +17517,7 @@ func (s *vkPhysicalDeviceIndexTypeUint8Features) goStruct() *PhysicalDeviceIndex
 	return rval
 }
 
-func (s *PhysicalDeviceIndexTypeUint8Features) vkStruct() *vkPhysicalDeviceIndexTypeUint8Features {
+func (s *PhysicalDeviceIndexTypeUint8Features) ToVK() *vkPhysicalDeviceIndexTypeUint8Features {
 	if s == nil {
 		return nil
 	}
@@ -15639,6 +17538,12 @@ type MemoryMapInfo struct {
 	Size   DeviceSize
 }
 
+// eg: gostruct := (&vk.MemoryMapInfo{}).FromVK(goStruct2.PNext)
+func (s *MemoryMapInfo) FromVK(pn unsafe.Pointer) *MemoryMapInfo {
+	vks := (*vkMemoryMapInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkMemoryMapInfo struct {
 	sType  StructureType
 	pNext  unsafe.Pointer
@@ -15648,7 +17553,7 @@ type vkMemoryMapInfo struct {
 	size   DeviceSize
 }
 
-func (s *vkMemoryMapInfo) goStruct() *MemoryMapInfo {
+func (s *vkMemoryMapInfo) ToGo() *MemoryMapInfo {
 	rval := &MemoryMapInfo{
 		PNext:  (unsafe.Pointer)(s.pNext),
 		Flags:  (MemoryMapFlags)(s.flags),
@@ -15659,7 +17564,7 @@ func (s *vkMemoryMapInfo) goStruct() *MemoryMapInfo {
 	return rval
 }
 
-func (s *MemoryMapInfo) vkStruct() *vkMemoryMapInfo {
+func (s *MemoryMapInfo) ToVK() *vkMemoryMapInfo {
 	if s == nil {
 		return nil
 	}
@@ -15681,6 +17586,12 @@ type MemoryUnmapInfo struct {
 	Memory DeviceMemory
 }
 
+// eg: gostruct := (&vk.MemoryUnmapInfo{}).FromVK(goStruct2.PNext)
+func (s *MemoryUnmapInfo) FromVK(pn unsafe.Pointer) *MemoryUnmapInfo {
+	vks := (*vkMemoryUnmapInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkMemoryUnmapInfo struct {
 	sType  StructureType
 	pNext  unsafe.Pointer
@@ -15688,7 +17599,7 @@ type vkMemoryUnmapInfo struct {
 	memory DeviceMemory
 }
 
-func (s *vkMemoryUnmapInfo) goStruct() *MemoryUnmapInfo {
+func (s *vkMemoryUnmapInfo) ToGo() *MemoryUnmapInfo {
 	rval := &MemoryUnmapInfo{
 		PNext:  (unsafe.Pointer)(s.pNext),
 		Flags:  (MemoryUnmapFlags)(s.flags),
@@ -15697,7 +17608,7 @@ func (s *vkMemoryUnmapInfo) goStruct() *MemoryUnmapInfo {
 	return rval
 }
 
-func (s *MemoryUnmapInfo) vkStruct() *vkMemoryUnmapInfo {
+func (s *MemoryUnmapInfo) ToVK() *vkMemoryUnmapInfo {
 	if s == nil {
 		return nil
 	}
@@ -15716,13 +17627,19 @@ type PhysicalDeviceMaintenance5Features struct {
 	Maintenance5 bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceMaintenance5Features{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceMaintenance5Features) FromVK(pn unsafe.Pointer) *PhysicalDeviceMaintenance5Features {
+	vks := (*vkPhysicalDeviceMaintenance5Features)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceMaintenance5Features struct {
 	sType        StructureType
 	pNext        unsafe.Pointer
 	maintenance5 Bool32
 }
 
-func (s *vkPhysicalDeviceMaintenance5Features) goStruct() *PhysicalDeviceMaintenance5Features {
+func (s *vkPhysicalDeviceMaintenance5Features) ToGo() *PhysicalDeviceMaintenance5Features {
 	rval := &PhysicalDeviceMaintenance5Features{
 		PNext:        (unsafe.Pointer)(s.pNext),
 		Maintenance5: goBool32(s.maintenance5),
@@ -15730,7 +17647,7 @@ func (s *vkPhysicalDeviceMaintenance5Features) goStruct() *PhysicalDeviceMainten
 	return rval
 }
 
-func (s *PhysicalDeviceMaintenance5Features) vkStruct() *vkPhysicalDeviceMaintenance5Features {
+func (s *PhysicalDeviceMaintenance5Features) ToVK() *vkPhysicalDeviceMaintenance5Features {
 	if s == nil {
 		return nil
 	}
@@ -15753,6 +17670,12 @@ type PhysicalDeviceMaintenance5Properties struct {
 	NonStrictWideLinesUseParallelogram                  bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceMaintenance5Properties{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceMaintenance5Properties) FromVK(pn unsafe.Pointer) *PhysicalDeviceMaintenance5Properties {
+	vks := (*vkPhysicalDeviceMaintenance5Properties)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceMaintenance5Properties struct {
 	sType                                               StructureType
 	pNext                                               unsafe.Pointer
@@ -15764,7 +17687,7 @@ type vkPhysicalDeviceMaintenance5Properties struct {
 	nonStrictWideLinesUseParallelogram                  Bool32
 }
 
-func (s *vkPhysicalDeviceMaintenance5Properties) goStruct() *PhysicalDeviceMaintenance5Properties {
+func (s *vkPhysicalDeviceMaintenance5Properties) ToGo() *PhysicalDeviceMaintenance5Properties {
 	rval := &PhysicalDeviceMaintenance5Properties{
 		PNext: (unsafe.Pointer)(s.pNext),
 		EarlyFragmentMultisampleCoverageAfterSampleCounting: goBool32(s.earlyFragmentMultisampleCoverageAfterSampleCounting),
@@ -15777,7 +17700,7 @@ func (s *vkPhysicalDeviceMaintenance5Properties) goStruct() *PhysicalDeviceMaint
 	return rval
 }
 
-func (s *PhysicalDeviceMaintenance5Properties) vkStruct() *vkPhysicalDeviceMaintenance5Properties {
+func (s *PhysicalDeviceMaintenance5Properties) ToVK() *vkPhysicalDeviceMaintenance5Properties {
 	if s == nil {
 		return nil
 	}
@@ -15800,28 +17723,34 @@ type SubresourceLayout2 struct {
 	SubresourceLayout SubresourceLayout
 }
 
+// eg: gostruct := (&vk.SubresourceLayout2{}).FromVK(goStruct2.PNext)
+func (s *SubresourceLayout2) FromVK(pn unsafe.Pointer) *SubresourceLayout2 {
+	vks := (*vkSubresourceLayout2)(pn)
+	return vks.ToGo()
+}
+
 type vkSubresourceLayout2 struct {
 	sType             StructureType
 	pNext             unsafe.Pointer
 	subresourceLayout vkSubresourceLayout
 }
 
-func (s *vkSubresourceLayout2) goStruct() *SubresourceLayout2 {
+func (s *vkSubresourceLayout2) ToGo() *SubresourceLayout2 {
 	rval := &SubresourceLayout2{
 		PNext:             (unsafe.Pointer)(s.pNext),
-		SubresourceLayout: *(s.subresourceLayout.goStruct()),
+		SubresourceLayout: *(s.subresourceLayout.ToGo()),
 	}
 	return rval
 }
 
-func (s *SubresourceLayout2) vkStruct() *vkSubresourceLayout2 {
+func (s *SubresourceLayout2) ToVK() *vkSubresourceLayout2 {
 	if s == nil {
 		return nil
 	}
 	rval := &vkSubresourceLayout2{
 		sType:             STRUCTURE_TYPE_SUBRESOURCE_LAYOUT_2,
 		pNext:             (unsafe.Pointer)(s.PNext),
-		subresourceLayout: *(s.SubresourceLayout.vkStruct()),
+		subresourceLayout: *(s.SubresourceLayout.ToVK()),
 	}
 	return rval
 }
@@ -15832,28 +17761,34 @@ type ImageSubresource2 struct {
 	ImageSubresource ImageSubresource
 }
 
+// eg: gostruct := (&vk.ImageSubresource2{}).FromVK(goStruct2.PNext)
+func (s *ImageSubresource2) FromVK(pn unsafe.Pointer) *ImageSubresource2 {
+	vks := (*vkImageSubresource2)(pn)
+	return vks.ToGo()
+}
+
 type vkImageSubresource2 struct {
 	sType            StructureType
 	pNext            unsafe.Pointer
 	imageSubresource vkImageSubresource
 }
 
-func (s *vkImageSubresource2) goStruct() *ImageSubresource2 {
+func (s *vkImageSubresource2) ToGo() *ImageSubresource2 {
 	rval := &ImageSubresource2{
 		PNext:            (unsafe.Pointer)(s.pNext),
-		ImageSubresource: *(s.imageSubresource.goStruct()),
+		ImageSubresource: *(s.imageSubresource.ToGo()),
 	}
 	return rval
 }
 
-func (s *ImageSubresource2) vkStruct() *vkImageSubresource2 {
+func (s *ImageSubresource2) ToVK() *vkImageSubresource2 {
 	if s == nil {
 		return nil
 	}
 	rval := &vkImageSubresource2{
 		sType:            STRUCTURE_TYPE_IMAGE_SUBRESOURCE_2,
 		pNext:            (unsafe.Pointer)(s.PNext),
-		imageSubresource: *(s.ImageSubresource.vkStruct()),
+		imageSubresource: *(s.ImageSubresource.ToVK()),
 	}
 	return rval
 }
@@ -15865,6 +17800,12 @@ type DeviceImageSubresourceInfo struct {
 	PSubresource *ImageSubresource2
 }
 
+// eg: gostruct := (&vk.DeviceImageSubresourceInfo{}).FromVK(goStruct2.PNext)
+func (s *DeviceImageSubresourceInfo) FromVK(pn unsafe.Pointer) *DeviceImageSubresourceInfo {
+	vks := (*vkDeviceImageSubresourceInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkDeviceImageSubresourceInfo struct {
 	sType        StructureType
 	pNext        unsafe.Pointer
@@ -15872,7 +17813,7 @@ type vkDeviceImageSubresourceInfo struct {
 	pSubresource *vkImageSubresource2
 }
 
-func (s *vkDeviceImageSubresourceInfo) goStruct() *DeviceImageSubresourceInfo {
+func (s *vkDeviceImageSubresourceInfo) ToGo() *DeviceImageSubresourceInfo {
 	rval := &DeviceImageSubresourceInfo{
 		PNext: (unsafe.Pointer)(s.pNext),
 		// ignoring returned pointer type PCreateInfo
@@ -15881,15 +17822,15 @@ func (s *vkDeviceImageSubresourceInfo) goStruct() *DeviceImageSubresourceInfo {
 	return rval
 }
 
-func (s *DeviceImageSubresourceInfo) vkStruct() *vkDeviceImageSubresourceInfo {
+func (s *DeviceImageSubresourceInfo) ToVK() *vkDeviceImageSubresourceInfo {
 	if s == nil {
 		return nil
 	}
 	rval := &vkDeviceImageSubresourceInfo{
 		sType:        STRUCTURE_TYPE_DEVICE_IMAGE_SUBRESOURCE_INFO,
 		pNext:        (unsafe.Pointer)(s.PNext),
-		pCreateInfo:  (s.PCreateInfo.vkStruct()),
-		pSubresource: (s.PSubresource.vkStruct()),
+		pCreateInfo:  (s.PCreateInfo.ToVK()),
+		pSubresource: (s.PSubresource.ToVK()),
 	}
 	return rval
 }
@@ -15900,13 +17841,19 @@ type BufferUsageFlags2CreateInfo struct {
 	Usage BufferUsageFlags2
 }
 
+// eg: gostruct := (&vk.BufferUsageFlags2CreateInfo{}).FromVK(goStruct2.PNext)
+func (s *BufferUsageFlags2CreateInfo) FromVK(pn unsafe.Pointer) *BufferUsageFlags2CreateInfo {
+	vks := (*vkBufferUsageFlags2CreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkBufferUsageFlags2CreateInfo struct {
 	sType StructureType
 	pNext unsafe.Pointer
 	usage BufferUsageFlags2
 }
 
-func (s *vkBufferUsageFlags2CreateInfo) goStruct() *BufferUsageFlags2CreateInfo {
+func (s *vkBufferUsageFlags2CreateInfo) ToGo() *BufferUsageFlags2CreateInfo {
 	rval := &BufferUsageFlags2CreateInfo{
 		PNext: (unsafe.Pointer)(s.pNext),
 		Usage: (BufferUsageFlags2)(s.usage),
@@ -15914,7 +17861,7 @@ func (s *vkBufferUsageFlags2CreateInfo) goStruct() *BufferUsageFlags2CreateInfo 
 	return rval
 }
 
-func (s *BufferUsageFlags2CreateInfo) vkStruct() *vkBufferUsageFlags2CreateInfo {
+func (s *BufferUsageFlags2CreateInfo) ToVK() *vkBufferUsageFlags2CreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -15932,13 +17879,19 @@ type PhysicalDeviceMaintenance6Features struct {
 	Maintenance6 bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceMaintenance6Features{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceMaintenance6Features) FromVK(pn unsafe.Pointer) *PhysicalDeviceMaintenance6Features {
+	vks := (*vkPhysicalDeviceMaintenance6Features)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceMaintenance6Features struct {
 	sType        StructureType
 	pNext        unsafe.Pointer
 	maintenance6 Bool32
 }
 
-func (s *vkPhysicalDeviceMaintenance6Features) goStruct() *PhysicalDeviceMaintenance6Features {
+func (s *vkPhysicalDeviceMaintenance6Features) ToGo() *PhysicalDeviceMaintenance6Features {
 	rval := &PhysicalDeviceMaintenance6Features{
 		PNext:        (unsafe.Pointer)(s.pNext),
 		Maintenance6: goBool32(s.maintenance6),
@@ -15946,7 +17899,7 @@ func (s *vkPhysicalDeviceMaintenance6Features) goStruct() *PhysicalDeviceMainten
 	return rval
 }
 
-func (s *PhysicalDeviceMaintenance6Features) vkStruct() *vkPhysicalDeviceMaintenance6Features {
+func (s *PhysicalDeviceMaintenance6Features) ToVK() *vkPhysicalDeviceMaintenance6Features {
 	if s == nil {
 		return nil
 	}
@@ -15966,6 +17919,12 @@ type PhysicalDeviceMaintenance6Properties struct {
 	FragmentShadingRateClampCombinerInputs bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceMaintenance6Properties{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceMaintenance6Properties) FromVK(pn unsafe.Pointer) *PhysicalDeviceMaintenance6Properties {
+	vks := (*vkPhysicalDeviceMaintenance6Properties)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceMaintenance6Properties struct {
 	sType                                  StructureType
 	pNext                                  unsafe.Pointer
@@ -15974,7 +17933,7 @@ type vkPhysicalDeviceMaintenance6Properties struct {
 	fragmentShadingRateClampCombinerInputs Bool32
 }
 
-func (s *vkPhysicalDeviceMaintenance6Properties) goStruct() *PhysicalDeviceMaintenance6Properties {
+func (s *vkPhysicalDeviceMaintenance6Properties) ToGo() *PhysicalDeviceMaintenance6Properties {
 	rval := &PhysicalDeviceMaintenance6Properties{
 		PNext:                                  (unsafe.Pointer)(s.pNext),
 		BlockTexelViewCompatibleMultipleLayers: goBool32(s.blockTexelViewCompatibleMultipleLayers),
@@ -15984,7 +17943,7 @@ func (s *vkPhysicalDeviceMaintenance6Properties) goStruct() *PhysicalDeviceMaint
 	return rval
 }
 
-func (s *PhysicalDeviceMaintenance6Properties) vkStruct() *vkPhysicalDeviceMaintenance6Properties {
+func (s *PhysicalDeviceMaintenance6Properties) ToVK() *vkPhysicalDeviceMaintenance6Properties {
 	if s == nil {
 		return nil
 	}
@@ -16004,13 +17963,19 @@ type BindMemoryStatus struct {
 	PResult *Result
 }
 
+// eg: gostruct := (&vk.BindMemoryStatus{}).FromVK(goStruct2.PNext)
+func (s *BindMemoryStatus) FromVK(pn unsafe.Pointer) *BindMemoryStatus {
+	vks := (*vkBindMemoryStatus)(pn)
+	return vks.ToGo()
+}
+
 type vkBindMemoryStatus struct {
 	sType   StructureType
 	pNext   unsafe.Pointer
 	pResult *Result
 }
 
-func (s *vkBindMemoryStatus) goStruct() *BindMemoryStatus {
+func (s *vkBindMemoryStatus) ToGo() *BindMemoryStatus {
 	rval := &BindMemoryStatus{
 		PNext: (unsafe.Pointer)(s.pNext),
 		// ignoring returned pointer type PResult
@@ -16018,7 +17983,7 @@ func (s *vkBindMemoryStatus) goStruct() *BindMemoryStatus {
 	return rval
 }
 
-func (s *BindMemoryStatus) vkStruct() *vkBindMemoryStatus {
+func (s *BindMemoryStatus) ToVK() *vkBindMemoryStatus {
 	if s == nil {
 		return nil
 	}
@@ -16036,13 +18001,19 @@ type PhysicalDeviceHostImageCopyFeatures struct {
 	HostImageCopy bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceHostImageCopyFeatures{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceHostImageCopyFeatures) FromVK(pn unsafe.Pointer) *PhysicalDeviceHostImageCopyFeatures {
+	vks := (*vkPhysicalDeviceHostImageCopyFeatures)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceHostImageCopyFeatures struct {
 	sType         StructureType
 	pNext         unsafe.Pointer
 	hostImageCopy Bool32
 }
 
-func (s *vkPhysicalDeviceHostImageCopyFeatures) goStruct() *PhysicalDeviceHostImageCopyFeatures {
+func (s *vkPhysicalDeviceHostImageCopyFeatures) ToGo() *PhysicalDeviceHostImageCopyFeatures {
 	rval := &PhysicalDeviceHostImageCopyFeatures{
 		PNext:         (unsafe.Pointer)(s.pNext),
 		HostImageCopy: goBool32(s.hostImageCopy),
@@ -16050,7 +18021,7 @@ func (s *vkPhysicalDeviceHostImageCopyFeatures) goStruct() *PhysicalDeviceHostIm
 	return rval
 }
 
-func (s *PhysicalDeviceHostImageCopyFeatures) vkStruct() *vkPhysicalDeviceHostImageCopyFeatures {
+func (s *PhysicalDeviceHostImageCopyFeatures) ToVK() *vkPhysicalDeviceHostImageCopyFeatures {
 	if s == nil {
 		return nil
 	}
@@ -16071,6 +18042,12 @@ type PhysicalDeviceHostImageCopyProperties struct {
 	IdenticalMemoryTypeRequirements bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceHostImageCopyProperties{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceHostImageCopyProperties) FromVK(pn unsafe.Pointer) *PhysicalDeviceHostImageCopyProperties {
+	vks := (*vkPhysicalDeviceHostImageCopyProperties)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceHostImageCopyProperties struct {
 	sType                           StructureType
 	pNext                           unsafe.Pointer
@@ -16082,7 +18059,7 @@ type vkPhysicalDeviceHostImageCopyProperties struct {
 	identicalMemoryTypeRequirements Bool32
 }
 
-func (s *vkPhysicalDeviceHostImageCopyProperties) goStruct() *PhysicalDeviceHostImageCopyProperties {
+func (s *vkPhysicalDeviceHostImageCopyProperties) ToGo() *PhysicalDeviceHostImageCopyProperties {
 	rval := &PhysicalDeviceHostImageCopyProperties{
 		PNext: (unsafe.Pointer)(s.pNext),
 		// ignoring returned pointer type PCopySrcLayouts
@@ -16093,7 +18070,7 @@ func (s *vkPhysicalDeviceHostImageCopyProperties) goStruct() *PhysicalDeviceHost
 	return rval
 }
 
-func (s *PhysicalDeviceHostImageCopyProperties) vkStruct() *vkPhysicalDeviceHostImageCopyProperties {
+func (s *PhysicalDeviceHostImageCopyProperties) ToVK() *vkPhysicalDeviceHostImageCopyProperties {
 	if s == nil {
 		return nil
 	}
@@ -16129,6 +18106,12 @@ type MemoryToImageCopy struct {
 	ImageExtent       Extent3D
 }
 
+// eg: gostruct := (&vk.MemoryToImageCopy{}).FromVK(goStruct2.PNext)
+func (s *MemoryToImageCopy) FromVK(pn unsafe.Pointer) *MemoryToImageCopy {
+	vks := (*vkMemoryToImageCopy)(pn)
+	return vks.ToGo()
+}
+
 type vkMemoryToImageCopy struct {
 	sType             StructureType
 	pNext             unsafe.Pointer
@@ -16140,20 +18123,20 @@ type vkMemoryToImageCopy struct {
 	imageExtent       vkExtent3D
 }
 
-func (s *vkMemoryToImageCopy) goStruct() *MemoryToImageCopy {
+func (s *vkMemoryToImageCopy) ToGo() *MemoryToImageCopy {
 	rval := &MemoryToImageCopy{
 		PNext:             (unsafe.Pointer)(s.pNext),
 		PHostPointer:      (unsafe.Pointer)(s.pHostPointer),
 		MemoryRowLength:   (uint32)(s.memoryRowLength),
 		MemoryImageHeight: (uint32)(s.memoryImageHeight),
-		ImageSubresource:  *(s.imageSubresource.goStruct()),
-		ImageOffset:       *(s.imageOffset.goStruct()),
-		ImageExtent:       *(s.imageExtent.goStruct()),
+		ImageSubresource:  *(s.imageSubresource.ToGo()),
+		ImageOffset:       *(s.imageOffset.ToGo()),
+		ImageExtent:       *(s.imageExtent.ToGo()),
 	}
 	return rval
 }
 
-func (s *MemoryToImageCopy) vkStruct() *vkMemoryToImageCopy {
+func (s *MemoryToImageCopy) ToVK() *vkMemoryToImageCopy {
 	if s == nil {
 		return nil
 	}
@@ -16163,9 +18146,9 @@ func (s *MemoryToImageCopy) vkStruct() *vkMemoryToImageCopy {
 		pHostPointer:      (unsafe.Pointer)(s.PHostPointer),
 		memoryRowLength:   (uint32)(s.MemoryRowLength),
 		memoryImageHeight: (uint32)(s.MemoryImageHeight),
-		imageSubresource:  *(s.ImageSubresource.vkStruct()),
-		imageOffset:       *(s.ImageOffset.vkStruct()),
-		imageExtent:       *(s.ImageExtent.vkStruct()),
+		imageSubresource:  *(s.ImageSubresource.ToVK()),
+		imageOffset:       *(s.ImageOffset.ToVK()),
+		imageExtent:       *(s.ImageExtent.ToVK()),
 	}
 	return rval
 }
@@ -16181,6 +18164,12 @@ type ImageToMemoryCopy struct {
 	ImageExtent       Extent3D
 }
 
+// eg: gostruct := (&vk.ImageToMemoryCopy{}).FromVK(goStruct2.PNext)
+func (s *ImageToMemoryCopy) FromVK(pn unsafe.Pointer) *ImageToMemoryCopy {
+	vks := (*vkImageToMemoryCopy)(pn)
+	return vks.ToGo()
+}
+
 type vkImageToMemoryCopy struct {
 	sType             StructureType
 	pNext             unsafe.Pointer
@@ -16192,20 +18181,20 @@ type vkImageToMemoryCopy struct {
 	imageExtent       vkExtent3D
 }
 
-func (s *vkImageToMemoryCopy) goStruct() *ImageToMemoryCopy {
+func (s *vkImageToMemoryCopy) ToGo() *ImageToMemoryCopy {
 	rval := &ImageToMemoryCopy{
 		PNext:             (unsafe.Pointer)(s.pNext),
 		PHostPointer:      (unsafe.Pointer)(s.pHostPointer),
 		MemoryRowLength:   (uint32)(s.memoryRowLength),
 		MemoryImageHeight: (uint32)(s.memoryImageHeight),
-		ImageSubresource:  *(s.imageSubresource.goStruct()),
-		ImageOffset:       *(s.imageOffset.goStruct()),
-		ImageExtent:       *(s.imageExtent.goStruct()),
+		ImageSubresource:  *(s.imageSubresource.ToGo()),
+		ImageOffset:       *(s.imageOffset.ToGo()),
+		ImageExtent:       *(s.imageExtent.ToGo()),
 	}
 	return rval
 }
 
-func (s *ImageToMemoryCopy) vkStruct() *vkImageToMemoryCopy {
+func (s *ImageToMemoryCopy) ToVK() *vkImageToMemoryCopy {
 	if s == nil {
 		return nil
 	}
@@ -16215,9 +18204,9 @@ func (s *ImageToMemoryCopy) vkStruct() *vkImageToMemoryCopy {
 		pHostPointer:      (unsafe.Pointer)(s.PHostPointer),
 		memoryRowLength:   (uint32)(s.MemoryRowLength),
 		memoryImageHeight: (uint32)(s.MemoryImageHeight),
-		imageSubresource:  *(s.ImageSubresource.vkStruct()),
-		imageOffset:       *(s.ImageOffset.vkStruct()),
-		imageExtent:       *(s.ImageExtent.vkStruct()),
+		imageSubresource:  *(s.ImageSubresource.ToVK()),
+		imageOffset:       *(s.ImageOffset.ToVK()),
+		imageExtent:       *(s.ImageExtent.ToVK()),
 	}
 	return rval
 }
@@ -16231,6 +18220,12 @@ type CopyMemoryToImageInfo struct {
 	PRegions       []MemoryToImageCopy
 }
 
+// eg: gostruct := (&vk.CopyMemoryToImageInfo{}).FromVK(goStruct2.PNext)
+func (s *CopyMemoryToImageInfo) FromVK(pn unsafe.Pointer) *CopyMemoryToImageInfo {
+	vks := (*vkCopyMemoryToImageInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkCopyMemoryToImageInfo struct {
 	sType          StructureType
 	pNext          unsafe.Pointer
@@ -16241,7 +18236,7 @@ type vkCopyMemoryToImageInfo struct {
 	pRegions       *vkMemoryToImageCopy
 }
 
-func (s *vkCopyMemoryToImageInfo) goStruct() *CopyMemoryToImageInfo {
+func (s *vkCopyMemoryToImageInfo) ToGo() *CopyMemoryToImageInfo {
 	rval := &CopyMemoryToImageInfo{
 		PNext:          (unsafe.Pointer)(s.pNext),
 		Flags:          (HostImageCopyFlags)(s.flags),
@@ -16252,7 +18247,7 @@ func (s *vkCopyMemoryToImageInfo) goStruct() *CopyMemoryToImageInfo {
 	return rval
 }
 
-func (s *CopyMemoryToImageInfo) vkStruct() *vkCopyMemoryToImageInfo {
+func (s *CopyMemoryToImageInfo) ToVK() *vkCopyMemoryToImageInfo {
 	if s == nil {
 		return nil
 	}
@@ -16260,7 +18255,7 @@ func (s *CopyMemoryToImageInfo) vkStruct() *vkCopyMemoryToImageInfo {
 	if len(s.PRegions) > 0 {
 		tmp := make([]vkMemoryToImageCopy, len(s.PRegions))
 		for i, v := range s.PRegions {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		sp_PRegions = &tmp[0]
 	}
@@ -16285,6 +18280,12 @@ type CopyImageToMemoryInfo struct {
 	PRegions       []ImageToMemoryCopy
 }
 
+// eg: gostruct := (&vk.CopyImageToMemoryInfo{}).FromVK(goStruct2.PNext)
+func (s *CopyImageToMemoryInfo) FromVK(pn unsafe.Pointer) *CopyImageToMemoryInfo {
+	vks := (*vkCopyImageToMemoryInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkCopyImageToMemoryInfo struct {
 	sType          StructureType
 	pNext          unsafe.Pointer
@@ -16295,7 +18296,7 @@ type vkCopyImageToMemoryInfo struct {
 	pRegions       *vkImageToMemoryCopy
 }
 
-func (s *vkCopyImageToMemoryInfo) goStruct() *CopyImageToMemoryInfo {
+func (s *vkCopyImageToMemoryInfo) ToGo() *CopyImageToMemoryInfo {
 	rval := &CopyImageToMemoryInfo{
 		PNext:          (unsafe.Pointer)(s.pNext),
 		Flags:          (HostImageCopyFlags)(s.flags),
@@ -16306,7 +18307,7 @@ func (s *vkCopyImageToMemoryInfo) goStruct() *CopyImageToMemoryInfo {
 	return rval
 }
 
-func (s *CopyImageToMemoryInfo) vkStruct() *vkCopyImageToMemoryInfo {
+func (s *CopyImageToMemoryInfo) ToVK() *vkCopyImageToMemoryInfo {
 	if s == nil {
 		return nil
 	}
@@ -16314,7 +18315,7 @@ func (s *CopyImageToMemoryInfo) vkStruct() *vkCopyImageToMemoryInfo {
 	if len(s.PRegions) > 0 {
 		tmp := make([]vkImageToMemoryCopy, len(s.PRegions))
 		for i, v := range s.PRegions {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		sp_PRegions = &tmp[0]
 	}
@@ -16341,6 +18342,12 @@ type CopyImageToImageInfo struct {
 	PRegions       []ImageCopy2
 }
 
+// eg: gostruct := (&vk.CopyImageToImageInfo{}).FromVK(goStruct2.PNext)
+func (s *CopyImageToImageInfo) FromVK(pn unsafe.Pointer) *CopyImageToImageInfo {
+	vks := (*vkCopyImageToImageInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkCopyImageToImageInfo struct {
 	sType          StructureType
 	pNext          unsafe.Pointer
@@ -16353,7 +18360,7 @@ type vkCopyImageToImageInfo struct {
 	pRegions       *vkImageCopy2
 }
 
-func (s *vkCopyImageToImageInfo) goStruct() *CopyImageToImageInfo {
+func (s *vkCopyImageToImageInfo) ToGo() *CopyImageToImageInfo {
 	rval := &CopyImageToImageInfo{
 		PNext:          (unsafe.Pointer)(s.pNext),
 		Flags:          (HostImageCopyFlags)(s.flags),
@@ -16366,7 +18373,7 @@ func (s *vkCopyImageToImageInfo) goStruct() *CopyImageToImageInfo {
 	return rval
 }
 
-func (s *CopyImageToImageInfo) vkStruct() *vkCopyImageToImageInfo {
+func (s *CopyImageToImageInfo) ToVK() *vkCopyImageToImageInfo {
 	if s == nil {
 		return nil
 	}
@@ -16374,7 +18381,7 @@ func (s *CopyImageToImageInfo) vkStruct() *vkCopyImageToImageInfo {
 	if len(s.PRegions) > 0 {
 		tmp := make([]vkImageCopy2, len(s.PRegions))
 		for i, v := range s.PRegions {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		sp_PRegions = &tmp[0]
 	}
@@ -16401,6 +18408,12 @@ type HostImageLayoutTransitionInfo struct {
 	SubresourceRange ImageSubresourceRange
 }
 
+// eg: gostruct := (&vk.HostImageLayoutTransitionInfo{}).FromVK(goStruct2.PNext)
+func (s *HostImageLayoutTransitionInfo) FromVK(pn unsafe.Pointer) *HostImageLayoutTransitionInfo {
+	vks := (*vkHostImageLayoutTransitionInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkHostImageLayoutTransitionInfo struct {
 	sType            StructureType
 	pNext            unsafe.Pointer
@@ -16410,18 +18423,18 @@ type vkHostImageLayoutTransitionInfo struct {
 	subresourceRange vkImageSubresourceRange
 }
 
-func (s *vkHostImageLayoutTransitionInfo) goStruct() *HostImageLayoutTransitionInfo {
+func (s *vkHostImageLayoutTransitionInfo) ToGo() *HostImageLayoutTransitionInfo {
 	rval := &HostImageLayoutTransitionInfo{
 		PNext:            (unsafe.Pointer)(s.pNext),
 		Image:            (Image)(s.image),
 		OldLayout:        (ImageLayout)(s.oldLayout),
 		NewLayout:        (ImageLayout)(s.newLayout),
-		SubresourceRange: *(s.subresourceRange.goStruct()),
+		SubresourceRange: *(s.subresourceRange.ToGo()),
 	}
 	return rval
 }
 
-func (s *HostImageLayoutTransitionInfo) vkStruct() *vkHostImageLayoutTransitionInfo {
+func (s *HostImageLayoutTransitionInfo) ToVK() *vkHostImageLayoutTransitionInfo {
 	if s == nil {
 		return nil
 	}
@@ -16431,7 +18444,7 @@ func (s *HostImageLayoutTransitionInfo) vkStruct() *vkHostImageLayoutTransitionI
 		image:            (Image)(s.Image),
 		oldLayout:        (ImageLayout)(s.OldLayout),
 		newLayout:        (ImageLayout)(s.NewLayout),
-		subresourceRange: *(s.SubresourceRange.vkStruct()),
+		subresourceRange: *(s.SubresourceRange.ToVK()),
 	}
 	return rval
 }
@@ -16442,13 +18455,19 @@ type SubresourceHostMemcpySize struct {
 	Size  DeviceSize
 }
 
+// eg: gostruct := (&vk.SubresourceHostMemcpySize{}).FromVK(goStruct2.PNext)
+func (s *SubresourceHostMemcpySize) FromVK(pn unsafe.Pointer) *SubresourceHostMemcpySize {
+	vks := (*vkSubresourceHostMemcpySize)(pn)
+	return vks.ToGo()
+}
+
 type vkSubresourceHostMemcpySize struct {
 	sType StructureType
 	pNext unsafe.Pointer
 	size  DeviceSize
 }
 
-func (s *vkSubresourceHostMemcpySize) goStruct() *SubresourceHostMemcpySize {
+func (s *vkSubresourceHostMemcpySize) ToGo() *SubresourceHostMemcpySize {
 	rval := &SubresourceHostMemcpySize{
 		PNext: (unsafe.Pointer)(s.pNext),
 		Size:  (DeviceSize)(s.size),
@@ -16456,7 +18475,7 @@ func (s *vkSubresourceHostMemcpySize) goStruct() *SubresourceHostMemcpySize {
 	return rval
 }
 
-func (s *SubresourceHostMemcpySize) vkStruct() *vkSubresourceHostMemcpySize {
+func (s *SubresourceHostMemcpySize) ToVK() *vkSubresourceHostMemcpySize {
 	if s == nil {
 		return nil
 	}
@@ -16475,6 +18494,12 @@ type HostImageCopyDevicePerformanceQuery struct {
 	IdenticalMemoryLayout bool
 }
 
+// eg: gostruct := (&vk.HostImageCopyDevicePerformanceQuery{}).FromVK(goStruct2.PNext)
+func (s *HostImageCopyDevicePerformanceQuery) FromVK(pn unsafe.Pointer) *HostImageCopyDevicePerformanceQuery {
+	vks := (*vkHostImageCopyDevicePerformanceQuery)(pn)
+	return vks.ToGo()
+}
+
 type vkHostImageCopyDevicePerformanceQuery struct {
 	sType                 StructureType
 	pNext                 unsafe.Pointer
@@ -16482,7 +18507,7 @@ type vkHostImageCopyDevicePerformanceQuery struct {
 	identicalMemoryLayout Bool32
 }
 
-func (s *vkHostImageCopyDevicePerformanceQuery) goStruct() *HostImageCopyDevicePerformanceQuery {
+func (s *vkHostImageCopyDevicePerformanceQuery) ToGo() *HostImageCopyDevicePerformanceQuery {
 	rval := &HostImageCopyDevicePerformanceQuery{
 		PNext:                 (unsafe.Pointer)(s.pNext),
 		OptimalDeviceAccess:   goBool32(s.optimalDeviceAccess),
@@ -16491,7 +18516,7 @@ func (s *vkHostImageCopyDevicePerformanceQuery) goStruct() *HostImageCopyDeviceP
 	return rval
 }
 
-func (s *HostImageCopyDevicePerformanceQuery) vkStruct() *vkHostImageCopyDevicePerformanceQuery {
+func (s *HostImageCopyDevicePerformanceQuery) ToVK() *vkHostImageCopyDevicePerformanceQuery {
 	if s == nil {
 		return nil
 	}
@@ -16511,6 +18536,12 @@ type PhysicalDeviceShaderSubgroupRotateFeatures struct {
 	ShaderSubgroupRotateClustered bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceShaderSubgroupRotateFeatures{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceShaderSubgroupRotateFeatures) FromVK(pn unsafe.Pointer) *PhysicalDeviceShaderSubgroupRotateFeatures {
+	vks := (*vkPhysicalDeviceShaderSubgroupRotateFeatures)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceShaderSubgroupRotateFeatures struct {
 	sType                         StructureType
 	pNext                         unsafe.Pointer
@@ -16518,7 +18549,7 @@ type vkPhysicalDeviceShaderSubgroupRotateFeatures struct {
 	shaderSubgroupRotateClustered Bool32
 }
 
-func (s *vkPhysicalDeviceShaderSubgroupRotateFeatures) goStruct() *PhysicalDeviceShaderSubgroupRotateFeatures {
+func (s *vkPhysicalDeviceShaderSubgroupRotateFeatures) ToGo() *PhysicalDeviceShaderSubgroupRotateFeatures {
 	rval := &PhysicalDeviceShaderSubgroupRotateFeatures{
 		PNext:                         (unsafe.Pointer)(s.pNext),
 		ShaderSubgroupRotate:          goBool32(s.shaderSubgroupRotate),
@@ -16527,7 +18558,7 @@ func (s *vkPhysicalDeviceShaderSubgroupRotateFeatures) goStruct() *PhysicalDevic
 	return rval
 }
 
-func (s *PhysicalDeviceShaderSubgroupRotateFeatures) vkStruct() *vkPhysicalDeviceShaderSubgroupRotateFeatures {
+func (s *PhysicalDeviceShaderSubgroupRotateFeatures) ToVK() *vkPhysicalDeviceShaderSubgroupRotateFeatures {
 	if s == nil {
 		return nil
 	}
@@ -16546,13 +18577,19 @@ type PhysicalDeviceShaderFloatControls2Features struct {
 	ShaderFloatControls2 bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceShaderFloatControls2Features{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceShaderFloatControls2Features) FromVK(pn unsafe.Pointer) *PhysicalDeviceShaderFloatControls2Features {
+	vks := (*vkPhysicalDeviceShaderFloatControls2Features)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceShaderFloatControls2Features struct {
 	sType                StructureType
 	pNext                unsafe.Pointer
 	shaderFloatControls2 Bool32
 }
 
-func (s *vkPhysicalDeviceShaderFloatControls2Features) goStruct() *PhysicalDeviceShaderFloatControls2Features {
+func (s *vkPhysicalDeviceShaderFloatControls2Features) ToGo() *PhysicalDeviceShaderFloatControls2Features {
 	rval := &PhysicalDeviceShaderFloatControls2Features{
 		PNext:                (unsafe.Pointer)(s.pNext),
 		ShaderFloatControls2: goBool32(s.shaderFloatControls2),
@@ -16560,7 +18597,7 @@ func (s *vkPhysicalDeviceShaderFloatControls2Features) goStruct() *PhysicalDevic
 	return rval
 }
 
-func (s *PhysicalDeviceShaderFloatControls2Features) vkStruct() *vkPhysicalDeviceShaderFloatControls2Features {
+func (s *PhysicalDeviceShaderFloatControls2Features) ToVK() *vkPhysicalDeviceShaderFloatControls2Features {
 	if s == nil {
 		return nil
 	}
@@ -16578,13 +18615,19 @@ type PhysicalDeviceShaderExpectAssumeFeatures struct {
 	ShaderExpectAssume bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceShaderExpectAssumeFeatures{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceShaderExpectAssumeFeatures) FromVK(pn unsafe.Pointer) *PhysicalDeviceShaderExpectAssumeFeatures {
+	vks := (*vkPhysicalDeviceShaderExpectAssumeFeatures)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceShaderExpectAssumeFeatures struct {
 	sType              StructureType
 	pNext              unsafe.Pointer
 	shaderExpectAssume Bool32
 }
 
-func (s *vkPhysicalDeviceShaderExpectAssumeFeatures) goStruct() *PhysicalDeviceShaderExpectAssumeFeatures {
+func (s *vkPhysicalDeviceShaderExpectAssumeFeatures) ToGo() *PhysicalDeviceShaderExpectAssumeFeatures {
 	rval := &PhysicalDeviceShaderExpectAssumeFeatures{
 		PNext:              (unsafe.Pointer)(s.pNext),
 		ShaderExpectAssume: goBool32(s.shaderExpectAssume),
@@ -16592,7 +18635,7 @@ func (s *vkPhysicalDeviceShaderExpectAssumeFeatures) goStruct() *PhysicalDeviceS
 	return rval
 }
 
-func (s *PhysicalDeviceShaderExpectAssumeFeatures) vkStruct() *vkPhysicalDeviceShaderExpectAssumeFeatures {
+func (s *PhysicalDeviceShaderExpectAssumeFeatures) ToVK() *vkPhysicalDeviceShaderExpectAssumeFeatures {
 	if s == nil {
 		return nil
 	}
@@ -16610,13 +18653,19 @@ type PipelineCreateFlags2CreateInfo struct {
 	Flags PipelineCreateFlags2
 }
 
+// eg: gostruct := (&vk.PipelineCreateFlags2CreateInfo{}).FromVK(goStruct2.PNext)
+func (s *PipelineCreateFlags2CreateInfo) FromVK(pn unsafe.Pointer) *PipelineCreateFlags2CreateInfo {
+	vks := (*vkPipelineCreateFlags2CreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkPipelineCreateFlags2CreateInfo struct {
 	sType StructureType
 	pNext unsafe.Pointer
 	flags PipelineCreateFlags2
 }
 
-func (s *vkPipelineCreateFlags2CreateInfo) goStruct() *PipelineCreateFlags2CreateInfo {
+func (s *vkPipelineCreateFlags2CreateInfo) ToGo() *PipelineCreateFlags2CreateInfo {
 	rval := &PipelineCreateFlags2CreateInfo{
 		PNext: (unsafe.Pointer)(s.pNext),
 		Flags: (PipelineCreateFlags2)(s.flags),
@@ -16624,7 +18673,7 @@ func (s *vkPipelineCreateFlags2CreateInfo) goStruct() *PipelineCreateFlags2Creat
 	return rval
 }
 
-func (s *PipelineCreateFlags2CreateInfo) vkStruct() *vkPipelineCreateFlags2CreateInfo {
+func (s *PipelineCreateFlags2CreateInfo) ToVK() *vkPipelineCreateFlags2CreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -16642,13 +18691,19 @@ type PhysicalDevicePushDescriptorProperties struct {
 	MaxPushDescriptors uint32
 }
 
+// eg: gostruct := (&vk.PhysicalDevicePushDescriptorProperties{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDevicePushDescriptorProperties) FromVK(pn unsafe.Pointer) *PhysicalDevicePushDescriptorProperties {
+	vks := (*vkPhysicalDevicePushDescriptorProperties)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDevicePushDescriptorProperties struct {
 	sType              StructureType
 	pNext              unsafe.Pointer
 	maxPushDescriptors uint32
 }
 
-func (s *vkPhysicalDevicePushDescriptorProperties) goStruct() *PhysicalDevicePushDescriptorProperties {
+func (s *vkPhysicalDevicePushDescriptorProperties) ToGo() *PhysicalDevicePushDescriptorProperties {
 	rval := &PhysicalDevicePushDescriptorProperties{
 		PNext:              (unsafe.Pointer)(s.pNext),
 		MaxPushDescriptors: (uint32)(s.maxPushDescriptors),
@@ -16656,7 +18711,7 @@ func (s *vkPhysicalDevicePushDescriptorProperties) goStruct() *PhysicalDevicePus
 	return rval
 }
 
-func (s *PhysicalDevicePushDescriptorProperties) vkStruct() *vkPhysicalDevicePushDescriptorProperties {
+func (s *PhysicalDevicePushDescriptorProperties) ToVK() *vkPhysicalDevicePushDescriptorProperties {
 	if s == nil {
 		return nil
 	}
@@ -16678,6 +18733,12 @@ type BindDescriptorSetsInfo struct {
 	PDynamicOffsets []uint32
 }
 
+// eg: gostruct := (&vk.BindDescriptorSetsInfo{}).FromVK(goStruct2.PNext)
+func (s *BindDescriptorSetsInfo) FromVK(pn unsafe.Pointer) *BindDescriptorSetsInfo {
+	vks := (*vkBindDescriptorSetsInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkBindDescriptorSetsInfo struct {
 	sType              StructureType
 	pNext              unsafe.Pointer
@@ -16690,7 +18751,7 @@ type vkBindDescriptorSetsInfo struct {
 	pDynamicOffsets    *uint32
 }
 
-func (s *vkBindDescriptorSetsInfo) goStruct() *BindDescriptorSetsInfo {
+func (s *vkBindDescriptorSetsInfo) ToGo() *BindDescriptorSetsInfo {
 	rval := &BindDescriptorSetsInfo{
 		PNext:      (unsafe.Pointer)(s.pNext),
 		StageFlags: (ShaderStageFlags)(s.stageFlags),
@@ -16702,7 +18763,7 @@ func (s *vkBindDescriptorSetsInfo) goStruct() *BindDescriptorSetsInfo {
 	return rval
 }
 
-func (s *BindDescriptorSetsInfo) vkStruct() *vkBindDescriptorSetsInfo {
+func (s *BindDescriptorSetsInfo) ToVK() *vkBindDescriptorSetsInfo {
 	if s == nil {
 		return nil
 	}
@@ -16738,6 +18799,12 @@ type PushConstantsInfo struct {
 	PValues    unsafe.Pointer
 }
 
+// eg: gostruct := (&vk.PushConstantsInfo{}).FromVK(goStruct2.PNext)
+func (s *PushConstantsInfo) FromVK(pn unsafe.Pointer) *PushConstantsInfo {
+	vks := (*vkPushConstantsInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkPushConstantsInfo struct {
 	sType      StructureType
 	pNext      unsafe.Pointer
@@ -16748,7 +18815,7 @@ type vkPushConstantsInfo struct {
 	pValues    unsafe.Pointer
 }
 
-func (s *vkPushConstantsInfo) goStruct() *PushConstantsInfo {
+func (s *vkPushConstantsInfo) ToGo() *PushConstantsInfo {
 	rval := &PushConstantsInfo{
 		PNext:      (unsafe.Pointer)(s.pNext),
 		Layout:     (PipelineLayout)(s.layout),
@@ -16760,7 +18827,7 @@ func (s *vkPushConstantsInfo) goStruct() *PushConstantsInfo {
 	return rval
 }
 
-func (s *PushConstantsInfo) vkStruct() *vkPushConstantsInfo {
+func (s *PushConstantsInfo) ToVK() *vkPushConstantsInfo {
 	if s == nil {
 		return nil
 	}
@@ -16785,6 +18852,12 @@ type PushDescriptorSetInfo struct {
 	PDescriptorWrites []WriteDescriptorSet
 }
 
+// eg: gostruct := (&vk.PushDescriptorSetInfo{}).FromVK(goStruct2.PNext)
+func (s *PushDescriptorSetInfo) FromVK(pn unsafe.Pointer) *PushDescriptorSetInfo {
+	vks := (*vkPushDescriptorSetInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkPushDescriptorSetInfo struct {
 	sType                StructureType
 	pNext                unsafe.Pointer
@@ -16795,7 +18868,7 @@ type vkPushDescriptorSetInfo struct {
 	pDescriptorWrites    *vkWriteDescriptorSet
 }
 
-func (s *vkPushDescriptorSetInfo) goStruct() *PushDescriptorSetInfo {
+func (s *vkPushDescriptorSetInfo) ToGo() *PushDescriptorSetInfo {
 	rval := &PushDescriptorSetInfo{
 		PNext:      (unsafe.Pointer)(s.pNext),
 		StageFlags: (ShaderStageFlags)(s.stageFlags),
@@ -16806,7 +18879,7 @@ func (s *vkPushDescriptorSetInfo) goStruct() *PushDescriptorSetInfo {
 	return rval
 }
 
-func (s *PushDescriptorSetInfo) vkStruct() *vkPushDescriptorSetInfo {
+func (s *PushDescriptorSetInfo) ToVK() *vkPushDescriptorSetInfo {
 	if s == nil {
 		return nil
 	}
@@ -16814,7 +18887,7 @@ func (s *PushDescriptorSetInfo) vkStruct() *vkPushDescriptorSetInfo {
 	if len(s.PDescriptorWrites) > 0 {
 		tmp := make([]vkWriteDescriptorSet, len(s.PDescriptorWrites))
 		for i, v := range s.PDescriptorWrites {
-			tmp[i] = *(v.vkStruct())
+			tmp[i] = *(v.ToVK())
 		}
 		sp_PDescriptorWrites = &tmp[0]
 	}
@@ -16839,6 +18912,12 @@ type PushDescriptorSetWithTemplateInfo struct {
 	PData                    unsafe.Pointer
 }
 
+// eg: gostruct := (&vk.PushDescriptorSetWithTemplateInfo{}).FromVK(goStruct2.PNext)
+func (s *PushDescriptorSetWithTemplateInfo) FromVK(pn unsafe.Pointer) *PushDescriptorSetWithTemplateInfo {
+	vks := (*vkPushDescriptorSetWithTemplateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkPushDescriptorSetWithTemplateInfo struct {
 	sType                    StructureType
 	pNext                    unsafe.Pointer
@@ -16848,7 +18927,7 @@ type vkPushDescriptorSetWithTemplateInfo struct {
 	pData                    unsafe.Pointer
 }
 
-func (s *vkPushDescriptorSetWithTemplateInfo) goStruct() *PushDescriptorSetWithTemplateInfo {
+func (s *vkPushDescriptorSetWithTemplateInfo) ToGo() *PushDescriptorSetWithTemplateInfo {
 	rval := &PushDescriptorSetWithTemplateInfo{
 		PNext:                    (unsafe.Pointer)(s.pNext),
 		DescriptorUpdateTemplate: (DescriptorUpdateTemplate)(s.descriptorUpdateTemplate),
@@ -16859,7 +18938,7 @@ func (s *vkPushDescriptorSetWithTemplateInfo) goStruct() *PushDescriptorSetWithT
 	return rval
 }
 
-func (s *PushDescriptorSetWithTemplateInfo) vkStruct() *vkPushDescriptorSetWithTemplateInfo {
+func (s *PushDescriptorSetWithTemplateInfo) ToVK() *vkPushDescriptorSetWithTemplateInfo {
 	if s == nil {
 		return nil
 	}
@@ -16880,13 +18959,19 @@ type PhysicalDevicePipelineProtectedAccessFeatures struct {
 	PipelineProtectedAccess bool
 }
 
+// eg: gostruct := (&vk.PhysicalDevicePipelineProtectedAccessFeatures{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDevicePipelineProtectedAccessFeatures) FromVK(pn unsafe.Pointer) *PhysicalDevicePipelineProtectedAccessFeatures {
+	vks := (*vkPhysicalDevicePipelineProtectedAccessFeatures)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDevicePipelineProtectedAccessFeatures struct {
 	sType                   StructureType
 	pNext                   unsafe.Pointer
 	pipelineProtectedAccess Bool32
 }
 
-func (s *vkPhysicalDevicePipelineProtectedAccessFeatures) goStruct() *PhysicalDevicePipelineProtectedAccessFeatures {
+func (s *vkPhysicalDevicePipelineProtectedAccessFeatures) ToGo() *PhysicalDevicePipelineProtectedAccessFeatures {
 	rval := &PhysicalDevicePipelineProtectedAccessFeatures{
 		PNext:                   (unsafe.Pointer)(s.pNext),
 		PipelineProtectedAccess: goBool32(s.pipelineProtectedAccess),
@@ -16894,7 +18979,7 @@ func (s *vkPhysicalDevicePipelineProtectedAccessFeatures) goStruct() *PhysicalDe
 	return rval
 }
 
-func (s *PhysicalDevicePipelineProtectedAccessFeatures) vkStruct() *vkPhysicalDevicePipelineProtectedAccessFeatures {
+func (s *PhysicalDevicePipelineProtectedAccessFeatures) ToVK() *vkPhysicalDevicePipelineProtectedAccessFeatures {
 	if s == nil {
 		return nil
 	}
@@ -16912,13 +18997,19 @@ type PhysicalDevicePipelineRobustnessFeatures struct {
 	PipelineRobustness bool
 }
 
+// eg: gostruct := (&vk.PhysicalDevicePipelineRobustnessFeatures{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDevicePipelineRobustnessFeatures) FromVK(pn unsafe.Pointer) *PhysicalDevicePipelineRobustnessFeatures {
+	vks := (*vkPhysicalDevicePipelineRobustnessFeatures)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDevicePipelineRobustnessFeatures struct {
 	sType              StructureType
 	pNext              unsafe.Pointer
 	pipelineRobustness Bool32
 }
 
-func (s *vkPhysicalDevicePipelineRobustnessFeatures) goStruct() *PhysicalDevicePipelineRobustnessFeatures {
+func (s *vkPhysicalDevicePipelineRobustnessFeatures) ToGo() *PhysicalDevicePipelineRobustnessFeatures {
 	rval := &PhysicalDevicePipelineRobustnessFeatures{
 		PNext:              (unsafe.Pointer)(s.pNext),
 		PipelineRobustness: goBool32(s.pipelineRobustness),
@@ -16926,7 +19017,7 @@ func (s *vkPhysicalDevicePipelineRobustnessFeatures) goStruct() *PhysicalDeviceP
 	return rval
 }
 
-func (s *PhysicalDevicePipelineRobustnessFeatures) vkStruct() *vkPhysicalDevicePipelineRobustnessFeatures {
+func (s *PhysicalDevicePipelineRobustnessFeatures) ToVK() *vkPhysicalDevicePipelineRobustnessFeatures {
 	if s == nil {
 		return nil
 	}
@@ -16947,6 +19038,12 @@ type PhysicalDevicePipelineRobustnessProperties struct {
 	DefaultRobustnessImages         PipelineRobustnessImageBehavior
 }
 
+// eg: gostruct := (&vk.PhysicalDevicePipelineRobustnessProperties{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDevicePipelineRobustnessProperties) FromVK(pn unsafe.Pointer) *PhysicalDevicePipelineRobustnessProperties {
+	vks := (*vkPhysicalDevicePipelineRobustnessProperties)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDevicePipelineRobustnessProperties struct {
 	sType                           StructureType
 	pNext                           unsafe.Pointer
@@ -16956,7 +19053,7 @@ type vkPhysicalDevicePipelineRobustnessProperties struct {
 	defaultRobustnessImages         PipelineRobustnessImageBehavior
 }
 
-func (s *vkPhysicalDevicePipelineRobustnessProperties) goStruct() *PhysicalDevicePipelineRobustnessProperties {
+func (s *vkPhysicalDevicePipelineRobustnessProperties) ToGo() *PhysicalDevicePipelineRobustnessProperties {
 	rval := &PhysicalDevicePipelineRobustnessProperties{
 		PNext:                           (unsafe.Pointer)(s.pNext),
 		DefaultRobustnessStorageBuffers: (PipelineRobustnessBufferBehavior)(s.defaultRobustnessStorageBuffers),
@@ -16967,7 +19064,7 @@ func (s *vkPhysicalDevicePipelineRobustnessProperties) goStruct() *PhysicalDevic
 	return rval
 }
 
-func (s *PhysicalDevicePipelineRobustnessProperties) vkStruct() *vkPhysicalDevicePipelineRobustnessProperties {
+func (s *PhysicalDevicePipelineRobustnessProperties) ToVK() *vkPhysicalDevicePipelineRobustnessProperties {
 	if s == nil {
 		return nil
 	}
@@ -16991,6 +19088,12 @@ type PipelineRobustnessCreateInfo struct {
 	Images         PipelineRobustnessImageBehavior
 }
 
+// eg: gostruct := (&vk.PipelineRobustnessCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *PipelineRobustnessCreateInfo) FromVK(pn unsafe.Pointer) *PipelineRobustnessCreateInfo {
+	vks := (*vkPipelineRobustnessCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkPipelineRobustnessCreateInfo struct {
 	sType          StructureType
 	pNext          unsafe.Pointer
@@ -17000,7 +19103,7 @@ type vkPipelineRobustnessCreateInfo struct {
 	images         PipelineRobustnessImageBehavior
 }
 
-func (s *vkPipelineRobustnessCreateInfo) goStruct() *PipelineRobustnessCreateInfo {
+func (s *vkPipelineRobustnessCreateInfo) ToGo() *PipelineRobustnessCreateInfo {
 	rval := &PipelineRobustnessCreateInfo{
 		PNext:          (unsafe.Pointer)(s.pNext),
 		StorageBuffers: (PipelineRobustnessBufferBehavior)(s.storageBuffers),
@@ -17011,7 +19114,7 @@ func (s *vkPipelineRobustnessCreateInfo) goStruct() *PipelineRobustnessCreateInf
 	return rval
 }
 
-func (s *PipelineRobustnessCreateInfo) vkStruct() *vkPipelineRobustnessCreateInfo {
+func (s *PipelineRobustnessCreateInfo) ToVK() *vkPipelineRobustnessCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -17037,6 +19140,12 @@ type PhysicalDeviceLineRasterizationFeatures struct {
 	StippledSmoothLines      bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceLineRasterizationFeatures{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceLineRasterizationFeatures) FromVK(pn unsafe.Pointer) *PhysicalDeviceLineRasterizationFeatures {
+	vks := (*vkPhysicalDeviceLineRasterizationFeatures)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceLineRasterizationFeatures struct {
 	sType                    StructureType
 	pNext                    unsafe.Pointer
@@ -17048,7 +19157,7 @@ type vkPhysicalDeviceLineRasterizationFeatures struct {
 	stippledSmoothLines      Bool32
 }
 
-func (s *vkPhysicalDeviceLineRasterizationFeatures) goStruct() *PhysicalDeviceLineRasterizationFeatures {
+func (s *vkPhysicalDeviceLineRasterizationFeatures) ToGo() *PhysicalDeviceLineRasterizationFeatures {
 	rval := &PhysicalDeviceLineRasterizationFeatures{
 		PNext:                    (unsafe.Pointer)(s.pNext),
 		RectangularLines:         goBool32(s.rectangularLines),
@@ -17061,7 +19170,7 @@ func (s *vkPhysicalDeviceLineRasterizationFeatures) goStruct() *PhysicalDeviceLi
 	return rval
 }
 
-func (s *PhysicalDeviceLineRasterizationFeatures) vkStruct() *vkPhysicalDeviceLineRasterizationFeatures {
+func (s *PhysicalDeviceLineRasterizationFeatures) ToVK() *vkPhysicalDeviceLineRasterizationFeatures {
 	if s == nil {
 		return nil
 	}
@@ -17084,13 +19193,19 @@ type PhysicalDeviceLineRasterizationProperties struct {
 	LineSubPixelPrecisionBits uint32
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceLineRasterizationProperties{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceLineRasterizationProperties) FromVK(pn unsafe.Pointer) *PhysicalDeviceLineRasterizationProperties {
+	vks := (*vkPhysicalDeviceLineRasterizationProperties)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceLineRasterizationProperties struct {
 	sType                     StructureType
 	pNext                     unsafe.Pointer
 	lineSubPixelPrecisionBits uint32
 }
 
-func (s *vkPhysicalDeviceLineRasterizationProperties) goStruct() *PhysicalDeviceLineRasterizationProperties {
+func (s *vkPhysicalDeviceLineRasterizationProperties) ToGo() *PhysicalDeviceLineRasterizationProperties {
 	rval := &PhysicalDeviceLineRasterizationProperties{
 		PNext:                     (unsafe.Pointer)(s.pNext),
 		LineSubPixelPrecisionBits: (uint32)(s.lineSubPixelPrecisionBits),
@@ -17098,7 +19213,7 @@ func (s *vkPhysicalDeviceLineRasterizationProperties) goStruct() *PhysicalDevice
 	return rval
 }
 
-func (s *PhysicalDeviceLineRasterizationProperties) vkStruct() *vkPhysicalDeviceLineRasterizationProperties {
+func (s *PhysicalDeviceLineRasterizationProperties) ToVK() *vkPhysicalDeviceLineRasterizationProperties {
 	if s == nil {
 		return nil
 	}
@@ -17119,6 +19234,12 @@ type PipelineRasterizationLineStateCreateInfo struct {
 	LineStipplePattern    uint16
 }
 
+// eg: gostruct := (&vk.PipelineRasterizationLineStateCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *PipelineRasterizationLineStateCreateInfo) FromVK(pn unsafe.Pointer) *PipelineRasterizationLineStateCreateInfo {
+	vks := (*vkPipelineRasterizationLineStateCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkPipelineRasterizationLineStateCreateInfo struct {
 	sType                 StructureType
 	pNext                 unsafe.Pointer
@@ -17128,7 +19249,7 @@ type vkPipelineRasterizationLineStateCreateInfo struct {
 	lineStipplePattern    uint16
 }
 
-func (s *vkPipelineRasterizationLineStateCreateInfo) goStruct() *PipelineRasterizationLineStateCreateInfo {
+func (s *vkPipelineRasterizationLineStateCreateInfo) ToGo() *PipelineRasterizationLineStateCreateInfo {
 	rval := &PipelineRasterizationLineStateCreateInfo{
 		PNext:                 (unsafe.Pointer)(s.pNext),
 		LineRasterizationMode: (LineRasterizationMode)(s.lineRasterizationMode),
@@ -17139,7 +19260,7 @@ func (s *vkPipelineRasterizationLineStateCreateInfo) goStruct() *PipelineRasteri
 	return rval
 }
 
-func (s *PipelineRasterizationLineStateCreateInfo) vkStruct() *vkPipelineRasterizationLineStateCreateInfo {
+func (s *PipelineRasterizationLineStateCreateInfo) ToVK() *vkPipelineRasterizationLineStateCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -17161,6 +19282,12 @@ type PhysicalDeviceVertexAttributeDivisorProperties struct {
 	SupportsNonZeroFirstInstance bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceVertexAttributeDivisorProperties{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceVertexAttributeDivisorProperties) FromVK(pn unsafe.Pointer) *PhysicalDeviceVertexAttributeDivisorProperties {
+	vks := (*vkPhysicalDeviceVertexAttributeDivisorProperties)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceVertexAttributeDivisorProperties struct {
 	sType                        StructureType
 	pNext                        unsafe.Pointer
@@ -17168,7 +19295,7 @@ type vkPhysicalDeviceVertexAttributeDivisorProperties struct {
 	supportsNonZeroFirstInstance Bool32
 }
 
-func (s *vkPhysicalDeviceVertexAttributeDivisorProperties) goStruct() *PhysicalDeviceVertexAttributeDivisorProperties {
+func (s *vkPhysicalDeviceVertexAttributeDivisorProperties) ToGo() *PhysicalDeviceVertexAttributeDivisorProperties {
 	rval := &PhysicalDeviceVertexAttributeDivisorProperties{
 		PNext:                        (unsafe.Pointer)(s.pNext),
 		MaxVertexAttribDivisor:       (uint32)(s.maxVertexAttribDivisor),
@@ -17177,7 +19304,7 @@ func (s *vkPhysicalDeviceVertexAttributeDivisorProperties) goStruct() *PhysicalD
 	return rval
 }
 
-func (s *PhysicalDeviceVertexAttributeDivisorProperties) vkStruct() *vkPhysicalDeviceVertexAttributeDivisorProperties {
+func (s *PhysicalDeviceVertexAttributeDivisorProperties) ToVK() *vkPhysicalDeviceVertexAttributeDivisorProperties {
 	if s == nil {
 		return nil
 	}
@@ -17196,18 +19323,24 @@ type VertexInputBindingDivisorDescription struct {
 	Divisor uint32
 }
 
+// eg: gostruct := (&vk.VertexInputBindingDivisorDescription{}).FromVK(goStruct2.PNext)
+func (s *VertexInputBindingDivisorDescription) FromVK(pn unsafe.Pointer) *VertexInputBindingDivisorDescription {
+	vks := (*vkVertexInputBindingDivisorDescription)(pn)
+	return vks.ToGo()
+}
+
 type vkVertexInputBindingDivisorDescription = VertexInputBindingDivisorDescription
 
-func (s *vkVertexInputBindingDivisorDescription) goStruct() *VertexInputBindingDivisorDescription {
-	rval := (*vkVertexInputBindingDivisorDescription)(s)
+func (s *vkVertexInputBindingDivisorDescription) ToGo() *VertexInputBindingDivisorDescription {
+	rval := (*VertexInputBindingDivisorDescription)(s)
 	return rval
 }
 
-func (s *VertexInputBindingDivisorDescription) vkStruct() *vkVertexInputBindingDivisorDescription {
+func (s *VertexInputBindingDivisorDescription) ToVK() *vkVertexInputBindingDivisorDescription {
 	if s == nil {
 		return nil
 	}
-	rval := (*VertexInputBindingDivisorDescription)(s)
+	rval := (*vkVertexInputBindingDivisorDescription)(s)
 	return rval
 }
 
@@ -17217,6 +19350,12 @@ type PipelineVertexInputDivisorStateCreateInfo struct {
 	PVertexBindingDivisors []VertexInputBindingDivisorDescription
 }
 
+// eg: gostruct := (&vk.PipelineVertexInputDivisorStateCreateInfo{}).FromVK(goStruct2.PNext)
+func (s *PipelineVertexInputDivisorStateCreateInfo) FromVK(pn unsafe.Pointer) *PipelineVertexInputDivisorStateCreateInfo {
+	vks := (*vkPipelineVertexInputDivisorStateCreateInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkPipelineVertexInputDivisorStateCreateInfo struct {
 	sType                     StructureType
 	pNext                     unsafe.Pointer
@@ -17224,7 +19363,7 @@ type vkPipelineVertexInputDivisorStateCreateInfo struct {
 	pVertexBindingDivisors    *vkVertexInputBindingDivisorDescription
 }
 
-func (s *vkPipelineVertexInputDivisorStateCreateInfo) goStruct() *PipelineVertexInputDivisorStateCreateInfo {
+func (s *vkPipelineVertexInputDivisorStateCreateInfo) ToGo() *PipelineVertexInputDivisorStateCreateInfo {
 	rval := &PipelineVertexInputDivisorStateCreateInfo{
 		PNext: (unsafe.Pointer)(s.pNext),
 		// ignoring returned pointer type PVertexBindingDivisors
@@ -17232,7 +19371,7 @@ func (s *vkPipelineVertexInputDivisorStateCreateInfo) goStruct() *PipelineVertex
 	return rval
 }
 
-func (s *PipelineVertexInputDivisorStateCreateInfo) vkStruct() *vkPipelineVertexInputDivisorStateCreateInfo {
+func (s *PipelineVertexInputDivisorStateCreateInfo) ToVK() *vkPipelineVertexInputDivisorStateCreateInfo {
 	if s == nil {
 		return nil
 	}
@@ -17256,6 +19395,12 @@ type PhysicalDeviceVertexAttributeDivisorFeatures struct {
 	VertexAttributeInstanceRateZeroDivisor bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceVertexAttributeDivisorFeatures{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceVertexAttributeDivisorFeatures) FromVK(pn unsafe.Pointer) *PhysicalDeviceVertexAttributeDivisorFeatures {
+	vks := (*vkPhysicalDeviceVertexAttributeDivisorFeatures)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceVertexAttributeDivisorFeatures struct {
 	sType                                  StructureType
 	pNext                                  unsafe.Pointer
@@ -17263,7 +19408,7 @@ type vkPhysicalDeviceVertexAttributeDivisorFeatures struct {
 	vertexAttributeInstanceRateZeroDivisor Bool32
 }
 
-func (s *vkPhysicalDeviceVertexAttributeDivisorFeatures) goStruct() *PhysicalDeviceVertexAttributeDivisorFeatures {
+func (s *vkPhysicalDeviceVertexAttributeDivisorFeatures) ToGo() *PhysicalDeviceVertexAttributeDivisorFeatures {
 	rval := &PhysicalDeviceVertexAttributeDivisorFeatures{
 		PNext:                                  (unsafe.Pointer)(s.pNext),
 		VertexAttributeInstanceRateDivisor:     goBool32(s.vertexAttributeInstanceRateDivisor),
@@ -17272,7 +19417,7 @@ func (s *vkPhysicalDeviceVertexAttributeDivisorFeatures) goStruct() *PhysicalDev
 	return rval
 }
 
-func (s *PhysicalDeviceVertexAttributeDivisorFeatures) vkStruct() *vkPhysicalDeviceVertexAttributeDivisorFeatures {
+func (s *PhysicalDeviceVertexAttributeDivisorFeatures) ToVK() *vkPhysicalDeviceVertexAttributeDivisorFeatures {
 	if s == nil {
 		return nil
 	}
@@ -17294,6 +19439,12 @@ type RenderingAreaInfo struct {
 	StencilAttachmentFormat Format
 }
 
+// eg: gostruct := (&vk.RenderingAreaInfo{}).FromVK(goStruct2.PNext)
+func (s *RenderingAreaInfo) FromVK(pn unsafe.Pointer) *RenderingAreaInfo {
+	vks := (*vkRenderingAreaInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkRenderingAreaInfo struct {
 	sType                   StructureType
 	pNext                   unsafe.Pointer
@@ -17304,7 +19455,7 @@ type vkRenderingAreaInfo struct {
 	stencilAttachmentFormat Format
 }
 
-func (s *vkRenderingAreaInfo) goStruct() *RenderingAreaInfo {
+func (s *vkRenderingAreaInfo) ToGo() *RenderingAreaInfo {
 	rval := &RenderingAreaInfo{
 		PNext:    (unsafe.Pointer)(s.pNext),
 		ViewMask: (uint32)(s.viewMask),
@@ -17315,7 +19466,7 @@ func (s *vkRenderingAreaInfo) goStruct() *RenderingAreaInfo {
 	return rval
 }
 
-func (s *RenderingAreaInfo) vkStruct() *vkRenderingAreaInfo {
+func (s *RenderingAreaInfo) ToVK() *vkRenderingAreaInfo {
 	if s == nil {
 		return nil
 	}
@@ -17341,13 +19492,19 @@ type PhysicalDeviceDynamicRenderingLocalReadFeatures struct {
 	DynamicRenderingLocalRead bool
 }
 
+// eg: gostruct := (&vk.PhysicalDeviceDynamicRenderingLocalReadFeatures{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceDynamicRenderingLocalReadFeatures) FromVK(pn unsafe.Pointer) *PhysicalDeviceDynamicRenderingLocalReadFeatures {
+	vks := (*vkPhysicalDeviceDynamicRenderingLocalReadFeatures)(pn)
+	return vks.ToGo()
+}
+
 type vkPhysicalDeviceDynamicRenderingLocalReadFeatures struct {
 	sType                     StructureType
 	pNext                     unsafe.Pointer
 	dynamicRenderingLocalRead Bool32
 }
 
-func (s *vkPhysicalDeviceDynamicRenderingLocalReadFeatures) goStruct() *PhysicalDeviceDynamicRenderingLocalReadFeatures {
+func (s *vkPhysicalDeviceDynamicRenderingLocalReadFeatures) ToGo() *PhysicalDeviceDynamicRenderingLocalReadFeatures {
 	rval := &PhysicalDeviceDynamicRenderingLocalReadFeatures{
 		PNext:                     (unsafe.Pointer)(s.pNext),
 		DynamicRenderingLocalRead: goBool32(s.dynamicRenderingLocalRead),
@@ -17355,7 +19512,7 @@ func (s *vkPhysicalDeviceDynamicRenderingLocalReadFeatures) goStruct() *Physical
 	return rval
 }
 
-func (s *PhysicalDeviceDynamicRenderingLocalReadFeatures) vkStruct() *vkPhysicalDeviceDynamicRenderingLocalReadFeatures {
+func (s *PhysicalDeviceDynamicRenderingLocalReadFeatures) ToVK() *vkPhysicalDeviceDynamicRenderingLocalReadFeatures {
 	if s == nil {
 		return nil
 	}
@@ -17373,6 +19530,12 @@ type RenderingAttachmentLocationInfo struct {
 	PColorAttachmentLocations []uint32
 }
 
+// eg: gostruct := (&vk.RenderingAttachmentLocationInfo{}).FromVK(goStruct2.PNext)
+func (s *RenderingAttachmentLocationInfo) FromVK(pn unsafe.Pointer) *RenderingAttachmentLocationInfo {
+	vks := (*vkRenderingAttachmentLocationInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkRenderingAttachmentLocationInfo struct {
 	sType                     StructureType
 	pNext                     unsafe.Pointer
@@ -17380,7 +19543,7 @@ type vkRenderingAttachmentLocationInfo struct {
 	pColorAttachmentLocations *uint32
 }
 
-func (s *vkRenderingAttachmentLocationInfo) goStruct() *RenderingAttachmentLocationInfo {
+func (s *vkRenderingAttachmentLocationInfo) ToGo() *RenderingAttachmentLocationInfo {
 	rval := &RenderingAttachmentLocationInfo{
 		PNext: (unsafe.Pointer)(s.pNext),
 		// ignoring returned pointer type PColorAttachmentLocations
@@ -17388,7 +19551,7 @@ func (s *vkRenderingAttachmentLocationInfo) goStruct() *RenderingAttachmentLocat
 	return rval
 }
 
-func (s *RenderingAttachmentLocationInfo) vkStruct() *vkRenderingAttachmentLocationInfo {
+func (s *RenderingAttachmentLocationInfo) ToVK() *vkRenderingAttachmentLocationInfo {
 	if s == nil {
 		return nil
 	}
@@ -17413,6 +19576,12 @@ type RenderingInputAttachmentIndexInfo struct {
 	PStencilInputAttachmentIndex *uint32
 }
 
+// eg: gostruct := (&vk.RenderingInputAttachmentIndexInfo{}).FromVK(goStruct2.PNext)
+func (s *RenderingInputAttachmentIndexInfo) FromVK(pn unsafe.Pointer) *RenderingInputAttachmentIndexInfo {
+	vks := (*vkRenderingInputAttachmentIndexInfo)(pn)
+	return vks.ToGo()
+}
+
 type vkRenderingInputAttachmentIndexInfo struct {
 	sType                        StructureType
 	pNext                        unsafe.Pointer
@@ -17422,7 +19591,7 @@ type vkRenderingInputAttachmentIndexInfo struct {
 	pStencilInputAttachmentIndex *uint32
 }
 
-func (s *vkRenderingInputAttachmentIndexInfo) goStruct() *RenderingInputAttachmentIndexInfo {
+func (s *vkRenderingInputAttachmentIndexInfo) ToGo() *RenderingInputAttachmentIndexInfo {
 	rval := &RenderingInputAttachmentIndexInfo{
 		PNext: (unsafe.Pointer)(s.pNext),
 		// ignoring returned pointer type PColorAttachmentInputIndices
@@ -17432,7 +19601,7 @@ func (s *vkRenderingInputAttachmentIndexInfo) goStruct() *RenderingInputAttachme
 	return rval
 }
 
-func (s *RenderingInputAttachmentIndexInfo) vkStruct() *vkRenderingInputAttachmentIndexInfo {
+func (s *RenderingInputAttachmentIndexInfo) ToVK() *vkRenderingInputAttachmentIndexInfo {
 	if s == nil {
 		return nil
 	}
@@ -17451,6 +19620,1026 @@ func (s *RenderingInputAttachmentIndexInfo) vkStruct() *vkRenderingInputAttachme
 	return rval
 }
 
+type DescriptorSetLayoutBindingFlagsCreateInfoEXT DescriptorSetLayoutBindingFlagsCreateInfo
+type PhysicalDeviceDescriptorIndexingFeaturesEXT PhysicalDeviceDescriptorIndexingFeatures
+type PhysicalDeviceDescriptorIndexingPropertiesEXT PhysicalDeviceDescriptorIndexingProperties
+type DescriptorSetVariableDescriptorCountAllocateInfoEXT DescriptorSetVariableDescriptorCountAllocateInfo
+type DescriptorSetVariableDescriptorCountLayoutSupportEXT DescriptorSetVariableDescriptorCountLayoutSupport
+
+// struct: https://docs.vulkan.org/refpages/latest/refpages/source/VkDeviceOrHostAddressKHR.html
+type DeviceOrHostAddressKHR struct {
+	DeviceAddress   DeviceAddress
+	asDeviceAddress bool
+	HostAddress     unsafe.Pointer
+	asHostAddress   bool
+}
+
+func (u *DeviceOrHostAddressKHR) AsDeviceAddress(val DeviceAddress) {
+	u.DeviceAddress = val
+	u.asDeviceAddress = true
+	u.asHostAddress = false
+}
+
+func (u *DeviceOrHostAddressKHR) AsHostAddress(val unsafe.Pointer) {
+	u.HostAddress = val
+	u.asDeviceAddress = false
+	u.asHostAddress = true
+}
+
+type vkDeviceOrHostAddressKHR [unsafe.Sizeof(DeviceAddress(0))]byte
+
+func (u *DeviceOrHostAddressKHR) ToVK() *vkDeviceOrHostAddressKHR {
+	switch {
+	case u.asDeviceAddress:
+		return (*vkDeviceOrHostAddressKHR)(unsafe.Pointer(&u.DeviceAddress))
+	case u.asHostAddress:
+		return (*vkDeviceOrHostAddressKHR)(unsafe.Pointer(&u.HostAddress))
+	default:
+		return &vkDeviceOrHostAddressKHR{}
+	}
+}
+
+// struct: https://docs.vulkan.org/refpages/latest/refpages/source/VkDeviceOrHostAddressConstKHR.html
+type DeviceOrHostAddressConstKHR struct {
+	DeviceAddress   DeviceAddress
+	asDeviceAddress bool
+	HostAddress     unsafe.Pointer
+	asHostAddress   bool
+}
+
+func (u *DeviceOrHostAddressConstKHR) AsDeviceAddress(val DeviceAddress) {
+	u.DeviceAddress = val
+	u.asDeviceAddress = true
+	u.asHostAddress = false
+}
+
+func (u *DeviceOrHostAddressConstKHR) AsHostAddress(val unsafe.Pointer) {
+	u.HostAddress = val
+	u.asDeviceAddress = false
+	u.asHostAddress = true
+}
+
+type vkDeviceOrHostAddressConstKHR [unsafe.Sizeof(DeviceAddress(0))]byte
+
+func (u *DeviceOrHostAddressConstKHR) ToVK() *vkDeviceOrHostAddressConstKHR {
+	switch {
+	case u.asDeviceAddress:
+		return (*vkDeviceOrHostAddressConstKHR)(unsafe.Pointer(&u.DeviceAddress))
+	case u.asHostAddress:
+		return (*vkDeviceOrHostAddressConstKHR)(unsafe.Pointer(&u.HostAddress))
+	default:
+		return &vkDeviceOrHostAddressConstKHR{}
+	}
+}
+
+// struct: https://docs.vulkan.org/refpages/latest/refpages/source/VkAccelerationStructureBuildRangeInfoKHR.html
+type AccelerationStructureBuildRangeInfoKHR struct {
+	PrimitiveCount  uint32
+	PrimitiveOffset uint32
+	FirstVertex     uint32
+	TransformOffset uint32
+}
+
+// eg: gostruct := (&vk.AccelerationStructureBuildRangeInfoKHR{}).FromVK(goStruct2.PNext)
+func (s *AccelerationStructureBuildRangeInfoKHR) FromVK(pn unsafe.Pointer) *AccelerationStructureBuildRangeInfoKHR {
+	vks := (*vkAccelerationStructureBuildRangeInfoKHR)(pn)
+	return vks.ToGo()
+}
+
+type vkAccelerationStructureBuildRangeInfoKHR = AccelerationStructureBuildRangeInfoKHR
+
+func (s *vkAccelerationStructureBuildRangeInfoKHR) ToGo() *AccelerationStructureBuildRangeInfoKHR {
+	rval := (*AccelerationStructureBuildRangeInfoKHR)(s)
+	return rval
+}
+
+func (s *AccelerationStructureBuildRangeInfoKHR) ToVK() *vkAccelerationStructureBuildRangeInfoKHR {
+	if s == nil {
+		return nil
+	}
+	rval := (*vkAccelerationStructureBuildRangeInfoKHR)(s)
+	return rval
+}
+
+// struct: https://docs.vulkan.org/refpages/latest/refpages/source/VkAabbPositionsKHR.html
+type AabbPositionsKHR struct {
+	MinX float32
+	MinY float32
+	MinZ float32
+	MaxX float32
+	MaxY float32
+	MaxZ float32
+}
+
+// eg: gostruct := (&vk.AabbPositionsKHR{}).FromVK(goStruct2.PNext)
+func (s *AabbPositionsKHR) FromVK(pn unsafe.Pointer) *AabbPositionsKHR {
+	vks := (*vkAabbPositionsKHR)(pn)
+	return vks.ToGo()
+}
+
+type vkAabbPositionsKHR = AabbPositionsKHR
+
+func (s *vkAabbPositionsKHR) ToGo() *AabbPositionsKHR {
+	rval := (*AabbPositionsKHR)(s)
+	return rval
+}
+
+func (s *AabbPositionsKHR) ToVK() *vkAabbPositionsKHR {
+	if s == nil {
+		return nil
+	}
+	rval := (*vkAabbPositionsKHR)(s)
+	return rval
+}
+
+// struct: https://docs.vulkan.org/refpages/latest/refpages/source/VkAccelerationStructureGeometryTrianglesDataKHR.html
+type AccelerationStructureGeometryTrianglesDataKHR struct {
+	PNext         unsafe.Pointer
+	VertexFormat  Format
+	VertexData    DeviceOrHostAddressConstKHR
+	VertexStride  DeviceSize
+	MaxVertex     uint32
+	IndexType     IndexType
+	IndexData     DeviceOrHostAddressConstKHR
+	TransformData DeviceOrHostAddressConstKHR
+}
+
+// eg: gostruct := (&vk.AccelerationStructureGeometryTrianglesDataKHR{}).FromVK(goStruct2.PNext)
+func (s *AccelerationStructureGeometryTrianglesDataKHR) FromVK(pn unsafe.Pointer) *AccelerationStructureGeometryTrianglesDataKHR {
+	vks := (*vkAccelerationStructureGeometryTrianglesDataKHR)(pn)
+	return vks.ToGo()
+}
+
+type vkAccelerationStructureGeometryTrianglesDataKHR struct {
+	sType         StructureType
+	pad0          uint32
+	pNext         unsafe.Pointer
+	vertexFormat  Format
+	pad1          uint32
+	vertexData    vkDeviceOrHostAddressConstKHR
+	vertexStride  DeviceSize
+	maxVertex     uint32
+	indexType     IndexType
+	indexData     vkDeviceOrHostAddressConstKHR
+	transformData vkDeviceOrHostAddressConstKHR
+}
+
+func (s *vkAccelerationStructureGeometryTrianglesDataKHR) ToGo() *AccelerationStructureGeometryTrianglesDataKHR {
+	rval := &AccelerationStructureGeometryTrianglesDataKHR{
+		PNext:        (unsafe.Pointer)(s.pNext),
+		VertexFormat: (Format)(s.vertexFormat),
+		// vertexData: can't convert union member to go
+
+		VertexStride: (DeviceSize)(s.vertexStride),
+		MaxVertex:    (uint32)(s.maxVertex),
+		IndexType:    (IndexType)(s.indexType),
+		// indexData: can't convert union member to go
+
+		// transformData: can't convert union member to go
+
+	}
+	return rval
+}
+
+func (s *AccelerationStructureGeometryTrianglesDataKHR) ToVK() *vkAccelerationStructureGeometryTrianglesDataKHR {
+	if s == nil {
+		return nil
+	}
+	rval := &vkAccelerationStructureGeometryTrianglesDataKHR{
+		sType:         STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR,
+		pNext:         (unsafe.Pointer)(s.PNext),
+		vertexFormat:  (Format)(s.VertexFormat),
+		vertexData:    *(s.VertexData.ToVK()),
+		vertexStride:  (DeviceSize)(s.VertexStride),
+		maxVertex:     (uint32)(s.MaxVertex),
+		indexType:     (IndexType)(s.IndexType),
+		indexData:     *(s.IndexData.ToVK()),
+		transformData: *(s.TransformData.ToVK()),
+	}
+	return rval
+}
+
+// struct: https://docs.vulkan.org/refpages/latest/refpages/source/VkTransformMatrixKHR.html
+type TransformMatrixKHR struct {
+	Matrix [3][4]float32
+}
+
+// eg: gostruct := (&vk.TransformMatrixKHR{}).FromVK(goStruct2.PNext)
+func (s *TransformMatrixKHR) FromVK(pn unsafe.Pointer) *TransformMatrixKHR {
+	vks := (*vkTransformMatrixKHR)(pn)
+	return vks.ToGo()
+}
+
+type vkTransformMatrixKHR = TransformMatrixKHR
+
+func (s *vkTransformMatrixKHR) ToGo() *TransformMatrixKHR {
+	rval := (*TransformMatrixKHR)(s)
+	return rval
+}
+
+func (s *TransformMatrixKHR) ToVK() *vkTransformMatrixKHR {
+	if s == nil {
+		return nil
+	}
+	rval := (*vkTransformMatrixKHR)(s)
+	return rval
+}
+
+// struct: https://docs.vulkan.org/refpages/latest/refpages/source/VkAccelerationStructureGeometryAabbsDataKHR.html
+type AccelerationStructureGeometryAabbsDataKHR struct {
+	PNext  unsafe.Pointer
+	Data   DeviceOrHostAddressConstKHR
+	Stride DeviceSize
+}
+
+// eg: gostruct := (&vk.AccelerationStructureGeometryAabbsDataKHR{}).FromVK(goStruct2.PNext)
+func (s *AccelerationStructureGeometryAabbsDataKHR) FromVK(pn unsafe.Pointer) *AccelerationStructureGeometryAabbsDataKHR {
+	vks := (*vkAccelerationStructureGeometryAabbsDataKHR)(pn)
+	return vks.ToGo()
+}
+
+type vkAccelerationStructureGeometryAabbsDataKHR struct {
+	sType  StructureType
+	pNext  unsafe.Pointer
+	data   vkDeviceOrHostAddressConstKHR
+	stride DeviceSize
+}
+
+func (s *vkAccelerationStructureGeometryAabbsDataKHR) ToGo() *AccelerationStructureGeometryAabbsDataKHR {
+	rval := &AccelerationStructureGeometryAabbsDataKHR{
+		PNext: (unsafe.Pointer)(s.pNext),
+		// data: can't convert union member to go
+
+		Stride: (DeviceSize)(s.stride),
+	}
+	return rval
+}
+
+func (s *AccelerationStructureGeometryAabbsDataKHR) ToVK() *vkAccelerationStructureGeometryAabbsDataKHR {
+	if s == nil {
+		return nil
+	}
+	rval := &vkAccelerationStructureGeometryAabbsDataKHR{
+		sType:  STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_AABBS_DATA_KHR,
+		pNext:  (unsafe.Pointer)(s.PNext),
+		data:   *(s.Data.ToVK()),
+		stride: (DeviceSize)(s.Stride),
+	}
+	return rval
+}
+
+// struct: https://docs.vulkan.org/refpages/latest/refpages/source/VkAccelerationStructureGeometryInstancesDataKHR.html
+type AccelerationStructureGeometryInstancesDataKHR struct {
+	PNext           unsafe.Pointer
+	ArrayOfPointers bool
+	Data            DeviceOrHostAddressConstKHR
+}
+
+// eg: gostruct := (&vk.AccelerationStructureGeometryInstancesDataKHR{}).FromVK(goStruct2.PNext)
+func (s *AccelerationStructureGeometryInstancesDataKHR) FromVK(pn unsafe.Pointer) *AccelerationStructureGeometryInstancesDataKHR {
+	vks := (*vkAccelerationStructureGeometryInstancesDataKHR)(pn)
+	return vks.ToGo()
+}
+
+type vkAccelerationStructureGeometryInstancesDataKHR struct {
+	sType           StructureType
+	pNext           unsafe.Pointer
+	arrayOfPointers Bool32
+	pad0            uint32
+	data            vkDeviceOrHostAddressConstKHR
+}
+
+func (s *vkAccelerationStructureGeometryInstancesDataKHR) ToGo() *AccelerationStructureGeometryInstancesDataKHR {
+	rval := &AccelerationStructureGeometryInstancesDataKHR{
+		PNext:           (unsafe.Pointer)(s.pNext),
+		ArrayOfPointers: goBool32(s.arrayOfPointers),
+		// data: can't convert union member to go
+
+	}
+	return rval
+}
+
+func (s *AccelerationStructureGeometryInstancesDataKHR) ToVK() *vkAccelerationStructureGeometryInstancesDataKHR {
+	if s == nil {
+		return nil
+	}
+	rval := &vkAccelerationStructureGeometryInstancesDataKHR{
+		sType:           STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR,
+		pNext:           (unsafe.Pointer)(s.PNext),
+		arrayOfPointers: vkBool32(s.ArrayOfPointers),
+		data:            *(s.Data.ToVK()),
+	}
+	return rval
+}
+
+// struct: https://docs.vulkan.org/refpages/latest/refpages/source/VkAccelerationStructureGeometryDataKHR.html
+type AccelerationStructureGeometryDataKHR struct {
+	Triangles   AccelerationStructureGeometryTrianglesDataKHR
+	asTriangles bool
+	Aabbs       AccelerationStructureGeometryAabbsDataKHR
+	asAabbs     bool
+	Instances   AccelerationStructureGeometryInstancesDataKHR
+	asInstances bool
+}
+
+func (u *AccelerationStructureGeometryDataKHR) AsTriangles(val AccelerationStructureGeometryTrianglesDataKHR) {
+	u.Triangles = val
+	u.asTriangles = true
+	u.asAabbs = false
+	u.asInstances = false
+}
+
+func (u *AccelerationStructureGeometryDataKHR) AsAabbs(val AccelerationStructureGeometryAabbsDataKHR) {
+	u.Aabbs = val
+	u.asTriangles = false
+	u.asAabbs = true
+	u.asInstances = false
+}
+
+func (u *AccelerationStructureGeometryDataKHR) AsInstances(val AccelerationStructureGeometryInstancesDataKHR) {
+	u.Instances = val
+	u.asTriangles = false
+	u.asAabbs = false
+	u.asInstances = true
+}
+
+type vkAccelerationStructureGeometryDataKHR [unsafe.Sizeof(vkAccelerationStructureGeometryTrianglesDataKHR{})]byte
+
+func (u *AccelerationStructureGeometryDataKHR) ToVK() *vkAccelerationStructureGeometryDataKHR {
+	switch {
+	case u.asTriangles:
+		return (*vkAccelerationStructureGeometryDataKHR)(unsafe.Pointer(u.Triangles.ToVK()))
+	case u.asAabbs:
+		return (*vkAccelerationStructureGeometryDataKHR)(unsafe.Pointer(u.Aabbs.ToVK()))
+	case u.asInstances:
+		return (*vkAccelerationStructureGeometryDataKHR)(unsafe.Pointer(u.Instances.ToVK()))
+	default:
+		return &vkAccelerationStructureGeometryDataKHR{}
+	}
+}
+
+// struct: https://docs.vulkan.org/refpages/latest/refpages/source/VkAccelerationStructureGeometryKHR.html
+type AccelerationStructureGeometryKHR struct {
+	PNext        unsafe.Pointer
+	GeometryType GeometryTypeKHR
+	Geometry     AccelerationStructureGeometryDataKHR
+	Flags        GeometryFlagsKHR
+}
+
+// eg: gostruct := (&vk.AccelerationStructureGeometryKHR{}).FromVK(goStruct2.PNext)
+func (s *AccelerationStructureGeometryKHR) FromVK(pn unsafe.Pointer) *AccelerationStructureGeometryKHR {
+	vks := (*vkAccelerationStructureGeometryKHR)(pn)
+	return vks.ToGo()
+}
+
+type vkAccelerationStructureGeometryKHR struct {
+	sType        StructureType
+	pad0         uint32
+	pNext        unsafe.Pointer
+	geometryType GeometryTypeKHR
+	pad1         uint32
+	geometry     vkAccelerationStructureGeometryDataKHR
+	flags        GeometryFlagsKHR
+	pad2         uint32
+}
+
+func (s *vkAccelerationStructureGeometryKHR) ToGo() *AccelerationStructureGeometryKHR {
+	rval := &AccelerationStructureGeometryKHR{
+		PNext:        (unsafe.Pointer)(s.pNext),
+		GeometryType: (GeometryTypeKHR)(s.geometryType),
+		// geometry: can't convert union member to go
+
+		Flags: (GeometryFlagsKHR)(s.flags),
+	}
+	return rval
+}
+
+func (s *AccelerationStructureGeometryKHR) ToVK() *vkAccelerationStructureGeometryKHR {
+	if s == nil {
+		return nil
+	}
+	rval := &vkAccelerationStructureGeometryKHR{
+		sType:        STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR,
+		pNext:        (unsafe.Pointer)(s.PNext),
+		geometryType: (GeometryTypeKHR)(s.GeometryType),
+		geometry:     *(s.Geometry.ToVK()),
+		flags:        (GeometryFlagsKHR)(s.Flags),
+	}
+	return rval
+}
+
+// struct: https://docs.vulkan.org/refpages/latest/refpages/source/VkAccelerationStructureBuildGeometryInfoKHR.html
+type AccelerationStructureBuildGeometryInfoKHR struct {
+	PNext                    unsafe.Pointer
+	Typ                      AccelerationStructureTypeKHR
+	Flags                    BuildAccelerationStructureFlagsKHR
+	Mode                     BuildAccelerationStructureModeKHR
+	SrcAccelerationStructure AccelerationStructureKHR
+	DstAccelerationStructure AccelerationStructureKHR
+	PGeometries              []AccelerationStructureGeometryKHR
+	PpGeometries             []*AccelerationStructureGeometryKHR
+	ScratchData              DeviceOrHostAddressKHR
+}
+
+// eg: gostruct := (&vk.AccelerationStructureBuildGeometryInfoKHR{}).FromVK(goStruct2.PNext)
+func (s *AccelerationStructureBuildGeometryInfoKHR) FromVK(pn unsafe.Pointer) *AccelerationStructureBuildGeometryInfoKHR {
+	vks := (*vkAccelerationStructureBuildGeometryInfoKHR)(pn)
+	return vks.ToGo()
+}
+
+type vkAccelerationStructureBuildGeometryInfoKHR struct {
+	sType                    StructureType
+	pad0                     uint32
+	pNext                    unsafe.Pointer
+	typ                      AccelerationStructureTypeKHR
+	flags                    BuildAccelerationStructureFlagsKHR
+	mode                     BuildAccelerationStructureModeKHR
+	pad1                     uint32
+	srcAccelerationStructure AccelerationStructureKHR
+	dstAccelerationStructure AccelerationStructureKHR
+	geometryCount            uint32
+	pad2                     uint32
+	pGeometries              *vkAccelerationStructureGeometryKHR
+	ppGeometries             **vkAccelerationStructureGeometryKHR
+	scratchData              vkDeviceOrHostAddressKHR
+}
+
+func (s *vkAccelerationStructureBuildGeometryInfoKHR) ToGo() *AccelerationStructureBuildGeometryInfoKHR {
+	rval := &AccelerationStructureBuildGeometryInfoKHR{
+		PNext:                    (unsafe.Pointer)(s.pNext),
+		Typ:                      (AccelerationStructureTypeKHR)(s.typ),
+		Flags:                    (BuildAccelerationStructureFlagsKHR)(s.flags),
+		Mode:                     (BuildAccelerationStructureModeKHR)(s.mode),
+		SrcAccelerationStructure: (AccelerationStructureKHR)(s.srcAccelerationStructure),
+		DstAccelerationStructure: (AccelerationStructureKHR)(s.dstAccelerationStructure),
+		// ignoring returned pointer type PGeometries
+		// ignoring returned pointer type PpGeometries
+		// scratchData: can't convert union member to go
+
+	}
+	return rval
+}
+
+func (s *AccelerationStructureBuildGeometryInfoKHR) ToVK() *vkAccelerationStructureBuildGeometryInfoKHR {
+	if s == nil {
+		return nil
+	}
+	var sp_PGeometries *vkAccelerationStructureGeometryKHR
+	if len(s.PGeometries) > 0 {
+		tmp := make([]vkAccelerationStructureGeometryKHR, len(s.PGeometries))
+		for i, v := range s.PGeometries {
+			tmp[i] = *(v.ToVK())
+		}
+		sp_PGeometries = &tmp[0]
+	}
+	var sp_PpGeometries **vkAccelerationStructureGeometryKHR
+	if len(s.PpGeometries) > 0 {
+		tmp := make([]*vkAccelerationStructureGeometryKHR, len(s.PpGeometries))
+		for i, v := range s.PpGeometries {
+			tmp[i] = v.ToVK()
+		}
+		sp_PpGeometries = &tmp[0]
+	}
+	rval := &vkAccelerationStructureBuildGeometryInfoKHR{
+		sType:                    STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR,
+		pNext:                    (unsafe.Pointer)(s.PNext),
+		typ:                      (AccelerationStructureTypeKHR)(s.Typ),
+		flags:                    (BuildAccelerationStructureFlagsKHR)(s.Flags),
+		mode:                     (BuildAccelerationStructureModeKHR)(s.Mode),
+		srcAccelerationStructure: (AccelerationStructureKHR)(s.SrcAccelerationStructure),
+		dstAccelerationStructure: (AccelerationStructureKHR)(s.DstAccelerationStructure),
+		pGeometries:              sp_PGeometries,
+		ppGeometries:             sp_PpGeometries,
+		scratchData:              *(s.ScratchData.ToVK()),
+	}
+	rval.geometryCount = 0
+	if uint32(len(s.PGeometries)) > rval.geometryCount {
+		rval.geometryCount = uint32(len(s.PGeometries))
+	}
+	if uint32(len(s.PpGeometries)) > rval.geometryCount {
+		rval.geometryCount = uint32(len(s.PpGeometries))
+	}
+	return rval
+}
+
+// struct: https://docs.vulkan.org/refpages/latest/refpages/source/VkAccelerationStructureInstanceKHR.html
+type AccelerationStructureInstanceKHR struct {
+	Transform                                    TransformMatrixKHR
+	Mask_InstanceCustomIndex                     uint32 // packed bitfield: refer to specification
+	Flags_InstanceShaderBindingTableRecordOffset uint32 // packed bitfield: refer to specification
+	AccelerationStructureReference               uint64
+}
+
+// eg: gostruct := (&vk.AccelerationStructureInstanceKHR{}).FromVK(goStruct2.PNext)
+func (s *AccelerationStructureInstanceKHR) FromVK(pn unsafe.Pointer) *AccelerationStructureInstanceKHR {
+	vks := (*vkAccelerationStructureInstanceKHR)(pn)
+	return vks.ToGo()
+}
+
+type vkAccelerationStructureInstanceKHR = AccelerationStructureInstanceKHR
+
+func (s *vkAccelerationStructureInstanceKHR) ToGo() *AccelerationStructureInstanceKHR {
+	rval := (*AccelerationStructureInstanceKHR)(s)
+	return rval
+}
+
+func (s *AccelerationStructureInstanceKHR) ToVK() *vkAccelerationStructureInstanceKHR {
+	if s == nil {
+		return nil
+	}
+	rval := (*vkAccelerationStructureInstanceKHR)(s)
+	return rval
+}
+
+// struct: https://docs.vulkan.org/refpages/latest/refpages/source/VkAccelerationStructureCreateInfoKHR.html
+type AccelerationStructureCreateInfoKHR struct {
+	PNext         unsafe.Pointer
+	CreateFlags   AccelerationStructureCreateFlagsKHR
+	Buffer        Buffer
+	Offset        DeviceSize
+	Size          DeviceSize
+	Typ           AccelerationStructureTypeKHR
+	DeviceAddress DeviceAddress
+}
+
+// eg: gostruct := (&vk.AccelerationStructureCreateInfoKHR{}).FromVK(goStruct2.PNext)
+func (s *AccelerationStructureCreateInfoKHR) FromVK(pn unsafe.Pointer) *AccelerationStructureCreateInfoKHR {
+	vks := (*vkAccelerationStructureCreateInfoKHR)(pn)
+	return vks.ToGo()
+}
+
+type vkAccelerationStructureCreateInfoKHR struct {
+	sType         StructureType
+	pNext         unsafe.Pointer
+	createFlags   AccelerationStructureCreateFlagsKHR
+	buffer        Buffer
+	offset        DeviceSize
+	size          DeviceSize
+	typ           AccelerationStructureTypeKHR
+	deviceAddress DeviceAddress
+}
+
+func (s *vkAccelerationStructureCreateInfoKHR) ToGo() *AccelerationStructureCreateInfoKHR {
+	rval := &AccelerationStructureCreateInfoKHR{
+		PNext:         (unsafe.Pointer)(s.pNext),
+		CreateFlags:   (AccelerationStructureCreateFlagsKHR)(s.createFlags),
+		Buffer:        (Buffer)(s.buffer),
+		Offset:        (DeviceSize)(s.offset),
+		Size:          (DeviceSize)(s.size),
+		Typ:           (AccelerationStructureTypeKHR)(s.typ),
+		DeviceAddress: (DeviceAddress)(s.deviceAddress),
+	}
+	return rval
+}
+
+func (s *AccelerationStructureCreateInfoKHR) ToVK() *vkAccelerationStructureCreateInfoKHR {
+	if s == nil {
+		return nil
+	}
+	rval := &vkAccelerationStructureCreateInfoKHR{
+		sType:         STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR,
+		pNext:         (unsafe.Pointer)(s.PNext),
+		createFlags:   (AccelerationStructureCreateFlagsKHR)(s.CreateFlags),
+		buffer:        (Buffer)(s.Buffer),
+		offset:        (DeviceSize)(s.Offset),
+		size:          (DeviceSize)(s.Size),
+		typ:           (AccelerationStructureTypeKHR)(s.Typ),
+		deviceAddress: (DeviceAddress)(s.DeviceAddress),
+	}
+	return rval
+}
+
+// struct: https://docs.vulkan.org/refpages/latest/refpages/source/VkWriteDescriptorSetAccelerationStructureKHR.html
+type WriteDescriptorSetAccelerationStructureKHR struct {
+	PNext                   unsafe.Pointer
+	PAccelerationStructures []AccelerationStructureKHR
+}
+
+// eg: gostruct := (&vk.WriteDescriptorSetAccelerationStructureKHR{}).FromVK(goStruct2.PNext)
+func (s *WriteDescriptorSetAccelerationStructureKHR) FromVK(pn unsafe.Pointer) *WriteDescriptorSetAccelerationStructureKHR {
+	vks := (*vkWriteDescriptorSetAccelerationStructureKHR)(pn)
+	return vks.ToGo()
+}
+
+type vkWriteDescriptorSetAccelerationStructureKHR struct {
+	sType                      StructureType
+	pNext                      unsafe.Pointer
+	accelerationStructureCount uint32
+	pAccelerationStructures    *AccelerationStructureKHR
+}
+
+func (s *vkWriteDescriptorSetAccelerationStructureKHR) ToGo() *WriteDescriptorSetAccelerationStructureKHR {
+	rval := &WriteDescriptorSetAccelerationStructureKHR{
+		PNext: (unsafe.Pointer)(s.pNext),
+		// ignoring returned pointer type PAccelerationStructures
+	}
+	return rval
+}
+
+func (s *WriteDescriptorSetAccelerationStructureKHR) ToVK() *vkWriteDescriptorSetAccelerationStructureKHR {
+	if s == nil {
+		return nil
+	}
+	var sp_PAccelerationStructures *AccelerationStructureKHR
+	if len(s.PAccelerationStructures) > 0 {
+		sp_PAccelerationStructures = &s.PAccelerationStructures[0]
+	}
+	rval := &vkWriteDescriptorSetAccelerationStructureKHR{
+		sType:                      STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR,
+		pNext:                      (unsafe.Pointer)(s.PNext),
+		accelerationStructureCount: uint32(len(s.PAccelerationStructures)),
+		pAccelerationStructures:    sp_PAccelerationStructures,
+	}
+	return rval
+}
+
+// struct: https://docs.vulkan.org/refpages/latest/refpages/source/VkPhysicalDeviceAccelerationStructureFeaturesKHR.html
+type PhysicalDeviceAccelerationStructureFeaturesKHR struct {
+	PNext                                                 unsafe.Pointer
+	AccelerationStructure                                 bool
+	AccelerationStructureCaptureReplay                    bool
+	AccelerationStructureIndirectBuild                    bool
+	AccelerationStructureHostCommands                     bool
+	DescriptorBindingAccelerationStructureUpdateAfterBind bool
+}
+
+// eg: gostruct := (&vk.PhysicalDeviceAccelerationStructureFeaturesKHR{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceAccelerationStructureFeaturesKHR) FromVK(pn unsafe.Pointer) *PhysicalDeviceAccelerationStructureFeaturesKHR {
+	vks := (*vkPhysicalDeviceAccelerationStructureFeaturesKHR)(pn)
+	return vks.ToGo()
+}
+
+type vkPhysicalDeviceAccelerationStructureFeaturesKHR struct {
+	sType                                                 StructureType
+	pNext                                                 unsafe.Pointer
+	accelerationStructure                                 Bool32
+	accelerationStructureCaptureReplay                    Bool32
+	accelerationStructureIndirectBuild                    Bool32
+	accelerationStructureHostCommands                     Bool32
+	descriptorBindingAccelerationStructureUpdateAfterBind Bool32
+}
+
+func (s *vkPhysicalDeviceAccelerationStructureFeaturesKHR) ToGo() *PhysicalDeviceAccelerationStructureFeaturesKHR {
+	rval := &PhysicalDeviceAccelerationStructureFeaturesKHR{
+		PNext:                              (unsafe.Pointer)(s.pNext),
+		AccelerationStructure:              goBool32(s.accelerationStructure),
+		AccelerationStructureCaptureReplay: goBool32(s.accelerationStructureCaptureReplay),
+		AccelerationStructureIndirectBuild: goBool32(s.accelerationStructureIndirectBuild),
+		AccelerationStructureHostCommands:  goBool32(s.accelerationStructureHostCommands),
+		DescriptorBindingAccelerationStructureUpdateAfterBind: goBool32(s.descriptorBindingAccelerationStructureUpdateAfterBind),
+	}
+	return rval
+}
+
+func (s *PhysicalDeviceAccelerationStructureFeaturesKHR) ToVK() *vkPhysicalDeviceAccelerationStructureFeaturesKHR {
+	if s == nil {
+		return nil
+	}
+	rval := &vkPhysicalDeviceAccelerationStructureFeaturesKHR{
+		sType:                              STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR,
+		pNext:                              (unsafe.Pointer)(s.PNext),
+		accelerationStructure:              vkBool32(s.AccelerationStructure),
+		accelerationStructureCaptureReplay: vkBool32(s.AccelerationStructureCaptureReplay),
+		accelerationStructureIndirectBuild: vkBool32(s.AccelerationStructureIndirectBuild),
+		accelerationStructureHostCommands:  vkBool32(s.AccelerationStructureHostCommands),
+		descriptorBindingAccelerationStructureUpdateAfterBind: vkBool32(s.DescriptorBindingAccelerationStructureUpdateAfterBind),
+	}
+	return rval
+}
+
+// struct: https://docs.vulkan.org/refpages/latest/refpages/source/VkPhysicalDeviceAccelerationStructurePropertiesKHR.html
+type PhysicalDeviceAccelerationStructurePropertiesKHR struct {
+	PNext                                                      unsafe.Pointer
+	MaxGeometryCount                                           uint64
+	MaxInstanceCount                                           uint64
+	MaxPrimitiveCount                                          uint64
+	MaxPerStageDescriptorAccelerationStructures                uint32
+	MaxPerStageDescriptorUpdateAfterBindAccelerationStructures uint32
+	MaxDescriptorSetAccelerationStructures                     uint32
+	MaxDescriptorSetUpdateAfterBindAccelerationStructures      uint32
+	MinAccelerationStructureScratchOffsetAlignment             uint32
+}
+
+// eg: gostruct := (&vk.PhysicalDeviceAccelerationStructurePropertiesKHR{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceAccelerationStructurePropertiesKHR) FromVK(pn unsafe.Pointer) *PhysicalDeviceAccelerationStructurePropertiesKHR {
+	vks := (*vkPhysicalDeviceAccelerationStructurePropertiesKHR)(pn)
+	return vks.ToGo()
+}
+
+type vkPhysicalDeviceAccelerationStructurePropertiesKHR struct {
+	sType                                                      StructureType
+	pNext                                                      unsafe.Pointer
+	maxGeometryCount                                           uint64
+	maxInstanceCount                                           uint64
+	maxPrimitiveCount                                          uint64
+	maxPerStageDescriptorAccelerationStructures                uint32
+	maxPerStageDescriptorUpdateAfterBindAccelerationStructures uint32
+	maxDescriptorSetAccelerationStructures                     uint32
+	maxDescriptorSetUpdateAfterBindAccelerationStructures      uint32
+	minAccelerationStructureScratchOffsetAlignment             uint32
+}
+
+func (s *vkPhysicalDeviceAccelerationStructurePropertiesKHR) ToGo() *PhysicalDeviceAccelerationStructurePropertiesKHR {
+	rval := &PhysicalDeviceAccelerationStructurePropertiesKHR{
+		PNext:             (unsafe.Pointer)(s.pNext),
+		MaxGeometryCount:  (uint64)(s.maxGeometryCount),
+		MaxInstanceCount:  (uint64)(s.maxInstanceCount),
+		MaxPrimitiveCount: (uint64)(s.maxPrimitiveCount),
+		MaxPerStageDescriptorAccelerationStructures:                (uint32)(s.maxPerStageDescriptorAccelerationStructures),
+		MaxPerStageDescriptorUpdateAfterBindAccelerationStructures: (uint32)(s.maxPerStageDescriptorUpdateAfterBindAccelerationStructures),
+		MaxDescriptorSetAccelerationStructures:                     (uint32)(s.maxDescriptorSetAccelerationStructures),
+		MaxDescriptorSetUpdateAfterBindAccelerationStructures:      (uint32)(s.maxDescriptorSetUpdateAfterBindAccelerationStructures),
+		MinAccelerationStructureScratchOffsetAlignment:             (uint32)(s.minAccelerationStructureScratchOffsetAlignment),
+	}
+	return rval
+}
+
+func (s *PhysicalDeviceAccelerationStructurePropertiesKHR) ToVK() *vkPhysicalDeviceAccelerationStructurePropertiesKHR {
+	if s == nil {
+		return nil
+	}
+	rval := &vkPhysicalDeviceAccelerationStructurePropertiesKHR{
+		sType:             STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR,
+		pNext:             (unsafe.Pointer)(s.PNext),
+		maxGeometryCount:  (uint64)(s.MaxGeometryCount),
+		maxInstanceCount:  (uint64)(s.MaxInstanceCount),
+		maxPrimitiveCount: (uint64)(s.MaxPrimitiveCount),
+		maxPerStageDescriptorAccelerationStructures:                (uint32)(s.MaxPerStageDescriptorAccelerationStructures),
+		maxPerStageDescriptorUpdateAfterBindAccelerationStructures: (uint32)(s.MaxPerStageDescriptorUpdateAfterBindAccelerationStructures),
+		maxDescriptorSetAccelerationStructures:                     (uint32)(s.MaxDescriptorSetAccelerationStructures),
+		maxDescriptorSetUpdateAfterBindAccelerationStructures:      (uint32)(s.MaxDescriptorSetUpdateAfterBindAccelerationStructures),
+		minAccelerationStructureScratchOffsetAlignment:             (uint32)(s.MinAccelerationStructureScratchOffsetAlignment),
+	}
+	return rval
+}
+
+// struct: https://docs.vulkan.org/refpages/latest/refpages/source/VkAccelerationStructureDeviceAddressInfoKHR.html
+type AccelerationStructureDeviceAddressInfoKHR struct {
+	PNext                 unsafe.Pointer
+	AccelerationStructure AccelerationStructureKHR
+}
+
+// eg: gostruct := (&vk.AccelerationStructureDeviceAddressInfoKHR{}).FromVK(goStruct2.PNext)
+func (s *AccelerationStructureDeviceAddressInfoKHR) FromVK(pn unsafe.Pointer) *AccelerationStructureDeviceAddressInfoKHR {
+	vks := (*vkAccelerationStructureDeviceAddressInfoKHR)(pn)
+	return vks.ToGo()
+}
+
+type vkAccelerationStructureDeviceAddressInfoKHR struct {
+	sType                 StructureType
+	pNext                 unsafe.Pointer
+	accelerationStructure AccelerationStructureKHR
+}
+
+func (s *vkAccelerationStructureDeviceAddressInfoKHR) ToGo() *AccelerationStructureDeviceAddressInfoKHR {
+	rval := &AccelerationStructureDeviceAddressInfoKHR{
+		PNext:                 (unsafe.Pointer)(s.pNext),
+		AccelerationStructure: (AccelerationStructureKHR)(s.accelerationStructure),
+	}
+	return rval
+}
+
+func (s *AccelerationStructureDeviceAddressInfoKHR) ToVK() *vkAccelerationStructureDeviceAddressInfoKHR {
+	if s == nil {
+		return nil
+	}
+	rval := &vkAccelerationStructureDeviceAddressInfoKHR{
+		sType:                 STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR,
+		pNext:                 (unsafe.Pointer)(s.PNext),
+		accelerationStructure: (AccelerationStructureKHR)(s.AccelerationStructure),
+	}
+	return rval
+}
+
+// struct: https://docs.vulkan.org/refpages/latest/refpages/source/VkAccelerationStructureVersionInfoKHR.html
+type AccelerationStructureVersionInfoKHR struct {
+	PNext        unsafe.Pointer
+	PVersionData *uint8
+}
+
+// eg: gostruct := (&vk.AccelerationStructureVersionInfoKHR{}).FromVK(goStruct2.PNext)
+func (s *AccelerationStructureVersionInfoKHR) FromVK(pn unsafe.Pointer) *AccelerationStructureVersionInfoKHR {
+	vks := (*vkAccelerationStructureVersionInfoKHR)(pn)
+	return vks.ToGo()
+}
+
+type vkAccelerationStructureVersionInfoKHR struct {
+	sType        StructureType
+	pNext        unsafe.Pointer
+	pVersionData *uint8
+}
+
+func (s *vkAccelerationStructureVersionInfoKHR) ToGo() *AccelerationStructureVersionInfoKHR {
+	rval := &AccelerationStructureVersionInfoKHR{
+		PNext: (unsafe.Pointer)(s.pNext),
+		// ignoring returned pointer type PVersionData
+	}
+	return rval
+}
+
+func (s *AccelerationStructureVersionInfoKHR) ToVK() *vkAccelerationStructureVersionInfoKHR {
+	if s == nil {
+		return nil
+	}
+	rval := &vkAccelerationStructureVersionInfoKHR{
+		sType:        STRUCTURE_TYPE_ACCELERATION_STRUCTURE_VERSION_INFO_KHR,
+		pNext:        (unsafe.Pointer)(s.PNext),
+		pVersionData: (*uint8)(s.PVersionData),
+	}
+	return rval
+}
+
+// struct: https://docs.vulkan.org/refpages/latest/refpages/source/VkCopyAccelerationStructureToMemoryInfoKHR.html
+type CopyAccelerationStructureToMemoryInfoKHR struct {
+	PNext unsafe.Pointer
+	Src   AccelerationStructureKHR
+	Dst   DeviceOrHostAddressKHR
+	Mode  CopyAccelerationStructureModeKHR
+}
+
+// eg: gostruct := (&vk.CopyAccelerationStructureToMemoryInfoKHR{}).FromVK(goStruct2.PNext)
+func (s *CopyAccelerationStructureToMemoryInfoKHR) FromVK(pn unsafe.Pointer) *CopyAccelerationStructureToMemoryInfoKHR {
+	vks := (*vkCopyAccelerationStructureToMemoryInfoKHR)(pn)
+	return vks.ToGo()
+}
+
+type vkCopyAccelerationStructureToMemoryInfoKHR struct {
+	sType StructureType
+	pNext unsafe.Pointer
+	src   AccelerationStructureKHR
+	dst   vkDeviceOrHostAddressKHR
+	mode  CopyAccelerationStructureModeKHR
+}
+
+func (s *vkCopyAccelerationStructureToMemoryInfoKHR) ToGo() *CopyAccelerationStructureToMemoryInfoKHR {
+	rval := &CopyAccelerationStructureToMemoryInfoKHR{
+		PNext: (unsafe.Pointer)(s.pNext),
+		Src:   (AccelerationStructureKHR)(s.src),
+		// dst: can't convert union member to go
+
+		Mode: (CopyAccelerationStructureModeKHR)(s.mode),
+	}
+	return rval
+}
+
+func (s *CopyAccelerationStructureToMemoryInfoKHR) ToVK() *vkCopyAccelerationStructureToMemoryInfoKHR {
+	if s == nil {
+		return nil
+	}
+	rval := &vkCopyAccelerationStructureToMemoryInfoKHR{
+		sType: STRUCTURE_TYPE_COPY_ACCELERATION_STRUCTURE_TO_MEMORY_INFO_KHR,
+		pNext: (unsafe.Pointer)(s.PNext),
+		src:   (AccelerationStructureKHR)(s.Src),
+		dst:   *(s.Dst.ToVK()),
+		mode:  (CopyAccelerationStructureModeKHR)(s.Mode),
+	}
+	return rval
+}
+
+// struct: https://docs.vulkan.org/refpages/latest/refpages/source/VkCopyMemoryToAccelerationStructureInfoKHR.html
+type CopyMemoryToAccelerationStructureInfoKHR struct {
+	PNext unsafe.Pointer
+	Src   DeviceOrHostAddressConstKHR
+	Dst   AccelerationStructureKHR
+	Mode  CopyAccelerationStructureModeKHR
+}
+
+// eg: gostruct := (&vk.CopyMemoryToAccelerationStructureInfoKHR{}).FromVK(goStruct2.PNext)
+func (s *CopyMemoryToAccelerationStructureInfoKHR) FromVK(pn unsafe.Pointer) *CopyMemoryToAccelerationStructureInfoKHR {
+	vks := (*vkCopyMemoryToAccelerationStructureInfoKHR)(pn)
+	return vks.ToGo()
+}
+
+type vkCopyMemoryToAccelerationStructureInfoKHR struct {
+	sType StructureType
+	pNext unsafe.Pointer
+	src   vkDeviceOrHostAddressConstKHR
+	dst   AccelerationStructureKHR
+	mode  CopyAccelerationStructureModeKHR
+}
+
+func (s *vkCopyMemoryToAccelerationStructureInfoKHR) ToGo() *CopyMemoryToAccelerationStructureInfoKHR {
+	rval := &CopyMemoryToAccelerationStructureInfoKHR{
+		PNext: (unsafe.Pointer)(s.pNext),
+		// src: can't convert union member to go
+
+		Dst:  (AccelerationStructureKHR)(s.dst),
+		Mode: (CopyAccelerationStructureModeKHR)(s.mode),
+	}
+	return rval
+}
+
+func (s *CopyMemoryToAccelerationStructureInfoKHR) ToVK() *vkCopyMemoryToAccelerationStructureInfoKHR {
+	if s == nil {
+		return nil
+	}
+	rval := &vkCopyMemoryToAccelerationStructureInfoKHR{
+		sType: STRUCTURE_TYPE_COPY_MEMORY_TO_ACCELERATION_STRUCTURE_INFO_KHR,
+		pNext: (unsafe.Pointer)(s.PNext),
+		src:   *(s.Src.ToVK()),
+		dst:   (AccelerationStructureKHR)(s.Dst),
+		mode:  (CopyAccelerationStructureModeKHR)(s.Mode),
+	}
+	return rval
+}
+
+// struct: https://docs.vulkan.org/refpages/latest/refpages/source/VkCopyAccelerationStructureInfoKHR.html
+type CopyAccelerationStructureInfoKHR struct {
+	PNext unsafe.Pointer
+	Src   AccelerationStructureKHR
+	Dst   AccelerationStructureKHR
+	Mode  CopyAccelerationStructureModeKHR
+}
+
+// eg: gostruct := (&vk.CopyAccelerationStructureInfoKHR{}).FromVK(goStruct2.PNext)
+func (s *CopyAccelerationStructureInfoKHR) FromVK(pn unsafe.Pointer) *CopyAccelerationStructureInfoKHR {
+	vks := (*vkCopyAccelerationStructureInfoKHR)(pn)
+	return vks.ToGo()
+}
+
+type vkCopyAccelerationStructureInfoKHR struct {
+	sType StructureType
+	pNext unsafe.Pointer
+	src   AccelerationStructureKHR
+	dst   AccelerationStructureKHR
+	mode  CopyAccelerationStructureModeKHR
+}
+
+func (s *vkCopyAccelerationStructureInfoKHR) ToGo() *CopyAccelerationStructureInfoKHR {
+	rval := &CopyAccelerationStructureInfoKHR{
+		PNext: (unsafe.Pointer)(s.pNext),
+		Src:   (AccelerationStructureKHR)(s.src),
+		Dst:   (AccelerationStructureKHR)(s.dst),
+		Mode:  (CopyAccelerationStructureModeKHR)(s.mode),
+	}
+	return rval
+}
+
+func (s *CopyAccelerationStructureInfoKHR) ToVK() *vkCopyAccelerationStructureInfoKHR {
+	if s == nil {
+		return nil
+	}
+	rval := &vkCopyAccelerationStructureInfoKHR{
+		sType: STRUCTURE_TYPE_COPY_ACCELERATION_STRUCTURE_INFO_KHR,
+		pNext: (unsafe.Pointer)(s.PNext),
+		src:   (AccelerationStructureKHR)(s.Src),
+		dst:   (AccelerationStructureKHR)(s.Dst),
+		mode:  (CopyAccelerationStructureModeKHR)(s.Mode),
+	}
+	return rval
+}
+
+// struct: https://docs.vulkan.org/refpages/latest/refpages/source/VkAccelerationStructureBuildSizesInfoKHR.html
+type AccelerationStructureBuildSizesInfoKHR struct {
+	PNext                     unsafe.Pointer
+	AccelerationStructureSize DeviceSize
+	UpdateScratchSize         DeviceSize
+	BuildScratchSize          DeviceSize
+}
+
+// eg: gostruct := (&vk.AccelerationStructureBuildSizesInfoKHR{}).FromVK(goStruct2.PNext)
+func (s *AccelerationStructureBuildSizesInfoKHR) FromVK(pn unsafe.Pointer) *AccelerationStructureBuildSizesInfoKHR {
+	vks := (*vkAccelerationStructureBuildSizesInfoKHR)(pn)
+	return vks.ToGo()
+}
+
+type vkAccelerationStructureBuildSizesInfoKHR struct {
+	sType                     StructureType
+	pNext                     unsafe.Pointer
+	accelerationStructureSize DeviceSize
+	updateScratchSize         DeviceSize
+	buildScratchSize          DeviceSize
+}
+
+func (s *vkAccelerationStructureBuildSizesInfoKHR) ToGo() *AccelerationStructureBuildSizesInfoKHR {
+	rval := &AccelerationStructureBuildSizesInfoKHR{
+		PNext:                     (unsafe.Pointer)(s.pNext),
+		AccelerationStructureSize: (DeviceSize)(s.accelerationStructureSize),
+		UpdateScratchSize:         (DeviceSize)(s.updateScratchSize),
+		BuildScratchSize:          (DeviceSize)(s.buildScratchSize),
+	}
+	return rval
+}
+
+func (s *AccelerationStructureBuildSizesInfoKHR) ToVK() *vkAccelerationStructureBuildSizesInfoKHR {
+	if s == nil {
+		return nil
+	}
+	rval := &vkAccelerationStructureBuildSizesInfoKHR{
+		sType:                     STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR,
+		pNext:                     (unsafe.Pointer)(s.PNext),
+		accelerationStructureSize: (DeviceSize)(s.AccelerationStructureSize),
+		updateScratchSize:         (DeviceSize)(s.UpdateScratchSize),
+		buildScratchSize:          (DeviceSize)(s.BuildScratchSize),
+	}
+	return rval
+}
+
+type PhysicalDeviceBufferDeviceAddressFeaturesKHR PhysicalDeviceBufferDeviceAddressFeatures
+type BufferDeviceAddressInfoKHR BufferDeviceAddressInfo
+type BufferOpaqueCaptureAddressCreateInfoKHR BufferOpaqueCaptureAddressCreateInfo
+type MemoryOpaqueCaptureAddressAllocateInfoKHR MemoryOpaqueCaptureAddressAllocateInfo
+type DeviceMemoryOpaqueCaptureAddressInfoKHR DeviceMemoryOpaqueCaptureAddressInfo
 type ExportFenceCreateInfoKHR ExportFenceCreateInfo
 type ExternalMemoryImageCreateInfoKHR ExternalMemoryImageCreateInfo
 type ExternalMemoryBufferCreateInfoKHR ExternalMemoryBufferCreateInfo
@@ -17480,18 +20669,24 @@ type SurfaceCapabilitiesKHR struct {
 	SupportedUsageFlags     ImageUsageFlags
 }
 
+// eg: gostruct := (&vk.SurfaceCapabilitiesKHR{}).FromVK(goStruct2.PNext)
+func (s *SurfaceCapabilitiesKHR) FromVK(pn unsafe.Pointer) *SurfaceCapabilitiesKHR {
+	vks := (*vkSurfaceCapabilitiesKHR)(pn)
+	return vks.ToGo()
+}
+
 type vkSurfaceCapabilitiesKHR = SurfaceCapabilitiesKHR
 
-func (s *vkSurfaceCapabilitiesKHR) goStruct() *SurfaceCapabilitiesKHR {
-	rval := (*vkSurfaceCapabilitiesKHR)(s)
+func (s *vkSurfaceCapabilitiesKHR) ToGo() *SurfaceCapabilitiesKHR {
+	rval := (*SurfaceCapabilitiesKHR)(s)
 	return rval
 }
 
-func (s *SurfaceCapabilitiesKHR) vkStruct() *vkSurfaceCapabilitiesKHR {
+func (s *SurfaceCapabilitiesKHR) ToVK() *vkSurfaceCapabilitiesKHR {
 	if s == nil {
 		return nil
 	}
-	rval := (*SurfaceCapabilitiesKHR)(s)
+	rval := (*vkSurfaceCapabilitiesKHR)(s)
 	return rval
 }
 
@@ -17501,28 +20696,34 @@ type SurfaceCapabilities2KHR struct {
 	SurfaceCapabilities SurfaceCapabilitiesKHR
 }
 
+// eg: gostruct := (&vk.SurfaceCapabilities2KHR{}).FromVK(goStruct2.PNext)
+func (s *SurfaceCapabilities2KHR) FromVK(pn unsafe.Pointer) *SurfaceCapabilities2KHR {
+	vks := (*vkSurfaceCapabilities2KHR)(pn)
+	return vks.ToGo()
+}
+
 type vkSurfaceCapabilities2KHR struct {
 	sType               StructureType
 	pNext               unsafe.Pointer
 	surfaceCapabilities vkSurfaceCapabilitiesKHR
 }
 
-func (s *vkSurfaceCapabilities2KHR) goStruct() *SurfaceCapabilities2KHR {
+func (s *vkSurfaceCapabilities2KHR) ToGo() *SurfaceCapabilities2KHR {
 	rval := &SurfaceCapabilities2KHR{
 		PNext:               (unsafe.Pointer)(s.pNext),
-		SurfaceCapabilities: *(s.surfaceCapabilities.goStruct()),
+		SurfaceCapabilities: *(s.surfaceCapabilities.ToGo()),
 	}
 	return rval
 }
 
-func (s *SurfaceCapabilities2KHR) vkStruct() *vkSurfaceCapabilities2KHR {
+func (s *SurfaceCapabilities2KHR) ToVK() *vkSurfaceCapabilities2KHR {
 	if s == nil {
 		return nil
 	}
 	rval := &vkSurfaceCapabilities2KHR{
 		sType:               STRUCTURE_TYPE_SURFACE_CAPABILITIES_2_KHR,
 		pNext:               (unsafe.Pointer)(s.PNext),
-		surfaceCapabilities: *(s.SurfaceCapabilities.vkStruct()),
+		surfaceCapabilities: *(s.SurfaceCapabilities.ToVK()),
 	}
 	return rval
 }
@@ -17533,18 +20734,24 @@ type SurfaceFormatKHR struct {
 	ColorSpace ColorSpaceKHR
 }
 
+// eg: gostruct := (&vk.SurfaceFormatKHR{}).FromVK(goStruct2.PNext)
+func (s *SurfaceFormatKHR) FromVK(pn unsafe.Pointer) *SurfaceFormatKHR {
+	vks := (*vkSurfaceFormatKHR)(pn)
+	return vks.ToGo()
+}
+
 type vkSurfaceFormatKHR = SurfaceFormatKHR
 
-func (s *vkSurfaceFormatKHR) goStruct() *SurfaceFormatKHR {
-	rval := (*vkSurfaceFormatKHR)(s)
+func (s *vkSurfaceFormatKHR) ToGo() *SurfaceFormatKHR {
+	rval := (*SurfaceFormatKHR)(s)
 	return rval
 }
 
-func (s *SurfaceFormatKHR) vkStruct() *vkSurfaceFormatKHR {
+func (s *SurfaceFormatKHR) ToVK() *vkSurfaceFormatKHR {
 	if s == nil {
 		return nil
 	}
-	rval := (*SurfaceFormatKHR)(s)
+	rval := (*vkSurfaceFormatKHR)(s)
 	return rval
 }
 
@@ -17554,28 +20761,72 @@ type SurfaceFormat2KHR struct {
 	SurfaceFormat SurfaceFormatKHR
 }
 
+// eg: gostruct := (&vk.SurfaceFormat2KHR{}).FromVK(goStruct2.PNext)
+func (s *SurfaceFormat2KHR) FromVK(pn unsafe.Pointer) *SurfaceFormat2KHR {
+	vks := (*vkSurfaceFormat2KHR)(pn)
+	return vks.ToGo()
+}
+
 type vkSurfaceFormat2KHR struct {
 	sType         StructureType
 	pNext         unsafe.Pointer
 	surfaceFormat vkSurfaceFormatKHR
 }
 
-func (s *vkSurfaceFormat2KHR) goStruct() *SurfaceFormat2KHR {
+func (s *vkSurfaceFormat2KHR) ToGo() *SurfaceFormat2KHR {
 	rval := &SurfaceFormat2KHR{
 		PNext:         (unsafe.Pointer)(s.pNext),
-		SurfaceFormat: *(s.surfaceFormat.goStruct()),
+		SurfaceFormat: *(s.surfaceFormat.ToGo()),
 	}
 	return rval
 }
 
-func (s *SurfaceFormat2KHR) vkStruct() *vkSurfaceFormat2KHR {
+func (s *SurfaceFormat2KHR) ToVK() *vkSurfaceFormat2KHR {
 	if s == nil {
 		return nil
 	}
 	rval := &vkSurfaceFormat2KHR{
 		sType:         STRUCTURE_TYPE_SURFACE_FORMAT_2_KHR,
 		pNext:         (unsafe.Pointer)(s.PNext),
-		surfaceFormat: *(s.SurfaceFormat.vkStruct()),
+		surfaceFormat: *(s.SurfaceFormat.ToVK()),
+	}
+	return rval
+}
+
+// struct: https://docs.vulkan.org/refpages/latest/refpages/source/VkPhysicalDeviceRayQueryFeaturesKHR.html
+type PhysicalDeviceRayQueryFeaturesKHR struct {
+	PNext    unsafe.Pointer
+	RayQuery bool
+}
+
+// eg: gostruct := (&vk.PhysicalDeviceRayQueryFeaturesKHR{}).FromVK(goStruct2.PNext)
+func (s *PhysicalDeviceRayQueryFeaturesKHR) FromVK(pn unsafe.Pointer) *PhysicalDeviceRayQueryFeaturesKHR {
+	vks := (*vkPhysicalDeviceRayQueryFeaturesKHR)(pn)
+	return vks.ToGo()
+}
+
+type vkPhysicalDeviceRayQueryFeaturesKHR struct {
+	sType    StructureType
+	pNext    unsafe.Pointer
+	rayQuery Bool32
+}
+
+func (s *vkPhysicalDeviceRayQueryFeaturesKHR) ToGo() *PhysicalDeviceRayQueryFeaturesKHR {
+	rval := &PhysicalDeviceRayQueryFeaturesKHR{
+		PNext:    (unsafe.Pointer)(s.pNext),
+		RayQuery: goBool32(s.rayQuery),
+	}
+	return rval
+}
+
+func (s *PhysicalDeviceRayQueryFeaturesKHR) ToVK() *vkPhysicalDeviceRayQueryFeaturesKHR {
+	if s == nil {
+		return nil
+	}
+	rval := &vkPhysicalDeviceRayQueryFeaturesKHR{
+		sType:    STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR,
+		pNext:    (unsafe.Pointer)(s.PNext),
+		rayQuery: vkBool32(s.RayQuery),
 	}
 	return rval
 }
@@ -17600,6 +20851,12 @@ type SwapchainCreateInfoKHR struct {
 	OldSwapchain        SwapchainKHR
 }
 
+// eg: gostruct := (&vk.SwapchainCreateInfoKHR{}).FromVK(goStruct2.PNext)
+func (s *SwapchainCreateInfoKHR) FromVK(pn unsafe.Pointer) *SwapchainCreateInfoKHR {
+	vks := (*vkSwapchainCreateInfoKHR)(pn)
+	return vks.ToGo()
+}
+
 type vkSwapchainCreateInfoKHR struct {
 	sType                 StructureType
 	pNext                 unsafe.Pointer
@@ -17621,7 +20878,7 @@ type vkSwapchainCreateInfoKHR struct {
 	oldSwapchain          SwapchainKHR
 }
 
-func (s *vkSwapchainCreateInfoKHR) goStruct() *SwapchainCreateInfoKHR {
+func (s *vkSwapchainCreateInfoKHR) ToGo() *SwapchainCreateInfoKHR {
 	rval := &SwapchainCreateInfoKHR{
 		PNext:            (unsafe.Pointer)(s.pNext),
 		Flags:            (SwapchainCreateFlagsKHR)(s.flags),
@@ -17629,7 +20886,7 @@ func (s *vkSwapchainCreateInfoKHR) goStruct() *SwapchainCreateInfoKHR {
 		MinImageCount:    (uint32)(s.minImageCount),
 		ImageFormat:      (Format)(s.imageFormat),
 		ImageColorSpace:  (ColorSpaceKHR)(s.imageColorSpace),
-		ImageExtent:      *(s.imageExtent.goStruct()),
+		ImageExtent:      *(s.imageExtent.ToGo()),
 		ImageArrayLayers: (uint32)(s.imageArrayLayers),
 		ImageUsage:       (ImageUsageFlags)(s.imageUsage),
 		ImageSharingMode: (SharingMode)(s.imageSharingMode),
@@ -17643,7 +20900,7 @@ func (s *vkSwapchainCreateInfoKHR) goStruct() *SwapchainCreateInfoKHR {
 	return rval
 }
 
-func (s *SwapchainCreateInfoKHR) vkStruct() *vkSwapchainCreateInfoKHR {
+func (s *SwapchainCreateInfoKHR) ToVK() *vkSwapchainCreateInfoKHR {
 	if s == nil {
 		return nil
 	}
@@ -17659,7 +20916,7 @@ func (s *SwapchainCreateInfoKHR) vkStruct() *vkSwapchainCreateInfoKHR {
 		minImageCount:         (uint32)(s.MinImageCount),
 		imageFormat:           (Format)(s.ImageFormat),
 		imageColorSpace:       (ColorSpaceKHR)(s.ImageColorSpace),
-		imageExtent:           *(s.ImageExtent.vkStruct()),
+		imageExtent:           *(s.ImageExtent.ToVK()),
 		imageArrayLayers:      (uint32)(s.ImageArrayLayers),
 		imageUsage:            (ImageUsageFlags)(s.ImageUsage),
 		imageSharingMode:      (SharingMode)(s.ImageSharingMode),
@@ -17683,6 +20940,12 @@ type PresentInfoKHR struct {
 	PResults        []Result
 }
 
+// eg: gostruct := (&vk.PresentInfoKHR{}).FromVK(goStruct2.PNext)
+func (s *PresentInfoKHR) FromVK(pn unsafe.Pointer) *PresentInfoKHR {
+	vks := (*vkPresentInfoKHR)(pn)
+	return vks.ToGo()
+}
+
 type vkPresentInfoKHR struct {
 	sType              StructureType
 	pNext              unsafe.Pointer
@@ -17694,7 +20957,7 @@ type vkPresentInfoKHR struct {
 	pResults           *Result
 }
 
-func (s *vkPresentInfoKHR) goStruct() *PresentInfoKHR {
+func (s *vkPresentInfoKHR) ToGo() *PresentInfoKHR {
 	rval := &PresentInfoKHR{
 		PNext: (unsafe.Pointer)(s.pNext),
 		// ignoring returned pointer type PWaitSemaphores
@@ -17705,7 +20968,7 @@ func (s *vkPresentInfoKHR) goStruct() *PresentInfoKHR {
 	return rval
 }
 
-func (s *PresentInfoKHR) vkStruct() *vkPresentInfoKHR {
+func (s *PresentInfoKHR) ToVK() *vkPresentInfoKHR {
 	if s == nil {
 		return nil
 	}
@@ -17753,13 +21016,19 @@ type ImageSwapchainCreateInfoKHR struct {
 	Swapchain SwapchainKHR
 }
 
+// eg: gostruct := (&vk.ImageSwapchainCreateInfoKHR{}).FromVK(goStruct2.PNext)
+func (s *ImageSwapchainCreateInfoKHR) FromVK(pn unsafe.Pointer) *ImageSwapchainCreateInfoKHR {
+	vks := (*vkImageSwapchainCreateInfoKHR)(pn)
+	return vks.ToGo()
+}
+
 type vkImageSwapchainCreateInfoKHR struct {
 	sType     StructureType
 	pNext     unsafe.Pointer
 	swapchain SwapchainKHR
 }
 
-func (s *vkImageSwapchainCreateInfoKHR) goStruct() *ImageSwapchainCreateInfoKHR {
+func (s *vkImageSwapchainCreateInfoKHR) ToGo() *ImageSwapchainCreateInfoKHR {
 	rval := &ImageSwapchainCreateInfoKHR{
 		PNext:     (unsafe.Pointer)(s.pNext),
 		Swapchain: (SwapchainKHR)(s.swapchain),
@@ -17767,7 +21036,7 @@ func (s *vkImageSwapchainCreateInfoKHR) goStruct() *ImageSwapchainCreateInfoKHR 
 	return rval
 }
 
-func (s *ImageSwapchainCreateInfoKHR) vkStruct() *vkImageSwapchainCreateInfoKHR {
+func (s *ImageSwapchainCreateInfoKHR) ToVK() *vkImageSwapchainCreateInfoKHR {
 	if s == nil {
 		return nil
 	}
@@ -17786,6 +21055,12 @@ type BindImageMemorySwapchainInfoKHR struct {
 	ImageIndex uint32
 }
 
+// eg: gostruct := (&vk.BindImageMemorySwapchainInfoKHR{}).FromVK(goStruct2.PNext)
+func (s *BindImageMemorySwapchainInfoKHR) FromVK(pn unsafe.Pointer) *BindImageMemorySwapchainInfoKHR {
+	vks := (*vkBindImageMemorySwapchainInfoKHR)(pn)
+	return vks.ToGo()
+}
+
 type vkBindImageMemorySwapchainInfoKHR struct {
 	sType      StructureType
 	pNext      unsafe.Pointer
@@ -17793,7 +21068,7 @@ type vkBindImageMemorySwapchainInfoKHR struct {
 	imageIndex uint32
 }
 
-func (s *vkBindImageMemorySwapchainInfoKHR) goStruct() *BindImageMemorySwapchainInfoKHR {
+func (s *vkBindImageMemorySwapchainInfoKHR) ToGo() *BindImageMemorySwapchainInfoKHR {
 	rval := &BindImageMemorySwapchainInfoKHR{
 		PNext:      (unsafe.Pointer)(s.pNext),
 		Swapchain:  (SwapchainKHR)(s.swapchain),
@@ -17802,7 +21077,7 @@ func (s *vkBindImageMemorySwapchainInfoKHR) goStruct() *BindImageMemorySwapchain
 	return rval
 }
 
-func (s *BindImageMemorySwapchainInfoKHR) vkStruct() *vkBindImageMemorySwapchainInfoKHR {
+func (s *BindImageMemorySwapchainInfoKHR) ToVK() *vkBindImageMemorySwapchainInfoKHR {
 	if s == nil {
 		return nil
 	}
@@ -17825,6 +21100,12 @@ type AcquireNextImageInfoKHR struct {
 	DeviceMask uint32
 }
 
+// eg: gostruct := (&vk.AcquireNextImageInfoKHR{}).FromVK(goStruct2.PNext)
+func (s *AcquireNextImageInfoKHR) FromVK(pn unsafe.Pointer) *AcquireNextImageInfoKHR {
+	vks := (*vkAcquireNextImageInfoKHR)(pn)
+	return vks.ToGo()
+}
+
 type vkAcquireNextImageInfoKHR struct {
 	sType      StructureType
 	pNext      unsafe.Pointer
@@ -17835,7 +21116,7 @@ type vkAcquireNextImageInfoKHR struct {
 	deviceMask uint32
 }
 
-func (s *vkAcquireNextImageInfoKHR) goStruct() *AcquireNextImageInfoKHR {
+func (s *vkAcquireNextImageInfoKHR) ToGo() *AcquireNextImageInfoKHR {
 	rval := &AcquireNextImageInfoKHR{
 		PNext:      (unsafe.Pointer)(s.pNext),
 		Swapchain:  (SwapchainKHR)(s.swapchain),
@@ -17847,7 +21128,7 @@ func (s *vkAcquireNextImageInfoKHR) goStruct() *AcquireNextImageInfoKHR {
 	return rval
 }
 
-func (s *AcquireNextImageInfoKHR) vkStruct() *vkAcquireNextImageInfoKHR {
+func (s *AcquireNextImageInfoKHR) ToVK() *vkAcquireNextImageInfoKHR {
 	if s == nil {
 		return nil
 	}
@@ -17870,6 +21151,12 @@ type DeviceGroupPresentCapabilitiesKHR struct {
 	Modes       DeviceGroupPresentModeFlagsKHR
 }
 
+// eg: gostruct := (&vk.DeviceGroupPresentCapabilitiesKHR{}).FromVK(goStruct2.PNext)
+func (s *DeviceGroupPresentCapabilitiesKHR) FromVK(pn unsafe.Pointer) *DeviceGroupPresentCapabilitiesKHR {
+	vks := (*vkDeviceGroupPresentCapabilitiesKHR)(pn)
+	return vks.ToGo()
+}
+
 type vkDeviceGroupPresentCapabilitiesKHR struct {
 	sType       StructureType
 	pNext       unsafe.Pointer
@@ -17877,7 +21164,7 @@ type vkDeviceGroupPresentCapabilitiesKHR struct {
 	modes       DeviceGroupPresentModeFlagsKHR
 }
 
-func (s *vkDeviceGroupPresentCapabilitiesKHR) goStruct() *DeviceGroupPresentCapabilitiesKHR {
+func (s *vkDeviceGroupPresentCapabilitiesKHR) ToGo() *DeviceGroupPresentCapabilitiesKHR {
 	rval := &DeviceGroupPresentCapabilitiesKHR{
 		PNext:       (unsafe.Pointer)(s.pNext),
 		PresentMask: ([MAX_DEVICE_GROUP_SIZE]uint32)(s.presentMask),
@@ -17886,7 +21173,7 @@ func (s *vkDeviceGroupPresentCapabilitiesKHR) goStruct() *DeviceGroupPresentCapa
 	return rval
 }
 
-func (s *DeviceGroupPresentCapabilitiesKHR) vkStruct() *vkDeviceGroupPresentCapabilitiesKHR {
+func (s *DeviceGroupPresentCapabilitiesKHR) ToVK() *vkDeviceGroupPresentCapabilitiesKHR {
 	if s == nil {
 		return nil
 	}
@@ -17906,6 +21193,12 @@ type DeviceGroupPresentInfoKHR struct {
 	Mode         DeviceGroupPresentModeFlagBitsKHR
 }
 
+// eg: gostruct := (&vk.DeviceGroupPresentInfoKHR{}).FromVK(goStruct2.PNext)
+func (s *DeviceGroupPresentInfoKHR) FromVK(pn unsafe.Pointer) *DeviceGroupPresentInfoKHR {
+	vks := (*vkDeviceGroupPresentInfoKHR)(pn)
+	return vks.ToGo()
+}
+
 type vkDeviceGroupPresentInfoKHR struct {
 	sType          StructureType
 	pNext          unsafe.Pointer
@@ -17914,7 +21207,7 @@ type vkDeviceGroupPresentInfoKHR struct {
 	mode           DeviceGroupPresentModeFlagBitsKHR
 }
 
-func (s *vkDeviceGroupPresentInfoKHR) goStruct() *DeviceGroupPresentInfoKHR {
+func (s *vkDeviceGroupPresentInfoKHR) ToGo() *DeviceGroupPresentInfoKHR {
 	rval := &DeviceGroupPresentInfoKHR{
 		PNext: (unsafe.Pointer)(s.pNext),
 		// ignoring returned pointer type PDeviceMasks
@@ -17923,7 +21216,7 @@ func (s *vkDeviceGroupPresentInfoKHR) goStruct() *DeviceGroupPresentInfoKHR {
 	return rval
 }
 
-func (s *DeviceGroupPresentInfoKHR) vkStruct() *vkDeviceGroupPresentInfoKHR {
+func (s *DeviceGroupPresentInfoKHR) ToVK() *vkDeviceGroupPresentInfoKHR {
 	if s == nil {
 		return nil
 	}
@@ -17947,13 +21240,19 @@ type DeviceGroupSwapchainCreateInfoKHR struct {
 	Modes DeviceGroupPresentModeFlagsKHR
 }
 
+// eg: gostruct := (&vk.DeviceGroupSwapchainCreateInfoKHR{}).FromVK(goStruct2.PNext)
+func (s *DeviceGroupSwapchainCreateInfoKHR) FromVK(pn unsafe.Pointer) *DeviceGroupSwapchainCreateInfoKHR {
+	vks := (*vkDeviceGroupSwapchainCreateInfoKHR)(pn)
+	return vks.ToGo()
+}
+
 type vkDeviceGroupSwapchainCreateInfoKHR struct {
 	sType StructureType
 	pNext unsafe.Pointer
 	modes DeviceGroupPresentModeFlagsKHR
 }
 
-func (s *vkDeviceGroupSwapchainCreateInfoKHR) goStruct() *DeviceGroupSwapchainCreateInfoKHR {
+func (s *vkDeviceGroupSwapchainCreateInfoKHR) ToGo() *DeviceGroupSwapchainCreateInfoKHR {
 	rval := &DeviceGroupSwapchainCreateInfoKHR{
 		PNext: (unsafe.Pointer)(s.pNext),
 		Modes: (DeviceGroupPresentModeFlagsKHR)(s.modes),
@@ -17961,7 +21260,7 @@ func (s *vkDeviceGroupSwapchainCreateInfoKHR) goStruct() *DeviceGroupSwapchainCr
 	return rval
 }
 
-func (s *DeviceGroupSwapchainCreateInfoKHR) vkStruct() *vkDeviceGroupSwapchainCreateInfoKHR {
+func (s *DeviceGroupSwapchainCreateInfoKHR) ToVK() *vkDeviceGroupSwapchainCreateInfoKHR {
 	if s == nil {
 		return nil
 	}
@@ -17979,13 +21278,19 @@ type ExternalMemoryImageCreateInfoNV struct {
 	HandleTypes ExternalMemoryHandleTypeFlagsNV
 }
 
+// eg: gostruct := (&vk.ExternalMemoryImageCreateInfoNV{}).FromVK(goStruct2.PNext)
+func (s *ExternalMemoryImageCreateInfoNV) FromVK(pn unsafe.Pointer) *ExternalMemoryImageCreateInfoNV {
+	vks := (*vkExternalMemoryImageCreateInfoNV)(pn)
+	return vks.ToGo()
+}
+
 type vkExternalMemoryImageCreateInfoNV struct {
 	sType       StructureType
 	pNext       unsafe.Pointer
 	handleTypes ExternalMemoryHandleTypeFlagsNV
 }
 
-func (s *vkExternalMemoryImageCreateInfoNV) goStruct() *ExternalMemoryImageCreateInfoNV {
+func (s *vkExternalMemoryImageCreateInfoNV) ToGo() *ExternalMemoryImageCreateInfoNV {
 	rval := &ExternalMemoryImageCreateInfoNV{
 		PNext:       (unsafe.Pointer)(s.pNext),
 		HandleTypes: (ExternalMemoryHandleTypeFlagsNV)(s.handleTypes),
@@ -17993,7 +21298,7 @@ func (s *vkExternalMemoryImageCreateInfoNV) goStruct() *ExternalMemoryImageCreat
 	return rval
 }
 
-func (s *ExternalMemoryImageCreateInfoNV) vkStruct() *vkExternalMemoryImageCreateInfoNV {
+func (s *ExternalMemoryImageCreateInfoNV) ToVK() *vkExternalMemoryImageCreateInfoNV {
 	if s == nil {
 		return nil
 	}
@@ -18011,13 +21316,19 @@ type ExportMemoryAllocateInfoNV struct {
 	HandleTypes ExternalMemoryHandleTypeFlagsNV
 }
 
+// eg: gostruct := (&vk.ExportMemoryAllocateInfoNV{}).FromVK(goStruct2.PNext)
+func (s *ExportMemoryAllocateInfoNV) FromVK(pn unsafe.Pointer) *ExportMemoryAllocateInfoNV {
+	vks := (*vkExportMemoryAllocateInfoNV)(pn)
+	return vks.ToGo()
+}
+
 type vkExportMemoryAllocateInfoNV struct {
 	sType       StructureType
 	pNext       unsafe.Pointer
 	handleTypes ExternalMemoryHandleTypeFlagsNV
 }
 
-func (s *vkExportMemoryAllocateInfoNV) goStruct() *ExportMemoryAllocateInfoNV {
+func (s *vkExportMemoryAllocateInfoNV) ToGo() *ExportMemoryAllocateInfoNV {
 	rval := &ExportMemoryAllocateInfoNV{
 		PNext:       (unsafe.Pointer)(s.pNext),
 		HandleTypes: (ExternalMemoryHandleTypeFlagsNV)(s.handleTypes),
@@ -18025,7 +21336,7 @@ func (s *vkExportMemoryAllocateInfoNV) goStruct() *ExportMemoryAllocateInfoNV {
 	return rval
 }
 
-func (s *ExportMemoryAllocateInfoNV) vkStruct() *vkExportMemoryAllocateInfoNV {
+func (s *ExportMemoryAllocateInfoNV) ToVK() *vkExportMemoryAllocateInfoNV {
 	if s == nil {
 		return nil
 	}

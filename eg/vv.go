@@ -47,6 +47,7 @@ func vv() {
 		slog.Error("vk.CreateInstance failed", "err", err.Error())
 		return
 	}
+	vk.VKInst = uintptr(instance) // find/initialize other vulkan commands.
 	defer vk.DestroyInstance(instance, nil)
 	fmt.Printf("vulkan started successfully: %+v\n", instance)
 	fmt.Printf("vulkan shutdown\n")

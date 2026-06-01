@@ -30,6 +30,13 @@ import (
 	"strings"
 )
 
+var (
+	// RaytraceEnabled is expected to be enabled using vu.Raytrace(true)
+	// on engine startup. Shaders requiring GPU acceleration structures
+	// will generate errors if this is false.
+	RaytraceEnabled = false
+)
+
 // =============================================================================
 // asset location conventions.
 
@@ -195,26 +202,26 @@ func Image(name string) (idata *ImageData, err error) {
 
 // Vertex MeshData attribute types.
 const (
-	Vertexes    = iota // 0 required:V3 float32
-	Texcoords          // 1 optional:V2 float32
-	Normals            // 2 optional:V3 float32
-	Tangents           // 3 optional:V4 float32
-	Joints             // 4 FUTURE  :V4 uint8    animations
-	Weights            // 5 FUTURE  :V4 uint8    animations
-	Indexes            // 6 required:uint16             - must be second last.
-	VertexTypes        // 7 number of vertex data types - must be last.
+	Vertexes = iota // V3 float32  positions required.
+
+	// supported non-instanced mesh data.
+	Texcoords // V2 float32  uvs       optional
+	Normals   // V3 float32            optional
+	Tangents  // V4 float32  FUTURE
+	Joints    // V4 uint8    FUTURE:animations
+	Weights   // V4 uint8    FUTURE:animations
+
+	// supported instanced mesh data.
+	InstancePosition // V3 float32
+	InstanceColors   // V3 uint8
+	InstanceScales   // float32
+
+	// mesh triangle index data.
+	Indexes     // uint16            required: - must be second last.
+	VertexTypes // number of vertex data types - must be last.
 )
 
-// Instance Data attribute types describe per-instance model data.
-// These are defined here because they are similar to vertex data types.
-const (
-	InstancePosition = iota // position 0 V3 float32
-	InstanceColors          // 1 V3 uint8
-	InstanceScales          // 2 float32
-	InstanceTypes           // number of instance data types - must be last.
-)
-
-// MeshData contains per-vertex data. Data will be index the GLTF buffer.
+// MeshData contains per-vertex data. Data is indexed by the attribute type.
 type MeshData []Buffer
 
 // PBRMaterialData describes a PBR solid material.

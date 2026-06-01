@@ -90,6 +90,10 @@ var dlHandle unsafe.Pointer
 // c-api function pointer that is lazy initialized.
 type vkCommand unsafe.Pointer
 
+// Needed to find vulkan command references with vkGetInstanceProcAddr.
+// Set externally to the vulkan instance from vkCreateInstance.
+var VKInst uintptr
+
 func libName() string {
 	switch runtime.GOOS {
 	case "darwin":

@@ -61,8 +61,10 @@ func main() {
 		_, okVert := verts[name]
 		_, okFrag := frags[name]
 		switch {
-		case strings.HasPrefix(name, "mod"):
-			continue // FUTURE: check for changes to shader modules.
+		case strings.HasSuffix(name, "Mod"): // modules are not for standalone compiles.
+			// FUTURE: check for changes to shader modules and
+			//         recompile the shaders that import them.
+			continue
 		case !okShd || !okVert || !okFrag:
 			compileShader(name, slangInfo, "missing generated file")
 		case slangInfo.ModTime().After(shdInfo.ModTime()):

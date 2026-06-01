@@ -58,7 +58,8 @@ func (mh *mhtag) Load(eng *vu.Engine) error {
 
 	// import assets from asset files.
 	// This creates the assets referenced by the models below.
-	eng.ImportAssets("PBRColor.shd", "monkey0.glb", "PBRTexture.shd", "monkey1.glb")
+	eng.ImportAssets("pbrC.shd", "pbrT.shd")       // shaders
+	eng.ImportAssets("monkey0.glb", "monkey1.glb") // models
 
 	// The scene holds the cameras and lighting information
 	// and acts as the root for all models added to the scene.
@@ -74,12 +75,12 @@ func (mh *mhtag) Load(eng *vu.Engine) error {
 
 	// add monkey heads: facing +Z by default.
 	// Request model assets and render once those assets have been loaded.
-	mh1 := mh.scene.AddModel("shd:PBRColor", "msh:monkey0", "mat:monkey0")
+	mh1 := mh.scene.AddModel("shd:pbrC", "msh:monkey0", "mat:monkey0")
 	mh1.SetAt(-1.5, 0, -5).SetMetallicRoughness(false, 0.9)
-	//
+
 	// use color texture and fixed metallic:roughness values.
 	// The texture matches the shader "color" sampler.
-	mh2 := mh.scene.AddModel("shd:PBRTexture", "msh:monkey1", "tex:color:monkey1", "mat:monkey1")
+	mh2 := mh.scene.AddModel("shd:pbrT", "msh:monkey1", "tex:color:monkey1", "mat:monkey1")
 	mh2.SetAt(+1.5, 0, -5).SetMetallicRoughness(false, 0.3)
 	return nil
 }

@@ -19,6 +19,10 @@ type Config struct {
 
 	// display default background color
 	r, g, b, a float32 // red, green, blue, alpha: range 0-1
+
+	// raytrace true builds the acceleration structures for 3D models.
+	// These are needed for shaders that calculate shadows.
+	raytrace bool // default false
 }
 
 // configDefaults provides reasonable defaults so the game
@@ -34,6 +38,7 @@ var configDefaults = Config{
 	g:        0.0,   // default black
 	b:        0.0,   // default black
 	a:        1.0,   // default opaque
+	raytrace: false, // default raytrace
 }
 
 // Attr defines optional application attributes that can be used to
@@ -83,4 +88,11 @@ func Windowed() Attr {
 // Background display clear color.
 func Background(r, g, b, a float32) Attr {
 	return func(c *Config) { c.r = r; c.g = g; c.b = b; c.a = a }
+}
+
+// Raytrace true builds acceleration structures for 3D models.
+// Needed for shaders that calculate shadows, this is memory
+// and GPU process intensive for large numbers of 3D models.
+func Raytrace(on bool) Attr {
+	return func(c *Config) { c.raytrace = on }
 }

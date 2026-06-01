@@ -20,7 +20,7 @@ struct SceneUniforms
 layout(set=0, binding=0) ConstantBuffer<SceneUniforms> su;
 
 static const int COLOR = 0;
-layout(set = 1, binding = 0) uniform Sampler2D samplers[1];
+layout(set=1, binding=0) uniform Sampler2D samplers[1];
 
 struct VOut
 {

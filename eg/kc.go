@@ -85,9 +85,8 @@ func (kc *kctag) Update(eng *vu.Engine, in *vu.Input, delta time.Duration) {
 	// react to one time press events.
 	for press := range in.Pressed {
 		switch press {
-		case vu.KX:
-			// quit if X is pressed
-			eng.Shutdown()
+		case vu.KQ:
+			eng.Shutdown() // quit if Q is pressed
 			return
 		}
 	}

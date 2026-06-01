@@ -88,10 +88,10 @@ func (sn *sntag) Load(eng *vu.Engine) error {
 	sn.ui = eng.AddScene(vu.Scene2D)
 
 	// double buffer the stats texture, one for updating, one for rendering.
-	imgWidth, imgHeight := 384, 192
+	imgWidth, imgHeight := 512, 192
 	sn.text = image.NewNRGBA(image.Rect(0, 0, imgWidth, imgHeight))
 	sn.stats = sn.ui.AddModel("shd:image2D", "msh:icon", "fnt:hack22")
-	sn.stats.SetAt(220, 120, 0).SetScale(float64(imgWidth), float64(imgHeight), 0.0)
+	sn.stats.SetAt(280, 120, 0).SetScale(float64(imgWidth), float64(imgHeight), 0.0)
 	sn.stats.AddUpdatableTexture(eng, "stats", sn.text)
 	return nil
 }
@@ -159,7 +159,7 @@ func (sn *sntag) Update(eng *vu.Engine, in *vu.Input, delta time.Duration) {
 // update the statistics label.
 func (sn *sntag) updateStats(eng *vu.Engine) bool {
 	draw.Draw(sn.text, sn.text.Bounds(), image.Transparent, image.Point{}, draw.Src)
-	label := fmt.Sprintf("scale %2.2f frequency %2.3f", sn.scale, sn.frequency)
+	label := fmt.Sprintf("scale([]):%2.2f frequency(-+):%2.3f", sn.scale, sn.frequency)
 	ready := sn.stats.WriteImageText("hack22", label, 0, 0, sn.text)
 	sn.stats.UpdateTexture(eng, sn.text)
 	return ready == nil

@@ -65,6 +65,8 @@ func (eng *Engine) Run(loader Loader, updator Updator) {
 			if extra > 0 {
 				time.Sleep(extra)
 			}
+		} else {
+			time.Sleep(10 * time.Millisecond) // nothing happening: take a break.
 		}
 	}
 	eng.dispose()

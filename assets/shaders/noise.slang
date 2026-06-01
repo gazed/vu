@@ -35,7 +35,7 @@ VOut vertMain(VIn i) {
 	return o;
 }
 
-import "modNoise3D";
+import "noise3DMod";
 
 [shader("fragment")]
 float4 fragMain(VOut i) {

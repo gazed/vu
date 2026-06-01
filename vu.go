@@ -54,6 +54,12 @@ func NewEngine(config ...Attr) (eng *Engine, err error) {
 		attr(&eng.cfg)
 	}
 
+	// turn on ray tracing if requested.
+	if eng.cfg.raytrace {
+		load.RaytraceEnabled = true   // validates ray tracing shaders.
+		render.RaytraceEnabled = true // builds GPU acceleration structures.
+	}
+
 	// create app to hold application created objects and resources.
 	eng.app = newApplication()
 
@@ -67,10 +73,9 @@ func NewEngine(config ...Attr) (eng *Engine, err error) {
 }
 
 // AddScene creates a new application scene graph and camera.
-// Scene graphs use zero to indicate that this is a root node.
-func (eng *Engine) AddScene(st SceneType) *Entity {
+func (eng *Engine) AddScene(sid SceneID) *Entity {
 	// expose public AddScene on the engine.
-	return eng.app.addScene(st) // app does the real work.
+	return eng.app.addScene(sid) // app does the real work.
 }
 
 // AddSound creates an entity from the named sound asset.

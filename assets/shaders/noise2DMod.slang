@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText : © 2026 Galvanized Logic Inc.
 // SPDX-License-Identifier: MIT
 
-module modNoise2D;
+module noise2DMod;
 
 // =============================================================================
 // Simplex noise 2D based on https://www.shadertoy.com/view/Msf3WH

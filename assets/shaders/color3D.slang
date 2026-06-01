@@ -7,7 +7,7 @@ struct VIn {
 	float3 position : POSITION0; // float3 implies 3D render pass.
 };
 
-import "modColor";
+import "colorMod";
 
 [shader("vertex")]
 VOut vertMain(VIn i) {

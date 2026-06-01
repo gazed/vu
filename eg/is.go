@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText : © 2022-2025 Galvanized Logic Inc.
+// SPDX-FileCopyrightText : © 2022-2026 Galvanized Logic Inc.
 // SPDX-License-Identifier: MIT
 
 package main
@@ -91,8 +91,9 @@ func (is *istag) Load(eng *vu.Engine) error {
 	is.pick.Cull(true)  // hide until mouse is over a star
 
 	// one draw call to draw over 9000 stars.
-	s1 := is.scene3D.AddInstancedModel("shd:billboardI", "msh:quad", "tex:color:star")
-	s1.SetInstanceData(eng, uint32(len(is.stars)), is.starData)
+	numStars := uint32(len(is.stars))
+	stars := is.scene3D.AddInstancedModel("shd:billboardI", "msh:quad", "tex:color:star")
+	stars.SetInstanceData(eng, numStars, is.starData) // instance data.
 
 	// create a 2D scene to show the star name when holding the mouse over a star.
 	is.scene2D = eng.AddScene(vu.Scene2D)
@@ -127,17 +128,8 @@ func (is *istag) Update(eng *vu.Engine, in *vu.Input, delta time.Duration) {
 
 	// react to continuous press events.
 	lookSpeed := 15.0 * delta.Seconds()
-	speed := 20.0 * delta.Seconds()
 	for press := range in.Down {
 		switch press {
-		case vu.KW:
-			cam.Move(0, 0, -speed, cam.Lookat())
-		case vu.KS:
-			cam.Move(0, 0, speed, cam.Lookat())
-		case vu.KA:
-			cam.Move(-speed, 0, 0, cam.Lookat())
-		case vu.KD:
-			cam.Move(speed, 0, 0, cam.Lookat())
 		case vu.KMR:
 			if ydiff != 0 {
 				is.pitch += float64(ydiff) * lookSpeed
@@ -198,7 +190,7 @@ func (is *istag) hitStar(stars []brightStar) (starID int) {
 }
 
 // loadBrightStars converts the yaml star data to instanced GPU buffer data.
-func (is *istag) loadBrightStars() (stars []brightStar, data []load.Buffer, err error) {
+func (is *istag) loadBrightStars() (stars []brightStar, data load.MeshData, err error) {
 	bytes, err := load.DataBytes("bright_star.yaml")
 	if err != nil {
 		return stars, data, fmt.Errorf("is:loadBrightStars %w", err)
@@ -237,7 +229,7 @@ func (is *istag) loadBrightStars() (stars []brightStar, data []load.Buffer, err 
 	}
 
 	// convert the bright star data to instanced data.
-	data = make([]load.Buffer, load.InstanceTypes)
+	data = make(load.MeshData, load.VertexTypes)
 	data[load.InstancePosition] = load.F32Buffer(positions, 3)
 	data[load.InstanceColors] = load.F32Buffer(colors, 3)
 	data[load.InstanceScales] = load.F32Buffer(scales, 1)

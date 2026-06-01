@@ -70,10 +70,10 @@ func newApplication() (app *application) {
 
 // addScene is used internally for testing.
 // It is exposed publicly as eng.AddScene.
-func (app *application) addScene(st SceneType) *Entity {
+func (app *application) addScene(sid SceneID) *Entity {
 	eid := app.eids.create()
-	app.povs.create(eid, 0)    // scene graph root.
-	app.scenes.create(eid, st) // 3D or 2D
+	app.povs.create(eid, 0)     // scene graph root.
+	app.scenes.create(eid, sid) // ie: 3D or 2D
 	return &Entity{app: app, eid: eid}
 }
 

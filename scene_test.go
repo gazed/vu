@@ -4,7 +4,6 @@
 package vu
 
 import (
-	"encoding/binary"
 	"math"
 	"testing"
 
@@ -20,7 +19,7 @@ func TestScene(t *testing.T) {
 		app := newApplication()
 		app.ld.loadDefaultAssets(rc) // direct loads (no goroutine)
 		scene := app.addScene(Scene3D)
-		scene.AddLight(PointLight).SetLight(1.0, 0.1, 0.1, 10).SetAt(5, 4, 3)
+		scene.AddLight(SpotLight).SetLight(1.0, 0.1, 0.1, 10).SetAt(5, 4, 3)
 		scene.AddLight(SunLight).SetLight(0.8, 0.8, 0.8, 10).SetAt(1, 2, 3)
 		scene.AddLight(PointLight).SetLight(0.3, 0.3, 0.3, 12).SetAt(3, 4, 5)
 
@@ -30,13 +29,19 @@ func TestScene(t *testing.T) {
 			t.Errorf("expected 2 render passes, got %d", len(passes))
 		}
 
-		// check light counts, they should be sorted by light types.
-		lightCnt := passes[render.Pass3D].Uniforms[load.LIGHTCNT]
-		sunLights := binary.BigEndian.Uint32(lightCnt[0:4])
-		pointLights := binary.BigEndian.Uint32(lightCnt[4:8])
-		spotLights := binary.BigEndian.Uint32(lightCnt[8:12])
-		if sunLights != 1 && pointLights != 2 && spotLights != 0 {
-			t.Errorf("expected 1,2,0 render lights, got %d,%d,%d", sunLights, pointLights, spotLights)
+		// check that the lights are sorted in the render pass.
+		lights := passes[Scene3D].Lights
+		if lights[0].Type != SunLight {
+			t.Errorf("expected sunlight, got %d", lights[0].Type)
+		}
+		if lights[1].Type != PointLight {
+			t.Errorf("expected pointlight, got %d", lights[0].Type)
+		}
+		if lights[2].Type != SpotLight {
+			t.Errorf("expected pointlight, got %d", lights[0].Type)
+		}
+		if lights[3].Type != NoLight {
+			t.Errorf("expected Nolight, got %d", lights[3].Type)
 		}
 	})
 
@@ -55,7 +60,7 @@ func TestScene(t *testing.T) {
 		}
 
 		// check packets
-		packetCount := len(passes[render.Pass3D].Packets)
+		packetCount := len(passes[Scene3D].Packets)
 		if packetCount != 3 {
 			t.Errorf("expected 3-3D render packets, got %d", packetCount)
 		}
@@ -76,7 +81,7 @@ func TestBucket(t *testing.T) {
 
 	// Check the bits placement
 	t.Run("set bucket", func(t *testing.T) {
-		b := setBucketShader(setBucketDistance(newBucket(render.Pass2D), 2.4), 21)
+		b := setBucketShader(setBucketDistance(newBucket(Scene2D), 2.4), 21)
 		b = setBucketLayer(b, 2) // stored as to 16-2
 
 		// pull out the values to check placement.

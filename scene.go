@@ -11,20 +11,18 @@ import (
 	"sort"
 
 	"github.com/gazed/vu/load"
-	"github.com/gazed/vu/math/lin"
 	"github.com/gazed/vu/render"
 )
 
-// SceneType corresponds to a render pass.
+// SceneID corresponds to a render pass.
 //   - Scene3D for the normal world rendering.
 //   - Scene2D for the UI overlay rendering.
-type SceneType uint32
+type SceneID uint8
 
+// SceneID is used to group models with a particular camera and light setup.
 const (
-	//	Scene3D for the normal world rendering.
-	Scene3D SceneType = SceneType(render.Pass3D)
-	//	Scene2D for the UI overlay rendering.
-	Scene2D SceneType = SceneType(render.Pass2D)
+	Scene3D SceneID = iota //	Scene3D for the normal world rendering.
+	Scene2D                //	Scene2D for the UI overlay rendering.
 )
 
 // Cam returns the camera instace for a scene, returning nil
@@ -46,22 +44,24 @@ func (e *Entity) Cam() *Camera {
 // A scene groups one camera with a group of application created entities.
 // Scene is created by the Application calling Eng.AddScene().
 type scene struct {
-	pid render.PassID // scene render pass
-	eid eID           // Scene and top level scene graph node.
-	fbo uint32        // Render target. Default 0: display buffer.
+	sid SceneID // scene identifier
+	eid eID     // Scene and top level scene graph node.
+	fbo uint32  // Render target. Default 0: display buffer.
 
 	// Cam is this scenes camera data. Guaranteed to be non-nil.
 	cam *Camera // Created automatically with a new scene.
 }
 
 // newScene creates a new transform hiearchy branch with its own camera.
-func newScene(eid eID, passID render.PassID) *scene {
-	s := &scene{eid: eid, pid: passID, cam: newCamera()}
-	switch s.pid {
-	case render.Pass2D:
+func newScene(eid eID, sceneID SceneID) *scene {
+	s := &scene{eid: eid, sid: sceneID, cam: newCamera()}
+	switch s.sid {
+	case Scene2D:
 		s.cam.SetClip(0.0, 10.0) // orthographic default clip
-	case render.Pass3D:
+	case Scene3D:
 		s.cam.SetClip(0.1, 1000.0) // projection default clip
+	default:
+		slog.Error("newScene: undefined SceneID", "ID", sceneID)
 	}
 	return s
 }
@@ -71,11 +71,13 @@ func newScene(eid eID, passID render.PassID) *scene {
 func (s *scene) setProjection(ww, wh uint32) {
 	w, h := float64(ww), float64(wh)
 	c := s.cam
-	switch {
-	case s.pid == render.Pass2D:
+	switch s.sid {
+	case Scene2D:
 		c.setOrthographic(0, w, 0, h, c.near, c.far)
-	default:
+	case Scene3D:
 		c.setPerspective(c.fov, w/h, c.near, c.far)
+	default:
+		slog.Error("setProjection: undefined SceneID", "ID", s.sid)
 	}
 	c.focus = true
 }
@@ -121,57 +123,24 @@ func (s *scene) setSceneUniforms(app *application, pass *render.Pass) {
 		activeLights = append(activeLights, sceneLight{p: kp, l: l})
 	}
 
-	// shader code depends on the lights being sorted by type.
+	// sort lights by type.
 	sort.Slice(activeLights, func(i, j int) bool {
 		return activeLights[i].l.kind < activeLights[j].l.kind
 	})
 
 	// use light information to fill the render pass.Lights.
-	sunLights, pointLights, spotLights := int32(0), int32(0), int32(0)
-	for _, al := range activeLights {
-
-		// count the type of lights.
-		switch al.l.kind {
-		case SunLight:
-			sunLights += 1
-		case PointLight:
-			pointLights += 1
-		case SpotLight:
-			spotLights += 1
-		default:
-			slog.Error("scene:setPassUniformData unknown light type", "light_type", al.l.kind)
-		}
+	for i, al := range activeLights {
 
 		// ignore lights past the maximum supported by the shaders.
-		numLights := int(sunLights + pointLights + spotLights)
-		if numLights >= len(pass.Lights) {
-			slog.Warn("scene:setPassUniformData to many lights")
-			break
-		}
-		if numLights <= 0 {
-			slog.Warn("scene:setPassUniformData not enough lights")
+		if i >= len(pass.Lights) {
+			slog.Warn("scene:setSceneUniforms to many lights", "count", len(activeLights))
 			break
 		}
 
 		// fill in the render pass light information needed by the shaders.
-		light := &pass.Lights[numLights-1]
-		light.R, light.G, light.B = al.l.r, al.l.g, al.l.b
-		light.Intensity = al.l.intensity
-
-		// light position
-		px, py, pz := al.p.at()
-		light.Px, light.Py, light.Pz = float32(px), float32(py), float32(pz)
-		light.Attenuation = 1.0 // TODO
-
-		// get the light direction by applying the light rotation
-		// to the original look direction (down the -Z axis).
-		dir := &lin.V3{0, 0, -1}           // original look direction
-		dir.MultQ(dir, al.p.tn.Rot).Unit() // normalized
-		light.Dx, light.Dy, light.Dz = float32(dir.X), float32(dir.Y), float32(dir.Z)
-		light.Cutoff = al.l.cutoff
+		al.l.fillLight(&pass.Lights[i], &al.p)
 	}
 	pass.Uniforms[load.LIGHTS] = render.LightsToBytes(pass.Lights, pass.Uniforms[load.LIGHTS])
-	pass.Uniforms[load.LIGHTCNT] = render.IV4ToBytes(sunLights, pointLights, spotLights, 0, pass.Uniforms[load.LIGHTCNT])
 }
 
 // =============================================================================
@@ -198,10 +167,10 @@ func newScenes() *scenes {
 
 // create makes a new scene and associates it with the given entity.
 // Nothing is created if there already is a scene for the given entity.
-func (ss *scenes) create(eid eID, sceneType SceneType) *scene {
+func (ss *scenes) create(eid eID, sceneID SceneID) *scene {
 	scene, ok := ss.all[eid]
 	if !ok {
-		ss.all[eid] = newScene(eid, render.PassID(sceneType))
+		ss.all[eid] = newScene(eid, sceneID)
 	}
 	return scene // don't allow creating over existing scene.
 }
@@ -241,7 +210,7 @@ func (ss *scenes) getFrame(app *application, frame []render.Pass) []render.Pass 
 
 	// turn the scene models into a frame of render.Packets.
 	for _, sc := range ss.all {
-		pass := &frame[sc.pid]         // a scene is either a 3D or 2D render pass.
+		pass := &frame[sc.sid]         // a scene is either a 3D or 2D render pass.
 		pass.Reset()                   // reset and reuse previous pass.
 		sc.setSceneUniforms(app, pass) // set scene uniform data in the pass.
 		if n := app.povs.getNode(sc.eid); n != nil && !n.cull {
@@ -250,7 +219,7 @@ func (ss *scenes) getFrame(app *application, frame []render.Pass) []render.Pass 
 			pass.Packets = ss.renderParts(app, sc, ss.parts, pass.Packets)
 			sortPackets(pass.Packets) // render order based on Bucket values.
 		}
-		frame[sc.pid] = *pass // save the updated pass.
+		frame[sc.sid] = *pass // save the updated pass.
 	}
 	return frame
 }
@@ -270,7 +239,7 @@ func (ss *scenes) listParts(app *application, sc *scene, index uint32, parts []u
 	if m := app.models.get(p.eid); m != nil {
 		w := p.tw.Loc
 		parts = append(parts, index)
-		if sc.pid == render.Pass3D {
+		if sc.sid == Scene3D {
 			// save distance to camera for transparency sorting.
 			// closer objects drawn last.
 			m.tocam = sc.cam.distance(w.X, w.Y, w.Z)
@@ -299,7 +268,7 @@ func (ss *scenes) renderParts(app *application, sc *scene, parts []uint32, packe
 		// generate render packets for models with loaded assets.
 		if m := app.models.get(p.eid); m != nil {
 			if packets, packet = packets.GetPacket(); packet != nil {
-				packet.Bucket = newBucket(sc.pid)
+				packet.Bucket = newBucket(sc.sid)
 
 				// render model normally from scene camera.
 				// This sets the shader uniforms in the render packet.
@@ -340,7 +309,7 @@ func sortPackets(packets render.Packets) {
 // newBucket produces a number that is used to order draw calls
 // Sorting highest to lowest bucket allows the distance field to
 // be sorted so that further away objects are drawn before closer.
-//   - Pass.... LayrType ShaderID ........ Distance to Camera.................
+//   - SID .... LayrType ShaderID ........ Distance to Camera.................
 //     00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
 //     F   F    F   F    F   F    F   F    F   F    F   F    F   F    F   F
 //   - Pass is the render pass.
@@ -355,9 +324,9 @@ func sortPackets(packets render.Packets) {
 // values result in higher bucket numbers, ie:
 //   - 0 (render.Pass3D) = 255 bucket Pass value - render first
 //   - 1 (render.Pass2D) = 254 bucket Pass value - render next
-func newBucket(pass render.PassID) uint64 {
-	b := uint64(math.MaxUint8-pass) << 56 // render higher numbers before lower.
-	return b | drawOpaque                 // opaque is default
+func newBucket(sid SceneID) uint64 {
+	b := uint64(math.MaxUint8-sid) << 56 // render higher numbers before lower.
+	return b | drawOpaque                // opaque is default
 }
 
 // setBucketDistance to camera for sorting transparent objects.

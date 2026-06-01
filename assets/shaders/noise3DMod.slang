@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText : © 2026 Galvanized Logic Inc.
 // SPDX-License-Identifier: MIT
 
-module modNoise3D;
+module noise3DMod;
 
 // =============================================================================
 // Noise - value - 3D based on https://www.shadertoy.com/view/4sfGzS

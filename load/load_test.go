@@ -92,6 +92,7 @@ func TestShader(t *testing.T) {
 
 	// check if all the shaders can be loaded.
 	t.Run("validate", func(t *testing.T) {
+		RaytraceEnabled = true
 		files, _ := ioutil.ReadDir("../assets/shaders")
 		for _, file := range files {
 			if strings.HasSuffix(file.Name(), ".shd") {
@@ -101,6 +102,7 @@ func TestShader(t *testing.T) {
 				}
 			}
 		}
+		RaytraceEnabled = false
 	})
 
 	t.Run("image3D", func(t *testing.T) {
@@ -119,11 +121,17 @@ func TestShader(t *testing.T) {
 		}
 	})
 
-	t.Run("PBRColor", func(t *testing.T) {
-		shd, err := ShaderConfig("PBRColor.shd")
-		if err != nil || shd.Name != "PBRColor" || shd.Pass != "3D" {
+	t.Run("PBR Color", func(t *testing.T) {
+		RaytraceEnabled = true
+		shd, err := ShaderConfig("pbrCS.shd")
+		if err != nil || shd.Name != "pbrCS" || shd.Pass != "3D" {
 			t.Errorf("shader configuration load failed %s", err)
 		}
+		accels := shd.GetAccelerationUniforms()
+		if len(accels) != 1 {
+			t.Fatalf("expected 1 acceleration uniform got %d", len(accels))
+		}
+		RaytraceEnabled = false
 	})
 
 	t.Run("billboardI", func(t *testing.T) {

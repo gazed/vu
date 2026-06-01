@@ -7,7 +7,7 @@ struct VIn {
 	float2 position : POSITION0; // float2 implies 2D render pass.
 };
 
-import "modColor";
+import "colorMod";
 
 [shader("vertex")]
 VOut vertMain(VIn i) {
