@@ -10,7 +10,7 @@ on the [Wiki](https://github.com/gazed/vu/wiki)
 Vu is a small engine intended for simple games. It currently supports Vulkan on Windows, MacOS, and IOS.
 
 * `vu/physics` handles spheres and convex hulls.
-* `vu/render` uses Vulkan 1.3 without any extensions.
+* `vu/render` uses Vulkan 1.3 with minimal extensions (eg: ray query).
 * `vu/device` supports a basic window, button presses, mouse clicks, and mouse movement.
 
 Vu started as a learning project for Go and 3D programming.
@@ -31,7 +31,7 @@ Build and Test
 ------
 
 * Clone the repo, ie: `git clone git@github.com:gazed/vu.git`
-* Use `go generate` in `vu/assets/shaders` to build the shaders. Requires `glslc` executable.
+* Use `go build` in `vu/assets/shaders` to build the shader generator. Then run the `shaders` executable.
 * `go build` in `vu\eg` and run the examples.
 
 **Build Dependencies**
@@ -40,7 +40,7 @@ Build and Test
 * Vulkan version 1.3 or later, and vulkan validation layer from the SDK at https://www.lunarg.com/vulkan-sdk/
   Includes MoltenVK needed for MacOS and IOS.
 * OpenAL (https://openal.org) latest 64-bit version `OpenAL32.dll`+`soft_oal.dll` from https://openal-soft.org/openal-binaries/
-* `glslc` executable from https://github.com/google/shaderc is needed to build shaders in `vu/assets/shaders`.
+* `slangc` executable from the VulkanSDK for compiling shaders.
 
 Example Games
 ------
@@ -62,8 +62,8 @@ and lucid developers. Thank you in particular to:
 
 * [https://github.com/bbredesen/go-vk](https://github.com/bbredesen/go-vk) MIT License.
   Go bindings for Vulkan. This is a huge amount of work due to the size and complexity of the Vulkan spec.
-  Bindings were generated from a hacked version, `gazed/vk-gen`, that uses Syscall instead of Cgo.
-  The generated bindings were dropped into `vu/internal/render/vk`
+  The `vu/internal/render/vk` Vulkan bindings were generated using [genvk](https://github.com/gazed/genvk)
+  which is based on the binding API designed by bbredesen.
 
 * [https://github.com/felipeek/raw-physics](https://github.com/felipeek/raw-physics) MIT License.
   Raw-physics provides the ability to collide spheres and convex hulls in less than 4000 lines of code.
