@@ -3,13 +3,16 @@
 
 module rayMod;
 
-// ray queries are used for shadows.
+// ray queries are used for hard shadows.
 
 // acceleration structure for ray queries.
 layout(set=0, binding=1) public RaytracingAccelerationStructure tlas;
 
 // traceShadowOccluded returns true if the ray hits anything.
-public bool traceShadowOccluded(float3 origin, float3 direction, float tMin, float tMax) {
+public bool traceShadowOccluded(float3 origin, float3 direction, float3 normal, float tMin, float tMax) {
+    if (dot(normal, direction) <= 0) {
+        return true; // skip fragments that are not facing the light
+    }
     RayDesc ray;
     ray.Origin = origin;       // start at fragment - in world space.
     ray.Direction = direction; // direction to the light - vector in world space.

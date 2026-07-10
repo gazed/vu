@@ -1750,7 +1750,7 @@ func (vr *vulkanRenderer) updateTLAS(pass Pass) (err error) {
 
 	// update TLAS if there are no changes from last time.
 	// Any instance changes require a rebuild.
-	updateTLAS := slices.Equal(instanceEIDs[vr.frameIndex], previousEIDs)
+	isUpdate := slices.Equal(instanceEIDs[vr.frameIndex], previousEIDs)
 
 	// upload all the instance structs to the TLAS Instance storage buffer.
 	// overwriting the contents of the previous instance data buffer.
@@ -1769,7 +1769,7 @@ func (vr *vulkanRenderer) updateTLAS(pass Pass) (err error) {
 	}
 	vr.uploadData(vr.graphicsQCmdPool, vr.graphicsQ, buff.handle, 0, data)
 
-	// reference the current accleration instance buffer.
+	// reference the current acceleration instance buffer.
 	instanceDataAddress := vk.DeviceOrHostAddressConstKHR{}
 	instanceDataAddress.AsDeviceAddress(buff.address)
 	instanceData := vk.AccelerationStructureGeometryInstancesDataKHR{
@@ -1795,7 +1795,7 @@ func (vr *vulkanRenderer) updateTLAS(pass Pass) (err error) {
 
 	// check if this the first time or an update.
 	tlas, tlasExists := vr.accelScenes[0]
-	if tlasExists && updateTLAS {
+	if tlasExists && isUpdate {
 		buildInfo.Mode = vk.BUILD_ACCELERATION_STRUCTURE_MODE_UPDATE_KHR
 	}
 
@@ -1823,7 +1823,7 @@ func (vr *vulkanRenderer) updateTLAS(pass Pass) (err error) {
 	// create the TLAS build information.
 	scratchDeviceAddress := vk.DeviceOrHostAddressKHR{}
 	scratchDeviceAddress.AsDeviceAddress(vr.accelMem[aSCRATCH].address)
-	if tlasExists && updateTLAS {
+	if tlasExists && isUpdate {
 		buildInfo.SrcAccelerationStructure = tlas.handle
 	}
 	buildInfo.DstAccelerationStructure = tlas.handle

@@ -52,9 +52,10 @@ func cr() {
 
 // Globally unique "tag" that encapsulates example specific data.
 type crtag struct {
-	scene *vu.Entity
-	pos   *lin.V3 // initial location.
-	rot   float64 // rotation around origin.
+	scene *vu.Entity // root for visible models.
+	light *vu.Entity // single light source.
+	pos   *lin.V3    // initial location.
+	rot   float64    // rotation around origin.
 }
 
 // Load is the one time startup engine callback to create initial assets.
@@ -70,7 +71,7 @@ func (cr *crtag) Load(eng *vu.Engine) error {
 	cr.scene.Cam().SetAt(cr.pos.X, cr.pos.Y, cr.pos.Z)
 
 	// add one directional light. SetAt sets the direction.
-	cr.scene.AddLight(vu.SunLight).SetAt(2, 2, 2)
+	cr.light = cr.scene.AddLight(vu.SunLight).SetAt(2, 2, 2)
 
 	// create a static slab as a base for the other physics objects.
 	slab := cr.scene.AddModel("shd:pbrCS", "msh:box0", "mat:box0")
@@ -115,19 +116,19 @@ func (cr *crtag) Update(eng *vu.Engine, in *vu.Input, delta time.Duration) {
 	}
 
 	// react to continuous press events.
-	lookSpeed := 40 * delta.Seconds()
+	speed := 40 * delta.Seconds()
 	for press := range in.Down {
 		switch press {
 		case vu.KA:
 			// rotate camera left around center
-			cr.rot -= lookSpeed
+			cr.rot -= speed
 			transformAroundOrigin := lin.NewT().SetLoc(0, 0, 0).SetAa(0, 1, 0, lin.Rad(cr.rot))
 			at := transformAroundOrigin.App(lin.NewV3().Set(cr.pos))
 			cam.SetAt(at.X, at.Y, at.Z)
 			cam.SetYaw(cr.rot)
 		case vu.KD:
 			// rotate camera right around center
-			cr.rot += lookSpeed
+			cr.rot += speed
 			transformAroundOrigin := lin.NewT().SetLoc(0, 0, 0).SetAa(0, 1, 0, lin.Rad(cr.rot))
 			at := transformAroundOrigin.App(lin.NewV3().Set(cr.pos))
 			cam.SetAt(at.X, at.Y, at.Z)

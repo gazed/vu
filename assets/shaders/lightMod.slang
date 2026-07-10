@@ -34,30 +34,27 @@ public struct LightInfo {
 
 // common fragment shader code.
 public bool updateLightInfo(Light l, inout LightInfo li) {
-	float3 ldir;
 	float3 ldist;
 	switch (l.type) {
 	case SunLight:
-		li.L = normalize(l.pos.xyz);         // sun light direction
-		li.I = l.color.xyz * l.intensity;    // light color * light intensity.
-		return true;
-	case PointLight:
-		ldir = l.pos.xyz - li.World;         // light direction.
-		ldist = length(ldir);                // get distance before normalization.
-		li.L = normalize(ldir);		         // normalize light direction.
-		li.I = l.color.xyz * l.intensity;    // intensity
-		li.I /= (ldist * ldist);             // intensity drops off by distance squared.
-		return true;
-	case SpotLight:
-		ldir = l.pos.xyz - li.World;         // light direction.
-		ldist = length(ldir);                // get distance before normalization.
-		li.L = normalize(ldir);		         // normalize light direction.
+        li.L = normalize(l.pos.xyz);            // sun light direction
+        li.I = l.color.xyz * l.intensity;       // light color * light intensity.
+        return true;
+    case PointLight:
+        ldist = length(l.pos.xyz - li.World);   // distance to light
+        li.L = normalize(l.pos.xyz - li.World); // normalized light direction
+        li.I = l.color.xyz * l.intensity;       // intensity
+        li.I /= (ldist * ldist);                // intensity drops by distance squared.
+        return true;
+    case SpotLight:
+        ldist = length(l.pos.xyz - li.World);   // distance to light
+        li.L = normalize(l.pos.xyz - li.World); // normalized light direction
 		float beamEdge = dot(li.L, normalize(-l.dir.xyz));
 		li.I = float3(0); // outside spot light beam
 		if (beamEdge > l.cutoff) {
 			// inside spot light beam
-			li.I = l.color.xyz * l.intensity; // intensity
-			li.I /= (ldist * ldist);          // intensity drops off by distance squared.
+			li.I = l.color.xyz * l.intensity;   // intensity
+			li.I /= (ldist * ldist);            // intensity drops off by distance squared.
 
 			// add blur to beam edge.
 			float falloff =  1.0 - ((1.0 - beamEdge)/(1.0 - l.cutoff));

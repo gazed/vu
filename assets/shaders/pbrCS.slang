@@ -70,10 +70,8 @@ float4 fragMain(VOut i) {
 		if (updateLightInfo(su.lights[i], li)) {
 			info.L = li.L;
 			info.I = li.I;
-			bool inShadow = traceShadowOccluded(li.World, li.L, 0.01, 1000.0);
-			if (inShadow) {
-				totalLight += li.Color.xyz*0.01;
-			} else {
+			bool inShadow = traceShadowOccluded(li.World, li.L, info.N, 0.01, 1000.0);
+			if (!inShadow) {
 				totalLight += PBRColor(info);
 			}
 		}

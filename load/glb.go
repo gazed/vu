@@ -89,7 +89,7 @@ func Glb(name string, r io.Reader) (data []AssetData) {
 			md[Texcoords].Data = make([]byte, byteLen)
 			copy(md[Texcoords].Data, buff[offset:offset+byteLen])
 		default:
-			slog.Warn("unprocessed data", "data", k)
+			slog.Warn("unprocessed glb data", "name", name, "data", k)
 		}
 	}
 

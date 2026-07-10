@@ -81,10 +81,10 @@ public float4 FinalPBRColor(float3 litColor, float4 baseColor) {
 	float ambientStrength = 0.0005;
 	litColor += (ambientStrength * baseColor).xyz;
 
-	// HDR tone mapping
+	// reinhard HDR tone mapping
 	litColor = litColor / (litColor + float3(1.0));
 
 	// Gamma correction
-	float alpha = baseColor.w;
-	return float4(pow(litColor, float3(1.0/2.2)), alpha);
+	const float gamma = 2.2;
+	return float4(pow(litColor, float3(1.0/gamma)), baseColor.w);
 }
