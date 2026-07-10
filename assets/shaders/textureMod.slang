@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText : © 2026 Galvanized Logic Inc.
 // SPDX-License-Identifier: MIT
 
-// textureMod for shaders that import a single texture as the base color. 
+// textureMod for shaders that import a single texture as the base color.
 module textureMod;
 
 public struct SceneUniforms

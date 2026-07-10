@@ -67,12 +67,13 @@ func main() {
 		_, okFrag := frags[name]
 		switch {
 		case strings.HasSuffix(name, "Mod"):
+			requiresCompile[name] = "--"
 			// modules are not compiled, but the shaders that
 			// import them need to be checked.
 			for sname, sbytes := range content {
 				if strings.Contains(string(sbytes), fmt.Sprintf("import \"%s\";", name)) {
 					sinfo := shds[sname]
-					if slangInfo.ModTime().After(sinfo.ModTime()) {
+					if sinfo != nil && slangInfo.ModTime().After(sinfo.ModTime()) {
 						requiresCompile[sname] = "import " + name + " updated"
 					}
 				}
@@ -89,6 +90,7 @@ func main() {
 	for _, name := range shaderNames {
 		reason := requiresCompile[name]
 		switch {
+		case reason == "--": // ignore modules
 		case reason == "ok":
 			fmt.Printf("%-20s ok\n", name)
 		default:
