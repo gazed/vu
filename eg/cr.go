@@ -75,7 +75,7 @@ func (cr *crtag) Load(eng *vu.Engine) error {
 
 	// create a static slab as a base for the other physics objects.
 	slab := cr.scene.AddModel("shd:pbrCS", "msh:box0", "mat:box0")
-	slab.SetScale(50, 10, 50).SetAt(0, -5, 0)
+	slab.SetScale(50, 10, 50).SetAt(0, -5, 0).SetShadowed(true)
 	slab.AddToSimulation(vu.Box(50, 10, 50, vu.StaticSim))
 
 	// create a block of physics cubes.
@@ -141,7 +141,7 @@ func (cr *crtag) Update(eng *vu.Engine, in *vu.Input, delta time.Duration) {
 func (cr *crtag) makeBall(lx, ly, lz float64) (ball *vu.Entity) {
 	const sphere_radius = 1.2849 // from blender
 	ball = cr.scene.AddModel("shd:pbrCS", "msh:sphere")
-	ball.SetScale(2, 2, 2).SetAt(lx, ly, lz)
+	ball.SetScale(2, 2, 2).SetAt(lx, ly, lz).SetShadowed(true)
 	ball.AddToSimulation(vu.Sphere(2*sphere_radius, vu.KinematicSim))
 	r, g, b, a, metallic, roughness := cr.randomColor()
 	ball.SetColor(r, g, b, a)
@@ -152,7 +152,7 @@ func (cr *crtag) makeBall(lx, ly, lz float64) (ball *vu.Entity) {
 // makeBox creates a visible box physics body.
 func (cr *crtag) makeBox(lx, ly, lz float64) (box *vu.Entity) {
 	box = cr.scene.AddModel("shd:pbrCS", "msh:box0")
-	box.SetScale(2, 2, 2).SetAt(lx, ly, lz)
+	box.SetScale(2, 2, 2).SetAt(lx, ly, lz).SetShadowed(true)
 	box.AddToSimulation(vu.Box(2, 2, 2, vu.KinematicSim))
 	r, g, b, a, metallic, roughness := cr.randomColor()
 	box.SetColor(r, g, b, a)

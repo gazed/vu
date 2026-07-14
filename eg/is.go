@@ -74,8 +74,9 @@ func (is *istag) Load(eng *vu.Engine) error {
 
 	// import assets from asset files.
 	// This creates the assets referenced by the models below.
-	eng.ImportAssets("billboardI.shd", "billboard.shd", "star.png", "ring.png") // 3D assets
-	eng.ImportAssets("label.shd", "22:hack.ttf")                                // 2D assets
+	eng.ImportAssets("label.shd", "billboardI.shd", "billboard.shd") // shaders
+	eng.ImportAssets("star.png", "ring.png")                         // textures
+	eng.ImportAssets("22:hack.ttf")                                  // font
 
 	// The scene holds the cameras and lighting information
 	// and acts as the root for all models added to the scene.
@@ -90,10 +91,9 @@ func (is *istag) Load(eng *vu.Engine) error {
 	is.pick.SetLayer(1) // draw over stars.
 	is.pick.Cull(true)  // hide until mouse is over a star
 
-	// one draw call to draw over 9000 stars.
-	numStars := uint32(len(is.stars))
-	stars := is.scene3D.AddInstancedModel("shd:billboardI", "msh:quad", "tex:color:star")
-	stars.SetInstanceData(eng, numStars, is.starData) // instance data.
+	// Create instanced model to draw over 9000 stars with one draw call.
+	stars := is.scene3D.AddModel("shd:billboardI", "msh:quad", "tex:color:star")
+	stars.SetInstanced(eng, uint32(len(is.stars)), is.starData) // instance data.
 
 	// create a 2D scene to show the star name when holding the mouse over a star.
 	is.scene2D = eng.AddScene(vu.Scene2D)

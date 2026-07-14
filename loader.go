@@ -174,7 +174,7 @@ func (l *assetLoader) loadAssets(rc render.Loader, ac audio.Loader) (assetsCreat
 					if err != nil {
 						l.failed += 1
 						slog.Error("LoadMesh failed", "error", err)
-						break
+						break // developer needs to debug why GPU mesh load failed.
 					}
 					assets = append(assets, msh)
 					slog.Debug("loader", "asset", "msh:"+msh.label(), "mid", msh.mid, "filename", filename)

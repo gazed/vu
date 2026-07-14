@@ -1713,8 +1713,8 @@ func (vr *vulkanRenderer) updateTLAS(pass Pass) (err error) {
 	previousEIDs := append([]uint32{}, instanceEIDs[vr.frameIndex]...)
 	instanceEIDs[vr.frameIndex] = instanceEIDs[vr.frameIndex][:0]
 	for _, packet := range pass.Packets {
-		if packet.IsInstanced {
-			continue // ignore instanced meshes.
+		if !packet.IsShadowed || packet.IsInstanced {
+			continue // ignore meshes not meant for shadows
 		}
 		eid := packet.EID    // identifies a mesh instance.
 		mid := packet.MeshID // identifies a BLAS

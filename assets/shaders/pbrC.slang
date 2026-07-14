@@ -14,10 +14,10 @@ import "pbrMod";   // for PBRInfo struct and PBRColor func.
 
 struct SceneUniforms
 {
-	float4x4 proj;      // projection matrix
-	float4x4 view;      // view matrix
-	float4   cam;	    // local camera location
-	Light    lights[4]; // max of 4 lights.
+	float4x4 proj;		// projection matrix
+	float4x4 view;		// view matrix
+	float4	 cam;		// local camera location
+	Light	 lights[4]; // max of 4 lights.
 };
 layout(set=0, binding=0) ConstantBuffer<SceneUniforms> su;
 
@@ -45,8 +45,8 @@ VOut vertMain(VIn i) {
 
 	// calculate lighting information once per vertex.
 	o.world = mul(mu.model, float4(i.position, 1.0)).xyz;
-	o.norm  = normalize(mul((float3x3)mu.model, i.normal));
-	o.view  = normalize(su.cam.xyz - o.world);
+	o.norm	= normalize(mul((float3x3)mu.model, i.normal));
+	o.view	= normalize(su.cam.xyz - o.world);
 	return o;
 }
 
@@ -69,7 +69,7 @@ float4 fragMain(VOut i) {
 		if (updateLightInfo(su.lights[i], li)) {
 			info.L = li.L;
 			info.I = li.I;
-			totalLight += PBRColor(info); // TODO no shadows... or..
+			totalLight += PBRColor(info);
 		}
 	}
 	return FinalPBRColor(totalLight, info.Color);

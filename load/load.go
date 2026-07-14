@@ -202,7 +202,7 @@ func Image(name string) (idata *ImageData, err error) {
 
 // Vertex MeshData attribute types.
 const (
-	Vertexes = iota // V3 float32  positions required.
+	Vertexes = iota // V3 float32 positions required.
 
 	// supported non-instanced mesh data.
 	Texcoords // V2 float32  uvs       optional

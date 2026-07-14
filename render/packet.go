@@ -18,6 +18,9 @@ type Packet struct {
 	// packet (model) uniform data.
 	Uniforms map[load.ModelUniform][]byte
 
+	// true to include packet in TLAS acceleration structure.
+	IsShadowed bool // generally 3D models with normals.
+
 	// used to draw instanced meshes.
 	IsInstanced   bool   // true for instanced models.
 	InstanceID    uint32 // GPU instance data reference.
@@ -33,6 +36,7 @@ func (p *Packet) Reset() {
 	p.ShaderID = 0                  // default shader
 	p.MeshID = 0                    // default mesh
 	p.TextureIDs = p.TextureIDs[:0] // reset, keeping memory
+	p.IsShadowed = false            //
 	p.IsInstanced = false           //
 	p.InstanceID = 0                //
 	p.InstanceCount = 0             //

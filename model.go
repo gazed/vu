@@ -26,25 +26,19 @@ func (e *Entity) AddModel(assets ...string) (me *Entity) {
 	return me
 }
 
-// AddInstancedModel adds a model where the transform and other instance
-// data is saved separately from the model specific data. This way a large
-// number of the same model can be rendered differently.
-func (e *Entity) AddInstancedModel(assets ...string) (me *Entity) {
-	me = e.AddPart() // add a transform node
-	if mod := me.app.models.create(me); mod != nil {
-		mod.getAssets(me, assets...)
-		mod.isInstanced = true
-		mod.instanceCount = 0 // until SetInstanceData is called
-	}
-	return me
-}
-
-// SetInstanceData sets the instance data for an instanced model.
-func (e *Entity) SetInstanceData(eng *Engine, count uint32, data []load.Buffer) (me *Entity) {
-	if mod := e.app.models.get(e.eid); mod != nil && mod.isInstanced {
+// SetInstanced makes this model instanced.
+func (e *Entity) SetInstanced(eng *Engine, count uint32, data []load.Buffer) (me *Entity) {
+	if mod := e.app.models.get(e.eid); mod != nil {
 		var err error
+		mod.isInstanced = true
 		mod.instanceCount = count
-		// TODO need to wait for mid...
+		if mod.mesh.mid == 0 {
+			// need to wait for mid (mesh ID), ie: mesh has been loaded in GPU.
+			// FUTURE: recover from this error and try again later.
+			// Currently works for vu meshes like "quad" that loader.go creates on startup.
+			slog.Error("mesh for instance not loaded", "name", mod.mesh.name)
+			return e
+		}
 		if err = eng.rc.LoadInstanceData(mod.mesh.mid, data); err != nil {
 			slog.Error("SetInstanceData", "error", err)
 			mod.instanceCount = 0
@@ -70,6 +64,20 @@ func (e *Entity) UpdateMesh(eng *Engine, data []load.Buffer) (me *Entity) {
 	return e
 }
 
+// SetShadowed enables (true) or disables (default:false) ray tracing
+// participation as part of the GPU acceleration structure models.
+// This expects to be rendered by a ray capable shader.
+//
+// Depends on Entity.AddModel.
+func (e *Entity) SetShadowed(on bool) *Entity {
+	if m := e.app.models.get(e.eid); m != nil {
+		m.shadowed = on
+		return e
+	}
+	slog.Error("SetShadowed needs AddModel", "eid", e.eid)
+	return e
+}
+
 // SetColor sets the solid color for this model - not the texture
 // color information. This affects shaders like pbr0 and label
 // that use model uniform "color" The color is passed per object
@@ -85,7 +93,7 @@ func (e *Entity) SetColor(r, g, b, a float64) *Entity {
 		m.mat.color = rgba{float32(r), float32(g), float32(b), float32(a)}
 		return e
 	}
-	slog.Error("SetMaterial needs AddModel", "eid", e.eid)
+	slog.Error("SetColor needs AddModel", "eid", e.eid)
 	return e
 }
 
@@ -106,7 +114,7 @@ func (e *Entity) SetMetallicRoughness(metallic bool, roughness float64) *Entity 
 		}
 		return e
 	}
-	slog.Error("SetMaterial needs AddModel", "eid", e.eid)
+	slog.Error("SetMetallicRoughness needs AddModel", "eid", e.eid)
 	return e
 }
 
@@ -274,6 +282,9 @@ type model struct {
 	instanceCount uint32        // default false.
 	instanceData  load.MeshData // render instance data ID.
 
+	// true for models participating in ray trace acceleration structs.
+	shadowed bool // default false
+
 	// FUTURE
 	// anim   *actor  // set for an animated model
 	// effect *effect // set for a particle effect
@@ -300,17 +311,11 @@ func (m *model) getAssets(me *Entity, assets ...string) {
 	for _, attribute := range assets {
 		attr := strings.Split(attribute, ":")
 		switch len(attr) {
-		case 2:
-			// most asset have two fields "asset_type:asset_name"
+		case 2: // most assets have "asset_type:asset_name"
 			name := attr[1]
 			switch attr[0] {
 			case "msh":
-				if m.isInstanced {
-					println("model requesting instanced mesh data")
-					me.app.ld.getAsset(assetID(msh, name), me.eid, me.app.models.assetLoaded)
-				} else {
-					me.app.ld.getAsset(assetID(msh, name), me.eid, me.app.models.assetLoaded)
-				}
+				me.app.ld.getAsset(assetID(msh, name), me.eid, me.app.models.assetLoaded)
 			case "mat":
 				me.app.ld.getAsset(assetID(mat, name), me.eid, me.app.models.assetLoaded)
 			case "shd":
@@ -318,13 +323,10 @@ func (m *model) getAssets(me *Entity, assets ...string) {
 			case "fnt":
 				m.fntAID = assetID(fnt, name)
 				me.app.ld.getAsset(m.fntAID, me.eid, me.app.models.assetLoaded)
-			case "anm":
-				// FUTURE: get mesh animation bone data from GLB files.
 			default:
 				slog.Error("undefined model asset", "attr", attr[0], "name", name, "eid", me.eid)
 			}
-		case 3:
-			// textures have three fields "asset_type:uniform_sampler_name:asset_name"
+		case 3: // textures have "asset_type:uniform_sampler_name:asset_name"
 			uniform := attr[1]
 			name := attr[2]
 			switch attr[0] {
@@ -400,6 +402,9 @@ func (m *model) fillPacket(packet *render.Packet, pov *pov, cam *Camera) error {
 	case effectModel:
 		// FUTURE check particle effect data.
 	}
+
+	// handle models that participate in ray tracing.
+	packet.IsShadowed = m.shadowed
 
 	// handle instanced models where a single mesh is drawn multiple times.
 	packet.IsInstanced = false
@@ -545,22 +550,6 @@ func (ms *models) createLabel(s string, wrap int, e *Entity) *model {
 	m.mat = newMaterial(fmt.Sprintf("mat%d", e.eid)) // fake name
 	m.mat.color = rgba{1, 1, 1, 1}
 	return m
-}
-
-// meshData is called from loader when a model asset
-// requires instance data.
-func (ms *models) meshData(eid eID) (data load.MeshData) {
-	m := ms.get(eid)
-	if m == nil {
-		// The model may have been disposed before it finished loading.
-		slog.Warn("no model for asset", "eid", eid)
-		return
-	}
-	if !m.isInstanced || len(m.instanceData) == 0 {
-		slog.Warn("model.instanceData: not an instanced model", "eid", eid)
-		return
-	}
-	return m.instanceData
 }
 
 // assetsLoaded is called from loader when a model asset

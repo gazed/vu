@@ -6,12 +6,12 @@ module pbrMod;
 // information needed to calculate a PBR color.
 public struct PBRInfo
 {
-	public float4 Color;     // fragment rgba
-	public float3 World;     // vertex world position.
-	public float3 N;         // normalized vertex normal
-	public float3 L;         // normalized light direction
-	public float3 V;         // normalized view direction
-	public float3 I;         // light color * intensity
+	public float4 Color;	 // fragment rgba
+	public float3 World;	 // vertex world position.
+	public float3 N;		 // normalized vertex normal
+	public float3 L;		 // normalized light direction
+	public float3 V;		 // normalized view direction
+	public float3 I;		 // light color * intensity
 	public float  Metallic;  // 0.0 or 1.0
 	public float  Roughness; // 0.0 to 1.0
 };
@@ -46,7 +46,7 @@ float ggxDistribution(float nDotH, float roughness) {
 // PBRColor returns an RGB value for the given light and
 // material information.
 public float3 PBRColor(PBRInfo pi) {
-	float3 H = normalize(pi.V + pi.L);       // half vector
+	float3 H = normalize(pi.V + pi.L);		 // half vector
 	float nDotH = max(dot(pi.N, H), 0.0);
 	float vDotH = max(dot(pi.V, H), 0.0);
 	float nDotL = max(dot(pi.N, pi.L), 0.0);
