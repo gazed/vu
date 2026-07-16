@@ -93,15 +93,14 @@ func (cr *crtag) Load(eng *vu.Engine) error {
 	return nil
 }
 
-// Update is the ongoing engine callback.
-func (cr *crtag) Update(eng *vu.Engine, in *vu.Input, delta time.Duration) {
+// UpdateFrame is the pre render frame engine callback
+func (cr *crtag) UpdateFrame(eng *vu.Engine, in *vu.Input, delta time.Duration, interpolate float64) {
 	cam := cr.scene.Cam()
 
 	// react to one time press events.
 	for press := range in.Pressed {
 		switch press {
-		case vu.KQ:
-			// quit if Q is pressed
+		case vu.KQ, vu.KEsc:
 			eng.Shutdown()
 			return
 		case vu.KSpace:
@@ -114,9 +113,14 @@ func (cr *crtag) Update(eng *vu.Engine, in *vu.Input, delta time.Duration) {
 			ball.Push(throw.X, throw.Y, throw.Z)
 		}
 	}
+}
+
+// UpdateFixed is the pre-physics fixed timestep engine callback.
+func (cr *crtag) UpdateFixed(eng *vu.Engine, in *vu.Input, timestep time.Duration) {
+	cam := cr.scene.Cam()
 
 	// react to continuous press events.
-	speed := 40 * delta.Seconds()
+	speed := 40 * timestep.Seconds()
 	for press := range in.Down {
 		switch press {
 		case vu.KA:

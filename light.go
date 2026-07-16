@@ -64,9 +64,9 @@ func (e *Entity) SetLight(r, g, b, intensity float32) *Entity {
 // is required for spot lights. The default is 0.5 radians, about 28.6deg.
 //
 // Depends on Entity.AddLight.
-func (e *Entity) SetCutoff(angleInRadians float32) *Entity {
+func (e *Entity) SetCutoff(angleInRadians float64) *Entity {
 	if l := e.app.lights.get(e.eid); l != nil {
-		l.cutoff = float32(math.Cos(float64(angleInRadians)))
+		l.cutoff = float32(math.Cos(angleInRadians))
 		return e
 	}
 	slog.Error("SetCone needs AddLight", "eid", e.eid)

@@ -80,16 +80,20 @@ func (kc *kctag) Load(eng *vu.Engine) error {
 	return nil
 }
 
-// Update is the ongoing engine callback.
-func (kc *kctag) Update(eng *vu.Engine, in *vu.Input, delta time.Duration) {
+// UpdateFrame is the pre render frame engine callback
+func (kc *kctag) UpdateFrame(eng *vu.Engine, in *vu.Input, delta time.Duration, interpolate float64) {
 	// react to one time press events.
 	for press := range in.Pressed {
 		switch press {
-		case vu.KQ:
-			eng.Shutdown() // quit if Q is pressed
+		case vu.KQ, vu.KEsc:
+			eng.Shutdown()
 			return
 		}
 	}
+}
+
+// UpdateFixed is the pre-physics fixed timestep engine callback.
+func (kc *kctag) UpdateFixed(eng *vu.Engine, in *vu.Input, timestep time.Duration) {
 
 	// highlight the most recently pressed key
 	kc.focus.Cull(true)

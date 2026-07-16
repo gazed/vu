@@ -96,8 +96,8 @@ func (sn *sntag) Load(eng *vu.Engine) error {
 	return nil
 }
 
-// Update is the ongoing engine callback.
-func (sn *sntag) Update(eng *vu.Engine, in *vu.Input, delta time.Duration) {
+// UpdateFrame is the pre render frame engine callback
+func (sn *sntag) UpdateFrame(eng *vu.Engine, in *vu.Input, delta time.Duration, interpolate float64) {
 
 	// wait for the font to load before the initial text update.
 	// Afterwards only need to update if it changes.
@@ -108,16 +108,19 @@ func (sn *sntag) Update(eng *vu.Engine, in *vu.Input, delta time.Duration) {
 	// react to one time press events.
 	for press := range in.Pressed {
 		switch press {
-		case vu.KQ:
-			// quit if Q is pressed
+		case vu.KQ, vu.KEsc:
 			eng.Shutdown()
 			return
 		}
 	}
 
+}
+
+// UpdateFixed is the pre-physics fixed timestep engine callback.
+func (sn *sntag) UpdateFixed(eng *vu.Engine, in *vu.Input, timestep time.Duration) {
 	// react to continuous press events.
 	cam := sn.scene.Cam()
-	lookSpeed := 250 * delta.Seconds()
+	lookSpeed := 250 * timestep.Seconds()
 	for press := range in.Down {
 		switch press {
 		case vu.KA:

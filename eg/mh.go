@@ -85,26 +85,29 @@ func (mh *mhtag) Load(eng *vu.Engine) error {
 	return nil
 }
 
-// Update is the ongoing engine callback.
-func (mh *mhtag) Update(eng *vu.Engine, in *vu.Input, delta time.Duration) {
+// UpdateFrame is the pre render frame engine callback
+func (mh *mhtag) UpdateFrame(eng *vu.Engine, in *vu.Input, delta time.Duration, interpolate float64) {
 	// react to one time press events.
 	for press := range in.Pressed {
 		switch press {
-		case vu.KQ:
-			// quit if Q is pressed
+		case vu.KQ, vu.KEsc:
 			eng.Shutdown()
 			return
 		}
 	}
+}
+
+// UpdateFixed is the pre-physics fixed timestep engine callback.
+func (mh *mhtag) UpdateFixed(eng *vu.Engine, in *vu.Input, timestep time.Duration) {
 
 	// get mouse position difference from last update.
 	xdiff, ydiff := in.Mx-mh.mx, in.My-mh.my // mouse move differences...
 	mh.mx, mh.my = in.Mx, in.My              // ... from last mouse location.
 
 	// react to continuous press events.
-	lookSpeed := 15.0 * delta.Seconds()
+	lookSpeed := 15.0 * timestep.Seconds()
 	move := 10.0 // move so many units worth in one second.
-	speed := move * delta.Seconds()
+	speed := move * timestep.Seconds()
 	cam := mh.scene.Cam()
 	for press := range in.Down {
 		switch press {

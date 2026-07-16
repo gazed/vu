@@ -22,7 +22,7 @@ import (
 // One application instance is created by engine on startup.
 type application struct {
 	loader  Loader  // Application load callback
-	updator Updator // Application update callback
+	updater Updater // Application update callback
 	resizer Resizer // Application resize callback
 	input   *Input  // User input is refreshed each update.
 

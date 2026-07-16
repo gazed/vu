@@ -106,39 +106,17 @@ func (is *istag) Resize(windowLeft, windowTop int32, windowWidth, windowHeight u
 	is.ww, is.wh = int(windowWidth), int(windowHeight)
 }
 
-// Update is the ongoing engine callback.
-func (is *istag) Update(eng *vu.Engine, in *vu.Input, delta time.Duration) {
-	cam := is.scene3D.Cam()
+// UpdateFrame is the pre render frame engine callback
+func (is *istag) UpdateFrame(eng *vu.Engine, in *vu.Input, delta time.Duration, interpolate float64) {
 
 	// react to one time press events.
 	for press := range in.Pressed {
 		switch press {
-		case vu.KQ:
-			// quit if Q is pressed
+		case vu.KQ, vu.KEsc:
 			eng.Shutdown()
 			return
 		case vu.KF11:
 			eng.ToggleFullscreen()
-		}
-	}
-
-	// get mouse position difference from last update.
-	xdiff, ydiff := in.Mx-is.mx, in.My-is.my // mouse move differences...
-	is.mx, is.my = in.Mx, in.My              // ... from last mouse location.
-
-	// react to continuous press events.
-	lookSpeed := 15.0 * delta.Seconds()
-	for press := range in.Down {
-		switch press {
-		case vu.KMR:
-			if ydiff != 0 {
-				is.pitch += float64(ydiff) * lookSpeed
-			}
-			if xdiff != 0 {
-				is.yaw += float64(-xdiff) * lookSpeed
-			}
-			cam.SetPitch(is.pitch)
-			cam.SetYaw(is.yaw)
 		}
 	}
 
@@ -166,6 +144,31 @@ func (is *istag) Update(eng *vu.Engine, in *vu.Input, delta time.Duration) {
 			scale = 0.2 // scale down for really close stars
 		}
 		is.pick.SetAt(at.X, at.Y, at.Z).SetScale(scale, scale, 1).Cull(false)
+	}
+}
+
+// UpdateFixed is the pre-physics fixed timestep engine callback.
+func (is *istag) UpdateFixed(eng *vu.Engine, in *vu.Input, timestep time.Duration) {
+	cam := is.scene3D.Cam()
+
+	// get mouse position difference from last update.
+	xdiff, ydiff := in.Mx-is.mx, in.My-is.my // mouse move differences...
+	is.mx, is.my = in.Mx, in.My              // ... from last mouse location.
+
+	// react to continuous press events.
+	lookSpeed := 15.0 * timestep.Seconds()
+	for press := range in.Down {
+		switch press {
+		case vu.KMR:
+			if ydiff != 0 {
+				is.pitch += float64(ydiff) * lookSpeed
+			}
+			if xdiff != 0 {
+				is.yaw += float64(-xdiff) * lookSpeed
+			}
+			cam.SetPitch(is.pitch)
+			cam.SetYaw(is.yaw)
+		}
 	}
 }
 

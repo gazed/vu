@@ -16,12 +16,14 @@ import (
 	"github.com/gazed/vu/device"
 )
 
+var accumulator time.Duration
+
 // Run the game engine. This method starts the game loop and does not
 // return until the game shuts down. The game Update method is called
 // each time the game loop updates.
-func (eng *Engine) Run(loader Loader, updator Updator) {
+func (eng *Engine) Run(loader Loader, updater Updater) {
 	eng.app.loader = loader   // application load callback
-	eng.app.updator = updator // application update callback
+	eng.app.updater = updater // application update callback
 
 	// one time device initialization
 	cfg := eng.cfg
@@ -42,31 +44,45 @@ func (eng *Engine) Run(loader Loader, updator Updator) {
 	eng.initialResize()
 
 	// start the run loop
-	eng.prevFrameStart = time.Now()
 	eng.running = true
-	var frameStart time.Time
+	eng.prevFrameStart = time.Now()
+	var loopStart = eng.prevFrameStart
 
 	// loop forever process user input, updating game state, and rendering.
+	// Requires go1.23+ to get 1ms pecision on windows. See go issue #44343.
 	for eng.running {
-		if !eng.suspended {
-			frameStart = time.Now()
+		delta := time.Since(loopStart) // how long since last loop started
+		loopStart = time.Now()         // start the new loop.
+		accumulator += delta
+
+		// handle persistent slowness by dropping updates.
+		// fix this by making the updates and render faster.
+		if accumulator > 3*eng.throttle {
+			accumulator = eng.throttle // run 1 update and drop the rest
 		}
 
-		// run the main update/render loop and exit if the engine has quit.
-		if !eng.runLoop() {
-			break
-		}
+		// run the input poll, game update, and frame render at
+		// the requested throttle rate.
+		if accumulator >= eng.throttle {
+			accumulator -= eng.throttle
 
-		// throttle to rest the CPU/GPU.
-		// Requires go1.23+ to get 1ms pecision on windows. See go issue #44343.
-		if !eng.suspended {
-			extra := eng.throttle - time.Since(frameStart) // FPS throttle
-			extra = extra - extra%10_000                   // round down for wiggle room.
-			if extra > 0 {
-				time.Sleep(extra)
+			// run the main update/render loop and exit if the engine has quit.
+			// if suspended this runs input poll, but ignores game update and frame render.
+			if !eng.runLoop() {
+				break
 			}
+		}
+
+		// take breaks as needed.
+		if eng.suspended {
+			time.Sleep(eng.throttle / 2) // suspended: take a break for half a frame.
 		} else {
-			time.Sleep(10 * time.Millisecond) // nothing happening: take a break.
+
+			// time period was to short to measure. Timer resolution is around 1ms,
+			// so take a short break rather than busy wait.
+			if delta == 0 {
+				time.Sleep(1 * time.Millisecond)
+			}
 		}
 	}
 	eng.dispose()

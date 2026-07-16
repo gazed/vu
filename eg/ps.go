@@ -101,28 +101,32 @@ func (ps *pstag) Load(eng *vu.Engine) error {
 	return nil
 }
 
-// Update is the ongoing engine callback for rendering.
-func (ps *pstag) Update(eng *vu.Engine, in *vu.Input, delta time.Duration) {
+// UpdateFrame is the pre render frame engine callback
+func (ps *pstag) UpdateFrame(eng *vu.Engine, in *vu.Input, delta time.Duration, interpolate float64) {
+
 	// react to one time press events.
 	for press := range in.Pressed {
 		switch press {
-		case vu.KQ:
-			// quit if Q is pressed
+		case vu.KQ, vu.KEsc:
 			eng.Shutdown()
 			return
 		case vu.KF11:
 			eng.ToggleFullscreen()
 		}
 	}
+}
+
+// UpdateFixed is the pre-physics fixed timestep engine callback.
+func (ps *pstag) UpdateFixed(eng *vu.Engine, in *vu.Input, timestep time.Duration) {
 
 	// get mouse position difference from last update.
 	xdiff, ydiff := in.Mx-ps.mx, in.My-ps.my // mouse move differences...
 	ps.mx, ps.my = in.Mx, in.My              // ... from last mouse location.
 
 	// react to continuous press events.
-	lookSpeed := 15.0 * delta.Seconds()
+	lookSpeed := 15.0 * timestep.Seconds()
 	move := 10.0 // move so many units worth in one second.
-	speed := move * delta.Seconds()
+	speed := move * timestep.Seconds()
 	cam := ps.scene.Cam()
 	for press := range in.Down {
 		switch press {

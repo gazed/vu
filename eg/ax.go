@@ -66,13 +66,13 @@ func (ax *axtag) Load(eng *vu.Engine) error {
 // Resize is called by the engine when the window size changes.
 func (ax *axtag) Resize(windowLeft, windowTop int32, windowWidth, windowHeight uint32) {}
 
-// Update is the ongoing engine callback.
-func (ax *axtag) Update(eng *vu.Engine, in *vu.Input, delta time.Duration) {
+// UpdateFrame is the pre render frame engine callback
+func (ax *axtag) UpdateFrame(eng *vu.Engine, in *vu.Input, delta time.Duration, interpolate float64) {
 
 	// react to one time press events.
 	for press := range in.Pressed {
 		switch press {
-		case vu.KQ: // quit if Q is pressed
+		case vu.KQ, vu.KEsc:
 			eng.Shutdown()
 			return
 		case vu.KA: // play sound at the models location.
@@ -80,4 +80,9 @@ func (ax *axtag) Update(eng *vu.Engine, in *vu.Input, delta time.Duration) {
 			return
 		}
 	}
+}
+
+// UpdateFixed is the pre-physics fixed timestep engine callback.
+func (ax *axtag) UpdateFixed(eng *vu.Engine, in *vu.Input, timestep time.Duration) {
+	// react to ongoing button presses.
 }

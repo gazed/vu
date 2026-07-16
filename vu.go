@@ -105,6 +105,9 @@ func (eng *Engine) ImportAssets(assetFilenames ...string) {
 // It will not make the engine faster if the actual FPS is lower than
 // the given limit. Throttle limits less than 30FPS and greater than 240FPS
 // are ignored.
+//
+// Only matters on windows as ios/macos automatically throttle to
+// the display frame rate.
 func (eng *Engine) SetFrameLimit(limit int) {
 	if limit >= 30 && limit <= 240 {
 		eng.throttle = time.Duration(float64(time.Second) / float64(limit))
@@ -155,17 +158,26 @@ type Loader interface {
 	Load(eng *Engine) error
 }
 
-// Updator is responsible for updating application state each render frame.
+// Updater is responsible for updating application state each render frame.
 // The updated is implemented by the user app and passed to eng.Run().
 // It is called once per engine update.
-type Updator interface {
-	// Update allows applications to change state prior to the next render.
-	// Update is called each game loop update (many times a second) while the
-	// game is running.
+type Updater interface {
+	// UpdateFrame is called prior to a frame render (many times a second)
+	// while the game is running. The input.Pressed and input.Released
+	// keys must be processed.
+	//    eng        : the game engine.
+	//    input      : user input refreshed prior to each call.
+	//    delta      : elapsed time since last frame render call.
+	//    interpolate: state fraction between updates.
+	UpdateFrame(eng *Engine, i *Input, delta time.Duration, interpolate float64)
+
+	// UpdateFixed is called prior to a game physics update. This may be
+	// called 0 times or multiple times each UpdateFrame. Process the
+	// input.Down keys. Ignore the input.Pressed and input.Released.
 	//    eng  : the game engine.
-	//    i    : user input refreshed prior to each call.
-	//    delta: elapsed time since last call.
-	Update(eng *Engine, i *Input, delta time.Duration)
+	//    input: user input same as that given to UpdateFrame.
+	//    step : fixed physics timestep.
+	UpdateFixed(eng *Engine, i *Input, step time.Duration)
 }
 
 // initializeDevice is called once on startup.
@@ -210,7 +222,7 @@ var (
 // 2. callbacks on apple devices
 func (eng *Engine) runLoop() (running bool) {
 
-	// process user input.
+	// process user input once per loop.
 	eng.app.input.Clone(eng.dev.GetInput())
 	if !eng.dev.IsRunning() {
 		slog.Info("engine shutdown!") // likely user closed window.
@@ -246,6 +258,13 @@ func (eng *Engine) runLoop() (running bool) {
 	for eng.elapsedTime >= timestep {
 		eng.elapsedTime -= timestep
 
+		// let the game know that physics is about to be called.
+		eng.app.updater.UpdateFixed(eng, eng.app.input, timestep)
+		if !eng.running {
+			slog.Info("app shutdown!") // app called eng.Shutdown()
+			return false               //
+		}
+
 		// Simulate physics using a fixed timestep so that
 		// each update advances by the same amount.
 		eng.app.sim.simulate(eng.app.povs, timestepSecs)
@@ -254,8 +273,12 @@ func (eng *Engine) runLoop() (running bool) {
 		// eng.app.models.moveParticles(timestepSecs)
 	}
 
+	// used to interpolate between current and previous game state.
+	// elapsedTime is always less than timestep at this point.
+	interpolate := float64(eng.elapsedTime) / float64(timestep)
+
 	// update the client app before each render frame
-	eng.app.updator.Update(eng, eng.app.input, delta)
+	eng.app.updater.UpdateFrame(eng, eng.app.input, delta, interpolate)
 	if !eng.running {
 		slog.Info("app shutdown!") // app called eng.Shutdown()
 		return false               //
