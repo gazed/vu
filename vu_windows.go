@@ -56,9 +56,9 @@ func (eng *Engine) Run(loader Loader, updater Updater) {
 		accumulator += delta
 
 		// handle persistent slowness by dropping updates.
-		// fix this by making the updates and render faster.
-		if accumulator > 3*eng.throttle {
-			accumulator = eng.throttle // run 1 update and drop the rest
+		// drop some updates and hopefully catch up later.
+		if accumulator > 5*eng.throttle {
+			accumulator = 2 * eng.throttle
 		}
 
 		// run the input poll, game update, and frame render at
@@ -78,10 +78,10 @@ func (eng *Engine) Run(loader Loader, updater Updater) {
 			time.Sleep(eng.throttle / 2) // suspended: take a break for half a frame.
 		} else {
 
-			// time period was to short to measure. Timer resolution is around 1ms,
-			// so take a short break rather than busy wait.
+			// time period was to short to measure. Timer resolution is
+			// around 0.5ms, so take a short break rather than busy wait.
 			if delta == 0 {
-				time.Sleep(1 * time.Millisecond)
+				time.Sleep(500 * time.Microsecond) // max timer resolution on windows.
 			}
 		}
 	}
