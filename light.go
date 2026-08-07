@@ -69,7 +69,19 @@ func (e *Entity) SetCutoff(angleInRadians float64) *Entity {
 		l.cutoff = float32(math.Cos(angleInRadians))
 		return e
 	}
-	slog.Error("SetCone needs AddLight", "eid", e.eid)
+	slog.Error("SetCutoff needs AddLight", "eid", e.eid)
+	return e
+}
+
+// SetRadius limits the lights attenuation.
+//
+// Depends on Entity.AddLight.
+func (e *Entity) SetRadius(radius float64) *Entity {
+	if l := e.app.lights.get(e.eid); l != nil {
+		l.radius = float32(radius)
+		return e
+	}
+	slog.Error("SetRadius needs AddLight", "eid", e.eid)
 	return e
 }
 
@@ -79,23 +91,25 @@ func (e *Entity) SetCutoff(angleInRadians float64) *Entity {
 // lights have color and intensity. Spot lights have a cutoff angle.
 // The position and orientation of lights are handle by pov components.
 type light struct {
-	kind        int     // light type
-	r, g, b     float32 // Light color: values are 0 to 1.
-	attenuation float32 // light attenuation.
-	intensity   float32 // light intensity.
-	cutoff      float32 // spot light cone.
+	kind      int     // light type
+	r, g, b   float32 // Light color: values are 0 to 1.
+	intensity float32 // light intensity.
+	radius    float32 // light attenuation.
+	cutoff    float32 // spot light cone.
 }
 
 // newLight creates a white light.
 func newLight(lightType int) (l *light) {
 	cutoffAngle := float32(math.Cos(0.5)) // default spotlight cutoff angle ~28.6deg.
+	defaultRadius := float32(10.0)
 	return &light{
 		kind:      lightType,
-		r:         1.0,         // default white color.
-		g:         1.0,         //   ""
-		b:         1.0,         //   ""
-		intensity: 5.0,         // default intensity.
-		cutoff:    cutoffAngle, // default cutoff angle.
+		r:         1.0,           // default white color.
+		g:         1.0,           //   ""
+		b:         1.0,           //   ""
+		intensity: 5.0,           // default intensity.
+		cutoff:    cutoffAngle,   // default cutoff angle.
+		radius:    defaultRadius, //
 	}
 }
 
@@ -119,7 +133,7 @@ func (l *light) fillLight(light *render.Light, pov *pov) {
 
 	// light attributes.
 	light.Intensity = l.intensity
-	light.Attenuation = l.attenuation
+	light.Radius = l.radius
 	light.Cutoff = l.cutoff
 }
 

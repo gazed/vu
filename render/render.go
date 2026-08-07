@@ -447,7 +447,7 @@ type Light struct {
 	Px, Py, Pz, pad1 float32 // world position (vec4)
 	Dx, Dy, Dz, pad2 float32 // direction (vec4)
 	Intensity        float32 // any light
-	Attenuation      float32 // point and spot lights.
+	Radius           float32 // point and spot lights.
 	Cutoff           float32 // cutoff angle in radians for spot lights.
 	Type             int32   // Directional, Point, Spot
 }
@@ -459,7 +459,7 @@ func (l *Light) reset() {
 	l.Px, l.Py, l.Pz = 0.0, 0.0, 0.0
 	l.Dx, l.Dy, l.Dz = 0.0, 0.0, 0.0
 	l.Intensity = 0.0
-	l.Attenuation = 0.0
+	l.Radius = 0.0
 	l.Cutoff = 0.0
 	l.Type = 0
 }

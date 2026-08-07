@@ -7,6 +7,22 @@ import (
 	"testing"
 )
 
+// go test -run Line
+func TestLine(t *testing.T) {
+	t.Run("1:1_2:2", func(t *testing.T) {
+		line := Line(1, 1, 2, 2)
+		if len(line) != 2 {
+			t.Errorf("expected the start and end points: %d", len(line))
+		}
+	})
+	t.Run("2:2_0:0", func(t *testing.T) {
+		line := Line(2, 2, 0, 0)
+		if len(line) != 3 {
+			t.Errorf("expected the start, end, and middle point: %d", len(line))
+		}
+	})
+}
+
 // go test -run Path
 func TestPathing(t *testing.T) {
 

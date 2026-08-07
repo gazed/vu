@@ -162,6 +162,34 @@ func (c *Camera) RayCastSphere(ray, sphere *lin.V3, radius float64) (hit bool) {
 	// d0 + dlen // ray length point 2
 }
 
+// RayCastPlane calculates the point of collision between ray and
+// plane where plane is defined by the plane normal and its center point.
+// The contact point is returned if there is an intersection.
+//
+// ray-plane cast: http://en.wikipedia.org/wiki/Line–plane_intersection
+func (c *Camera) RayCastPlane(ray, center, normal *lin.V3) (hit bool, px, py, pz float64) {
+
+	// check if the ray intersects the plane
+	denom := ray.Dot(normal)
+	if lin.AeqZ(denom) {
+		// ray is parallel (no intersection) or
+		// the ray is entirely in the plane.
+		return false, 0, 0, 0
+	}
+	if denom >= 0 {
+		return false, 0, 0, 0 // only intersect camera facing faces.
+	}
+
+	// vector from ray origin to disk center
+	rox, roy, roz := c.At() // ray origin is the camera world location.
+	rayWorld := lin.NewV3().SetS(center.X-rox, center.Y-roy, center.Z-roz)
+
+	// intersection point of ray with disk plane
+	t := rayWorld.Dot(normal) / denom
+	px, py, pz = rox+ray.X*t, roy+ray.Y*t, roz+ray.Z*t
+	return true, px, py, pz
+}
+
 // RayCastDisk checks for collision between a ray originating from the camera
 // and a circle in world space. The ray must be a unit vector, see: camera.Ray().
 // See: https://en.wikipedia.org/wiki/Line%E2%80%93plane_intersection
@@ -170,28 +198,28 @@ func (c *Camera) RayCastDisk(ray, center, normal *lin.V3, radius float64) (hit b
 	// check if the ray intersects the plane of the disk.
 	// If this is zero then they are parallel (no intersection)
 	// or the ray is entirely in the plane.
-	if denom := ray.Dot(normal); !lin.AeqZ(denom) {
-
-		// only intersect camera facing faces.
-		if denom < 0 {
-
-			// vector from ray origin to disk center
-			rox, roy, roz := c.At() // ray origin is the camera world location.
-			rayDisk := lin.NewV3().SetS(center.X-rox, center.Y-roy, center.Z-roz)
-
-			// intersection point of ray with disk plane
-			t := rayDisk.Dot(normal) / denom
-			px, py, pz := rox+ray.X*t, roy+ray.Y*t, roz+ray.Z*t
-
-			// is the intersection point within the disk radius.
-			v := lin.NewV3().SetS(px-center.X, py-center.Y, pz-center.Z)
-			d2 := v.Dot(v)
-			if d2 < radius*radius {
-				return true
-			}
-		}
+	denom := ray.Dot(normal)
+	if lin.AeqZ(denom) {
+		// ray is parallel (no intersection) or
+		// the ray is entirely in the plane.
+		return false
 	}
-	return false
+	if denom >= 0 {
+		return false // only intersect camera facing faces.
+	}
+
+	// vector from ray origin to disk center
+	rox, roy, roz := c.At() // ray origin is the camera world location.
+	rayDisk := lin.NewV3().SetS(center.X-rox, center.Y-roy, center.Z-roz)
+
+	// intersection point of ray with disk plane
+	t := rayDisk.Dot(normal) / denom
+	px, py, pz := rox+ray.X*t, roy+ray.Y*t, roz+ray.Z*t
+
+	// is the intersection point within the disk radius.
+	v := lin.NewV3().SetS(px-center.X, py-center.Y, pz-center.Z)
+	d2 := v.Dot(v)
+	return d2 < radius*radius
 }
 
 // Screen applies the camera transform on a 3D point in world space wx,wy,wz

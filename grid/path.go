@@ -174,3 +174,48 @@ func (h *priorityQueue) Pop() interface{} {
 	*h = old[0 : n-1]
 	return x
 }
+
+// =============================================================================
+
+// line returns a line by Bresenham's algorithm. Expects uint grid positions.
+// Returns a slice of grid positions from point:0 to point:1.
+// from: https://rosettacode.org/wiki/Bitmap/Bresenham%27s_line_algorithm#Go
+func Line(x0, y0, x1, y1 uint) (line []Pos) {
+	// implemented straight from WP pseudocode
+	dx := int(x1) - int(x0)
+	if dx < 0 {
+		dx = -dx
+	}
+	dy := int(y1) - int(y0)
+	if dy < 0 {
+		dy = -dy
+	}
+	var sx, sy int
+	if x0 < x1 {
+		sx = 1
+	} else {
+		sx = -1
+	}
+	if y0 < y1 {
+		sy = 1
+	} else {
+		sy = -1
+	}
+	err := dx - dy
+	for {
+		line = append(line, Pos{C: x0, R: y0})
+		if x0 == x1 && y0 == y1 {
+			break
+		}
+		e2 := 2 * err
+		if e2 > -dy {
+			err -= dy
+			x0 = uint(int(x0) + sx)
+		}
+		if e2 < dx {
+			err += dx
+			y0 = uint(int(y0) + sy)
+		}
+	}
+	return line
+}

@@ -13,7 +13,7 @@ public struct Light {
 	public float4 pos;		   // XYZ is the world space light position, W:unused
 	public float4 dir;		   // XYZ is world space light direction, W:unused
 	public float  intensity;   //
-	public float  attenuation; //
+	public float  radius;	   // limit the affect of the light.
 	public float  cutoff;	   // cos(cutoff angle in radians)
 	public int	  type;		   // 0:none 1:sun 2:point 3:spot
 };
@@ -48,16 +48,20 @@ public bool updateLightInfo(Light l, inout LightInfo li) {
 		li.D = length(l.pos.xyz - li.World);	// distance to light
 		li.L = normalize(l.pos.xyz - li.World); // normalized light direction
 		li.I = l.color.xyz * l.intensity;		// light intensity
-		li.I /= (li.D * li.D);					// intensity drops by distance squared.
+
+		// intensity drops off by distance squared limited by the light radius.
+		li.I /= clamp(1.0 - (li.D*li.D)/(l.radius*l.radius), 0.0, 1.0);
 		return true;
 	case SpotLight:
 		li.D = length(l.pos.xyz - li.World);	// distance to light
 		li.L = normalize(l.pos.xyz - li.World); // normalized light direction
 		float beamEdge = dot(li.L, normalize(-l.dir.xyz));
-		li.I = float3(0);                       // outside spot light beam
-		if (beamEdge > l.cutoff) {              // inside spot light beam
+		li.I = float3(0);						// outside spot light beam
+		if (beamEdge > l.cutoff) {				// inside spot light beam
 			li.I = l.color.xyz * l.intensity;	// intensity
-			li.I /= (li.D * li.D);				// intensity drops off by distance squared.
+
+			// intensity drops off by distance squared limited by the light radius.
+			li.I /= clamp(1.0 - (li.D*li.D)/(l.radius*l.radius), 0.0, 1.0);
 
 			// add blur to beam edge.
 			float falloff =  1.0 - ((1.0 - beamEdge)/(1.0 - l.cutoff));
