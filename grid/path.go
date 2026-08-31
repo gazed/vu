@@ -22,7 +22,7 @@ import (
 //
 // Computation time increases proportional to the the grid size.
 func GetPath(grid Grid, start, goal Pos, pt PathTraverse, path *[]Pos) {
-	startID := grid.ID(start.R, start.C)
+	startID := grid.Index(start.R, start.C)
 	cameFrom := map[uint]Pos{startID: start}
 	costSoFar := map[uint]float64{startID: 0}
 	frontier := &priorityQueue{queuePosition{pos: start, priority: 0}}
@@ -33,8 +33,8 @@ func GetPath(grid Grid, start, goal Pos, pt PathTraverse, path *[]Pos) {
 			break // success
 		}
 		for _, next := range findNeighbours(grid, pt.Directions, current) {
-			currentID := grid.ID(current.R, current.C)
-			nextID := grid.ID(next.R, next.C)
+			currentID := grid.Index(current.R, current.C)
+			nextID := grid.Index(next.R, next.C)
 			newCost := costSoFar[currentID] + pt.Cost(current, next)
 			if csf, ok := costSoFar[nextID]; !ok || newCost < csf {
 				costSoFar[nextID] = newCost
@@ -47,13 +47,13 @@ func GetPath(grid Grid, start, goal Pos, pt PathTraverse, path *[]Pos) {
 
 	// unwind cameFrom results to get path from start to goal
 	*path = (*path)[:0] // reset to reuse existing memory.
-	goalID := grid.ID(goal.R, goal.C)
+	goalID := grid.Index(goal.R, goal.C)
 	if last, ok := cameFrom[goalID]; ok {
 		*path = append(*path, last, goal)
 		for {
-			lastID := grid.ID(last.R, last.C)
+			lastID := grid.Index(last.R, last.C)
 			prev := cameFrom[lastID]
-			prevID := grid.ID(prev.R, prev.C)
+			prevID := grid.Index(prev.R, prev.C)
 			*path = append(*path, Pos{})   // create space at end of slice...
 			copy((*path)[1:], (*path)[0:]) // ...move old values up one spot...
 			(*path)[0] = prev              // ...and insert new value at beginning.

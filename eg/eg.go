@@ -48,7 +48,6 @@ func main() {
 
 	examples := []example{
 		{"au", "Audio", au},                // test audio bindings.
-		{"ax", "Engine Audio", ax},         // test engine audio.
 		{"vv", "Vulkan Version", vv},       // test vulkan availability and version
 		{"kc", "Keyboard Controller", kc},  // test 2D render
 		{"mh", "Monkey Heads", mh},         // test 3D render with GLB files and PBR shaders.
@@ -56,6 +55,7 @@ func main() {
 		{"ps", "Primitive Shapes", ps},     // test drawing primitive shapes.
 		{"is", "Instanced Stars", is},      // test drawing instanced models
 		{"sn", "Shader Noise", sn},         // test shader noise.
+		{"ff", "Flow Fields", ff},          // test flow field movement.
 
 		// FUTURE: {"ma", "Model Animation", ma}, // test animated models
 	}

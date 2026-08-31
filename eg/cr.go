@@ -93,8 +93,8 @@ func (cr *crtag) Load(eng *vu.Engine) error {
 	return nil
 }
 
-// UpdateFrame is the pre render frame engine callback
-func (cr *crtag) UpdateFrame(eng *vu.Engine, in *vu.Input, delta time.Duration, interpolate float64) {
+// FrameUpdate is the pre render frame engine callback
+func (cr *crtag) FrameUpdate(eng *vu.Engine, in *vu.Input, delta time.Duration, interpolate float64) {
 	cam := cr.scene.Cam()
 
 	// react to one time press events.
@@ -115,8 +115,8 @@ func (cr *crtag) UpdateFrame(eng *vu.Engine, in *vu.Input, delta time.Duration, 
 	}
 }
 
-// UpdateFixed is the pre-physics fixed timestep engine callback.
-func (cr *crtag) UpdateFixed(eng *vu.Engine, in *vu.Input, timestep time.Duration) {
+// FixedUpdate is the pre-physics fixed timestep engine callback.
+func (cr *crtag) FixedUpdate(eng *vu.Engine, in *vu.Input, timestep time.Duration) {
 	cam := cr.scene.Cam()
 
 	// react to continuous press events.

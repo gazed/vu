@@ -106,8 +106,8 @@ func (is *istag) Resize(windowLeft, windowTop int32, windowWidth, windowHeight u
 	is.ww, is.wh = int(windowWidth), int(windowHeight)
 }
 
-// UpdateFrame is the pre render frame engine callback
-func (is *istag) UpdateFrame(eng *vu.Engine, in *vu.Input, delta time.Duration, interpolate float64) {
+// FrameUpdate is the pre render frame engine callback
+func (is *istag) FrameUpdate(eng *vu.Engine, in *vu.Input, delta time.Duration, interpolate float64) {
 
 	// react to one time press events.
 	for press := range in.Pressed {
@@ -147,8 +147,8 @@ func (is *istag) UpdateFrame(eng *vu.Engine, in *vu.Input, delta time.Duration, 
 	}
 }
 
-// UpdateFixed is the pre-physics fixed timestep engine callback.
-func (is *istag) UpdateFixed(eng *vu.Engine, in *vu.Input, timestep time.Duration) {
+// FixedUpdate is the pre-physics fixed timestep engine callback.
+func (is *istag) FixedUpdate(eng *vu.Engine, in *vu.Input, timestep time.Duration) {
 	cam := is.scene3D.Cam()
 
 	// get mouse position difference from last update.

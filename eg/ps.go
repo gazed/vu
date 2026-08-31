@@ -101,8 +101,8 @@ func (ps *pstag) Load(eng *vu.Engine) error {
 	return nil
 }
 
-// UpdateFrame is the pre render frame engine callback
-func (ps *pstag) UpdateFrame(eng *vu.Engine, in *vu.Input, delta time.Duration, interpolate float64) {
+// FrameUpdate is the pre render frame engine callback
+func (ps *pstag) FrameUpdate(eng *vu.Engine, in *vu.Input, delta time.Duration, interpolate float64) {
 
 	// react to one time press events.
 	for press := range in.Pressed {
@@ -116,8 +116,8 @@ func (ps *pstag) UpdateFrame(eng *vu.Engine, in *vu.Input, delta time.Duration, 
 	}
 }
 
-// UpdateFixed is the pre-physics fixed timestep engine callback.
-func (ps *pstag) UpdateFixed(eng *vu.Engine, in *vu.Input, timestep time.Duration) {
+// FixedUpdate is the pre-physics fixed timestep engine callback.
+func (ps *pstag) FixedUpdate(eng *vu.Engine, in *vu.Input, timestep time.Duration) {
 
 	// get mouse position difference from last update.
 	xdiff, ydiff := in.Mx-ps.mx, in.My-ps.my // mouse move differences...

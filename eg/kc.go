@@ -80,8 +80,8 @@ func (kc *kctag) Load(eng *vu.Engine) error {
 	return nil
 }
 
-// UpdateFrame is the pre render frame engine callback
-func (kc *kctag) UpdateFrame(eng *vu.Engine, in *vu.Input, delta time.Duration, interpolate float64) {
+// FrameUpdate is the pre render frame engine callback
+func (kc *kctag) FrameUpdate(eng *vu.Engine, in *vu.Input, delta time.Duration, interpolate float64) {
 	// react to one time press events.
 	for press := range in.Pressed {
 		switch press {
@@ -92,8 +92,8 @@ func (kc *kctag) UpdateFrame(eng *vu.Engine, in *vu.Input, delta time.Duration, 
 	}
 }
 
-// UpdateFixed is the pre-physics fixed timestep engine callback.
-func (kc *kctag) UpdateFixed(eng *vu.Engine, in *vu.Input, timestep time.Duration) {
+// FixedUpdate is the pre-physics fixed timestep engine callback.
+func (kc *kctag) FixedUpdate(eng *vu.Engine, in *vu.Input, timestep time.Duration) {
 
 	// highlight the most recently pressed key
 	kc.focus.Cull(true)

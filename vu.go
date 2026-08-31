@@ -162,22 +162,22 @@ type Loader interface {
 // The updated is implemented by the user app and passed to eng.Run().
 // It is called once per engine update.
 type Updater interface {
-	// UpdateFrame is called prior to a frame render (many times a second)
+	// FrameUpdate is called prior to a frame render (many times a second)
 	// while the game is running. The input.Pressed and input.Released
 	// keys must be processed.
 	//    eng        : the game engine.
 	//    input      : user input refreshed prior to each call.
 	//    delta      : elapsed time since last frame render call.
 	//    interpolate: state fraction between updates.
-	UpdateFrame(eng *Engine, i *Input, delta time.Duration, interpolate float64)
+	FrameUpdate(eng *Engine, i *Input, delta time.Duration, interpolate float64)
 
-	// UpdateFixed is called prior to a game physics update. This may be
-	// called 0 times or multiple times each UpdateFrame. Process the
+	// FixedUpdate is called prior to a game physics update. This may be
+	// called 0 times or multiple times each FrameUpdate. Process the
 	// input.Down keys. Ignore the input.Pressed and input.Released.
 	//    eng  : the game engine.
 	//    input: user input same as that given to UpdateFrame.
 	//    step : fixed physics timestep.
-	UpdateFixed(eng *Engine, i *Input, step time.Duration)
+	FixedUpdate(eng *Engine, i *Input, step time.Duration)
 }
 
 // initializeDevice is called once on startup.
@@ -259,7 +259,7 @@ func (eng *Engine) runLoop() (running bool) {
 		eng.elapsedTime -= timestep
 
 		// let the game know that physics is about to be called.
-		eng.app.updater.UpdateFixed(eng, eng.app.input, timestep)
+		eng.app.updater.FixedUpdate(eng, eng.app.input, timestep)
 		if !eng.running {
 			slog.Info("app shutdown!") // app called eng.Shutdown()
 			return false               //
@@ -278,7 +278,7 @@ func (eng *Engine) runLoop() (running bool) {
 	interpolate := float64(eng.elapsedTime) / float64(timestep)
 
 	// update the client app before each render frame
-	eng.app.updater.UpdateFrame(eng, eng.app.input, delta, interpolate)
+	eng.app.updater.FrameUpdate(eng, eng.app.input, delta, interpolate)
 	if !eng.running {
 		slog.Info("app shutdown!") // app called eng.Shutdown()
 		return false               //

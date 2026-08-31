@@ -38,16 +38,25 @@ func TestGrid(t *testing.T) {
 			t.Errorf("expected solid grid")
 		}
 	})
-	t.Run("grid ID", func(t *testing.T) {
+	t.Run("grid Index", func(t *testing.T) {
 		g := MakeGrid(3, 3)
-		if got := g.ID(0, 0); got != 0 {
+		if got := g.Index(0, 0); got != 0 {
 			t.Errorf("expected 0 got %d", got)
 		}
-		if got := g.ID(1, 2); got != 5 {
+		if r, c := g.Indices(0); r != 0 && c != 0 {
+			t.Errorf("expected 0,0 got %d:%d", r, c)
+		}
+		if got := g.Index(1, 2); got != 5 {
 			t.Errorf("expected 5 got %d", got)
 		}
-		if got := g.ID(2, 2); got != 8 {
+		if r, c := g.Indices(5); r != 1 && c != 2 {
+			t.Errorf("expected 1,2 got %d:%d", r, c)
+		}
+		if got := g.Index(2, 2); got != 8 {
 			t.Errorf("expected 8 got %d", got)
+		}
+		if r, c := g.Indices(8); r != 2 && c != 2 {
+			t.Errorf("expected 2,2 got %d:%d", r, c)
 		}
 	})
 	t.Run("dump grid", func(t *testing.T) {
@@ -58,7 +67,6 @@ func TestGrid(t *testing.T) {
 			{1, 0, 0, 0, 1},
 			{1, 1, 0, 1, 1},
 		}
-		gridSymbols := map[uint16]string{0: "  ", 1: "██"}
-		g.Dump(gridSymbols)
+		g.Dump(GridSymbols)
 	})
 }

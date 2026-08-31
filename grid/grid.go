@@ -7,6 +7,7 @@ package grid
 import (
 	"fmt"
 	"log/slog"
+	"math"
 )
 
 // Grid is a rectangular area where each grid element can be set
@@ -59,15 +60,27 @@ func (g Grid) Valid() bool {
 	return true
 }
 
-// ID returns a single value for the given grid location.
+// Index returns a single value for the given grid indices.
 // Returns 0 and logs error for invalid grid locations.
-func (g Grid) ID(r, c uint) uint {
-	if g.In(r, c) {
-		rows, _ := g.Size()
-		return r*rows + c
+func (g Grid) Index(row, col uint) uint {
+	if g.In(row, col) {
+		_, cols := g.Size()
+		return row*cols + col
 	}
-	slog.Error("Grid:ID invalid location")
-	return 0 // invalid (note: valid for r=0,c=0)
+	slog.Error("Grid:Index invalid indices")
+	return math.MaxUint // invalid - developer error to get here.
+}
+
+// Indices returns the grid indices from the given single index.
+func (g Grid) Indices(index uint) (row, col uint) {
+	_, cols := g.Size()
+	row = index / cols // integer division
+	col = index % cols // modulo
+	if g.In(row, col) {
+		return row, col
+	}
+	slog.Error("Grid:Indices invalid index")
+	return math.MaxUint, math.MaxUint // invalid - developer error to get here.
 }
 
 // Fill all grid elements to the given value.

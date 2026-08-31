@@ -96,8 +96,8 @@ func (sn *sntag) Load(eng *vu.Engine) error {
 	return nil
 }
 
-// UpdateFrame is the pre render frame engine callback
-func (sn *sntag) UpdateFrame(eng *vu.Engine, in *vu.Input, delta time.Duration, interpolate float64) {
+// FrameUpdate is the pre render frame engine callback
+func (sn *sntag) FrameUpdate(eng *vu.Engine, in *vu.Input, delta time.Duration, interpolate float64) {
 
 	// wait for the font to load before the initial text update.
 	// Afterwards only need to update if it changes.
@@ -116,8 +116,8 @@ func (sn *sntag) UpdateFrame(eng *vu.Engine, in *vu.Input, delta time.Duration, 
 
 }
 
-// UpdateFixed is the pre-physics fixed timestep engine callback.
-func (sn *sntag) UpdateFixed(eng *vu.Engine, in *vu.Input, timestep time.Duration) {
+// FixedUpdate is the pre-physics fixed timestep engine callback.
+func (sn *sntag) FixedUpdate(eng *vu.Engine, in *vu.Input, timestep time.Duration) {
 	// react to continuous press events.
 	cam := sn.scene.Cam()
 	lookSpeed := 250 * timestep.Seconds()
